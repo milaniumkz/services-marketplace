@@ -1,10 +1,19 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { AppModule, getMarketplace } from './app.module';
+import express from 'express';
+import { startRealtime } from './realtime';
 async function bootstrap() {
   const port = Number(process.env.API_PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid API_PORT');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
+  app.use('/api/v1/uploads',express.raw({type:'application/octet-stream',limit:'10mb'}));
+  const marketplace=await getMarketplace();
   await app.listen(port, process.env.API_HOST ?? '127.0.0.1');
+  const stopRealtime=startRealtime(app.getHttpServer(),marketplace);
+  const worker=setInterval(()=>marketplace.maintenance().catch(()=>console.error('Maintenance failed; records remain pending for retry')),60000);
+  const pushWorker=setInterval(()=>marketplace.deliverOutbox().catch(()=>console.error('Outbox delivery failed; pending events will retry')),3000);
+  const shutdown=async()=>{clearInterval(worker);clearInterval(pushWorker);stopRealtime();await app.close();await marketplace.store.close();};
+  process.once('SIGTERM',shutdown);process.once('SIGINT',shutdown);
 }
 void bootstrap();

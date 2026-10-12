@@ -1,0 +1,69 @@
+import { Temporal } from '@js-temporal/polyfill';
+import { HttpException } from '@nestjs/common';
+import { RecordData, Store } from './store';
+import { Providers } from './providers';
+import { validateRules } from './moderation';
+function fail(code:string,message:string,status=422):never{throw new HttpException({error:{code,message,details:{},retryable:status===503}},status);};
+export function promoEnd(date:string,timeZone:string) {
+  return Temporal.PlainDate.from(date).add({days:1}).toZonedDateTime(timeZone).toInstant().toString();
+}
+export class Configuration {
+  constructor(private store:Store,private providers:Providers){}
+  async validate(r:RecordData) {
+    const p=r.payload??{};
+    if(r.kind==='price_version') {
+      if(!Number.isSafeInteger(p.amount_minor)||p.amount_minor<0||!['KZT','RSD','RUB','BYN'].includes(p.currency))fail('VALIDATION_ERROR','Проверьте цену и валюту');
+      const provider=this.providers.billing.get(p.provider);if(!provider)fail('PROVIDER_UNAVAILABLE','Сначала подключите платёжного провайдера',503);
+      const product=await provider.validateProduct(p.product_id,r.country);
+      if(product.currency!==p.currency||product.amount_minor!==p.amount_minor)fail('PRICE_MISMATCH','Цена не синхронизирована с провайдером');
+      return {provider_verified:true};
+    }
+    if(r.kind==='monetization_config') {
+      if(p.subscription_enabled===false)fail('SUBSCRIPTION_REQUIRED','Опцию подписки нельзя удалить');
+      if(typeof p.banner_ads_enabled!=='boolean'||typeof p.rewarded_access_enabled!=='boolean')fail('VALIDATION_ERROR','Рекламные флаги независимы и обязательны');
+      if(p.rewarded_access_enabled) {
+        if(!this.providers.rewards.has(p.provider)||!p.policy_evidence)fail('REWARD_POLICY_UNAPPROVED','Нужны провайдер и подтверждение допустимости pay-or-ad',503);
+        const reward=p.reward_policy;if(!reward||!['duration','action_credits'].includes(reward.kind)||!Array.isArray(reward.capabilities)||!reward.capabilities.length)fail('VALIDATION_ERROR','Проверьте политику награды');
+        if(reward.kind==='duration'&&(!Number.isInteger(reward.duration_seconds)||reward.duration_seconds<60||reward.duration_seconds>30*86400))fail('VALIDATION_ERROR','Проверьте длительность награды');
+        if(reward.kind==='action_credits'&&(!Number.isInteger(reward.credits)||reward.credits<1||reward.credits>100))fail('VALIDATION_ERROR','Проверьте число кредитов');
+      }
+    }
+    if(r.kind==='promotion') {
+      if(typeof p.end_date!=='string'||typeof p.time_zone!=='string')fail('VALIDATION_ERROR','Дата и часовой пояс обязательны');
+      let end:string;try{end=promoEnd(p.end_date,p.time_zone);}catch{fail('VALIDATION_ERROR','Некорректная дата или IANA time zone');}
+      const next=await this.store.get(p.next_price_id);if(!next||next.kind!=='price_version'||next.country!==r.country||next.status!=='effective')fail('NEXT_PRICE_UNVERIFIED','Сначала опубликуйте следующий тариф');
+      if(Date.parse(end!)<=Date.now())fail('VALIDATION_ERROR','Дата промо уже прошла');
+      return {promo_end_exclusive:end!,next_price:{id:next.id,...next.payload},amount_minor:0};
+    }
+    if(r.kind==='dictionary'){try{validateRules(p.rules);}catch(e:any){fail('VALIDATION_ERROR',e.message);}}
+    if(r.kind==='category') {
+      const schema=p.schema??{};if(Object.keys(schema.properties??{}).length>50)fail('VALIDATION_ERROR','Слишком много полей категории');
+      for(const definition of Object.values(schema.properties??{}) as any[])if(!['string','number','integer','boolean'].includes(definition.type)||definition.pattern)fail('VALIDATION_ERROR','Тип поля не поддерживается или использует произвольный regex');
+    }
+    if(r.kind==='referral_campaign') {
+      if(!Number.isInteger(p.threshold)||p.threshold<1||p.threshold>100||!Number.isInteger(p.budget_units)||p.budget_units<1||!Number.isInteger(p.reward_duration_seconds)||p.reward_duration_seconds<60)fail('VALIDATION_ERROR','Проверьте порог, бюджет и длительность');
+      if(!['completed_order','executor_verified'].includes(p.qualifying_event))fail('VALIDATION_ERROR','Укажите подтверждаемое событие');
+      if(p.multilevel||p.cash_payout)fail('POLICY_REJECTED','В первом релизе только одноуровневые неденежные привилегии');
+    }
+    if(r.kind==='placement_policy'&&(!Number.isInteger(p.capacity)||p.capacity<1||p.capacity>100))fail('VALIDATION_ERROR','Проверьте ёмкость размещения');
+    if(['verification_policy','retention_policy'].includes(r.kind)) {
+      const document=await this.store.get(p.document_id);if(!document||document.kind!=='legal_document'||document.country!==r.country||document.status!=='published')fail('LEGAL_VERSION_UNAPPROVED','Нужно опубликованное правовое основание');
+      if(r.kind==='verification_policy'&&(!Array.isArray(p.document_types)||!p.document_types.length||p.document_types.some((t:string)=>!['passport','id_card'].includes(t))))fail('VALIDATION_ERROR','Укажите допустимые типы документа');
+      if(r.kind==='retention_policy'&&(!Number.isInteger(p.document_days)||p.document_days<1||p.document_days>365))fail('VALIDATION_ERROR','Укажите утверждённый срок хранения документов');
+    }
+    return {valid:true};
+  }
+  async publish(r:RecordData,actor:string,version:number) {
+    if(r.version!==version)fail('STATE_CONFLICT','Настройка изменилась',409);
+    if(r.owner===actor)fail('SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника',403);
+    if(!['draft','validated','approved'].includes(r.status))fail('STATE_CONFLICT','Версия уже опубликована',409);
+    const preview=await this.validate(r);
+    if(r.kind==='placement_policy') {
+      const active=(await this.store.all('boost',r.country)).filter(x=>x.placement_id===r.payload.placement_id&&['active','scheduled'].includes(x.status));
+      if(active.length>r.payload.capacity)fail('CAPACITY_PROMISE_CONFLICT','Нельзя уменьшить ёмкость ниже выданных обещаний',409);
+    }
+    const scope=(x:RecordData)=>JSON.stringify(x.kind==='category'?{category:x.payload?.category_id??x.id}:x.kind==='price_version'?{provider:x.payload.provider,product:x.payload.product_id,audience:x.payload.audience}:x.kind==='placement_policy'?{placement:x.payload.placement_id}:{scope:x.payload?.scope,role:x.payload?.role,platform:x.payload?.platform});
+    for(const old of await this.store.all(r.kind,r.country))if(old.status==='effective'&&scope(old)===scope(r))await this.store.put({...old,status:'superseded',version:old.version+1});
+    return this.store.put({...r,status:'effective',preview,published_by:actor,published_at:new Date().toISOString(),version:r.version+1});
+  }
+}

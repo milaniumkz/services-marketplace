@@ -1,0 +1,11 @@
+.git
+.local
+node_modules
+**/node_modules
+**/dist
+**/build
+.env
+.env.*
+!.env.example
+docs/design/packages
+docs/design/pdf
