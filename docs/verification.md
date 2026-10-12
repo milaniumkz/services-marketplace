@@ -22,4 +22,4 @@ Complete MD fetched via GitHub and fast-forwarded from `92c5d9568d208f6e7459be74
 
 ## JOBA branding-only follow-up
 
-Display names changed to JOBA in Flutter, iOS plist, Android label and admin demo; README/STATUS reflect the chosen brand. Admin TypeScript/Vite build passed, Flutter analyze reports no issues, one widget test passes and iOS plist lint passes. GitHub repository, application/bundle IDs and signing remain unchanged. Specification v1 SHA256 remains 023c5c6334745824e7e2688f3f4a1c3d4b1748c8fda9a9ea889ff5bdab04e6da; author-managed v1.0.1 branding revision is pending transfer. Native builds not run.
+Display names changed to JOBA in Flutter, iOS plist, Android label and admin demo; README/STATUS reflect the chosen brand. Admin TypeScript/Vite build passed, Flutter analyze reports no issues, one widget test passes and iOS plist lint passes. GitHub repository, application/bundle IDs and signing remain unchanged. Specification v1 SHA256 remains 023c5c6334745824e7e2688f3f4a1c3d4b1748c8fda9a9ea889ff5bdab04e6da; author-managed v1.1 (JOBA + portfolio) revision is pending transfer. Native builds not run.

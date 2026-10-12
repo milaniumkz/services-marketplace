@@ -17,6 +17,7 @@ implemented = готова указанная узкая техническая 
 | Auth / FR-006–008 | partial | Policy/state/display guard, тесты expiry/revoke; нет phone-password endpoints, Argon2id, region-first, session persistence, secure storage, PIN/biometric implementation |
 | Монетизация / FR-031–032 | partial | Неизменяемые demo flags и shape validator, scope country/role, версия и reward examples; нет platform/placement/TTL, persistence, admin publish/rollback или entitlement engine |
 | PostgreSQL/PostGIS foundation | partial | Compose template + SQL extension; не запускались, нет business tables/runner/history/integration tests |
+| Отдельное портфолио исполнителя | not_started | Pending implementation: фото работ, название/описание проекта, категория услуги, редактирование/удаление, просмотр заказчиком в профиле, модерация материалов; автор готовит полное ТЗ v1.1 |
 | Заказ/исполнитель/профили/поиск/отклик/invite/чат/завершение/спор/репутация / FR-001–002, FR-011–020 | not_started | Нет вертикального бизнес-сценария, данных или endpoints |
 | Server roles/object access и региональная изоляция / FR-003/005 | not_started | Нет enforcement или регионального data plane |
 | ID/consent/privacy/export/delete / FR-009–010 | not_started | Только требования, нет обработки реальных данных |
@@ -32,4 +33,6 @@ implemented = готова указанная узкая техническая 
 
 Открытые gates: решения раздела 41, особенно D02/D03 regions, D04 payment channels, D05 rewarded policy, D07 reward model, D10 retention, D17 recovery, D19 referral terms. Получение ТЗ не означает согласование всех предложенных чисел/стека/интервалов. Native builds и PostgreSQL пока не проверены. Реальные SDK, платежи/реклама, Actions, Docker/Colima, runners и production не включались.
 
-Бренд выбран: **JOBA**. Домен/юридическое лицо не утверждены. Исходный ТЗ v1 в docs/spec сохранён неизменённым; автор готовит v1.0.1 branding-only с точными новыми байтами для отдельной синхронизации.
+Бренд выбран: **JOBA**. Домен/юридическое лицо не утверждены. Исходный ТЗ v1 в docs/spec сохранён неизменённым; автор готовит v1.1 (JOBA + отдельное портфолио исполнителя) с точными новыми байтами для отдельной синхронизации.
+
+Чат заказчика и исполнителя уже входит в ТЗ v1 (FR-016); последнее уточнение не меняет его требования. Портфолио отдельно не реализуется в branding-only проходе.
