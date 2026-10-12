@@ -153,7 +153,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   void connectEvents() {
     closeEvents();
-    if (!api.authenticated || !mounted) return;
+    if (!api.authenticated || !mounted || locked) return;
     final uri = api
         .url('/events/ws')
         .replace(scheme: api.base.scheme == 'https' ? 'wss' : 'ws');
@@ -191,8 +191,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   void scheduleReconnect() {
     reconnect?.cancel();
-    if (api.authenticated && mounted)
+    if (api.authenticated && mounted && !locked)
       reconnect = Timer(const Duration(seconds: 5), () async {
+        if (locked || !mounted || !api.authenticated) return;
         try {
           await api.refresh();
           connectEvents();

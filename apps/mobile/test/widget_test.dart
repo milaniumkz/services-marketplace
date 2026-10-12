@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -106,6 +107,18 @@ void main() {
     expect(vault.value, isNull);
     expect(api.authenticated, false);
     api.dispose();
+  });
+  testWidgets('Saved credentials stay behind local unlock without refreshing', (tester) async {
+    var requests=0;
+    final vault=MemoryVault()..value=jsonEncode({'access_token':'saved','refresh_token':'saved-refresh','user':{'id':'saved-user'}});
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),(call) async=>call.method=='read'?'{}':null);
+    final api=JobaApi('https://example.com',vault:vault,transport:MockClient((r) async {requests++;return ok({});}));
+    await tester.pumpWidget(JobaApp(api:api));await tester.pumpAndSettle();
+    expect(find.text('Разблокировка JOBA'),findsOneWidget);expect(requests,0);
+    await tester.pumpWidget(const SizedBox());api.dispose();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),null);
   });
   testWidgets(
       'Login fields work, passwords can be revealed, API error is visible',

@@ -39,7 +39,7 @@ Android проверяет hardware-backed Keystore; системная биом
 
 ## Проверки
 
-В текущей среде: 16 backend тестов, 9 Flutter unit/widget/platform-contract тестов, отдельный реальный HTTP-тест Flutter → Nest/PGlite и Android debug сборка прошли. Анализатор — 0 замечаний. Повторный setup script прошёл на сохранённых SDK/кэшах; чистое восстановление в новой задаче не проверялось.
+В текущей среде: 16 backend тестов, 10 Flutter unit/widget/platform-contract тестов, отдельный реальный HTTP-тест Flutter → Nest/PGlite и Android debug сборка прошли. Анализатор — 0 замечаний. Повторный setup script прошёл на сохранённых SDK/кэшах; чистое восстановление в новой задаче не проверялось.
 
 ```bash
 npm run mobile:analyze
