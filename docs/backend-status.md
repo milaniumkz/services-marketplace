@@ -18,7 +18,7 @@
 
 ## Проверенное
 
-13 автоматических тестов прошли на этапе проверки доменной реализации. Дополнительно прошёл HTTP/WebSocket smoke на отдельном PostgreSQL 16: auth/envelopes, ETag/304, binary upload, закрытые scanner/payment gates, выбор исполнителя и scoped событие.
+Автоматические тесты прошли на этапе проверки доменной реализации. Дополнительно прошёл HTTP/WebSocket smoke на отдельном PostgreSQL 16: auth/envelopes, ETag/304, binary upload, закрытые scanner/payment gates, выбор исполнителя и scoped событие.
 
 Изолированный performance check: 5000 синтетических заказов, 100 последовательных warmed запросов по 20 записей, PostgreSQL 16; p50 2,69 мс, p95 10,49 мс, max 21,95 мс. Это время доменного вызова, без HTTP/сети, параллельной нагрузки, мобильного устройства и внешних API. Оно не является обещанием моментального production ответа.
 
@@ -31,6 +31,6 @@
 - Production hardening: распределённый rate limit, отдельные migration/runtime DB roles, полноценные schema/DTO/FK contracts, нагрузочная/penetration проверка, backup/restore, encrypted-volume/key rotation, exhaustive retention/delete по вложениям и legal holds.
 - Расширение OpenAPI из текущего HTTP-инвентаря до строгих DTO всех команд; часть схем пока permissive.
 - Продвинутые геофильтры, provider coupons/discount redemption и полные финансовые/аналитические отчеты; не заменять их демонстрационными значениями.
-- Полная интеграция каждого экрана, поля и кнопки с API, native PIN/biometry/secure storage, все локали, visual comparison и native builds. Перенесены оригинальные web/mobile prototype sources, шрифты и графика, но это не подтверждает «всё работает» или «1в1» для готового приложения.
+- Flutter-клиент теперь подключён к API, добавлены native runners, secure storage/PIN/биометрические ключи и Android debug сборка. Полное покрытие UI, все локали, visual comparison и physical/iOS проверки остаются незавершёнными: [статус мобильной реализации](mobile-development.md).
 
 Репозиторий не следует объявлять полностью соответствующим ТЗ или готовым к production до закрытия этих пунктов. Пользовательские данные обычного API создаются запросами и сохраняются; тестовые записи изолированы от рабочей базы.

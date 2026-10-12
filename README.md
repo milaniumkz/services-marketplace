@@ -23,7 +23,7 @@
 - `apps/admin` — Vite, оригинальные макеты и частичная интеграция staff API.
 - `apps/client` — мобильный web-клиент с оригинальными макетами и частью живых API-сценариев; не заменяет native приложения.
 - `apps/web` — публичные страницы по макетам, безопасный pre-login support API.
-- `apps/mobile` — Flutter demo sources для iOS/Android; нативные runners требуют генерации установленным Flutter SDK.
+- `apps/mobile` — Flutter-клиент с Android/iOS runners и подключением API; [запуск и границы готовности](docs/mobile-development.md).
 - `packages/contracts` — минимальные типы health и кодов стран.
 - `infra` — не запущенный шаблон PostgreSQL/PostGIS.
 - `docs` — инструкции и границы реализации.

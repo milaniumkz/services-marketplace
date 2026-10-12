@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
-void main() => runApp(const MarketplaceDemo());
-class MarketplaceDemo extends StatelessWidget {
-  const MarketplaceDemo({super.key});
+import 'core/api.dart';
+import 'core/theme.dart';
+import 'screens/marketplace.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const JobaApp());
+}
+
+class JobaApp extends StatelessWidget {
+  final JobaApi? api;
+  const JobaApp({this.api, super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Services marketplace demo',
-    home: Scaffold(
-      appBar: AppBar(title: const Text('Биржа услуг · DEMO')),
-      body: const Padding(
-        padding: EdgeInsets.all(24),
-        child: Text('RS / KZ / RU / BY\n\nЗаказчики ищут исполнителей. Исполнители ищут заказы по своим услугам.\n\nТехнический каркас: аккаунты, GPS, чат и оплаты не подключены.'),
-      ),
-    ),
-  );
+      title: 'JOBA',
+      debugShowCheckedModeBanner: false,
+      theme: jobaTheme(),
+      home: Marketplace(api: api));
 }
