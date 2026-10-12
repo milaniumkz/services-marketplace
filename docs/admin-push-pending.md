@@ -1,6 +1,6 @@
 # Административная push-рассылка — pending implementation
 
-Источник: [ТЗ v1](spec/services-marketplace-spec-v1.ru.md), раздел 23А FR-035, API раздела 31, A17 и T20.
+Источник: [ТЗ JOBA v1.1](spec/services-marketplace-spec-v1.ru.md), раздел 23А FR-035, API раздела 31, A17 и T20.
 
 Сегменты страна/язык/роль; локализованные title/body; preview/test/schedule/cancel; send_at/time zone/deadline; аудит. Marketing требует действующего consent и повторной проверки suppression/quiet hours/канала на момент отправки. Отмена прекращает будущие отправки, уже принятые провайдером сообщения нельзя обещать отозвать.
 

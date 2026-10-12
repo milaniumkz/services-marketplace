@@ -1,6 +1,6 @@
 # Demo-модель монетизации
 
-Подписка всегда остаётся доступной в продуктовой модели: `subscription_enabled: true`, отключить её обычной настройкой нельзя. Баннеры Google и других сетей управляются независимо через `banner_ads_enabled`; rewarded-ролики за доступ — через `rewarded_access_enabled`. Администратор сможет менять эти настройки без изменения кода после реализации защищённого управления. Источник требований: [ТЗ v1](spec/services-marketplace-spec-v1.ru.md), разделы 19–23А, FR-023–026/031–036.
+Подписка всегда остаётся доступной в продуктовой модели: `subscription_enabled: true`, отключить её обычной настройкой нельзя. Баннеры Google и других сетей управляются независимо через `banner_ads_enabled`; rewarded-ролики за доступ — через `rewarded_access_enabled`. Администратор сможет менять эти настройки без изменения кода после реализации защищённого управления. Источник требований: [ТЗ JOBA v1.1](spec/services-marketplace-spec-v1.ru.md), разделы 19–23А, FR-023–026/031–036.
 
 Контракты: `packages/contracts/src/monetization.ts`. Модель включает schemaVersion, версию политики, scope страны RS/KZ/RU/BY и роли customer/provider. Rewarded access задаёт срок в секундах либо квоту условных `demo_action`. Числа и сочетания флагов синтетические; это не тарифы или решения о доступности рекламы в странах. Баннер сам по себе не выдаёт entitlement. При выключенном rewarded доступе его параметры не используются для новых выдач.
 
@@ -23,3 +23,9 @@
 Модель `MonetizationPolicy` — partial: нет platform/placement scope, provider/SKU mapping, capabilities, TTL/ETag/effective_at, publish workflow или ledger. `demo_action` — синтетическая единица, не финальный контракт action_credits из ТЗ. Примеры секунд/квот не утверждают D07. `canShowCheckout` — display guard, не проверка покупки или release gate. Сохранение оплаченных прав — зафиксированный инвариант, реальный entitlement engine ещё отсутствует.
 
 FR-038 launcher-иконка и FR-039 рефералы описаны в разделе 23А полного ТЗ и имеют статус not_started: admin upload/crop/approval/generate готовит assets для новой сборки и отдельно разрешённого release; не выполняет тихую замену на устройствах. Referral campaign требует настраиваемой привилегии, snapshot/ledger/антиспама/бюджета и provider-safe redeem; денежные выплаты и многоуровневые комиссии не добавляются.
+
+## Top-100, продвижение и каталог цен — not_started
+
+FR-044: два органических Топ-100 (заказы/карточки услуг), одна like/dislike реакция на чужой доступный объект с undo/change; no self/duplicate votes, антинакрутка/review. Dislike не создаёт бан. Репутация 1–5 звёзд только из completed-заказов FR-020, отдельно от популярности. Окно/формула требуют D20, не hardcode утверждённого рейтинга.
+
+FR-045: недельный/месячный/годовой paid boost либо бесплатный admin grant с причиной/сроком/provenance. Отдельная маркировка, ограниченная capacity/reservation и ledger, без увеличения organic score/звёзд. End не позже expiry заказа; target eligibility/ID/entitlement проверяются на покупке и старте. Реальная цифровая покупка требует проверенного IAP/provider route. Все цены платформы (подписка/boost/скидки/промо) — versioned admin catalog + допустимый provider SKU, без изменения согласованных условий задним числом. 200 ₸/неделя — пример; цена услуги/бюджет заказа не изменяются этим каталогом. Код/endpoint/checkout не добавлены.

@@ -1,11 +1,9 @@
-# Статус ТЗ
+# Статус ТЗ JOBA
 
-[Полное ТЗ v1.0](spec/services-marketplace-spec-v1.ru.md) получено через GitHub в feature/mobile-native-scaffold, исходный commit `92c5d9568d208f6e7459be741ae4e2544f9aad9d`. Размер 229868 байт, SHA256 `023c5c6334745824e7e2688f3f4a1c3d4b1748c8fda9a9ea889ff5bdab04e6da` проверен. Текст не изменён. PDF/DOCX переданы пользователю отдельно; в этот импорт не входят.
+[Полное ТЗ JOBA v1.1](spec/services-marketplace-spec-v1.ru.md) получено через GitHub в feature/mobile-native-scaffold, commit `4eaede3f988b4e5a82dafa2f4fb67735d3b7411f`. Размер 272305 байт, SHA256 `e8e99bcdac970ead71d0faef79d237ae625c014906ee96337439be3f019ae5fb` точно проверен. Текст прочитан и сохранён без изменения байтов; имя файла `services-marketplace-spec-v1.ru.md` оставлено для совместимости ссылок. PDF/DOCX уже переданы пользователю, не генерируются/импортируются этим поручением.
 
-ТЗ — источник требований; [STATUS](STATUS.md) — состояние реализации. Предложения и открытые D-решения в разделе 41 не становятся согласованными автоматически. Технический каркас не закрывает Этап 1 или приемку P1.
+Название JOBA выбрано; repository name, branch, application/bundle IDs и signing сохраняются. V1.1 включает FR-040 portfolio, FR-041–043 admin card/blacklist/in-app support, FR-044–045 Top-100/boost, обязательный документ исполнителя FR-009, отсутствие user email/SMS и единое управление ценами.
 
-[Авторизация](auth-pending.md), [монетизация](monetization-demo.md), [push](admin-push-pending.md), [модерация](moderation-pending.md) поясняют pending implementation и уступают полному ТЗ при расхождении. Это не ожидаемые документы, а ещё не реализованные функции. В этом поручении выполнена только синхронизация документации, без merge/deploy/бизнес-реализации.
+ТЗ — источник требований; [STATUS](STATUS.md) — состояние реализации. Pending implementation означает отсутствие бизнес-реализации, а не ожидание документа. Ни один полный бизнес-FR ещё не принят; предложенные параметры и открытые D-решения не утверждаются получением файла. Recovery без SMS/email, законный country ID flow, regions, provider/rewarded gates, retention и цены/формула Топа остаются launch gates раздела 41.
 
-Бренд выбран пользователем: **JOBA**. Display names обновлены отдельно; исходный MD v1 не редактируется. Автор готовит v1.1: JOBA, портфолио, подробная admin-карточка, чёрный список, in-app support без email и обязательная проверка документа исполнителя; новый файл будет получен через GitHub. Техническое имя репозитория и application/bundle IDs не меняются.
-
-Последние [admin/trust требования](admin-trust-pending.md) отменяют email recovery и optional identity для исполнителя; они pending implementation. Авторский полный MD пока не редактируется.
+Пояснения: [auth](auth-pending.md), [монетизация](monetization-demo.md), [push](admin-push-pending.md), [модерация](moderation-pending.md), [admin/trust](admin-trust-pending.md). Они уступают полному v1.1 при расхождении. Синхронизация документации не включает merge/deploy/бизнес-код.

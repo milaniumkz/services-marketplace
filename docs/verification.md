@@ -22,4 +22,8 @@ Complete MD fetched via GitHub and fast-forwarded from `92c5d9568d208f6e7459be74
 
 ## JOBA branding-only follow-up
 
-Display names changed to JOBA in Flutter, iOS plist, Android label and admin demo; README/STATUS reflect the chosen brand. Admin TypeScript/Vite build passed, Flutter analyze reports no issues, one widget test passes and iOS plist lint passes. GitHub repository, application/bundle IDs and signing remain unchanged. Specification v1 SHA256 remains 023c5c6334745824e7e2688f3f4a1c3d4b1748c8fda9a9ea889ff5bdab04e6da; author-managed v1.1 (JOBA + portfolio) revision is pending transfer. Native builds not run.
+Display names changed to JOBA in Flutter, iOS plist, Android label and admin demo; README/STATUS reflect the chosen brand. Admin TypeScript/Vite build passed, Flutter analyze reports no issues, one widget test passes and iOS plist lint passes. GitHub repository, application/bundle IDs and signing remain unchanged. Specification v1 SHA256 remains 023c5c6334745824e7e2688f3f4a1c3d4b1748c8fda9a9ea889ff5bdab04e6da; author-managed v1.1 was subsequently imported; see the v1.1 entry below. Native builds not run.
+
+## JOBA specification v1.1 docs consistency
+
+Fetched/fast-forwarded author commit `4eaede3f988b4e5a82dafa2f4fb67735d3b7411f`. Complete readable MD has 272305 bytes and 1369 lines; SHA256 `e8e99bcdac970ead71d0faef79d237ae625c014906ee96337439be3f019ae5fb` matches exactly. Reviewed complete specification content, including all changed text relative to the previously fully reviewed v1.0. The original MD was not edited. README/STATUS/explanatory docs and PR body aligned with v1.1; FR-040–045 and mandatory contractor ID remain not_started. Docs-only scope, local links, whitespace and publication checks passed; no repeated code tests or business changes required. PDF/DOCX already delivered separately, not generated/imported here.

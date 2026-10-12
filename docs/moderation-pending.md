@@ -1,10 +1,10 @@
 # Языковые словари и модерация — pending implementation
 
-Источник: [ТЗ v1](spec/services-marketplace-spec-v1.ru.md), разделы 18–18А FR-021/022/037, A18, T22/T23.
+Источник: [ТЗ JOBA v1.1](spec/services-marketplace-spec-v1.ru.md), разделы 18–18А FR-021/022/037, A18, T22/T23.
 
 Словари версионируются по стране/языку с rules/exceptions/scope/effective_at; exact_word/phrase, whole-word boundaries, NFKC и case folding, без произвольных regex. Draft проходит validate/dry-run preview/approve/publish. Словарь не выдумывается: тесты используют безопасные искусственные маркеры.
 
-Surface registry включает чат, заказные заголовки/описания/атрибуты, отклики, профили/имена/описания услуг и отзывы. Server-side проверка выполняется до публичной записи и при редактировании. Совпадение создаёт quarantine, временный hold, case и admin event; одна episode на content/revision/policy snapshot исключает повтор при нескольких правилах/retry. Хранятся masked context, причина, rule/version и аудит.
+Surface registry включает чат, заказные заголовки/описания/атрибуты, отклики, профили/имена/описания услуг, названия/описания портфолио и отзывы. Server-side проверка выполняется до публичной записи и при редактировании. Совпадение создаёт quarantine, временный hold, case и admin event; одна episode на content/revision/policy snapshot исключает повтор при нескольких правилах/retry. Хранятся masked context, причина, rule/version и аудит.
 
 Человек снимает, продлевает с конечным сроком/причиной либо назначает постоянную санкцию с апелляцией. Непросмотренный истёкший hold снимается, контент остаётся в карантине, дело эскалируется; автоматическое продление запрещено. Значения SLA/duration в ТЗ предложены и требуют решения. Оплаченный срок/активные заказы не удаляются; safety/support/privacy/payment management сохраняются.
 
