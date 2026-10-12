@@ -21,7 +21,7 @@ Google OIDC идентифицирует аккаунт по `issuer + sub`; ema
 
 - `services/api` — NestJS/TypeScript, только `GET /health`, без БД и бизнес-API.
 - `apps/admin` — TypeScript/Vite, статичная демо-страница без пользовательских данных.
-- `apps/mobile` — Flutter demo sources для iOS/Android; нативные runners требуют генерации установленным Flutter SDK.
+- `apps/mobile` — Flutter demo sources для iOS/Android; нативные iOS/Android runners добавлены; analyze и widget test проверены.
 - `packages/contracts` — минимальные типы health и кодов стран.
 - `infra` — не запущенный шаблон PostgreSQL/PostGIS.
 - `docs` — инструкции и границы реализации.
