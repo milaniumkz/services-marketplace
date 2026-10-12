@@ -1,4 +1,4 @@
-# Mobile demo
+# JOBA mobile demo
 
 Flutter iOS/Android scaffold, without accounts, GPS, payments or user data.
 

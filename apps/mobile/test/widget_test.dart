@@ -4,6 +4,6 @@ import 'package:services_marketplace/main.dart';
 void main() {
   testWidgets('demo screen is visible', (tester) async {
     await tester.pumpWidget(const MarketplaceDemo());
-    expect(find.text('Биржа услуг · DEMO'), findsOneWidget);
+    expect(find.text('JOBA · DEMO'), findsOneWidget);
   });
 }

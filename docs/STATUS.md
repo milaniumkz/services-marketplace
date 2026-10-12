@@ -1,11 +1,12 @@
 # STATUS — 2026-10-12
 
-Источник: [полное ТЗ v1.0](spec/services-marketplace-spec-v1.ru.md). Это статус scaffold в feature/mobile-native-scaffold/draft PR #1, не приемка P1. Код проверен на `d5a5d18885797ecfd9aea333189ccc896093da7e`; после него до импорта ТЗ были только docs commits. Исходный импорт MD: `92c5d9568d208f6e7459be741ae4e2544f9aad9d`. `main` остаётся initial scaffold `5e2f4de23127e1dec9366817e2174bbdd9667bfc` до отдельного разрешённого merge.
+Источник: [полное ТЗ v1.0](spec/services-marketplace-spec-v1.ru.md). Это статус scaffold в feature/mobile-native-scaffold/draft PR #1, не приемка P1. Код проверен на `d5a5d18885797ecfd9aea333189ccc896093da7e`; после него до импорта ТЗ были только docs commits. Последующая branding-only правка меняет display names на JOBA; бизнес-функции не расширяет. Исходный импорт MD: `92c5d9568d208f6e7459be741ae4e2544f9aad9d`. `main` остаётся initial scaffold `5e2f4de23127e1dec9366817e2174bbdd9667bfc` до отдельного разрешённого merge.
 
 implemented = готова указанная узкая техническая часть; partial = только модель/template/demo, бизнес-приёмка не пройдена; not_started = реализации нет. Ни один полный бизнес-FR сейчас не принимается как implemented.
 
 | Область / FR | Статус | Фактическая граница |
 |---|---|---|
+| Выбранный бренд JOBA | implemented | Display name Flutter/iOS/Android и admin demo; repo/package/application IDs и signing не менялись |
 | Полный исходный Markdown ТЗ v1 | implemented | 229868 байт; SHA256 точно совпал; текст неизменён. PDF/DOCX переданы отдельно, импорт не требуется |
 | Monorepo, env placeholders, lockfiles и инструкции | implemented | npm workspace API/admin/contracts и Flutter sources; полный local stack не готов |
 | API health / сборки | implemented | Только GET /health, process liveness; /orders возвращает 404; нет DB readiness |
@@ -30,3 +31,5 @@ implemented = готова указанная узкая техническая 
 Проверенное: npm build API/admin/contracts, npm test (1 API + 5 contracts), Flutter analyze без замечаний и 1 widget test. [Подробные проверки](verification.md). Для docs-only обновления проверяются хеш/читабельность MD, ссылки, whitespace и секреты; повторная сборка не требуется.
 
 Открытые gates: решения раздела 41, особенно D02/D03 regions, D04 payment channels, D05 rewarded policy, D07 reward model, D10 retention, D17 recovery, D19 referral terms. Получение ТЗ не означает согласование всех предложенных чисел/стека/интервалов. Native builds и PostgreSQL пока не проверены. Реальные SDK, платежи/реклама, Actions, Docker/Colima, runners и production не включались.
+
+Бренд выбран: **JOBA**. Домен/юридическое лицо не утверждены. Исходный ТЗ v1 в docs/spec сохранён неизменённым; автор готовит v1.0.1 branding-only с точными новыми байтами для отдельной синхронизации.

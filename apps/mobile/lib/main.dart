@@ -6,9 +6,9 @@ class MarketplaceDemo extends StatelessWidget {
   const MarketplaceDemo({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Services marketplace demo',
+        title: 'JOBA',
         home: Scaffold(
-          appBar: AppBar(title: const Text('Биржа услуг · DEMO')),
+          appBar: AppBar(title: const Text('JOBA · DEMO')),
           body: const Padding(
             padding: EdgeInsets.all(24),
             child: Text(
