@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run test --workspace @marketplace/api",
+    "test": "npm run test --workspaces --if-present",
     "dev:api": "npm run dev --workspace @marketplace/api",
     "dev:admin": "npm run dev --workspace @marketplace/admin"
   }

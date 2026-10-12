@@ -29,3 +29,5 @@ Google OIDC идентифицирует аккаунт по `issuer + sub`; ema
 [Запуск и проверки](docs/local-development.md) · [Безопасность](docs/security.md).
 
 Секреты и персональные данные не добавлять. `.env.example` содержит только placeholders. Платные Actions, self-hosted runners, production deployment, реальные платежи, реклама и сбор персональных данных не настроены. После утверждения ТЗ разработка идёт в отдельной feature branch через draft PR.
+
+[Demo-модель монетизации](docs/monetization-demo.md): подписка всегда включена, баннеры и rewarded-доступ переключаются независимо; доступность checkout проверяется отдельно по стране, реальные интеграции выключены.
