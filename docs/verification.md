@@ -15,3 +15,7 @@ Product clarification replaces mutually exclusive modes with subscription_enable
 ## Auth policy follow-up
 
 Phone/password without SMS replaces mandatory OAuth. Phone ownership stays unverified; recovery is pending decision. Local PIN/biometric is only an unlock gate and never replaces server session/access validation. `npm run build` passed; `npm test` passed one API and five contract tests, including expired/revoked session and denied access. No real auth endpoint, credential data, SMS integration or secure-storage implementation added.
+
+## Specification v1 import and docs consistency
+
+Complete MD fetched via GitHub and fast-forwarded from `92c5d9568d208f6e7459be741ae4e2544f9aad9d`. Readable file: 229868 bytes, 1259 lines, SHA256 `023c5c6334745824e7e2688f3f4a1c3d4b1748c8fda9a9ea889ff5bdab04e6da`; full text reviewed and preserved byte-for-byte. PDF/DOCX not imported, as requested. README/STATUS and explanatory docs synchronized; no business code changes.
