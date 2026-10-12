@@ -11,3 +11,7 @@
 ## Monetization model follow-up
 
 Product clarification replaces mutually exclusive modes with subscription_enabled=true and independent banner_ads_enabled/rewarded_access_enabled flags. Country payment availability is separate and all demo entries are unverified. `npm run build` passed for API, admin and contracts. `npm test` passed one API test and three contract tests, including invalid policies and unavailable checkout. No monetization endpoint or real integration added.
+
+## Auth policy follow-up
+
+Phone/password without SMS replaces mandatory OAuth. Phone ownership stays unverified; recovery is pending decision. Local PIN/biometric is only an unlock gate and never replaces server session/access validation. `npm run build` passed; `npm test` passed one API and five contract tests, including expired/revoked session and denied access. No real auth endpoint, credential data, SMS integration or secure-storage implementation added.
