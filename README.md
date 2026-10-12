@@ -29,3 +29,9 @@ Google OIDC идентифицирует аккаунт по `issuer + sub`; ema
 [Запуск и проверки](docs/local-development.md) · [Безопасность](docs/security.md).
 
 Секреты и персональные данные не добавлять. `.env.example` содержит только placeholders. Платные Actions, self-hosted runners, production deployment, реальные платежи, реклама и сбор персональных данных не настроены. После утверждения ТЗ разработка идёт в отдельной feature branch через draft PR.
+
+## JOBA: техническое задание и макеты
+
+Актуальные материалы от 12 октября 2026 года: [ТЗ v1.1 — Markdown](docs/spec/services-marketplace-spec-v1.ru.md), [PDF](docs/spec/services-marketplace-spec-v1.ru.pdf), [DOCX](docs/spec/services-marketplace-spec-v1.ru.docx).
+
+[Макеты, ZIP-пакеты, PDF и инструкция просмотра](docs/design/README.md). В этих материалах зафиксированы бренд JOBA и актуальные требования; исходное описание scaffold выше сохранено как история начальной версии.
