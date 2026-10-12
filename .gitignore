@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage/
+.dart_tool/
+.flutter-plugins*
+build/
+*.log
+*.keystore
+*.jks
+*.p12
+*.mobileprovision

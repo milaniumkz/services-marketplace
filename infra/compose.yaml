@@ -1,0 +1,14 @@
+# Template only. Starting containers requires separate approval.
+services:
+  database:
+    image: postgis/postgis:16-3.5
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set local user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set local password}
+      POSTGRES_DB: ${POSTGRES_DB:?Set local database}
+    volumes:
+      - database_data:/var/lib/postgresql/data
+volumes:
+  database_data:
