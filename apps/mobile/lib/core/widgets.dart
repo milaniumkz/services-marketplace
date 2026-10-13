@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'l10n.dart';
 import 'api.dart';
 import 'theme.dart';
+import 'design_icons.dart';
 
 class ApiView extends StatefulWidget {
   final Future<dynamic> Function() load;
@@ -130,7 +131,10 @@ class _PagedListState extends State<PagedList> {
                   child: Center(child: CircularProgressIndicator())),
             if (!busy && (!end || error != null))
               OutlinedButton(
-                  onPressed: load,
+                  onPressed: () => load(
+                      reset: error is ApiException &&
+                          (error as ApiException).details['restart_required'] ==
+                              true),
                   child: UiText(error == null ? 'Показать ещё' : 'Повторить')),
           ]));
 }
@@ -142,6 +146,7 @@ class InputSpec {
   final bool required, translateOptions;
   final String? hint;
   final IconData? prefixIcon;
+  final String? originalIcon;
   final Map<String, String>? options;
   final TextInputType? keyboard;
   final String? Function(String)? validate;
@@ -150,6 +155,7 @@ class InputSpec {
       {this.initial = '',
       this.hint,
       this.prefixIcon,
+      this.originalIcon,
       this.secret = false,
       this.multiline = false,
       this.required = true,
@@ -237,7 +243,10 @@ class _ActionFormState extends State<ActionForm> {
         if (error != null) Notice(errorText(context, error!), error: true),
         for (final field in widget.fields)
           Padding(
-              padding: const EdgeInsets.only(bottom: 18),
+              padding: EdgeInsets.only(
+                  bottom: widget.authLayout && field == widget.fields.last
+                      ? 20
+                      : 18),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -273,21 +282,32 @@ class _ActionFormState extends State<ActionForm> {
                       TextFormField(
                           controller: controllers[field.key],
                           enabled: !busy,
+                          onChanged: field.changed,
                           keyboardType: field.keyboard,
+                          style: const TextStyle(
+                              fontSize: 14, letterSpacing: 0, color: navy),
                           maxLines: field.multiline ? 5 : 1,
                           obscureText:
                               field.secret && !visible.contains(field.key),
                           autocorrect: !field.secret,
                           enableSuggestions: !field.secret,
                           decoration: InputDecoration(
+                              constraints: widget.authLayout
+                                  ? BoxConstraints(
+                                      minHeight: field.secret ? 74 : 52)
+                                  : null,
                               hintText: field.hint == null
                                   ? null
                                   : localize(context, field.hint!),
                               hintStyle: const TextStyle(
                                   color: Color(0xFF6B7890), fontSize: 14),
-                              prefixIcon: field.prefixIcon == null
-                                  ? null
-                                  : Icon(field.prefixIcon, color: navy),
+                              prefixIcon: field.originalIcon != null
+                                  ? Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: JobaIcon(field.originalIcon!))
+                                  : field.prefixIcon == null
+                                      ? null
+                                      : Icon(field.prefixIcon, color: navy),
                               contentPadding: widget.authLayout && field.secret
                                   ? const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 25)
@@ -303,9 +323,10 @@ class _ActionFormState extends State<ActionForm> {
                                           visible.contains(field.key)
                                               ? visible.remove(field.key)
                                               : visible.add(field.key)),
-                                      icon: Icon(visible.contains(field.key)
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined))
+                                      icon: visible.contains(field.key)
+                                          ? const Icon(
+                                              Icons.visibility_off_outlined)
+                                          : const JobaIcon('eye'))
                                   : null),
                           validator: (v) {
                             if (field.required && (v ?? '').trim().isEmpty)
@@ -325,7 +346,7 @@ class _ActionFormState extends State<ActionForm> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
                 : UiText(widget.button)),
-        const SizedBox(height: 12),
+        SizedBox(height: widget.authLayout ? 0 : 12),
         ...widget.after,
       ]));
 }
@@ -390,18 +411,57 @@ class PrivatePhoto extends StatelessWidget {
   final JobaApi api;
   final String id;
   const PrivatePhoto({required this.api, required this.id, super.key});
+  void open(BuildContext context) {
+    final generation = api.sessionGeneration;
+    showDialog<void>(
+        context: context,
+        builder: (dialogContext) => Dialog.fullscreen(
+            backgroundColor: Colors.black,
+            child: AnimatedBuilder(
+                animation: api,
+                builder: (_, __) => SafeArea(
+                        child: Column(children: [
+                      Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                              tooltip: localize(dialogContext, 'Закрыть'),
+                              onPressed: () => Navigator.pop(dialogContext),
+                              icon: const JobaIcon('close',
+                                  color: Colors.white))),
+                      Expanded(
+                          child: !api.authenticated ||
+                                  api.sessionGeneration != generation
+                              ? const Center(child: Notice('Файл недоступен'))
+                              : ApiView(
+                                  load: () => api.download(id),
+                                  builder: (_, full, retry) =>
+                                      InteractiveViewer(
+                                          minScale: .5,
+                                          maxScale: 5,
+                                          child: Center(
+                                              child: Image.memory(full,
+                                                  fit: BoxFit.contain)))))
+                    ])))));
+  }
+
   @override
   Widget build(BuildContext context) => ApiView(
-      key: ValueKey(id),
-      load: () => api.download(id),
-      builder: (c, bytes, reload) => ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Image.memory(bytes,
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (c, e, stack) =>
-                  const Notice('Не удалось показать фотографию'))));
+      key: ValueKey('${api.sessionGeneration}:$id'),
+      load: () => api.download(id, variant: 'preview'),
+      builder: (c, bytes, reload) => InkWell(
+          onTap: () => open(context),
+          child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Image.memory(bytes,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  cacheWidth: (MediaQuery.sizeOf(context).width *
+                          MediaQuery.devicePixelRatioOf(context))
+                      .ceil()
+                      .clamp(1, 1920),
+                  errorBuilder: (c, error, stack) =>
+                      const Notice('Не удалось показать фотографию')))));
 }
 
 class SearchListings extends StatefulWidget {

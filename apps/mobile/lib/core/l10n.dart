@@ -17,6 +17,7 @@ String errorText(BuildContext context, Object error) {
         'INVALID_CREDENTIALS': 'Неверный номер или пароль',
         'REGISTRATION_UNAVAILABLE':
             'Не удалось зарегистрироваться. Обратитесь в поддержку.',
+        'SESSION_SUPERSEDED': 'Войдите снова с номером и паролем.',
         'TOKEN_EXPIRED': 'Войдите снова с номером и паролем',
         'REFRESH_REPLAY': 'Войдите снова с номером и паролем',
         'STATE_CONFLICT':

@@ -74,6 +74,7 @@ class JobaApi extends ChangeNotifier {
   }
   String? get accessToken => session?['access_token'];
   bool get authenticated => accessToken != null;
+  int get sessionGeneration => _generation;
   Uri url(String path, [Json query = const {}]) => Uri.parse(
           '${base.toString().replaceFirst(RegExp(r"/$"), "")}/api/v1$path')
       .replace(
@@ -389,20 +390,101 @@ class JobaApi extends ChangeNotifier {
     return current;
   }
 
-  Future<Uint8List> download(String id, {bool rotated = false}) async {
-    final req = http.Request('GET', url('/uploads/$id/download'))
-      ..followRedirects = false
-      ..headers['Authorization'] = 'Bearer $accessToken';
-    final response = await http.Response.fromStream(
-        await transport.send(req).timeout(const Duration(seconds: 30)));
+  Future<Uint8List> download(String id,
+      {bool rotated = false,
+      String variant = 'original',
+      int? sessionGeneration}) async {
+    final generation = sessionGeneration ?? _generation;
+    void guard() {
+      if (disposed || generation != _generation || !authenticated)
+        throw ApiException(
+            'SESSION_SUPERSEDED', 'Сессия изменилась. Повторите вход', 401);
+    }
+
+    guard();
+    final req =
+        http.Request('GET', url('/uploads/$id/download', {'variant': variant}))
+          ..followRedirects = false
+          ..headers['Authorization'] = 'Bearer $accessToken';
+    late http.Response response;
+    try {
+      response = await transport
+          .send(req)
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw ApiException('TIMEOUT', 'Сервис не ответил вовремя');
+    } on http.ClientException {
+      throw ApiException('OFFLINE', 'Нет соединения с сервером');
+    }
+    guard();
     if (response.statusCode == 401 && !rotated) {
       await refresh();
-      return download(id, rotated: true);
+      guard();
+      return download(id,
+          rotated: true, variant: variant, sessionGeneration: generation);
     }
     if (response.statusCode != 200)
       throw ApiException(
           'DOWNLOAD_UNAVAILABLE', 'Файл недоступен', response.statusCode);
     return response.bodyBytes;
+  }
+
+  Future<void> downloadToSink(String id, StreamConsumer<List<int>> sink,
+      {void Function(int, int?)? onProgress,
+      bool rotated = false,
+      int? sessionGeneration}) async {
+    final generation = sessionGeneration ?? _generation;
+    void guard() {
+      if (disposed || generation != _generation || !authenticated)
+        throw ApiException(
+            'SESSION_SUPERSEDED', 'Сессия изменилась. Повторите вход', 401);
+    }
+
+    guard();
+    final request = http.Request('GET', url('/uploads/$id/download'))
+      ..followRedirects = false
+      ..headers['Authorization'] = 'Bearer $accessToken';
+    late http.StreamedResponse response;
+    try {
+      response =
+          await transport.send(request).timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw ApiException('TIMEOUT', 'Сервис не ответил вовремя');
+    } on http.ClientException {
+      throw ApiException('OFFLINE', 'Нет соединения с сервером');
+    }
+    try {
+      guard();
+    } catch (_) {
+      await response.stream.listen(null).cancel();
+      rethrow;
+    }
+    if (response.statusCode == 401 && !rotated) {
+      await response.stream.drain<void>().timeout(const Duration(seconds: 30));
+      await refresh();
+      guard();
+      return downloadToSink(id, sink,
+          onProgress: onProgress, rotated: true, sessionGeneration: generation);
+    }
+    if (response.statusCode != 200) {
+      await response.stream.drain<void>().timeout(const Duration(seconds: 30));
+      throw ApiException(
+          'DOWNLOAD_UNAVAILABLE', 'Файл недоступен', response.statusCode);
+    }
+    var received = 0;
+    try {
+      await sink.addStream(
+          response.stream.timeout(const Duration(seconds: 30)).map((chunk) {
+        guard();
+        received += chunk.length;
+        onProgress?.call(received, response.contentLength);
+        return chunk;
+      }));
+    } on TimeoutException {
+      throw ApiException('TIMEOUT', 'Сервис не ответил вовремя');
+    }
+    guard();
   }
 
   @override

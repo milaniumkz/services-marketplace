@@ -22,15 +22,15 @@ export class Moderation {
   constructor(private store:Store){}
   async check(data:RecordData) {
     const fields=TEXT_SURFACES[data.kind];if(!fields||data.owner==='provider'||data.owner==='system')return;
-    const previous=await this.store.get(data.id);
+    const previous=await this.store.get(data.id),effective=data.draft??data,old=previous?.draft??previous;
     // Applying a non-content status decision never reopens the same episode.
-    if(previous&&fields.every(f=>JSON.stringify(previous[f])===JSON.stringify(data[f])))return;
+    if(previous&&fields.every(f=>JSON.stringify(old?.[f])===JSON.stringify(effective[f])))return;
     const dictionaries=(await this.store.all('dictionary',data.country)).filter(d=>d.status==='published');
     const hits:any[]=[];
     for(const d of dictionaries)for(const r of d.payload.rules) {
       if(r.surfaces&&!r.surfaces.includes(data.kind))continue;
       for(const f of fields) {
-        const source=typeof data[f]==='object'?JSON.stringify(data[f]):String(data[f]??'');if(matchesRule(source,r.value,r.type,d.payload.exceptions??[]))hits.push({dictionary_id:d.id,dictionary_version:d.version,rule_id:r.id??r.value,field:f});
+        const source=typeof effective[f]==='object'?JSON.stringify(effective[f]):String(effective[f]??'');if(matchesRule(source,r.value,r.type,d.payload.exceptions??[]))hits.push({dictionary_id:d.id,dictionary_version:d.version,rule_id:r.id??r.value,field:f});
       }
     }
     if(!hits.length)return;
@@ -43,8 +43,8 @@ export class Moderation {
     await this.store.put({...common,id:randomUUID(),kind:'moderation_episode',content_id:data.id,content_version:data.version,case_id:caseId,matches:hits});
     await this.store.put({...common,id:randomUUID(),kind:'auto_hold',user_id:data.owner,case_id:caseId,status:'active',expires_at:new Date(Date.now()+settings.auto_hold_minutes*60000).toISOString()});
     if(data.kind==='user')data.status='restricted';else {const owner=await this.store.get(data.owner);if(owner)await this.store.put({...owner,status:'restricted',version:owner.version+1});}
-    data.moderation_status='quarantined';data.case_id=caseId;
-    if(['order','contractor','portfolio'].includes(data.kind))data.status='pending_moderation';
+    effective.moderation_status='quarantined';effective.case_id=caseId;
+    if(['order','contractor','portfolio'].includes(data.kind))effective.status='pending_moderation';
     if(data.kind==='message')data.delivery_state='quarantined';
   }
 }

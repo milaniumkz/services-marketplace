@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:services_marketplace/core/api.dart';
-import 'widget_test.dart' show MemoryVault;
+import 'widget_test.dart' show MemoryVault, RecordingSink;
 
 void main() {
   const endpoint = String.fromEnvironment('JOBA_TEST_API_URL');
@@ -81,6 +81,19 @@ void main() {
         method: 'POST',
         body: {'type': 'export', 'current_password': password}) as Json;
     expect(privacy['status'], 'requested');
+    Json exported = privacy;
+    for (var attempt = 0; attempt < 50; attempt++) {
+      exported =
+          await api.request('/me/privacy-requests/${privacy['id']}') as Json;
+      if (exported['status'] == 'completed') break;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    expect(exported['status'], 'completed');
+    final archive = RecordingSink();
+    await api.downloadToSink(exported['upload_id'], archive);
+    expect(archive.bytes.take(2).toList(), [0x50, 0x4b]);
+    expect(archive.bytes.length, greaterThan(500));
+
     final old = api.accessToken;
     await api.refresh();
     expect(api.accessToken, isNot(old));

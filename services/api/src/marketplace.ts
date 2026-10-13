@@ -1,3 +1,4 @@
+import {editableContent,publicContent,editContent,submitContent} from './content-revisions';
 import { HttpException } from '@nestjs/common';
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { hash, verify } from '@node-rs/argon2';
@@ -107,6 +108,7 @@ export class Marketplace {
         if(!consent?.accepted||consent.document_hash!==document.hash)fail(403,'CONSENT_REQUIRED','Примите текущую версию условий и политики конфиденциальности',{document_id:document.id});
       }
     }
+    if(capability==='send_offer'){const profile=(await this.store.all('contractor',a.country)).find(r=>r.owner===a.id);if(profile?.status==='paused'||profile?.availability==='paused')fail(403,'FORBIDDEN','Приём новых предложений приостановлен');}
     await this.promotionGrant(a);
     const grants=(await this.store.select('grant',a.country,{owner:a.id,limit:1000})).filter(r=>r.owner===a.id && r.valid_until>new Date().toISOString() && r.capabilities.includes(capability)&&(r.balance===undefined||r.balance>0));
     if(!grants.length)fail(403,'ENTITLEMENT_REQUIRED','Нужен действующий доступ',{capability});
@@ -170,7 +172,7 @@ export class Marketplace {
     path=path.replace(/\/select-offer$/, '/select').replace(/\/request-completion$/, '/complete');
     const orderReview=path.match(/^\/orders\/([^/]+)\/reviews$/);if(orderReview){b={...b,order_id:orderReview[1]};path='/reviews';}
     if(path==='/reports')path='/cases';
-    if(path==='/public/config'&&method==='GET')return {countries:Object.entries(countries).map(([code,c])=>({code,...c,launch_status:'unverified',checkout_enabled:false})),subscription_enabled:true,banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development'};
+    if(path==='/public/config'&&method==='GET')return {countries:Object.entries(countries).map(([code,c])=>({code,name:({KZ:'Казахстан',RS:'Сербия',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,launch_status:'unverified',checkout_enabled:false})),subscription_enabled:true,banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
     if(path==='/legal/documents'&&method==='GET') {
       if(!countries[q.country??'KZ']||q.locale&&!['ru','kk','sr','be'].includes(q.locale))fail(400,'VALIDATION_ERROR','Проверьте страну и язык');
       const versions=(await this.store.all('legal_document',q.country??'KZ')).filter(x=>x.status==='published'&&(!q.locale||x.locale===q.locale)).sort((a,b)=>String(b.published_at??b.created_at).localeCompare(String(a.published_at??a.created_at))||b.id.localeCompare(a.id));
@@ -191,7 +193,7 @@ export class Marketplace {
       const actor:Actor={id:user!.id,country:found.country,family:found.family,user:user!,mfa:valid.mfa_verified};
       const upload=await this.object(found.upload_id,actor,'upload');await this.authorizeFile(upload,actor,{reason:found.reason});
       const claimed=await db.query("UPDATE records SET data=jsonb_set(jsonb_set(data,'{status}','\"used\"'::jsonb),'{version}',to_jsonb(version+1)),version=version+1 WHERE id=$1 AND data->>'status'='active' RETURNING id",[found.id]);
-      if(!claimed.rows.length)fail(404,'NOT_FOUND','Ссылка уже использована');return {download_buffer:await this.files.read(upload.id),mime:upload.mime};
+      if(!claimed.rows.length)fail(404,'NOT_FOUND','Ссылка уже использована');if(upload.purpose==='export')return {download_stream:await this.files.readStream(upload.id),download_size:upload.stored_size??upload.size,mime:upload.mime};return {download_buffer:await this.files.read(found.variant==='preview'&&upload.preview_file_id?upload.preview_file_id:upload.id),mime:upload.mime};
     }
     if(path==='/auth/register'&&method==='POST') {
       const country=text(b,'country',2,2);if(!countries[country])fail(400,'VALIDATION_ERROR','Недопустимая страна');
@@ -322,23 +324,33 @@ export class Marketplace {
       return this.store.put(this.record('consent',a,{document_id:d.id,document_version:d.version,document_hash:d.hash,accepted:b.accepted,sequence:Number(count)+1}));
     }
     if(path==='/me/consents'&&method==='GET')return {items:(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id).sort((x,y)=>(y.sequence??0)-(x.sequence??0))};
-    if(path==='/me/contractor-profile'&&method==='GET')return {profile:(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id)??null};
+    if(path==='/me/contractor-profile'&&method==='GET'){const profile=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);return {profile:profile?editableContent(profile):null};}
     if(path==='/me/contractor-profile'&&method==='PUT') {
       const old=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(old)this.version(old,b);
       const title=text(b,'title',5,100),description=text(b,'description',20,3000),city=text(b,'city',2,100);
       const categories=(await this.store.all('category',a.country)).filter(c=>c.status==='effective');
       const category=categories.find(c=>c.id===b.category_id||c.legacy_id===b.category_id);if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
-      let fields:any;try{fields=profileFields({...b,category_id:category!.id},old,countries[a.country].currency,new Set(categories.map(c=>c.id)));}catch(e:any){fail(400,'VALIDATION_ERROR','Проверьте поле '+e.message,{field:e.message});}
-      const uploads=b.gallery_ids===undefined?(old?.gallery_ids??[]):await this.safeUploads(a,b.gallery_ids,'portfolio',20);
+      let fields:any;try{fields=profileFields({...b,category_id:category!.id},old?editableContent(old):old,countries[a.country].currency,new Set(categories.map(c=>c.id)));}catch(e:any){fail(400,'VALIDATION_ERROR','Проверьте поле '+e.message,{field:e.message});}
+      const uploads=b.gallery_ids===undefined?(old?editableContent(old).gallery_ids??[]:[]):await this.safeUploads(a,b.gallery_ids,'portfolio',20);
       if(uploads.length>20)fail(400,'VALIDATION_ERROR','Не более 20 фотографий');
       if(!a.user.roles.includes('executor'))await this.store.put({...a.user,roles:[...a.user.roles,'executor'],version:a.user.version+1});
-      const r=old??this.record('contractor',a);return this.store.put({...r,...fields,title,description,city,gallery_ids:uploads,status:'draft',version:old?r.version+1:1});
+      const changes={...fields,title,description,city,gallery_ids:uploads};const staged=old?editContent(old,changes):{...this.record('contractor',a),...changes,status:'draft'};
+      if(old&&['published','paused'].includes(old.status)&&b.availability==='paused'){staged.status='paused';staged.availability='paused';}
+      return this.store.put(staged).then(editableContent);
+    }
+    if(path==='/me/contractor-profile/availability'&&method==='PATCH') {
+      if(!['available','busy','paused'].includes(b.availability))fail(400,'VALIDATION_ERROR','Проверьте доступность');
+      const profile=(await this.store.all('contractor',a.country)).find(r=>r.owner===a.id)??fail(404,'NOT_FOUND','Профиль не найден');this.version(profile,b);
+      if(!['published','paused'].includes(profile.status))fail(409,'STATE_CONFLICT','Сначала опубликуйте профиль');
+      if(b.availability!=='paused')await this.entitlement(a,'publish_profile',true);
+      return this.store.put({...profile,availability:b.availability,status:b.availability==='paused'?'paused':'published',...(profile.draft?{draft:{...profile.draft,availability:b.availability}}:{}),version:profile.version+1}).then(editableContent);
     }
     if(path==='/me/contractor-profile/publish'&&method==='POST') {
       await this.entitlement(a,'publish_profile',true);const p=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(!p)fail(404,'NOT_FOUND','Профиль не найден');this.version(p!,b);
-      return this.store.put({...p!,status:'pending_review',version:p!.version+1});
+      if(!['draft','rejected'].includes(editableContent(p!).status))fail(409,'STATE_CONFLICT','Нет черновика для публикации');return this.store.put(submitContent(p!)).then(editableContent);
     }
-    if(path==='/me/portfolio-projects'&&method==='GET')return {items:(await this.store.all('portfolio',a.country)).filter(x=>x.owner===a.id&&x.status!=='archived')};
+    if(path==='/me/content-revisions'&&method==='GET'){if(q.source_id){const source=await this.object(String(q.source_id),a,undefined,true);if(!['contractor','portfolio'].includes(source.kind))fail(404,'NOT_FOUND','Материал не найден');}return this.page('content_revision',a,q,{owner:a.id});}
+    if(path==='/me/portfolio-projects'&&method==='GET')return {items:(await this.store.all('portfolio',a.country)).filter(x=>x.owner===a.id&&x.status!=='archived').sort((x,y)=>(x.position??0)-(y.position??0)||x.id.localeCompare(y.id)).map(editableContent)};
     if(path==='/me/portfolio-projects/reorder'&&method==='POST') {
       const current=(await this.store.all('portfolio',a.country)).filter(x=>x.owner===a.id&&x.status!=='archived');
       if(!Array.isArray(b.project_ids)||b.project_ids.length!==current.length||new Set(b.project_ids).size!==current.length||b.project_ids.some((id:string)=>!current.some(p=>p.id===id)))fail(400,'VALIDATION_ERROR','Проверьте список проектов');
@@ -350,13 +362,13 @@ export class Marketplace {
       const projects=(await this.store.all('portfolio',a.country)).filter(x=>x.owner===a.id&&x.status!=='archived');if(projects.length>=settings.portfolio_projects)fail(422,'LIMIT_EXCEEDED','Максимум 20 проектов');
       if(b.rights_confirmed!==undefined&&typeof b.rights_confirmed!=='boolean')fail(400,'VALIDATION_ERROR','Проверьте подтверждение прав');
       const category=(await this.store.all('category',a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
-      let orderId:string|null=null;if(b.order_id){const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||![order.owner,order.executor_id].includes(a.id))fail(422,'POLICY_REJECTED','Можно связать только свой завершённый заказ');orderId=order.id;}
+      let orderId:string|null=null;if(b.order_id){const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||order.executor_id!==a.id)fail(422,'POLICY_REJECTED','Можно связать только заказ, выполненный вами');orderId=order.id;}
       return this.store.put(this.record('portfolio',a,{title:text(b,'title',5,120),description:text(b,'description',0,3000),category_id:category!.id,order_id:orderId,rights_confirmed:b.rights_confirmed===true,status:'draft',position:projects.length,photos:[]}));
     }
     const portfolio=path.match(/^\/me\/portfolio-projects\/([^/]+)(?:\/(submit))?$/);
     if(portfolio) {
-      const p=await this.object(portfolio[1],a,'portfolio',true);if(method==='GET')return p;this.version(p,b);
-      if(method==='DELETE')return this.store.put({...p,status:'archived',version:p.version+1});
+      const stored=await this.object(portfolio[1],a,'portfolio',true),p=editableContent(stored);if(method==='GET')return p;this.version(stored,b);
+      if(method==='DELETE')return this.store.put({...stored,draft:undefined,status:'archived',version:stored.version+1});
       if(method==='PATCH') {
         const photos=b.upload_ids?await this.safeUploads(a,b.upload_ids,'portfolio'):p.photos;
         if(photos.length>settings.portfolio_photos)fail(422,'LIMIT_EXCEEDED','Превышен лимит фотографий');
@@ -364,14 +376,24 @@ export class Marketplace {
         const category=(await this.store.all('category',a.country)).find(c=>(c.id===(b.category_id??p.category_id)||c.legacy_id===(b.category_id??p.category_id))&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
         const cover=b.cover_id??(photos.includes(p.cover_id)?p.cover_id:photos[0]),extra:any={};
         if(b.rights_confirmed!==undefined){if(typeof b.rights_confirmed!=='boolean')fail(400,'VALIDATION_ERROR','Подтвердите права на материалы');extra.rights_confirmed=b.rights_confirmed;}
-        if(b.order_id!==undefined){if(b.order_id===null)extra.order_id=null;else{const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||![order.owner,order.executor_id].includes(a.id))fail(422,'POLICY_REJECTED','Можно связать только свой завершённый заказ');extra.order_id=order.id;}}
-        return this.store.put({...p,...extra,title:b.title===undefined?p.title:text(b,'title',5,120),description:b.description===undefined?p.description:text(b,'description',0,3000),category_id:category!.id,photos,cover_id:cover,status:'draft',version:p.version+1});
+        if(b.order_id!==undefined){if(b.order_id===null)extra.order_id=null;else{const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||order.executor_id!==a.id)fail(422,'POLICY_REJECTED','Можно связать только заказ, выполненный вами');extra.order_id=order.id;}}
+        return this.store.put(editContent(stored,{...extra,title:b.title===undefined?p.title:text(b,'title',5,120),description:b.description===undefined?p.description:text(b,'description',0,3000),category_id:category!.id,photos,cover_id:cover})).then(editableContent);
       }
-      if(portfolio[2]==='submit'){await this.entitlement(a,'publish_profile',true);if(!p.photos.length||p.rights_confirmed!==true)fail(422,'POLICY_REJECTED','Нужна проверенная фотография и подтверждение прав на материалы');return this.store.put({...p,status:'pending_review',version:p.version+1});}
+      if(portfolio[2]==='submit'){await this.entitlement(a,'publish_profile',true);if(!p.photos.length||p.rights_confirmed!==true)fail(422,'POLICY_REJECTED','Нужна проверенная фотография и подтверждение прав на материалы');if(!['draft','rejected'].includes(p.status))fail(409,'STATE_CONFLICT','Нет черновика для проверки');return this.store.put(submitContent(stored)).then(editableContent);}
     }
     if(path==='/contractors'&&method==='GET'){await this.entitlement(a,'search_full');return this.page('contractor',a,q,{statuses:['published'],publicActor:a.id});}
     const contractor=path.match(/^\/contractors\/([^/]+)(?:\/(portfolio))?$/);
-    if(contractor&&method==='GET'){await this.entitlement(a,'search_full');const p=await this.object(contractor[1],a,'contractor');const owner=await this.store.get(p.owner);if(owner?.status!=='active'||owner.verification!=='passed'||p.status!=='published'||p.moderation_status==='quarantined'||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');return contractor[2]?this.list((await this.store.all('portfolio',a.country)).filter(x=>x.owner===p.owner&&x.status==='published'&&x.moderation_status!=='quarantined'),q):p;}
+    if(contractor&&method==='GET'){
+      await this.entitlement(a,'search_full');const p=await this.object(contractor[1],a,'contractor'),owner=await this.store.get(p.owner);
+      if(owner?.status!=='active'||owner.verification!=='passed'||p.status!=='published'||['quarantined','hidden','rejected'].includes(p.moderation_status)||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');
+      if(!contractor[2])return publicContent(p);
+      const projects=(await this.store.all('portfolio',a.country)).filter(x=>x.owner===p.owner&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status));
+      const visible=await Promise.all(projects.map(async project=>{
+        const order=project.order_id?await this.store.get(project.order_id):undefined;
+        const linked=order?.kind==='order'&&order.country===a.country&&order.status==='completed'&&order.executor_id===project.owner;
+        return {...publicContent(project),order_id:undefined,linked_completed_order:linked,source:linked?'joba_completed':'self_reported'};
+      }));return this.portfolioPage(visible,q);
+    }
     const publicCustomer=path.match(/^\/customers\/([^/]+)$/);
     if(publicCustomer&&method==='GET') {
       await this.entitlement(a,'search_full');const u=await this.object(publicCustomer[1],a,'user');if(u.status!=='active'||u.staff_permissions?.length||await this.blocked(a,u.id))fail(404,'NOT_FOUND','Профиль недоступен');
@@ -391,7 +413,7 @@ export class Marketplace {
       return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
     }
     if(path==='/me/orders'&&method==='GET')return this.page('order',a,q,{owner:a.id});
-    if(path==='/me/completed-orders'&&method==='GET')return this.page('order',a,q,{participant:a.id,statuses:['completed']});
+    if(path==='/me/completed-orders'&&method==='GET'){if(q.role&&!['customer','executor'].includes(q.role))fail(400,'VALIDATION_ERROR','Проверьте роль');return this.page('order',a,q,{...(q.role==='executor'?{executor:a.id}:q.role==='customer'?{owner:a.id}:{participant:a.id}),statuses:['completed']});}
     if(path==='/me/assigned-orders'&&method==='GET')return this.list((await this.store.all('order',a.country)).filter(x=>x.executor_id===a.id),q);
     if(path==='/me/offers'&&method==='GET')return this.list((await this.store.all('offer',a.country)).filter(x=>x.owner===a.id),q);
     if(path==='/me/order-change-requests'&&method==='GET')return this.list([...(await this.store.all('cancel_request',a.country)),...(await this.store.all('amendment',a.country))].filter(x=>x.owner===a.id||x.recipient_id===a.id),q);
@@ -400,7 +422,7 @@ export class Marketplace {
     if(om) {
       const o=await this.object(om[1],a,'order');const action=om[2];
       const participant=o.owner===a.id||o.executor_id===a.id;
-      if(!participant&&(o.status!=='open'||o.moderation_status==='quarantined'||o.expires_at<=new Date().toISOString()||await this.blocked(a,o.owner)))fail(404,'NOT_FOUND','Заказ не найден');
+      if(!participant&&(o.status!=='open'||['quarantined','hidden','rejected'].includes(o.moderation_status)||o.expires_at<=new Date().toISOString()||await this.blocked(a,o.owner)))fail(404,'NOT_FOUND','Заказ не найден');
       if(!participant)await this.entitlement(a,'search_full',true);
       if(method==='GET'&&!action)return participant?o:{...o,exact_address:undefined};
       if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id)};}
@@ -417,7 +439,7 @@ export class Marketplace {
       if(action==='invites'&&method==='POST') {
         if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');await this.entitlement(a,'publish_order');
         if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ закрыт');
-        const p=await this.object(String(b.contractor_id),a,'contractor');if(p.owner===a.id||p.status!=='published')fail(422,'POLICY_REJECTED','Исполнитель недоступен');
+        const p=await this.object(String(b.contractor_id),a,'contractor'),owner=await this.store.get(p.owner);if(owner?.status!=='active'||owner.verification!=='passed'||await this.blocked(a,p.owner)||p.owner===a.id||p.status!=='published'||p.availability==='paused')fail(422,'POLICY_REJECTED','Исполнитель недоступен');
         const i=this.record('invite',a,{order_id:o.id,recipient_id:p.owner,status:'pending',order_revision:o.revision});await this.store.put(i);await this.notify(p.owner,a,'invite.created',i.id);return i;
       }
       if(['cancel-requests','amendments'].includes(action??'')&&method==='POST') {
@@ -564,7 +586,7 @@ export class Marketplace {
       const kind=q.target_type==='orders'?'order':'contractor';await this.entitlement(a,'search_full',kind==='order');
       const candidates=(await this.store.all(kind,a.country)).filter(x=>x.status===(kind==='order'?'open':'published'));
       const counts=(await db.query<any>('SELECT target,COUNT(*) FILTER(WHERE value=1) AS likes,COUNT(*) FILTER(WHERE value=-1) AS dislikes FROM votes WHERE created_at>now()-interval \'30 days\' GROUP BY target')).rows;
-      const ranked=candidates.map(c=>{const v=counts.find(v=>v.target===c.id);const likes=Number(v?.likes??0),dislikes=Number(v?.dislikes??0);const age=(Date.now()-new Date(c.published_at??c.created_at).getTime())/86400000;return {...c,likes,dislikes,organic_score:Math.max(0,Math.log1p(likes)-.5*Math.log1p(dislikes))*Math.exp(-age/30)};}).sort((a,b)=>b.organic_score-a.organic_score||b.likes-a.likes||b.created_at.localeCompare(a.created_at)||a.id.localeCompare(b.id));
+      const ranked=candidates.map(c=>{const v=counts.find(v=>v.target===c.id);const likes=Number(v?.likes??0),dislikes=Number(v?.dislikes??0);const age=(Date.now()-new Date(c.published_at??c.created_at).getTime())/86400000;return {...publicContent(c),likes,dislikes,organic_score:Math.max(0,Math.log1p(likes)-.5*Math.log1p(dislikes))*Math.exp(-age/30)};}).sort((a,b)=>b.organic_score-a.organic_score||b.likes-a.likes||b.created_at.localeCompare(a.created_at)||a.id.localeCompare(b.id));
       return {items:ranked.slice(0,100),promotions:[],meta:{algorithm_version:1,calculated_at:new Date().toISOString()}};
     }
     const reviews=path.match(/^\/(customers|contractors)\/([^/]+)\/reviews$/);
@@ -624,6 +646,7 @@ export class Marketplace {
     const upload=path.match(/^\/uploads\/([^/]+)\/(content|finalize|download|download-url|metadata)$/);
     if(upload) {
       const u=await this.object(upload[1],a,'upload');
+      if(q.variant!==undefined&&!['original','preview'].includes(q.variant))fail(400,'VALIDATION_ERROR','Проверьте вариант файла');
       if(!['download','download-url','metadata'].includes(upload[2])&&u.owner!==a.id)fail(404,'NOT_FOUND','Файл не найден');
       if(upload[2]==='metadata'&&method==='GET'){if(u.owner!==a.id)await this.authorizeFile(u,a,q);return {id:u.id,mime:u.mime,size:u.size,status:u.status,version:u.version,failure_code:u.failure_code};}
       if(upload[2]==='content'&&method==='PUT') {
@@ -645,11 +668,12 @@ export class Marketplace {
       }
       if(upload[2]==='download'&&method==='GET') {
         await this.authorizeFile(u,a,q);
-        return {download_buffer:await this.files.read(u.id),mime:u.mime};
+        if(u.purpose==='export')return {download_stream:await this.files.readStream(u.id),download_size:u.stored_size??u.size,mime:u.mime};
+        return {download_buffer:await this.files.read(q.variant==='preview'&&u.preview_file_id?u.preview_file_id:u.id),mime:u.mime};
       }
       if(upload[2]==='download-url'&&method==='GET') {
         await this.authorizeFile(u,a,q);const token=randomBytes(32).toString('base64url');
-        const ticket=this.record('download_ticket',a,{upload_id:u.id,token_hash:digest(token),family:a.family,reason:q.reason,status:'active',expires_at:new Date(Date.now()+5*60000).toISOString()});await this.store.put(ticket);
+        const ticket=this.record('download_ticket',a,{upload_id:u.id,token_hash:digest(token),family:a.family,reason:q.reason,variant:q.variant??'original',status:'active',expires_at:new Date(Date.now()+5*60000).toISOString()});await this.store.put(ticket);
         return {url:'/api/v1/private-files/'+u.id+'?token='+token,expires_at:ticket.expires_at,one_use:true};
       }
     }
@@ -684,10 +708,13 @@ export class Marketplace {
       const contentDecision=path.match(/^\/admin\/(portfolio|contractors)\/([^/]+)\/decision$/);
       if(contentDecision&&method==='POST') {
         const r=await this.object(contentDecision[2],a,contentDecision[1]==='portfolio'?'portfolio':'contractor');this.version(r,b);
-        if(!['pending_review','pending_moderation'].includes(r.status))fail(409,'STATE_CONFLICT','Материал не ожидает проверки');
+        if(!['pending_review','pending_moderation'].includes(editableContent(r).status))fail(409,'STATE_CONFLICT','Материал не ожидает проверки');
         if(!['approve','reject'].includes(b.decision))fail(400,'VALIDATION_ERROR','Выберите approve или reject');
-        const owner=(await this.store.get(r.owner))!;if(b.decision==='approve'&&owner.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Проверка исполнителя не действует');
-        const reason=text(b,'reason',10,1000),result=await this.store.put({...r,status:b.decision==='approve'?'published':'rejected',moderation_status:b.decision==='approve'?'approved':'rejected',reviewer_id:a.id,reason,version:r.version+1});await this.audit(a,'content.'+b.decision,r.id,reason);return result;
+        const owner=(await this.store.get(r.owner))!;if(b.decision==='approve'&&owner.status!=='active')fail(403,'FORBIDDEN','Новые действия исполнителя ограничены');if(b.decision==='approve'&&owner.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Проверка исполнителя не действует');
+        const reason=text(b,'reason',10,1000);
+        if(['published','paused'].includes(r.status)&&r.draft&&b.decision==='approve')await this.store.put(this.record('content_revision',{id:r.owner,country:r.country},{source_id:r.id,source_kind:r.kind,source_version:r.published_version??r.version,content:publicContent(r),status:'archived'}));
+        const decided={...editableContent(r),status:b.decision==='approve'?(r.status==='paused'?'paused':'published'):'rejected',moderation_status:b.decision==='approve'?'approved':'rejected',reviewer_id:a.id,reason,version:r.version+1};
+        const result=await this.store.put(['published','paused'].includes(r.status)&&b.decision==='reject'?{...r,draft:{...r.draft,status:'rejected',reason,reviewer_id:a.id},version:r.version+1}:{...decided,draft:undefined,public_status:undefined,...(b.decision==='approve'?{published_at:new Date().toISOString(),published_version:r.version+1}:{})});await this.audit(a,'content.'+b.decision,r.id,reason);return editableContent(result);
       }
       const blacklistDecision=path.match(/^\/admin\/blacklist\/([^/]+)\/decision$/);
       if(blacklistDecision&&method==='POST') {
@@ -718,7 +745,7 @@ export class Marketplace {
         const u=(await this.store.get(r.owner))!;await this.store.put({...u,verification:b.decision,version:u.version+1});
         const result=await this.store.put({...r,status:b.decision,expires_at:b.decision==='passed'?new Date(end).toISOString():null,reason,reviewer_id:a.id,decided_at:new Date().toISOString(),version:r.version+1});await this.audit(a,'verification.'+b.decision,r.id,reason);if(b.decision==='passed')await this.growth.qualify(r.owner,a.country,'executor_verified',r.id);return {...result,document_refs:undefined};
       }
-      if(method==='GET'&&kinds[section]&&path.split('/').length===3)return this.list((await this.store.all(kinds[section],a.country)).filter(x=>section!=='users'||!x.staff_permissions?.length).map(x=>section==='users'?{...safeUser(x),version:x.version,status:x.status}:section==='verifications'?{...x,document_refs:undefined}:x),q);
+      if(method==='GET'&&kinds[section]&&path.split('/').length===3)return this.list((await this.store.all(kinds[section],a.country)).filter(x=>section!=='users'||!x.staff_permissions?.length).map(x=>section==='users'?{...safeUser(x),version:x.version,status:x.status}:section==='verifications'?{...x,document_refs:undefined}:['portfolio','contractors'].includes(section)?editableContent(x):x),q);
       const reviewDetail=path.match(/^\/admin\/(orders|portfolio|contractors|verifications|support-threads|privacy-requests)\/([^/]+)$/);
       if(reviewDetail&&method==='GET') {
         const kind=reviewDetail[1]==='contractors'?'contractor':kinds[reviewDetail[1]];
@@ -732,7 +759,7 @@ export class Marketplace {
           }
           return safe;
         }
-        return r;
+        return ['portfolio','contractors'].includes(reviewDetail[1])?editableContent(r):r;
       }
       const userDetail=path.match(/^\/admin\/users\/([^/]+)$/);
       const securityEvents=path.match(/^\/admin\/users\/([^/]+)\/security-events$/);
@@ -855,15 +882,21 @@ export class Marketplace {
       const [payload,signature]=String(q.cursor).split('.');if(!payload||!signature||String(q.cursor).length>1000)throw Error();
       if(signature!==await this.files.requestDigest(payload))throw Error();const decoded=JSON.parse(Buffer.from(payload,'base64url').toString());
       if(decoded.filter_hash!==this.filterHash(q)||decoded.expires_at<=new Date().toISOString()||!/^[-0-9a-f]{36}$/.test(decoded.after))throw Error();return decoded.after;
-    }catch {return fail(400,'VALIDATION_ERROR','Cursor недействителен или относится к другим фильтрам');}
+    }catch {return fail(400,'VALIDATION_ERROR','Cursor недействителен или относится к другим фильтрам',{restart_required:true});}
   }
   private async nextCursor(id:string,q:any) {
     const payload=Buffer.from(JSON.stringify({after:id,filter_hash:this.filterHash(q),expires_at:new Date(Date.now()+86400000).toISOString()})).toString('base64url');return payload+'.'+await this.files.requestDigest(payload);
   }
-  private async page(kind:string,a:Actor,q:any,options:{owner?:string;participant?:string;statuses?:string[];publicActor?:string}={}) {
+  private async page(kind:string,a:Actor,q:any,options:{owner?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
-    const selected=await this.store.select(kind,a.country,{...options,limit:limit+1,after,city:q.city,category:q.category_id,search:q.q});
-    const items=selected.slice(0,limit).map(x=>options.publicActor&&kind==='order'?{...x,exact_address:undefined}:x);return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};
+    const selected=await this.store.select(kind,a.country,{...options,limit:limit+1,after,city:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
+    const items=selected.slice(0,limit).map(x=>options.publicActor&&kind==='order'?{...x,exact_address:undefined}:options.publicActor&&kind==='contractor'?publicContent(x):x);return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};
+  }
+  private async portfolioPage(records:RecordData[],q:any) {
+    const sorted=records.filter(r=>(!q.category_id||r.category_id===q.category_id)&&(!q.q||[r.title,r.description].join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((x,y)=>(x.position??0)-(y.position??0)||x.id.localeCompare(y.id));
+    const scoped={...q,_portfolio_order:digest(JSON.stringify(sorted.map(r=>[r.id,r.position??0,r.published_version??r.version])))};
+    const after=await this.cursor(scoped),start=after?sorted.findIndex(r=>r.id===after)+1:0,limit=this.pageLimit(q),batch=sorted.slice(start,start+limit);
+    return {items:batch,meta:{next_cursor:start+batch.length<sorted.length?await this.nextCursor(batch.at(-1)!.id,scoped):null}};
   }
   private async list(items:any[],q:any) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
@@ -963,8 +996,13 @@ export class Marketplace {
       if(support?.owner===a.id)return;
       if(support?.assignee_id===a.id){await this.staff(a,'support');return;}
       if(u.purpose==='portfolio') {
-        const project=(await this.store.all('portfolio',a.country)).find(p=>p.status==='published'&&p.moderation_status!=='quarantined'&&p.photos?.includes(u.id));
-        const profile=(await this.store.all('contractor',a.country)).find(p=>p.owner===u.owner&&p.status==='published'&&p.moderation_status!=='quarantined'&&(project||p.gallery_ids?.includes(u.id)));
+        if(a.mfa&&(a.user.staff_permissions?.includes('content')||a.user.staff_permissions?.includes('administrator'))) {
+          const projects=await this.store.all('portfolio',a.country),profiles=await this.store.all('contractor',a.country);
+          const linked=[...projects,...profiles].some(r=>r.owner===u.owner&&r.status!=='archived'&&[...r.photos??[],...r.gallery_ids??[],...r.draft?.photos??[],...r.draft?.gallery_ids??[]].includes(u.id));
+          if(linked){await this.staff(a,'content');const reason=text(q,'reason',10,1000);await this.audit(a,'content.media_read',u.id,reason);return;}
+        }
+        const project=(await this.store.all('portfolio',a.country)).find(p=>p.status==='published'&&!['quarantined','hidden','rejected'].includes(p.moderation_status)&&p.photos?.includes(u.id));
+        const profile=(await this.store.all('contractor',a.country)).find(p=>p.owner===u.owner&&p.status==='published'&&!['quarantined','hidden','rejected'].includes(p.moderation_status)&&(project||p.gallery_ids?.includes(u.id)));
         const owner=profile?await this.store.get(profile.owner):undefined;
         if(profile&&owner?.status==='active'&&owner.verification==='passed'&&!await this.blocked(a,profile.owner)){await this.entitlement(a,'search_full');return;}
       }
@@ -972,7 +1010,7 @@ export class Marketplace {
         const order=(await this.store.all('order',a.country)).find(o=>o.upload_ids?.includes(u.id));
         if(order&&[order.owner,order.executor_id].includes(a.id))return;
         const owner=order?await this.store.get(order.owner):undefined;
-        if(owner?.status==='active'&&order?.expires_at>new Date().toISOString()&&order?.status==='open'&&order.moderation_status!=='quarantined'&&!await this.blocked(a,order.owner)){await this.entitlement(a,'search_full',true);return;}
+        if(owner?.status==='active'&&order?.expires_at>new Date().toISOString()&&order?.status==='open'&&!['quarantined','hidden','rejected'].includes(order.moderation_status)&&!await this.blocked(a,order.owner)){await this.entitlement(a,'search_full',true);return;}
       }
       if(u.purpose==='avatar') {
         const user=await this.store.get(u.owner);if(user?.status==='active'&&user.avatar_id===u.id&&!await this.blocked(a,u.owner)){await this.entitlement(a,'search_full');return;}
@@ -1010,7 +1048,7 @@ export class Marketplace {
         }catch(error){await this.store.db.exec('ROLLBACK');throw error;}
       });
       if(!upload.claimed)return upload;
-      let state='clean',failure:string|null=null,clean:Buffer|undefined;
+      let state='clean',failure:string|null=null,clean:Buffer|undefined,previewId:string|undefined;
       try{
         const raw=await this.files.read(id);let verdict:string;
         try{verdict=await this.providers.scanner!.scan(raw,upload.mime);}catch{throw Error('SCANNER_UNAVAILABLE');}
@@ -1018,8 +1056,8 @@ export class Marketplace {
         else if(upload.mime==='application/pdf'){
           if(!this.providers.pdfSanitizer)throw Error('PDF_SANITIZER_UNAVAILABLE');
           try{clean=await this.providers.pdfSanitizer.sanitize(raw);}catch{throw Error('PDF_POLICY_REJECTED');}
-        }else{try{clean=await sharp(raw,{limitInputPixels:25000000}).jpeg().toBuffer();}catch{throw Error('IMAGE_POLICY_REJECTED');}}
-        if(clean)await this.files.write(id,clean);
+        }else{try{const image=sharp(raw,{limitInputPixels:25000000}),metadata=await image.metadata();if(metadata.format!==(upload.mime==='image/png'?'png':'jpeg'))throw Error('Unexpected image format');clean=await image.rotate().jpeg().toBuffer();}catch{throw Error('IMAGE_POLICY_REJECTED');}}
+        if(clean){await this.files.write(id,clean);if(upload.mime!=='application/pdf'){const preview=await sharp(clean).resize({width:960,withoutEnlargement:true}).jpeg({quality:80}).toBuffer();previewId=randomUUID();await this.files.write(previewId,preview);}}
       }catch(error:any){failure=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','PDF_POLICY_REJECTED','IMAGE_POLICY_REJECTED'].includes(error.message)?error.message:'FILE_PROCESSING_UNAVAILABLE';state=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','FILE_PROCESSING_UNAVAILABLE'].includes(failure!)?'processing':'rejected';}
       return this.exclusive(async()=>{
         await this.store.db.exec('BEGIN');try{
@@ -1027,7 +1065,7 @@ export class Marketplace {
           const current=await this.store.get(id);
           if(!current||current.scan_nonce!==upload.scan_nonce||current.status!=='scanning'){await this.store.db.exec('COMMIT');return current??{id,status:'expired'};}
           const attempts=(current.scan_attempts??0)+1;
-          const result=await this.store.put({...current,status:state==='processing'&&attempts>=5?'rejected':state,failure_code:failure,scan_attempts:attempts,next_attempt_at:state==='processing'?new Date(Date.now()+Math.min(3600000,2**attempts*1000)).toISOString():null,scan_lease_until:null,mime:clean&&current.mime!=='application/pdf'?'image/jpeg':current.mime,stored_size:clean?.length??current.stored_size,version:current.version+1});
+          const result=await this.store.put({...current,status:state==='processing'&&attempts>=5?'rejected':state,failure_code:failure,scan_attempts:attempts,next_attempt_at:state==='processing'?new Date(Date.now()+Math.min(3600000,2**attempts*1000)).toISOString():null,scan_lease_until:null,mime:clean&&current.mime!=='application/pdf'?'image/jpeg':current.mime,stored_size:clean?.length??current.stored_size,...(previewId?{preview_file_id:previewId}:{}),version:current.version+1});
           await this.store.db.exec('COMMIT');return result;
         }catch(error){await this.store.db.exec('ROLLBACK');throw error;}
       });

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:services_marketplace/main.dart';
 import 'package:services_marketplace/core/api.dart';
+import 'package:services_marketplace/core/widgets.dart';
 
 class MemoryVault implements SessionVault {
   String? value;
@@ -26,6 +27,20 @@ class MemoryVault implements SessionVault {
 http.Response ok(dynamic data) =>
     http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
         headers: {'content-type': 'application/json; charset=utf-8'});
+
+class RecordingSink implements StreamConsumer<List<int>> {
+  final bytes = <int>[];
+  @override
+  Future<void> addStream(Stream<List<int>> stream) async {
+    await for (final chunk in stream) {
+      bytes.addAll(chunk);
+    }
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
 void main() {
   test('Old command never replays under a newly signed-in account', () async {
     final pending = Completer<http.Response>(), started = Completer<void>();
@@ -334,5 +349,137 @@ void main() {
         .setMockMethodCallHandler(
             const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
             null);
+  });
+  test(
+      'File download never refreshes or returns an old account response after sign-in changes',
+      () async {
+    final pending = Completer<http.Response>(), started = Completer<void>();
+    final calls = <String>[];
+    final api = JobaApi('https://example.com', vault: MemoryVault(),
+        transport: MockClient((request) async {
+      calls.add(request.url.path);
+      if (request.url.path.endsWith('/download')) {
+        started.complete();
+        return pending.future;
+      }
+      return ok({
+        'access_token': 'new-access',
+        'refresh_token': 'new-refresh',
+        'user': {'id': 'new-user'}
+      });
+    }))
+      ..session = {
+        'access_token': 'old-access',
+        'refresh_token': 'old-refresh',
+        'user': {'id': 'old-user'}
+      };
+    final download = api.download('private-file');
+    await started.future;
+    final failed = expectLater(
+        download,
+        throwsA(isA<ApiException>()
+            .having((e) => e.code, 'code', 'SESSION_SUPERSEDED')));
+    await api.signIn({
+      'country': 'KZ',
+      'phone': '+77011234567',
+      'password': 'Different account password'
+    });
+    pending.complete(http.Response('', 401));
+    await failed;
+    expect(calls.where((path) => path.endsWith('/auth/refresh')), isEmpty);
+    expect(api.session!['user']['id'], 'new-user');
+    api.dispose();
+  });
+  testWidgets(
+      'Photo loads a preview, opens an original in a zoom viewer, and hides it after logout',
+      (tester) async {
+    final bytes = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
+    final variants = <String?>[];
+    final api = JobaApi('https://example.com', vault: MemoryVault(),
+        transport: MockClient((request) async {
+      variants.add(request.url.queryParameters['variant']);
+      return http.Response.bytes(bytes, 200,
+          headers: {'content-type': 'image/png'});
+    }))
+      ..session = {
+        'access_token': 'photo-access',
+        'user': {'id': 'photo-owner'}
+      };
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: PrivatePhoto(api: api, id: 'private-photo'))));
+    await tester.pumpAndSettle();
+    expect(variants, ['preview']);
+    await tester.tap(find.byType(Image));
+    await tester.pumpAndSettle();
+    expect(variants, ['preview', 'original']);
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    await api.forget();
+    await tester.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsNothing);
+    await tester.tap(find.byTooltip('Закрыть'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    api.dispose();
+  });
+  test(
+      'Archive download streams chunks and reports received bytes without buffering a response',
+      () async {
+    final api = JobaApi('https://example.com', vault: MemoryVault(),
+        transport: MockClient.streaming((request, body) async {
+      await body.drain<void>();
+      return http.StreamedResponse(
+          Stream.fromIterable([
+            [1, 2],
+            [3, 4]
+          ]),
+          200,
+          contentLength: 4);
+    }))
+      ..session = {
+        'access_token': 'stream-access',
+        'user': {'id': 'stream-owner'}
+      };
+    final sink = RecordingSink(), progress = <List<int?>>[];
+    await api.downloadToSink('archive', sink,
+        onProgress: (bytes, total) => progress.add([bytes, total]));
+    expect(sink.bytes, [1, 2, 3, 4]);
+    expect(progress, [
+      [2, 4],
+      [4, 4]
+    ]);
+    api.dispose();
+  });
+  test('Archive stream stops before accepting a chunk after logout', () async {
+    final controller = StreamController<List<int>>(), first = Completer<void>();
+    var cancelled = false;
+    controller.onCancel = () => cancelled = true;
+    final api = JobaApi('https://example.com', vault: MemoryVault(),
+        transport: MockClient.streaming((request, body) async {
+      await body.drain<void>();
+      return http.StreamedResponse(controller.stream, 200);
+    }))
+      ..session = {
+        'access_token': 'stream-access',
+        'user': {'id': 'stream-owner'}
+      };
+    final sink = RecordingSink(),
+        download =
+            api.downloadToSink('archive', sink, onProgress: (bytes, total) {
+          if (!first.isCompleted) first.complete();
+        });
+    final rejected = expectLater(
+        download,
+        throwsA(isA<ApiException>()
+            .having((e) => e.code, 'code', 'SESSION_SUPERSEDED')));
+    controller.add([1, 2]);
+    await first.future;
+    await api.forget();
+    controller.add([3, 4]);
+    await rejected;
+    expect(sink.bytes, [1, 2]);
+    expect(cancelled, true);
+    await controller.close();
+    api.dispose();
   });
 }

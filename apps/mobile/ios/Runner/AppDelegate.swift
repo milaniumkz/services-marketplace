@@ -5,12 +5,14 @@ import LocalAuthentication
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private var fileExporter: JobaFileExporter?
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
+      fileExporter = JobaFileExporter(controller: controller)
       let channel = FlutterMethodChannel(name: "joba.device_security", binaryMessenger: controller.binaryMessenger)
       channel.setMethodCallHandler { call, result in
         guard call.method == "hardwareBacked" else {
@@ -74,5 +76,40 @@ import LocalAuthentication
       } else { reply = FlutterMethodNotImplemented }
       DispatchQueue.main.async { result(reply) }
     }
+  }
+}
+
+
+private final class JobaFileExporter: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
+  private weak var presenter: UIViewController?
+  private var pending: FlutterResult?
+  private var channel: FlutterMethodChannel
+  init(controller: FlutterViewController) {
+    presenter = controller
+    channel = FlutterMethodChannel(name: "joba.file_export", binaryMessenger: controller.binaryMessenger)
+    super.init()
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { result(FlutterError(code: "EXPORT_UNAVAILABLE", message: "Exporter unavailable", details: nil)); return }
+      guard call.method == "save" else { result(FlutterMethodNotImplemented); return }
+      guard self.pending == nil else { result(FlutterError(code: "EXPORT_BUSY", message: "Another export is active", details: nil)); return }
+      guard let arguments = call.arguments as? [String: Any], let path = arguments["path"] as? String else { result(FlutterError(code: "EXPORT_INVALID", message: "Invalid export", details: nil)); return }
+      let url = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+      let roots = [URL(fileURLWithPath: NSTemporaryDirectory())] + FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+      guard roots.contains(where: { url.path.hasPrefix($0.resolvingSymlinksInPath().path + "/") }), FileManager.default.fileExists(atPath: url.path), let presenter = self.presenter else { result(FlutterError(code: "EXPORT_INVALID", message: "Invalid private export file", details: nil)); return }
+      guard UIApplication.shared.applicationState == .active, presenter.viewIfLoaded?.window != nil else { result(FlutterError(code: "EXPORT_UNAVAILABLE", message: "Open the application to save the export", details: nil)); return }
+      let picker: UIDocumentPickerViewController
+      if #available(iOS 14.0, *) { picker = UIDocumentPickerViewController(forExporting: [url], asCopy: true) }
+      else { picker = UIDocumentPickerViewController(url: url, in: .exportToService) }
+      picker.delegate = self
+      self.pending = result
+      presenter.present(picker, animated: true) { picker.presentationController?.delegate = self }
+    }
+  }
+  func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+    let result = pending; pending = nil; result?(!urls.isEmpty)
+  }
+  func presentationControllerDidDismiss(_ presentationController: UIPresentationController) { let result = pending; pending = nil; result?(false) }
+  func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+    let result = pending; pending = nil; result?(false)
   }
 }

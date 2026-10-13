@@ -17,11 +17,13 @@ async function main(){
   marketplace.providers.scanner={scan:async()=> 'clean'};
   await app.listen(0,'127.0.0.1');
   const stop=startRealtime(app.getHttpServer(),marketplace);
+  let work,workerError;const maintenance=setInterval(()=>{if(work)return;work=marketplace.maintenance().catch(error=>{workerError=error;}).finally(()=>{work=undefined;});},250);
   try{
     const sdk=process.env.FLUTTER_ROOT||'/workspace/flutter-sdk';
     const child=spawn(sdk+'/bin/flutter',['test','--reporter','expanded','--dart-define=JOBA_TEST_API_URL='+await app.getUrl(),'test/api_integration_test.dart'],{
       cwd:resolve(__dirname,'../apps/mobile'),stdio:'inherit',env:{...process.env,PUB_CACHE:process.env.PUB_CACHE||'/workspace/.pub-cache',XDG_CONFIG_HOME:process.env.XDG_CONFIG_HOME||'/workspace/.config'}});
     process.exitCode=await new Promise((done,reject)=>{child.on('error',reject);child.on('exit',code=>done(code??1));});
-  }finally{stop();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
+    if(workerError)throw Error('Isolated maintenance failed');
+  }finally{clearInterval(maintenance);await work;stop();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

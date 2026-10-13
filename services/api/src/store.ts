@@ -35,13 +35,15 @@ export class Store {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;participant?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;publicActor?:string}={}) {
+  async select(kind:string,country:string,options:{owner?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
+    if(options.executor)where.push("data->>'executor_id'="+bind(options.executor));
     if(options.participant){const participant=bind(options.participant);where.push(`(owner=${participant} OR data->>'executor_id'=${participant})`);}
     if(options.statuses)where.push("data->>'status'=ANY("+bind(options.statuses)+'::text[])');
     if(options.after)where.push('id>'+bind(options.after)+'::uuid');
+    if(options.sourceId)where.push("data->>'source_id'="+bind(options.sourceId));
     if(options.city)where.push("data->>'city'="+bind(options.city));
     if(options.category){const category=bind(options.category);where.push(`(data->>'category_id'=${category} OR COALESCE(data->'category_ids','[]'::jsonb) ? ${category})`);}
     if(options.publicActor){

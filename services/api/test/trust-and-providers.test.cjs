@@ -104,8 +104,10 @@ test('export job produces an encrypted archive without passwords, tokens or staf
     const clean=await api.files.read(upload.id);
     const job=await command(api,u,'POST','/me/privacy-requests',{type:'export',current_password:'a sufficiently long password'});
     await api.maintenance();const result=await command(api,u,'GET',`/me/privacy-requests/${job.id}`);assert.equal(result.status,'completed');
-    const download=await command(api,u,'GET',`/uploads/${result.upload_id}/download`);assert.equal(download.mime,'application/zip');
-    const zipPath=join(dir,'isolated-export.zip');await writeFile(zipPath,download.download_buffer);
+    const read=api.files.read.bind(api.files);api.files.read=async id=>{if(id===result.upload_id)throw Error('Export must stream instead of buffering the archive');return read(id);};
+    const download=await command(api,u,'GET',`/uploads/${result.upload_id}/download`);assert.equal(download.mime,'application/zip');assert.equal(download.download_buffer,undefined);
+    const chunks=[];for await(const chunk of download.download_stream)chunks.push(chunk);
+    const zipPath=join(dir,'isolated-export.zip');await writeFile(zipPath,Buffer.concat(chunks));
     const {execFileSync}=require('node:child_process');
     const archive=JSON.parse(execFileSync('unzip',['-p',zipPath,'data.json']).toString());
     const csv=execFileSync('unzip',['-p',zipPath,'csv/user.csv']).toString();assert.ok(csv.includes('+77000000101'));

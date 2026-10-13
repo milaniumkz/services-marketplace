@@ -5,10 +5,11 @@ import { PrivateFiles } from './private-files';
 
 const fields:Record<string,string[]>={
  user:['display_name','phone','phone_status','city','roles','locale','avatar_id','verification','status'],
- contractor:['title','description','category_id','category_ids','work_modes','languages','service_cities','travel_radius_km','experience_years','availability','price','gallery_ids','status'],
+ contractor:['title','description','category_id','category_ids','work_modes','languages','service_cities','travel_radius_km','experience_years','availability','price','gallery_ids','status','draft'],
  order:['title','description','category_id','city','work_mode','budget_amount','currency','attributes','time_window','upload_ids','status','revision','executor_id','agreed_amount','published_at','completed_at'],
  offer:['order_id','text','amount','currency','status','acknowledged_revision','conversation_id'],
- portfolio:['title','description','category_id','photos','cover_id','position','order_id','rights_confirmed','status'],
+ portfolio:['title','description','category_id','photos','cover_id','position','order_id','rights_confirmed','status','draft'],
+ content_revision:['source_id','source_kind','source_version','content'],
  review:['order_id','target_id','rating','text','status','published_at'],
  conversation:['order_id','members','status','read_sequences','delivered_sequences'],
  message:['thread_id','text','upload_ids','sequence','edited_at','tombstone'],
@@ -38,7 +39,7 @@ export async function exportSnapshot(store:Store,owner:string,country:string){
  for(const [kind,rows] of Object.entries(raw))data[kind]=rows.filter(r=>
   kind==='conversation'?chats.has(r.id):kind==='message'?chats.has(r.thread_id):kind==='support_message'?support.has(r.thread_id):kind==='case_message'?cases.has(r.case_id)&&!r.internal:
   kind==='order'?r.owner===owner||r.executor_id===owner:kind==='case'?cases.has(r.id):r.owner===owner
- ).map(r=>Object.fromEntries(['id','created_at','version',...fields[kind]].filter(key=>r[key]!==undefined).map(key=>[key,(r.tombstone||r.moderation_status==='quarantined')&&['text','upload_ids'].includes(key)?key==='text'?'':[]:r[key]])));
+ ).map(r=>Object.fromEntries(['id','created_at','version',...fields[kind]].filter(key=>r[key]!==undefined).map(key=>[key,key==='draft'&&r.draft?Object.fromEntries(fields[kind].filter(field=>field!=='draft'&&r.draft[field]!==undefined).map(field=>[field,r.draft[field]])):(r.tombstone||r.moderation_status==='quarantined')&&['text','upload_ids'].includes(key)?key==='text'?'':[]:r[key]])));
  const attachments=(await store.all('upload',country)).filter(r=>r.owner===owner&&r.status==='clean'&&r.purpose!=='export');
  return {data,attachments};
 }

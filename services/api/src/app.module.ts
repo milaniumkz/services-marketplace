@@ -1,3 +1,4 @@
+import {pipeline} from 'node:stream/promises';
 import { All, Controller, Get, Module, Req, Res } from '@nestjs/common';
 import { Marketplace } from './marketplace';
 import { APP_FILTER } from '@nestjs/core';
@@ -23,6 +24,11 @@ export class MarketplaceController {
     if(path==='/me/monetization-config'&&req.method==='GET') {
       const etag=`"config-${result.version}"`;res.setHeader('ETag',etag);res.setHeader('X-Config-Expires-At',result.expires_at);
       if(req.headers['if-none-match']===etag){res.status(304).end();return;}
+    }
+    if(result?.download_stream){
+      res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition','attachment; filename="joba-export.zip"');res.setHeader('X-Content-Type-Options','nosniff');
+      if(Number.isSafeInteger(result.download_size))res.setHeader('Content-Length',result.download_size);
+      try{await pipeline(result.download_stream,res);}catch{if(res.headersSent)res.destroy();else{res.removeHeader('Content-Length');res.status(503).json({error:{code:'DOWNLOAD_UNAVAILABLE',message:'Архив недоступен. Повторите запрос.',details:{},retryable:true}});}}return;
     }
     if(result?.download_buffer){res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition',`attachment; filename="document.${result.mime==='application/zip'?'zip':result.mime==='application/json'?'json':result.mime==='application/pdf'?'pdf':'jpg'}"`);res.setHeader('X-Content-Type-Options','nosniff');res.send(result.download_buffer);return;}
     res.json({data:result,meta:{request_id:req.joba_request_id,server_time:new Date().toISOString()}});

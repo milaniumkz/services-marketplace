@@ -5,6 +5,7 @@ const {randomUUID,randomBytes}=require('node:crypto');
 const {hash}=require('@node-rs/argon2');
 const {chromium}=require('@playwright/test');
 const assert=require('node:assert/strict');
+const sharp=require('sharp');
 async function main(){
  const files=await mkdtemp(join(tmpdir(),'joba-admin-browser-'));
  process.env.JOBA_DATA_DIR='memory://';process.env.JOBA_UPLOAD_DIR=files;delete process.env.DATABASE_URL;
@@ -15,21 +16,34 @@ async function main(){
  let browser,page,vite,webVite;
  try{
   const id=randomUUID(),secret=randomBytes(20).toString('hex'),password=randomBytes(32).toString('base64url');
-  await marketplace.store.put({id,kind:'user',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),display_name:'Изолированный сотрудник',phone:'staff-browser-test',roles:['customer'],staff_permissions:['administrator','verification_reviewer'],totp_secret:secret,status:'active',fixture:true});
+  await marketplace.store.put({id,kind:'user',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),display_name:'Изолированный сотрудник',phone:'staff-browser-test',roles:['customer'],staff_permissions:['administrator','verification_reviewer','support'],totp_secret:secret,status:'active',fixture:true});
   await marketplace.store.db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',['KZ','staff-browser-test',id,await hash(password)]);
   const applicant=await marketplace.handle('POST','/auth/register',{country:'KZ',phone:'+77000000431',password:'Isolated browser account password',display_name:'Заявитель проверки'},undefined,undefined,{},'browser-applicant');
+  const supportThread=await marketplace.handle('POST','/support/threads',{subject:'Изолированная проверка ответа поддержки'},'Bearer '+applicant.access_token,randomUUID());
+  const professional=await marketplace.handle('POST','/auth/register',{country:'KZ',phone:'+77000000432',password:'Isolated professional browser password',display_name:'Изолированный исполнитель'},undefined,undefined,{},'browser-professional');
+  await marketplace.store.put({...await marketplace.store.get(professional.user.id),roles:['customer','executor'],verification:'passed',fixture:true});
+  await marketplace.store.put({id:randomUUID(),kind:'grant',owner:professional.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['publish_profile'],source:'isolated_browser_fixture'});
+  const ownerCommand=(method,path,body={})=>marketplace.handle(method,path,body,'Bearer '+professional.access_token,randomUUID());
+  // Isolated scan adapter exercises binary photo review; no production AV outcome is claimed.
+  marketplace.providers.scanner={scan:async()=> 'clean'};
+  const bytes=await sharp({create:{width:2,height:2,channels:3,background:'#245BDB'}}).png().toBuffer();
+  let photo=await ownerCommand('POST','/uploads/initiate',{purpose:'portfolio',mime:'image/png',size:bytes.length});await ownerCommand('PUT','/uploads/'+photo.id+'/content',bytes);photo=await ownerCommand('POST','/uploads/'+photo.id+'/finalize');
+  const category=(await ownerCommand('GET','/catalog/categories')).items[0].id;
+  let profile=await ownerCommand('PUT','/me/contractor-profile',{title:'Первая версия профиля исполнителя',description:'Безопасное описание профиля для изолированной проверки',city:'Алматы',category_id:category,gallery_ids:[photo.id]});
+  profile=await ownerCommand('POST','/me/contractor-profile/publish',{expected_version:profile.version});
   const verificationId=randomUUID();
   await marketplace.store.put({id:verificationId,kind:'verification',owner:applicant.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'pending_review',document_type:'passport',document_revision:2,document_refs:[]});
   await app.listen(0,'127.0.0.1');const origin=await app.getUrl();
   browser=await chromium.launch({executablePath:process.env.JOBA_CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
   page=await browser.newPage({viewport:{width:1440,height:1000}});
   // Redirect transport to an isolated real HTTP API; response data are never mocked.
-  let lostDraftResponse=false;
+  let lostDraftResponse=false,lostReplyResponse=false;
   await page.route('**/api/v1/**',async route=>{
    const request=route.request(),url=new URL(request.url());
    const response=await fetch(origin+url.pathname+url.search,{method:request.method(),headers:request.headers(),body:['GET','HEAD'].includes(request.method())?undefined:request.postData()});
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/monetization-configs'&&response.ok&&!lostDraftResponse){lostDraftResponse=true;await response.text();await route.abort('failed');return;}
-   await route.fulfill({status:response.status,headers:{'content-type':'application/json'},body:await response.text()});
+   if(request.method()==='POST'&&url.pathname==='/api/v1/admin/support-threads/'+supportThread.id+'/messages'&&response.ok&&!lostReplyResponse){lostReplyResponse=true;await response.text();await route.abort('failed');return;}
+   await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')||'application/json'},body:Buffer.from(await response.arrayBuffer())});
   });
   let frontend=process.env.JOBA_ADMIN_TEST_URL;
   if(!frontend){const {createServer}=await import('vite');vite=await createServer({root:resolve(__dirname,'../apps/admin'),server:{port:0,strictPort:false,host:'127.0.0.1'}});await vite.listen();frontend='http://127.0.0.1:'+vite.httpServer.address().port;}
@@ -54,6 +68,31 @@ async function main(){
   await page.getByRole('button',{name:'Опубликовать',exact:true}).click();
   await page.locator('.result').filter({hasText:'другого сотрудника'}).waitFor();
   const records=await marketplace.store.all('monetization_config','KZ');assert.equal(records.length,1);assert.equal(records[0].status,'draft');
+  await page.goto(frontend+'/#contractors');
+  await page.getByRole('link',{name:'Открыть →',exact:true}).click();
+  await page.getByLabel('Причина просмотра фотографий').fill('Проверка фотографии текущей версии профиля');
+  await page.getByRole('button',{name:'Показать фотографии',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('#content-media-result img')?.naturalWidth===2);
+  await page.getByLabel('Основание решения',{exact:true}).fill('Подтверждена безопасная версия профиля');
+  await page.getByRole('button',{name:'Сохранить решение',exact:true}).click();
+  await page.getByRole('button',{name:'Сохранить решение',exact:true}).waitFor({state:'detached'});
+  profile=await marketplace.store.get(profile.id);assert.equal(profile.status,'published');
+  profile=await ownerCommand('PUT','/me/contractor-profile',{expected_version:profile.version,title:'Частная новая версия профиля',description:'Черновик ожидает независимой проверки',city:'Алматы',category_id:category});
+  profile=await ownerCommand('POST','/me/contractor-profile/publish',{expected_version:profile.version});
+  await page.getByRole('button',{name:'Обновить',exact:true}).click();
+  await page.getByLabel('Решение',{exact:true}).selectOption('reject');
+  await page.getByLabel('Основание решения',{exact:true}).fill('Черновик требует исправления описания');
+  await page.getByRole('button',{name:'Сохранить решение',exact:true}).click();
+  await page.getByRole('button',{name:'Сохранить решение',exact:true}).waitFor({state:'detached'});
+  const rejectedProfile=await marketplace.store.get(profile.id);assert.equal(rejectedProfile.status,'published');assert.equal(rejectedProfile.title,'Первая версия профиля исполнителя');assert.equal(rejectedProfile.draft.status,'rejected');
+  await page.goto(frontend+'/#support-live/'+supportThread.id);
+  await page.getByRole('button',{name:'Назначить себе',exact:true}).click();
+  await page.getByLabel('Ответ поддержки').fill('Реальный ответ поддержки без дубликата при потере соединения');
+  await page.getByRole('button',{name:'Отправить',exact:true}).click();
+  await page.getByRole('alert').filter({hasText:'Нет соединения'}).waitFor();
+  await page.getByRole('button',{name:'Отправить',exact:true}).click();
+  await page.locator('.event').filter({hasText:'Реальный ответ поддержки без дубликата'}).waitFor();
+  assert.equal((await marketplace.store.all('support_message','KZ')).filter(m=>m.thread_id===supportThread.id).length,1);
   await page.goto(frontend+'/#verification');
   await page.getByRole('link',{name:'Открыть →',exact:true}).click();
   await page.getByLabel('Основание решения').fill('Документы не соответствуют правилам проверки');
@@ -95,13 +134,18 @@ async function main(){
   assert.equal(await page.evaluate(()=>window.untrustedLegal),undefined);
   await page.getByRole('link',{name:'Условия использования',exact:true}).click();
   await page.locator('.legal-paper').filter({hasText:'пока не опубликован'}).waitFor();
+  await page.goto(web+'/W05.html');
+  await page.locator('.status-history').filter({hasText:'Конфигурация получена'}).waitFor();
+  assert.equal(await page.locator('.status-row').count(),4);
+  assert.deepEqual((await page.locator('.status-row .left b').allTextContents()).sort(),['Беларусь','Казахстан','Россия','Сербия']);
+  assert.equal(await page.getByText('Оплата недоступна. Поддержка и управление данными доступны.',{exact:true}).count(),4);
   await page.goto(web+'/W02.html');
   await page.locator('#message').fill('Проверка обращения и восстановления переписки при обновлении страницы');
   await page.locator('form button[type=submit]').click();
   await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
   await page.reload();await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
   assert.equal((await marketplace.store.all('recovery','KZ')).length,1);
-  console.log('Admin browser: real MFA login, identity, draft save, validation, lost-response retry without duplicate drafts, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, public legal/support persistence and logout passed.');
+  console.log('Admin browser: real MFA login, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence passed.');
  }catch(error){if(page){await page.screenshot({path:'/tmp/joba-admin-browser-failure.png',fullPage:true});console.error('Page diagnostics:',await page.locator('[role=alert], .note.danger').allTextContents());}throw error;}finally{await browser?.close();await vite?.close();await webVite?.close();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error.message);process.exitCode=1;});

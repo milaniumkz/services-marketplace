@@ -19,8 +19,49 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKeyFactory
 
 class MainActivity : FlutterFragmentActivity() {
+    private var exportResult: MethodChannel.Result? = null
+    private var exportSource: java.io.File? = null
+    private val exportRequest = 18034
+    private fun saveExport(call: io.flutter.plugin.common.MethodCall, result: MethodChannel.Result) {
+        if (call.method != "save") { result.notImplemented(); return }
+        if (exportResult != null) { result.error("EXPORT_BUSY", "Another export is active", null); return }
+        if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) { result.error("EXPORT_UNAVAILABLE", "Open the application to save the export", null); return }
+        try {
+            val file = java.io.File(call.argument<String>("path") ?: "").canonicalFile
+            if (!file.isFile || !file.path.startsWith(cacheDir.canonicalPath + java.io.File.separator)) {
+                result.error("EXPORT_INVALID", "Invalid private export file", null); return
+            }
+            exportSource = file; exportResult = result
+            val name = (call.argument<String>("filename") ?: "joba-export.zip").take(80).replace(Regex("[^A-Za-z0-9._-]"), "_")
+            val intent = android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                type = "application/zip"
+                putExtra(android.content.Intent.EXTRA_TITLE, name)
+            }
+            startActivityForResult(intent, exportRequest)
+        } catch (_: Exception) { exportResult = null; exportSource = null; result.error("EXPORT_UNAVAILABLE", "File save dialog is unavailable", null) }
+    }
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        if (requestCode != exportRequest) { super.onActivityResult(requestCode, resultCode, data); return }
+        val result = exportResult ?: return
+        val source = exportSource
+        exportResult = null; exportSource = null
+        val target = data?.data
+        if (resultCode != android.app.Activity.RESULT_OK || target == null || source == null) { result.success(false); return }
+        Thread {
+            try {
+                source.inputStream().use { input ->
+                    val destination = contentResolver.openOutputStream(target, "wt") ?: throw java.io.IOException("Destination unavailable")
+                    destination.use { output -> input.copyTo(output); output.flush() }
+                }
+                runOnUiThread { result.success(true) }
+            } catch (_: Exception) { runOnUiThread { result.error("EXPORT_SAVE_FAILED", "File could not be saved", null) } }
+        }.start()
+    }
+
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
+        MethodChannel(engine.dartExecutor.binaryMessenger, "joba.file_export").setMethodCallHandler { call, result -> saveExport(call, result) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.device_security")
             .setMethodCallHandler { call, result ->
                 if (call.method != "hardwareBacked") {

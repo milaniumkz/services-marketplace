@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'l10n.dart';
+import 'design_icons.dart';
 
 const primary = Color(0xFF245BDB);
 const navy = Color(0xFF172B4D);
 const canvas = Color(0xFFF5F7FB);
-const line = Color(0xFFE3E9F2);
+const line = Color(0xFFE5EAF2);
 const yellow = Color(0xFFFFD65A);
 
 ThemeData jobaTheme() => ThemeData(
@@ -12,6 +13,7 @@ ThemeData jobaTheme() => ThemeData(
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       fontFamily: 'Noto',
+      dividerTheme: const DividerThemeData(color: line, thickness: 1),
       scaffoldBackgroundColor: Colors.white,
       colorScheme: ColorScheme.fromSeed(seedColor: primary)
           .copyWith(primary: primary, onSurface: navy),
@@ -19,22 +21,24 @@ ThemeData jobaTheme() => ThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           centerTitle: true,
+          shape: Border(bottom: BorderSide(color: line)),
           toolbarHeight: 60,
           titleTextStyle: TextStyle(
               fontFamily: 'Noto',
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: navy)),
+              color: navy,
+              letterSpacing: -.3)),
       inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: line)),
           enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: line))),
       filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
@@ -47,9 +51,22 @@ ThemeData jobaTheme() => ThemeData(
                   fontFamily: 'Noto',
                   fontWeight: FontWeight.w700,
                   fontSize: 14))),
+      textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+              textStyle: const TextStyle(
+                  fontFamily: 'Noto',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  letterSpacing: 0))),
       outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
               foregroundColor: navy,
+              backgroundColor: Colors.white,
+              textStyle: const TextStyle(
+                  fontFamily: 'Noto',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  letterSpacing: 0),
               minimumSize: const Size(double.infinity, 52),
               side: const BorderSide(color: line),
               shape: RoundedRectangleBorder(
@@ -66,6 +83,7 @@ class Heading extends StatelessWidget {
         Text(title,
             style: const TextStyle(
                 fontSize: 26,
+                letterSpacing: -.9,
                 fontWeight: FontWeight.w700,
                 height: 1.269,
                 color: navy)),
@@ -74,7 +92,10 @@ class Heading extends StatelessWidget {
               padding: const EdgeInsets.only(top: 8),
               child: Text(subtitle,
                   style: const TextStyle(
-                      fontSize: 13, color: Color(0xFF6B7890), height: 1.5))),
+                      fontSize: 12,
+                      letterSpacing: 0,
+                      color: Color(0xFF627187),
+                      height: 1.5))),
       ]));
 }
 
@@ -89,18 +110,35 @@ class UiHeading extends StatelessWidget {
 class Notice extends StatelessWidget {
   final String text;
   final bool error;
-  const Notice(this.text, {this.error = false, super.key});
+  final String? icon;
+  final EdgeInsets margin;
+  const Notice(this.text,
+      {this.error = false,
+      this.icon,
+      this.margin = const EdgeInsets.symmetric(vertical: 12),
+      super.key});
   @override
   Widget build(BuildContext context) => Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      margin: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      margin: margin,
       decoration: BoxDecoration(
           color: error ? const Color(0xFFFFEEEE) : const Color(0xFFEAF0FC),
           borderRadius: BorderRadius.circular(12)),
-      child: UiText(text,
-          style: TextStyle(
-              color: error ? const Color(0xFFA02C32) : navy,
-              fontSize: 12,
-              height: 1.583)));
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (icon != null) ...[
+          JobaIcon(icon!,
+              size: 19, color: error ? const Color(0xFFA02C32) : navy),
+          const SizedBox(width: 10)
+        ],
+        Expanded(
+            child: UiText(text,
+                style: TextStyle(
+                    color: error
+                        ? const Color(0xFFA02C32)
+                        : const Color(0xFF3C5A8B),
+                    fontSize: 12,
+                    letterSpacing: 0,
+                    height: 1.583)))
+      ]));
 }

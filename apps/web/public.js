@@ -1,3 +1,4 @@
+import {mountAvailability} from './availability.js';
 import {mountLegal} from './legal.js';
 const countryCodes={'Казахстан':'KZ','Россия':'RU','Беларусь':'BY','Сербия':'RS'};
 let recovery;
@@ -52,3 +53,5 @@ if(form)form.onsubmit=async e=>{
 };
 
 mountLegal(request,feedback);
+
+mountAvailability(request,feedback);
