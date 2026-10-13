@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'l10n.dart';
 
 const primary = Color(0xFF245BDB);
 const navy = Color(0xFF172B4D);
@@ -77,6 +78,14 @@ class Heading extends StatelessWidget {
       ]));
 }
 
+class UiHeading extends StatelessWidget {
+  final String title, subtitle;
+  const UiHeading(this.title, [this.subtitle = '', Key? key]) : super(key: key);
+  @override
+  Widget build(BuildContext context) =>
+      Heading(localize(context, title), localize(context, subtitle));
+}
+
 class Notice extends StatelessWidget {
   final String text;
   final bool error;
@@ -89,7 +98,7 @@ class Notice extends StatelessWidget {
       decoration: BoxDecoration(
           color: error ? const Color(0xFFFFEEEE) : const Color(0xFFEAF0FC),
           borderRadius: BorderRadius.circular(12)),
-      child: Text(text,
+      child: UiText(text,
           style: TextStyle(
               color: error ? const Color(0xFFA02C32) : navy,
               fontSize: 12,

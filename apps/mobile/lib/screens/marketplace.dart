@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
+import '../core/l10n.dart';
 import '../core/widgets.dart';
 import '../core/local_lock.dart';
 
@@ -75,7 +76,8 @@ int minor(String value) {
 
 class Marketplace extends StatefulWidget {
   final JobaApi? api;
-  const Marketplace({this.api, super.key});
+  final ValueChanged<String>? onLocaleChanged;
+  const Marketplace({this.api, this.onLocaleChanged, super.key});
   @override
   State<Marketplace> createState() => _MarketplaceState();
 }
@@ -86,10 +88,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   String country = 'KZ', route = 'welcome';
   String locale = 'ru';
   String? draftCategory;
+  Set<String>? serviceCategories;
   String? objectId;
   final List<(String, String?)> history = [];
   bool starting = true, executor = false, actionBusy = false;
-  String? startupError;
+  Object? startupError;
   int revision = 0, sequence = 0;
   WebSocketChannel? channel;
   StreamSubscription? subscription;
@@ -123,7 +126,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      startupError = '$e';
+      startupError = e;
     }
     if (mounted) setState(() => starting = false);
   }
@@ -138,6 +141,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       localProtected = false;
       setState(() {
         me = null;
+        recovery = null;
         route = 'login';
         objectId = null;
         history.clear();
@@ -240,6 +244,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     setState(() {
       history.add((route, objectId));
       route = next;
+      if (next == 'services') serviceCategories = null;
       objectId = id;
       revision++;
     });
@@ -261,7 +266,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   void success(String text) {
     if (mounted)
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: UiText(text)));
   }
 
   Future<void> act(Future<void> Function() action) async {
@@ -274,27 +280,32 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         await showDialog<void>(
             context: context,
             builder: (c) => AlertDialog(
-                    title: const Text('Не удалось выполнить действие'),
-                    content: Text('$e'),
+                    title: const UiText('Не удалось выполнить действие'),
+                    content: Text(errorText(context, e)),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(c),
-                          child: const Text('Понятно'))
+                          child: const UiText('Понятно'))
                     ]));
     } finally {
       if (mounted) setState(() => actionBusy = false);
     }
   }
 
+  String price(dynamic amount, [String currency = 'KZT']) => amount == null
+      ? localize(context, 'По договорённости')
+      : money(amount, currency);
+
   Widget button(String label, VoidCallback onPressed, {bool outline = false}) =>
       Padding(
           padding: const EdgeInsets.only(top: 12),
           child: outline
               ? OutlinedButton(
-                  onPressed: actionBusy ? null : onPressed, child: Text(label))
+                  onPressed: actionBusy ? null : onPressed,
+                  child: UiText(label))
               : FilledButton(
                   onPressed: actionBusy ? null : onPressed,
-                  child: Text(label)));
+                  child: UiText(label)));
   Widget page(String title, Widget body,
           {List<Widget> actions = const [], bool nav = false}) =>
       PopScope(
@@ -303,11 +314,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             if (!popped) back();
           },
           child: Scaffold(
+              backgroundColor:
+                  ['login', 'register'].contains(route) ? canvas : null,
               appBar: AppBar(
-                  title: Text(title),
+                  title: UiText(title),
                   leading: IconButton(
                       onPressed: back,
-                      tooltip: 'Назад',
+                      tooltip: localize(context, 'Назад'),
                       icon: const Icon(Icons.chevron_left)),
                   actions: actions),
               body: body,
@@ -348,7 +361,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                                     : const Color(0xFF6B7890),
                                                 size: 23),
                                             const SizedBox(height: 4),
-                                            Text(item.$2,
+                                            UiText(item.$2,
                                                 style: TextStyle(
                                                     fontSize: 10,
                                                     color: route == item.$1
@@ -368,7 +381,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           builder: (c, data, reload) => render(data, reload));
   Widget orderCard(Json order) => DataCard('${order['title']}',
       subtitle:
-          '${order['city']} · ${money(order['budget_amount'], order['currency'] ?? 'KZT')}',
+          '${order['city']} · ${price(order['budget_amount'], order['currency'] ?? 'KZT')}',
       status: status(order),
       onTap: () => go('order', order['id']));
   Widget paged(String path, Widget Function(Json) tile,
@@ -389,7 +402,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       return page(
           'Соединение',
           listBody([
-            Notice(startupError!, error: true),
+            Notice(errorText(context, startupError!), error: true),
             button('Повторить', () {
               setState(() {
                 starting = true;
@@ -445,7 +458,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             paged(executor ? '/me/assigned-orders' : '/me/orders', orderCard),
             actions: [
               IconButton(
-                  tooltip: 'Создать заказ',
+                  tooltip: localize(context, 'Создать заказ'),
                   onPressed: () => go('create'),
                   icon: const Icon(Icons.add))
             ]);
@@ -473,7 +486,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 '/me/offers',
                 (r) => DataCard('${r['text']}',
                     status: status(r),
-                    subtitle: money(r['amount'], r['currency']),
+                    subtitle: price(r['amount'], r['currency']),
                     onTap: () => go('order', r['order_id']),
                     footer: Column(children: [
                       button(
@@ -491,8 +504,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   final confirmed = await showDialog<bool>(
                                       context: context,
                                       builder: (c) => AlertDialog(
-                                              title:
-                                                  const Text('Условия заказа'),
+                                              title: const UiText(
+                                                  'Условия заказа'),
                                               content: Text(
                                                   '${order['title']}\n${order['description']}'),
                                               actions: [
@@ -500,11 +513,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                                     onPressed: () =>
                                                         Navigator.pop(c, false),
                                                     child:
-                                                        const Text('Отмена')),
+                                                        const UiText('Отмена')),
                                                 TextButton(
                                                     onPressed: () =>
                                                         Navigator.pop(c, true),
-                                                    child: const Text(
+                                                    child: const UiText(
                                                         'Подтвердить'))
                                               ]));
                                   if (confirmed != true) return;
@@ -568,7 +581,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             paged(
                 '/me/conversations',
                 (r) => DataCard('Чат заказа',
-                    status: status(r), onTap: () => go('chat', r['id']))),
+                    translateTitle: true,
+                    status: status(r),
+                    onTap: () => go('chat', r['id']))),
             nav: true);
       case 'chat':
         return chatScreen(false);
@@ -633,7 +648,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         }))),
             actions: [
               IconButton(
-                  tooltip: 'Прочитать все',
+                  tooltip: localize(context, 'Прочитать все'),
                   icon: const Icon(Icons.done_all),
                   onPressed: () => act(() async {
                         final before = api.serverTime;
@@ -653,7 +668,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             loaded(
                 '/me/monetization-config',
                 (data, reload) => listBody([
-                      const Heading('Больше возможностей',
+                      const UiHeading('Больше возможностей',
                           'Доступ выдаётся только после подтверждения рекламной сети.'),
                       Notice(data['rewarded_access_enabled'] == true
                           ? 'Рекламная сеть ещё не подключена.'
@@ -722,11 +737,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     onTap: () => go(executor ? 'order' : 'contractor', r['id']),
                     footer: Row(children: [
                       IconButton(
-                          tooltip: 'Нравится',
+                          tooltip: localize(context, 'Нравится'),
                           icon: const Icon(Icons.thumb_up_outlined),
                           onPressed: () => vote(r, 1)),
                       IconButton(
-                          tooltip: 'Не нравится',
+                          tooltip: localize(context, 'Не нравится'),
                           icon: const Icon(Icons.thumb_down_outlined),
                           onPressed: () => vote(r, -1))
                     ])),
@@ -765,13 +780,21 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      Text(name,
+                      UiText(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w700)),
+                              fontSize: 14,
+                              height: 1.4,
+                              fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
-                      Text(currency,
+                      UiText(currency,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 13, color: Color(0xFF6B7890)))
+                              fontSize: 13,
+                              height: 1.4,
+                              color: Color(0xFF6B7890)))
                     ])),
                 Icon(
                     country == code
@@ -803,9 +826,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   child: Image.asset('assets/joba-logo-original.jpeg',
                       width: 140, height: 140, fit: BoxFit.contain))),
           const SizedBox(height: 24),
-          const Heading('Дела становятся проще',
+          const UiHeading('Дела становятся проще',
               'Находите специалистов и заказы в вашем городе.'),
-          const Text('Страна услуг',
+          const UiText('Страна услуг',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
           const SizedBox(height: 8),
           countryCard('KZ', 'Казахстан', 'KZT · локальные услуги'),
@@ -816,20 +839,23 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             Expanded(child: countryCard('BY', 'Беларусь', 'BYN'))
           ]),
           const SizedBox(height: 16),
-          const Text('Язык интерфейса',
+          const UiText('Язык интерфейса',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
               initialValue: locale,
               items: const [
-                DropdownMenuItem(value: 'ru', child: Text('Русский')),
-                DropdownMenuItem(value: 'kk', child: Text('Қазақша')),
+                DropdownMenuItem(value: 'ru', child: UiText('Русский')),
+                DropdownMenuItem(value: 'kk', child: UiText('Қазақша')),
                 DropdownMenuItem(value: 'sr', child: Text('Srpski')),
-                DropdownMenuItem(value: 'be', child: Text('Беларуская'))
+                DropdownMenuItem(value: 'be', child: UiText('Беларуская'))
               ],
-              onChanged: (v) => setState(() => locale = v!)),
+              onChanged: (v) {
+                setState(() => locale = v!);
+                widget.onLocaleChanged?.call(v!);
+              }),
           const SizedBox(height: 16),
-          const Text(
+          const UiText(
               'Страна и язык выбираются отдельно. Доступность функций зависит от региона.',
               style: TextStyle(fontSize: 11, color: Color(0xFF6B7890))),
         ])),
@@ -837,7 +863,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             child: FilledButton(
-                onPressed: () => go('login'), child: const Text('Продолжить'))),
+                onPressed: () => go('login'),
+                child: const UiText('Продолжить'))),
       ])));
   Widget authScreen() {
     final register = route == 'register';
@@ -845,8 +872,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         register ? 'Новый аккаунт' : 'Вход в JOBA',
         ActionForm(
             key: ValueKey(route),
+            authLayout: true,
             before: [
-              Heading(
+              UiHeading(
                   register ? 'Добро пожаловать' : 'С возвращением',
                   register
                       ? 'Создайте аккаунт, чтобы начать.'
@@ -855,9 +883,17 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             fields: [
               if (register)
                 const InputSpec('display_name', 'Как к вам обращаться'),
-              const InputSpec('phone', 'Номер телефона',
+              InputSpec('phone', 'Номер телефона',
+                  hint: '${{
+                    'KZ': '+7',
+                    'RU': '+7',
+                    'BY': '+375',
+                    'RS': '+381'
+                  }[country]} · ${localize(context, 'Номер телефона').toLowerCase()}',
+                  prefixIcon: Icons.phone_outlined,
                   keyboard: TextInputType.phone),
               InputSpec('password', 'Пароль',
+                  hint: 'Введите пароль',
                   secret: true,
                   validate: (v) => register && v.length < 15
                       ? 'Не менее 15 символов'
@@ -877,6 +913,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 if (register) 'locale': locale
               }, register: register);
               me = await api.request('/me') as Json;
+              if (me!['locale'] != locale)
+                me = await api.request('/me', method: 'PATCH', body: {
+                  'expected_version': me!['version'],
+                  'locale': locale
+                }) as Json;
+              executor = me!['active_role'] == 'executor';
+              widget.onLocaleChanged?.call(locale);
               sequence = 0;
               connectEvents();
               lock = LocalLock('${api.base}:${me!['id']}');
@@ -889,14 +932,38 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             after: [
               TextButton(
                   onPressed: () => go('recovery'),
-                  child: const Text('Нужна помощь со входом?')),
+                  child: const UiText('Нужна помощь со входом?')),
               const Divider(height: 32),
+              if (!register)
+                const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: UiText('Ещё нет аккаунта?',
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF6B7890)))),
               button(
                   register ? 'Уже есть аккаунт? Войти' : 'Зарегистрироваться',
                   () => go(register ? 'login' : 'register'),
                   outline: true),
               const Notice(
-                  'Ваш номер используется как логин. Подтверждение кодом не требуется.')
+                  'Ваш номер используется как логин. Подтверждение кодом не требуется.'),
+              Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                      '${localize(context, {
+                            'KZ': 'Казахстан',
+                            'RU': 'Россия',
+                            'BY': 'Беларусь',
+                            'RS': 'Сербия'
+                          }[country]!)} · ${{
+                        'ru': 'Русский',
+                        'kk': 'Қазақша',
+                        'sr': 'Српски',
+                        'be': 'Беларуская'
+                      }[locale]}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF6B7890))))
             ]));
   }
 
@@ -910,7 +977,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 secret: true, keyboard: TextInputType.number)
           ],
           before: const [
-            Heading('Быстрый вход', 'PIN хранится только на этом устройстве.')
+            UiHeading('Быстрый вход', 'PIN хранится только на этом устройстве.')
           ],
           button: 'Сохранить PIN',
           submit: (v) async {
@@ -941,7 +1008,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 outline: true)
           ]));
   Widget unlockScreen() => Scaffold(
-      appBar: AppBar(title: const Text('Разблокировка JOBA')),
+      appBar: AppBar(title: const UiText('Разблокировка JOBA')),
       body: ActionForm(
           fields: const [
             InputSpec('pin', 'PIN',
@@ -955,6 +1022,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               await api.refresh();
               me = await api.request('/me') as Json;
               country = me!['country'];
+              locale = me!['locale'] ?? 'ru';
+              widget.onLocaleChanged?.call(locale);
               executor = me!['active_role'] == 'executor';
               if (mounted)
                 setState(() {
@@ -974,10 +1043,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 'Разблокировать биометрией',
                 () => act(() async {
                       try {
-                        if (!await lock!.unlockBiometry()) return;
+                        if (!await lock!.unlockBiometry(
+                            title: localize(context, 'Разблокировка JOBA'),
+                            cancel: localize(context, 'Отмена'))) return;
                         await api.refresh();
                         me = await api.request('/me') as Json;
                         country = me!['country'];
+                        locale = me!['locale'] ?? 'ru';
+                        widget.onLocaleChanged?.call(locale);
                         executor = me!['active_role'] == 'executor';
                         if (mounted)
                           setState(() {
@@ -1025,9 +1098,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     revision++;
                                   });
                               }),
-                          child: Text(executor ? 'Исполнитель' : 'Заказчик'))
+                          child: UiText(executor ? 'Исполнитель' : 'Заказчик'))
                     ]),
-                Heading(executor
+                UiHeading(executor
                     ? 'Новые заказы.\nВаши возможности.'
                     : 'Хорошие мастера.\nВаши задачи.'),
                 Container(
@@ -1037,7 +1110,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          UiText(
                               executor
                                   ? 'Найдите следующую работу'
                                   : 'Расскажите о задаче',
@@ -1050,12 +1123,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Ваши заказы',
+                      const UiText('Ваши заказы',
                           style: TextStyle(
                               fontSize: 19, fontWeight: FontWeight.w700)),
                       TextButton(
                           onPressed: () => go('orders'),
-                          child: const Text('Все'))
+                          child: const UiText('Все'))
                     ]),
                 if (items(result).isEmpty) const Notice('Заказов пока нет'),
                 ...items(result).take(3).map(orderCard),
@@ -1066,7 +1139,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               ])),
       actions: [
         IconButton(
-            tooltip: 'Уведомления',
+            tooltip: localize(context, 'Уведомления'),
             onPressed: () => go('notifications'),
             icon: const Icon(Icons.notifications_outlined))
       ],
@@ -1088,7 +1161,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     final current = await api.request('/me') as Json;
                     me = await api.request('/me', method: 'PATCH', body: {
                       'expected_version': current['version'],
-                      'avatar_id': upload
+                      'avatar_id': upload['id']
                     }) as Json;
                     reload();
                   }),
@@ -1126,7 +1199,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           }.entries)
             ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(entry.value),
+                title: UiText(entry.value),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => go(entry.key)),
           button('Выйти', () => act(() => api.logout()), outline: true)
@@ -1150,13 +1223,24 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           'kk': 'Қазақша',
                           'sr': 'Srpski',
                           'be': 'Беларуская'
-                        })
+                        }),
+                    InputSpec('languages', 'Языки общения (ru, kk, sr, be, en)',
+                        initial: (data['languages'] as List? ??
+                                [data['locale'] ?? 'ru'])
+                            .join(', '))
                   ],
                   submit: (v) async {
-                    me = await api.request('/me',
-                            method: 'PATCH',
-                            body: {...v, 'expected_version': data['version']})
-                        as Json;
+                    me = await api.request('/me', method: 'PATCH', body: {
+                      ...v,
+                      'languages': v['languages']!
+                          .split(',')
+                          .map((value) => value.trim())
+                          .where((value) => value.isNotEmpty)
+                          .toList(),
+                      'expected_version': data['version']
+                    }) as Json;
+                    locale = me!['locale'] ?? 'ru';
+                    widget.onLocaleChanged?.call(locale);
                     success('Профиль сохранён');
                     back();
                   })));
@@ -1168,10 +1252,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               [api.request('/catalog/categories'), api.request('/geo/cities')]),
           builder: (c, data, reload) => ActionForm(
                   before: const [
-                    Heading('Что нужно сделать?')
+                    UiHeading('Что нужно сделать?')
                   ],
                   fields: [
                     InputSpec('category_id', 'Категория',
+                        translateOptions: false,
                         initial: draftCategory ?? '',
                         options: {
                           for (final r in items(data[0])) r['id']: r['name']
@@ -1181,9 +1266,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     const InputSpec('title', 'Название', validate: titleCheck),
                     const InputSpec('description', 'Опишите задачу',
                         multiline: true, validate: descriptionCheck),
-                    InputSpec('city_id', 'Город', options: {
-                      for (final r in items(data[1])) r['id']: r['name']
-                    }),
+                    InputSpec('city_id', 'Город',
+                        translateOptions: false,
+                        options: {
+                          for (final r in items(data[1])) r['id']: r['name']
+                        }),
                     const InputSpec('work_mode', 'Формат работы',
                         initial: 'onsite',
                         options: {
@@ -1274,7 +1361,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           Heading('${o['title']}'),
           DataCard(status(o),
               subtitle:
-                  '${o['city']} · ${money(o['budget_amount'], o['currency'])}'),
+                  '${o['city']} · ${price(o['budget_amount'], o['currency'])}'),
           Text('${o['description']}', style: const TextStyle(height: 1.6)),
           if (owner && o['status'] == 'draft')
             button(
@@ -1386,7 +1473,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       context,
       MaterialPageRoute<void>(
           builder: (c) => Scaffold(
-              appBar: AppBar(title: const Text('Новые условия')),
+              appBar: AppBar(title: const UiText('Новые условия')),
               body: ActionForm(
                   fields: const [
                     InputSpec('amount', 'Согласуемая цена',
@@ -1448,7 +1535,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         context,
         MaterialPageRoute<void>(
             builder: (c) => Scaffold(
-                appBar: AppBar(title: const Text('Укажите причину')),
+                appBar: AppBar(title: const UiText('Укажите причину')),
                 body: ActionForm(
                     fields: const [
                       InputSpec('reason', 'Причина', multiline: true)
@@ -1468,7 +1555,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       context,
       MaterialPageRoute<void>(
           builder: (c) => Scaffold(
-              appBar: AppBar(title: const Text('Редактировать отклик')),
+              appBar: AppBar(title: const UiText('Редактировать отклик')),
               body: ActionForm(
                   fields: [
                     InputSpec('amount', 'Ваша цена',
@@ -1528,7 +1615,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     if (items(data).isEmpty) const Notice('Откликов пока нет'),
                     for (final offer in items(data))
                       DataCard('${offer['text']}',
-                          subtitle: money(offer['amount'], offer['currency']),
+                          subtitle: price(offer['amount'], offer['currency']),
                           status: status(offer),
                           footer: Column(children: [
                             button('Открыть чат',
@@ -1542,22 +1629,22 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                         final approved = await showDialog<bool>(
                                             context: context,
                                             builder: (c) => AlertDialog(
-                                                    title: const Text(
+                                                    title: const UiText(
                                                         'Выбрать исполнителя?'),
-                                                    content: const Text(
+                                                    content: const UiText(
                                                         'Другие отклики будут закрыты. Условия выбранного отклика будут закреплены в заказе.'),
                                                     actions: [
                                                       TextButton(
                                                           onPressed: () =>
                                                               Navigator.pop(
                                                                   c, false),
-                                                          child: const Text(
+                                                          child: const UiText(
                                                               'Назад')),
                                                       FilledButton(
                                                           onPressed: () =>
                                                               Navigator.pop(
                                                                   c, true),
-                                                          child: const Text(
+                                                          child: const UiText(
                                                               'Выбрать'))
                                                     ]));
                                         if (approved != true) return;
@@ -1583,19 +1670,22 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 Text('${r['description']}'),
                 if (r['price'] != null)
                   DataCard('Ориентировочная стоимость',
+                      translateTitle: true,
                       subtitle: r['price']['mode'] == 'negotiable'
                           ? 'По договорённости'
-                          : 'От ${money(r['price']['amount_min'], r['price']['currency'])}'),
+                          : '${localize(context, 'От')} ${price(r['price']['amount_min'], r['price']['currency'])}'),
                 if (r['experience_years'] != null)
                   Text(
-                      'Опыт: ${r['experience_years']} лет · со слов исполнителя'),
+                      '${localize(context, 'Опыт')}: ${r['experience_years']} ${localize(context, 'лет · со слов исполнителя')}'),
                 if (r['service_cities'] != null)
                   Text(
-                      'Обслуживание: ${(r['service_cities'] as List).join(', ')}'),
+                      '${localize(context, 'Обслуживание')}: ${(r['service_cities'] as List).join(', ')}'),
                 if (r['languages'] != null)
-                  Text('Языки: ${(r['languages'] as List).join(', ')}'),
+                  Text(
+                      '${localize(context, 'Языки')}: ${(r['languages'] as List).join(', ')}'),
                 if (r['travel_radius_km'] != null)
-                  Text('Радиус выезда: ${r['travel_radius_km']} км'),
+                  Text(
+                      '${localize(context, 'Радиус выезда')}: ${r['travel_radius_km']} ${localize(context, 'км')}'),
                 button('Пригласить в заказ', () => go('invite', r['id'])),
                 for (final photo in (r['gallery_ids'] as List? ?? []))
                   PrivatePhoto(api: api, id: photo),
@@ -1619,10 +1709,29 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       'Мои услуги',
       loaded('/me/contractor-profile', (result, reload) {
         final p = result['profile'] as Json?;
+        serviceCategories ??=
+            Set<String>.from(p?['category_ids'] as List? ?? []);
         return ApiView(
             load: () => api.request('/catalog/categories'),
             builder: (c, data, refresh) => ActionForm(
-                before: [if (p != null) Notice(status(p))],
+                before: [
+                  if (p != null) Notice(status(p)),
+                  const UiHeading('Категории услуг',
+                      'Выберите дополнительные направления.'),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final category in items(data))
+                      FilterChip(
+                          label: Text(category['name']),
+                          selected: serviceCategories!.contains(category['id']),
+                          onSelected: (selected) => setState(() {
+                                if (selected) {
+                                  serviceCategories!.add(category['id']);
+                                } else {
+                                  serviceCategories!.remove(category['id']);
+                                }
+                              }))
+                  ])
+                ],
                 fields: [
                   InputSpec('title', 'Название услуги',
                       initial: p?['title'] ?? '', validate: titleCheck),
@@ -1631,6 +1740,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       multiline: true,
                       validate: descriptionCheck),
                   InputSpec('category_id', 'Категория',
+                      translateOptions: false,
                       initial: p?['category_id'] ?? '',
                       options: {
                         for (final r in items(data)) r['id']: r['name']
@@ -1706,6 +1816,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     'title': v['title'],
                     'description': v['description'],
                     'category_id': v['category_id'],
+                    'category_ids': [
+                      v['category_id'],
+                      ...serviceCategories!
+                          .where((id) => id != v['category_id'])
+                    ],
                     'city': v['city'],
                     'work_modes': v['work_mode'] == 'hybrid'
                         ? ['hybrid', 'onsite', 'remote']
@@ -1743,10 +1858,47 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     },
                     if (p != null) 'expected_version': p['version']
                   });
+                  me = await api.request('/me') as Json;
                   success('Черновик сохранён');
+                  serviceCategories = null;
                   reload();
                 },
                 after: [
+                  if (p != null) ...[
+                    const UiHeading('Галерея профиля'),
+                    for (final photo in (p['gallery_ids'] as List? ?? [])) ...[
+                      PrivatePhoto(api: api, id: photo),
+                      button(
+                          'Удалить фотографию',
+                          () => updateGallery(
+                              p,
+                              (p['gallery_ids'] as List)
+                                  .where((id) => id != photo)
+                                  .cast<String>()
+                                  .toList(),
+                              reload),
+                          outline: true)
+                    ],
+                    if ((p['gallery_ids'] as List? ?? []).length < 20)
+                      button(
+                          'Добавить фотографию',
+                          () => act(() async {
+                                final photo = await pickUpload('portfolio');
+                                if (photo == null) return;
+                                await api.request('/me/contractor-profile',
+                                    method: 'PUT',
+                                    body: {
+                                      ...p,
+                                      'expected_version': p['version'],
+                                      'gallery_ids': [
+                                        ...(p['gallery_ids'] as List? ?? []),
+                                        photo['id']
+                                      ]
+                                    });
+                                reload();
+                              }),
+                          outline: true),
+                  ],
                   if (p != null && p['status'] == 'draft')
                     button(
                         'Отправить на проверку',
@@ -1759,6 +1911,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             }))
                 ]));
       }));
+  void updateGallery(Json profile, List<String> photos, VoidCallback reload) =>
+      act(() async {
+        await api.request('/me/contractor-profile', method: 'PUT', body: {
+          ...profile,
+          'expected_version': profile['version'],
+          'gallery_ids': photos
+        });
+        reload();
+      });
   Widget inviteScreen() {
     final contractor = objectId;
     return page(
@@ -1777,7 +1938,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               success('Приглашение отправлено');
                               back();
                             }))
-                    : const Text('Для приглашения заказ должен быть открыт'))));
+                    : const UiText(
+                        'Для приглашения заказ должен быть открыт'))));
   }
 
   Widget invitationsScreen() => page(
@@ -1785,6 +1947,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       paged(
           '/me/order-invites',
           (i) => DataCard('Приглашение в заказ',
+              translateTitle: true,
               status: status(i),
               onTap: () => go('order', i['order_id']),
               footer: i['status'] == 'pending'
@@ -1847,7 +2010,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   context,
                   MaterialPageRoute<void>(
                       builder: (c) => Scaffold(
-                          appBar: AppBar(title: const Text('Новое обращение')),
+                          appBar:
+                              AppBar(title: const UiText('Новое обращение')),
                           body: ActionForm(
                               fields: const [
                                 InputSpec('subject', 'Тема обращения')
@@ -1947,7 +2111,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       MaterialPageRoute<void>(
           builder: (c) => Scaffold(
               appBar: AppBar(
-                  title: Text(appeal ? 'Апелляция' : 'Сообщение по обращению')),
+                  title:
+                      UiText(appeal ? 'Апелляция' : 'Сообщение по обращению')),
               body: ActionForm(
                   fields: [
                     InputSpec(appeal ? 'reason' : 'text', 'Ваше сообщение',
@@ -1974,17 +2139,20 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api.request('/me/subscriptions')
               ]),
           builder: (c, data, reload) => listBody([
-                const Heading('Ваши возможности'),
+                const UiHeading('Ваши возможности'),
                 if (items(data[0]).isEmpty)
                   const Notice('Активных прав доступа пока нет.'),
                 for (final r in items(data[0]))
                   DataCard('Доступ JOBA',
+                      translateTitle: true,
                       status: status(r),
                       subtitle:
                           '${r['valid_until'] ?? r['ends_at'] ?? r['expires_at'] ?? ''}'),
                 for (final r in items(data[2]))
                   DataCard('Подписка',
-                      status: status(r), subtitle: '${r['ends_at'] ?? ''}'),
+                      translateTitle: true,
+                      status: status(r),
+                      subtitle: '${r['ends_at'] ?? ''}'),
                 const Notice(
                     'Оплата и восстановление покупок станут доступны после подключения платёжной системы.'),
                 button('Рекламная награда', () => go('reward'), outline: true),
@@ -1995,12 +2163,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       loaded(
           '/me/privacy-requests',
           (data, reload) => listBody([
-                const Heading('Ваши данные'),
+                const UiHeading('Ваши данные'),
                 for (final r in items(data))
                   DataCard(
                       r['type'] == 'export'
                           ? 'Экспорт данных'
                           : 'Удаление аккаунта',
+                      translateTitle: true,
                       status: status(r),
                       footer: Column(children: [
                         if (r['type'] == 'export' &&
@@ -2051,7 +2220,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       MaterialPageRoute<void>(
           builder: (c) => Scaffold(
               appBar: AppBar(
-                  title: Text(type == 'export'
+                  title: UiText(type == 'export'
                       ? 'Экспорт данных'
                       : 'Удаление аккаунта')),
               body: ActionForm(
@@ -2088,6 +2257,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     outline: true),
                 for (final r in items(data))
                   DataCard('Сессия',
+                      translateTitle: true,
                       subtitle: 'Действует до ${r['expires_at']}',
                       footer: button(
                           'Завершить сессию',
@@ -2209,8 +2379,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       loaded(
           '/me/referrals',
           (data, reload) => listBody([
-                const Heading('Пригласите друзей'),
+                const UiHeading('Пригласите друзей'),
                 DataCard('Ваш код',
+                    translateTitle: true,
                     subtitle: '${data['code']}',
                     footer: button(
                         'Скопировать код',
@@ -2224,6 +2395,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   const Notice('Активных программ приглашений пока нет.'),
                 for (final r in (data['rewards'] as List).cast<Json>())
                   DataCard('Награда',
+                      translateTitle: true,
                       status: status(r),
                       footer: r['status'] == 'available'
                           ? button(
@@ -2242,7 +2414,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         MaterialPageRoute<void>(
                             builder: (c) => Scaffold(
                                 appBar: AppBar(
-                                    title: const Text('Код приглашения')),
+                                    title: const UiText('Код приглашения')),
                                 body: ActionForm(
                                     fields: const [InputSpec('code', 'Код')],
                                     submit: (v) async {
@@ -2268,14 +2440,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     onTap: () => go('portfolio-project', projects[i]['id']),
                     footer: Row(children: [
                       IconButton(
-                          tooltip: 'Выше',
+                          tooltip: localize(context, 'Выше'),
                           onPressed: i == 0
                               ? null
                               : () =>
                                   reorderProject(projects, i, i - 1, reload),
                           icon: const Icon(Icons.arrow_upward)),
                       IconButton(
-                          tooltip: 'Ниже',
+                          tooltip: localize(context, 'Ниже'),
                           onPressed: i == projects.length - 1
                               ? null
                               : () =>
@@ -2286,7 +2458,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           }),
           actions: [
             IconButton(
-                tooltip: 'Добавить проект',
+                tooltip: localize(context, 'Добавить проект'),
                 onPressed: () => go('portfolio-project'),
                 icon: const Icon(Icons.add))
           ]);
@@ -2311,7 +2483,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api.request('/catalog/categories'),
                 objectId == null
                     ? Future.value(null)
-                    : api.request('/me/portfolio-projects/$objectId')
+                    : api.request('/me/portfolio-projects/$objectId'),
+                api.request('/me/completed-orders', query: {'limit': 100})
               ]),
           builder: (c, data, reload) {
             final p = data[1] as Json?;
@@ -2324,9 +2497,19 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       multiline: true,
                       required: false),
                   InputSpec('category_id', 'Категория',
+                      translateOptions: false,
                       initial: p?['category_id'] ?? '',
                       options: {
                         for (final r in items(data[0])) r['id']: r['name']
+                      }),
+                  InputSpec('order_id', 'Связать с выполненным заказом',
+                      translateOptions: false,
+                      initial: p?['order_id'] ?? '',
+                      required: false,
+                      options: {
+                        '': 'Без связи с заказом',
+                        for (final order in items(data[2]))
+                          order['id']: order['title'],
                       }),
                   InputSpec('rights_confirmed',
                       'У меня есть права на публикацию материалов',
@@ -2344,6 +2527,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       method: p == null ? 'POST' : 'PATCH',
                       body: {
                         ...v,
+                        'order_id':
+                            v['order_id']!.isEmpty ? null : v['order_id'],
                         'rights_confirmed': v['rights_confirmed'] == 'true',
                         if (p != null) 'expected_version': p['version']
                       }) as Json;
@@ -2353,7 +2538,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 after: [
                   if (p != null) ...[
                     Notice(
-                        '${status(p)} · ${(p['photos'] as List).length} фото'),
+                        '${localize(context, status(p))} · ${(p['photos'] as List).length} ${localize(context, 'фото')}'),
                     for (final photo in p['photos'] as List) ...[
                       PrivatePhoto(api: api, id: photo),
                       Row(children: [
@@ -2435,7 +2620,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Future<Json?> pickUpload(String purpose, {String? verificationId}) async {
     final selected = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png'],
+        allowedExtensions: purpose == 'identity'
+            ? ['jpg', 'jpeg', 'png', 'pdf']
+            : ['jpg', 'jpeg', 'png'],
         withData: true);
     if (selected == null) return null;
     final f = selected.files.single;
@@ -2443,7 +2630,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       throw ApiException('FILE_UNAVAILABLE', 'Не удалось прочитать файл');
     return api.upload(
         f.bytes!,
-        f.extension?.toLowerCase() == 'png' ? 'image/png' : 'image/jpeg',
+        f.extension?.toLowerCase() == 'pdf'
+            ? 'application/pdf'
+            : f.extension?.toLowerCase() == 'png'
+                ? 'image/png'
+                : 'image/jpeg',
         purpose,
         verificationId: verificationId);
   }
@@ -2453,7 +2644,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       loaded(
           '/me/verification',
           (data, reload) => listBody([
-                const Heading('Проверка исполнителя',
+                const UiHeading('Проверка исполнителя',
                     'Документы доступны только уполномоченным сотрудникам.'),
                 Notice(states[data['status']] ?? '${data['status']}'),
                 for (final r in items(data))
@@ -2482,8 +2673,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         context,
                         MaterialPageRoute<void>(
                             builder: (c) => Scaffold(
-                                appBar:
-                                    AppBar(title: const Text('Тип документа')),
+                                appBar: AppBar(
+                                    title: const UiText('Тип документа')),
                                 body: ActionForm(
                                     fields: const [
                                       InputSpec(
@@ -2507,30 +2698,72 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               ])));
   Widget termsScreen() => page(
       'Документы и согласия',
-      loaded(
-          '/legal/documents',
-          (data, reload) => listBody([
-                const Heading('Условия JOBA'),
-                if (items(data).isEmpty)
-                  const Notice('Утверждённые документы ещё не опубликованы.'),
-                for (final d in items(data))
-                  DataCard('${d['title'] ?? d['type']}',
-                      subtitle: '${d['content'] ?? d['text'] ?? ''}',
-                      footer: button(
-                          'Принять эту версию',
+      ApiView(
+          load: () async => Future.wait([
+                api.request('/legal/documents', query: {
+                  'country': country,
+                  'locale': me?['locale'] ?? locale
+                }),
+                api.request('/me/consents')
+              ]),
+          builder: (context, result, reload) {
+            final documents = items(result[0]), consents = items(result[1]);
+            bool accepted(Json document) {
+              final relevant = consents
+                  .where((consent) => consent['document_id'] == document['id'])
+                  .toList()
+                ..sort((a, b) =>
+                    (b['sequence'] as num).compareTo(a['sequence'] as num));
+              return relevant.isNotEmpty &&
+                  relevant.first['accepted'] == true &&
+                  relevant.first['document_hash'] == document['hash'];
+            }
+
+            final requiredDocuments = documents.where((d) => [
+                  'privacy',
+                  'privacy_policy',
+                  'terms',
+                  'terms_of_use'
+                ].contains(d['type']));
+            final canContinue = requiredDocuments.every(accepted);
+            return listBody([
+              const UiHeading('Условия JOBA'),
+              if (documents.isEmpty)
+                const Notice('Утверждённые документы ещё не опубликованы.'),
+              for (final document in documents)
+                DataCard('${document['title'] ?? document['type']}',
+                    subtitle: '${document['content'] ?? ''}',
+                    footer: Column(children: [
+                      UiText(accepted(document)
+                          ? 'Эта версия принята'
+                          : 'Эта версия не принята'),
+                      button(
+                          accepted(document)
+                              ? 'Отозвать согласие'
+                              : 'Принять эту версию',
                           () => act(() async {
                                 await api.request('/me/consents',
                                     method: 'POST',
                                     body: {
-                                      'document_id': d['id'],
-                                      'document_hash': d['hash'],
-                                      'accepted': true
+                                      'document_id': document['id'],
+                                      'document_hash': document['hash'],
+                                      'accepted': !accepted(document)
                                     });
-                                success('Согласие сохранено');
-                              }))),
-                button('Продолжить', () => go('home')),
-              ]),
-          query: {'country': country, 'locale': me?['locale'] ?? 'ru'}));
+                                reload();
+                              }),
+                          outline: accepted(document))
+                    ])),
+              if (!canContinue)
+                const Notice(
+                    'Чтобы продолжить, примите условия использования и политику конфиденциальности.'),
+              FilledButton(
+                  onPressed: canContinue ? () => go('home') : null,
+                  child: const UiText('Продолжить')),
+              TextButton(
+                  onPressed: () => go('support'),
+                  child: const UiText('Поддержка'))
+            ]);
+          }));
   void vote(Json r, int value) => act(() async {
         await api.request(
             '/listing-votes/${executor ? 'orders' : 'services'}/${r['id']}',
@@ -2543,11 +2776,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       loaded(
           '/me/boosts',
           (data, reload) => listBody([
-                const Heading('Больше внимания к вашей работе'),
+                const UiHeading('Больше внимания к вашей работе'),
                 const Notice(
                     'Оплата продвижений станет доступна после подключения платёжной системы.'),
                 for (final r in items(data))
                   DataCard('Размещение',
+                      translateTitle: true,
                       status: status(r),
                       subtitle: '${r['starts_at']} — ${r['ends_at']}'),
                 button('Поддержка', () => go('support'), outline: true),
@@ -2576,7 +2810,8 @@ class _MessageThreadState extends State<MessageThread> {
   final scroll = ScrollController();
   final List<Json> messages = [];
   final List<Json> attachments = [];
-  String? error, pendingId;
+  Object? error;
+  String? pendingId;
   bool loading = false, sending = false, uploading = false;
   bool readBusy = false;
   int lastReadSequence = 0;
@@ -2644,7 +2879,7 @@ class _MessageThreadState extends State<MessageThread> {
           markRead();
         });
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = e);
     } finally {
       loading = false;
       resumePending();
@@ -2687,7 +2922,7 @@ class _MessageThreadState extends State<MessageThread> {
               .clamp(0, scroll.position.maxScrollExtent));
       });
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = e);
     } finally {
       if (mounted) setState(() => historyBusy = false);
       resumePending();
@@ -2698,7 +2933,7 @@ class _MessageThreadState extends State<MessageThread> {
       context,
       MaterialPageRoute<void>(
           builder: (c) => Scaffold(
-              appBar: AppBar(title: const Text('Изменить сообщение')),
+              appBar: AppBar(title: const UiText('Изменить сообщение')),
               body: ActionForm(
                   fields: [
                     InputSpec('text', 'Сообщение',
@@ -2725,10 +2960,10 @@ class _MessageThreadState extends State<MessageThread> {
         builder: (c) => SafeArea(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
               ListTile(
-                  title: const Text('Изменить'),
+                  title: const UiText('Изменить'),
                   onTap: () => Navigator.pop(c, 'edit')),
               ListTile(
-                  title: const Text('Удалить'),
+                  title: const UiText('Удалить'),
                   onTap: () => Navigator.pop(c, 'delete')),
             ])));
     if (!mounted) return;
@@ -2741,7 +2976,7 @@ class _MessageThreadState extends State<MessageThread> {
         merge(saved);
         await load();
       } catch (e) {
-        if (mounted) setState(() => error = '$e');
+        if (mounted) setState(() => error = e);
       }
     }
   }
@@ -2761,7 +2996,7 @@ class _MessageThreadState extends State<MessageThread> {
           method: 'POST', body: {'sequence': sequence});
       lastReadSequence = sequence;
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = e);
     } finally {
       readBusy = false;
     }
@@ -2789,7 +3024,7 @@ class _MessageThreadState extends State<MessageThread> {
       pendingId = null;
       await load(forceScroll: true);
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = e);
     } finally {
       if (mounted) setState(() => sending = false);
     }
@@ -2822,7 +3057,7 @@ class _MessageThreadState extends State<MessageThread> {
           error = null;
         });
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = e);
     } finally {
       if (mounted) setState(() => uploading = false);
     }
@@ -2841,13 +3076,13 @@ class _MessageThreadState extends State<MessageThread> {
         if (error != null)
           Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Notice(error!, error: true)),
+              child: Notice(errorText(context, error!), error: true)),
         Expanded(
             child: messages.isEmpty
                 ? Center(
                     child: loading
                         ? const CircularProgressIndicator()
-                        : const Text('Начните разговор'))
+                        : const UiText('Начните разговор'))
                 : ListView.builder(
                     controller: scroll,
                     padding: const EdgeInsets.all(20),
@@ -2856,7 +3091,7 @@ class _MessageThreadState extends State<MessageThread> {
                       if (moreHistory && i == 0)
                         return TextButton(
                             onPressed: historyBusy ? null : older,
-                            child: Text(historyBusy
+                            child: UiText(historyBusy
                                 ? 'Загрузка…'
                                 : 'Показать ранние сообщения'));
                       final m = messages[i - (moreHistory ? 1 : 0)],
@@ -2882,16 +3117,18 @@ class _MessageThreadState extends State<MessageThread> {
                                           CrossAxisAlignment.end,
                                       children: [
                                         Text(m['tombstone'] == true
-                                            ? 'Сообщение удалено'
+                                            ? localize(
+                                                context, 'Сообщение удалено')
                                             : m['hidden'] == true
-                                                ? 'Сообщение временно скрыто'
+                                                ? localize(context,
+                                                    'Сообщение временно скрыто')
                                                 : m['text'] ?? ''),
                                         for (final id
                                             in (m['upload_ids'] as List? ?? []))
                                           AttachmentView(
                                               api: widget.api, id: id),
                                         if (own)
-                                          Text(
+                                          UiText(
                                               const {
                                                     'sent': 'Отправлено',
                                                     'delivered': 'Доставлено',
@@ -2910,7 +3147,7 @@ class _MessageThreadState extends State<MessageThread> {
                 child: Row(children: [
                   if (widget.capability == null)
                     IconButton(
-                        tooltip: 'Добавить файл',
+                        tooltip: localize(context, 'Добавить файл'),
                         onPressed: sending || uploading ? null : attach,
                         icon: uploading
                             ? const SizedBox(
@@ -2926,10 +3163,10 @@ class _MessageThreadState extends State<MessageThread> {
                           maxLines: 4,
                           enabled: !sending,
                           onChanged: (_) => pendingId = null,
-                          decoration:
-                              const InputDecoration(hintText: 'Сообщение'))),
+                          decoration: InputDecoration(
+                              hintText: localize(context, 'Сообщение')))),
                   IconButton(
-                      tooltip: 'Отправить',
+                      tooltip: localize(context, 'Отправить'),
                       onPressed: sending ? null : send,
                       icon: sending
                           ? const CircularProgressIndicator()
@@ -2941,7 +3178,7 @@ class _MessageThreadState extends State<MessageThread> {
               child: Wrap(children: [
                 for (final file in attachments)
                   InputChip(
-                      label: Text(file['mime'].startsWith('image/')
+                      label: UiText(file['mime'].startsWith('image/')
                           ? 'Фотография'
                           : 'PDF'),
                       onDeleted: sending
@@ -2966,7 +3203,7 @@ class AttachmentView extends StatelessWidget {
           return PrivatePhoto(api: api, id: id);
         return TextButton.icon(
             icon: const Icon(Icons.file_download_outlined),
-            label: const Text('Сохранить вложение'),
+            label: const UiText('Сохранить вложение'),
             onPressed: () async {
               try {
                 final bytes = await api.download(id);
@@ -2976,8 +3213,8 @@ class AttachmentView extends StatelessWidget {
                     bytes: bytes);
               } catch (e) {
                 if (context.mounted)
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text('$e')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(errorText(context, e))));
               }
             });
       });

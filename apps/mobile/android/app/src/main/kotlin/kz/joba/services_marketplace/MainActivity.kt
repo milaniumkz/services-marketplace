@@ -24,7 +24,7 @@ class MainActivity : FlutterFragmentActivity() {
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.device_security")
             .setMethodCallHandler { call, result ->
                 if (call.method != "hardwareBacked") {
-                    biometry(call.method, call.argument<String>("alias") ?: "", result)
+                    biometry(call.method, call.argument<String>("alias") ?: "", call.argument<String>("title")?.take(100) ?: "JOBA", call.argument<String>("cancel")?.take(40) ?: "Cancel", result)
                     return@setMethodCallHandler
                 }
                 val alias = "joba-security-probe"
@@ -41,7 +41,7 @@ class MainActivity : FlutterFragmentActivity() {
                 finally { try { KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(alias) } catch (_: Exception) {} }
             }
     }
-    private fun biometry(method: String, alias: String, result: MethodChannel.Result) {
+    private fun biometry(method: String, alias: String, title: String, cancel: String, result: MethodChannel.Result) {
         if (!alias.matches(Regex("joba\\.biometry\\.[0-9a-f]{64}"))) { result.error("INVALID_KEY", "Invalid local key", null); return }
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         try {
@@ -75,8 +75,8 @@ class MainActivity : FlutterFragmentActivity() {
                     } catch (_: Exception) { result.error("BIOMETRY_CHANGED", "Войдите снова с паролем", null) }
                 }
             })
-            val info = BiometricPrompt.PromptInfo.Builder().setTitle("Разблокировка JOBA")
-                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG).setNegativeButtonText("Отмена").build()
+            val info = BiometricPrompt.PromptInfo.Builder().setTitle(title)
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG).setNegativeButtonText(cancel).build()
             prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
         } catch (_: KeyPermanentlyInvalidatedException) { result.error("BIOMETRY_CHANGED", "Биометрия изменилась. Войдите снова с паролем", null) }
         catch (_: Exception) { result.error("BIOMETRY_UNAVAILABLE", "Биометрия недоступна", null) }

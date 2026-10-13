@@ -29,19 +29,21 @@ export class Store {
   }
   async initialize() {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0002_runtime.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0003_rate_limits.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;publicActor?:string}={}) {
+  async select(kind:string,country:string,options:{owner?:string;participant?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;publicActor?:string}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
+    if(options.participant){const participant=bind(options.participant);where.push(`(owner=${participant} OR data->>'executor_id'=${participant})`);}
     if(options.statuses)where.push("data->>'status'=ANY("+bind(options.statuses)+'::text[])');
     if(options.after)where.push('id>'+bind(options.after)+'::uuid');
     if(options.city)where.push("data->>'city'="+bind(options.city));
-    if(options.category)where.push("data->>'category_id'="+bind(options.category));
+    if(options.category){const category=bind(options.category);where.push(`(data->>'category_id'=${category} OR COALESCE(data->'category_ids','[]'::jsonb) ? ${category})`);}
     if(options.publicActor){
       const viewer=bind(options.publicActor);
       where.push("COALESCE(data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')");

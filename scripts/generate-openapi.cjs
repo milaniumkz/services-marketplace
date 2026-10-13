@@ -4,7 +4,7 @@ const root=resolve(__dirname,'..');
 const routes=[];
 
 const add=(method,path,access='user',schema)=>routes.push({method,path,access,schema});
-add('GET','/admin/cases/{id}','staff');add('GET','/admin/cases/{id}/messages','staff');add('POST','/admin/cases/{id}/messages','staff');add('GET','/cases/{id}/messages');add('GET','/me/blocks');add('GET','/uploads/{id}/metadata');add('POST','/me/portfolio-projects/reorder');add('GET','/cases/{id}');add('POST','/me/privacy-requests/{id}/cancel');
+add('GET','/admin/cases/{id}','staff');add('GET','/admin/cases/{id}/messages','staff');add('POST','/admin/cases/{id}/messages','staff');add('GET','/cases/{id}/messages');add('GET','/me/completed-orders');add('GET','/me/blocks');add('GET','/uploads/{id}/metadata');add('POST','/me/portfolio-projects/reorder');add('GET','/cases/{id}');add('POST','/me/privacy-requests/{id}/cancel');
 for(const name of ['register','login','staff-login','refresh'])add('POST','/auth/'+name,'public',name==='register'?'Registration':undefined);
 for(const name of ['logout','logout-all'])add('POST','/auth/'+name);
 for(const path of ['/public/config','/legal/documents'])add('GET',path,'public');
@@ -27,7 +27,7 @@ add('POST','/me/notifications/{id}/read');add('POST','/me/portfolio-projects/{id
 for(const method of ['PUT','DELETE'])add(method,'/listing-votes/{type}/{id}');
 add('PUT','/uploads/{id}/content');add('POST','/uploads/{id}/finalize');add('GET','/uploads/{id}/download');add('GET','/uploads/{id}/download-url');add('GET','/private-files/{id}','signed');
 for(const type of ['billing','ads'])add('POST','/webhooks/'+type+'/{provider}','provider');
-for(const path of ['/admin/dashboard','/admin/users','/admin/users/{id}','/admin/users/{id}/security-events','/admin/orders','/admin/support-threads','/admin/recovery-threads','/admin/cases','/admin/audit','/admin/blacklist','/admin/portfolio','/admin/verifications','/admin/privacy-requests','/admin/runtime-settings','/admin/boost-reports'])add('GET',path,'staff');
+for(const path of ['/admin/legal/documents','/admin/orders/{id}','/admin/portfolio/{id}','/admin/contractors/{id}','/admin/support-threads/{id}','/admin/recovery-threads/{id}','/admin/verifications/{id}','/admin/privacy-requests/{id}','/admin/dashboard','/admin/users','/admin/users/{id}','/admin/users/{id}/security-events','/admin/orders','/admin/support-threads','/admin/recovery-threads','/admin/cases','/admin/audit','/admin/blacklist','/admin/portfolio','/admin/verifications','/admin/privacy-requests','/admin/runtime-settings','/admin/boost-reports'])add('GET',path,'staff');
 for(const path of ['/admin/runtime-settings','/admin/legal/documents','/admin/legal/documents/{id}/publish','/admin/users/{id}/blacklist','/admin/blacklist/{id}/decision','/admin/verifications/{id}/decision','/admin/auto-holds/{id}/decision','/admin/cases/{id}/resolve','/admin/cases/{id}/appeal-decision','/admin/entitlement-grants','/admin/entitlement-grants/{id}/approve','/admin/brand-icons','/admin/brand-icons/{id}/approve','/admin/brand-icons/{id}/generate','/admin/boost-grants','/admin/portfolio/{id}/decision','/admin/contractors/{id}/decision','/admin/recovery-threads/{id}/assign'])add('POST',path,'staff','VersionedCommand');
 for(const base of ['support-threads','recovery-threads'])for(const method of ['GET','POST'])add(method,'/admin/'+base+'/{id}/messages','staff',method==='POST'?'MessageCreate':undefined);
 add('POST','/admin/support-threads/{id}/commands','staff','VersionedCommand');

@@ -58,9 +58,14 @@ test('published portfolio media require access, visibility and country ACL',asyn
   await api.store.put({...project,status:'published',photos:[upload.id]});
   const profile={id:randomUUID(),kind:'contractor',owner:owner.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),title:'Тестовый профиль',description:'Тестовая публикация для проверки файловой ACL',status:'published',fixture:true};
   await api.store.put(profile);
+  const verifiedOwner=await api.store.get(owner.user.id);await api.store.put({...verifiedOwner,verification:'passed'});
   assert.equal((await call(reader,'GET','/uploads/'+upload.id+'/metadata')).mime,'image/png');
   await assert.rejects(()=>call(unpaid,'GET','/uploads/'+upload.id+'/metadata'),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
   await assert.rejects(()=>call(foreign,'GET','/uploads/'+upload.id+'/metadata'),e=>e.getResponse().error.code==='NOT_FOUND');
+  await api.store.put({...verifiedOwner,verification:'expired'});
+  await assert.rejects(()=>call(reader,'GET','/contractors/'+profile.id),e=>e.getResponse().error.code==='NOT_FOUND');
+  await assert.rejects(()=>call(reader,'GET','/uploads/'+upload.id+'/metadata'),e=>e.getResponse().error.code==='NOT_FOUND');
+  await api.store.put({...verifiedOwner,verification:'passed'});
   await api.store.put({...profile,status:'draft',version:2});
   await assert.rejects(()=>call(reader,'GET','/uploads/'+upload.id+'/metadata'),e=>e.getResponse().error.code==='NOT_FOUND');
  }finally{await api.store.close();await rm(files,{recursive:true,force:true});}

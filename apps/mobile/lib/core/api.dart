@@ -12,7 +12,9 @@ const uuid = Uuid();
 class ApiException implements Exception {
   final String code, message;
   final int status;
-  ApiException(this.code, this.message, [this.status = 0]);
+  final Json details;
+  ApiException(this.code, this.message,
+      [this.status = 0, this.details = const {}]);
   @override
   String toString() => message;
 }
@@ -51,6 +53,7 @@ class JobaApi extends ChangeNotifier {
   int _generation = 0;
   final Map<String, Future<dynamic>> _pendingReads = {};
   final Map<String, String> _retryKeys = {};
+  final Map<String, Json> _pendingUploads = {};
   bool disposed = false;
   bool persistSession = true;
   String? serverTime;
@@ -154,6 +157,7 @@ class JobaApi extends ChangeNotifier {
     session = null;
     _pendingReads.clear();
     _retryKeys.clear();
+    _pendingUploads.clear();
     await _vaultOperation(vault.clear);
     persistSession = true;
     if (!disposed) notifyListeners();
@@ -218,7 +222,13 @@ class JobaApi extends ChangeNotifier {
 
   Future<dynamic> _send(
       Uri uri, String method, Json? body, String? key, bool authenticated,
-      {bool rotated = false, String? capability}) async {
+      {bool rotated = false,
+      String? capability,
+      int? sessionGeneration}) async {
+    final generation = sessionGeneration ?? _generation;
+    if (authenticated && capability == null && generation != _generation)
+      throw ApiException(
+          'SESSION_SUPERSEDED', 'Сессия изменилась. Повторите вход', 401);
     if (authenticated && !this.authenticated)
       throw ApiException('TOKEN_EXPIRED', 'Войдите в аккаунт', 401);
     final request = http.Request(method, uri)..followRedirects = false;
@@ -243,10 +253,14 @@ class JobaApi extends ChangeNotifier {
       throw ApiException(
           'OFFLINE', 'Нет соединения с сервером. Проверьте сеть.');
     }
+    if (authenticated && capability == null && generation != _generation)
+      throw ApiException(
+          'SESSION_SUPERSEDED', 'Сессия изменилась. Повторите вход', 401);
     if (response.statusCode == 401 && authenticated && !rotated) {
       await refresh();
       // Keep the original idempotency key when replaying a mutation.
-      return _send(uri, method, body, key, authenticated, rotated: true);
+      return _send(uri, method, body, key, authenticated,
+          rotated: true, capability: capability, sessionGeneration: generation);
     }
     dynamic decoded;
     try {
@@ -260,7 +274,10 @@ class JobaApi extends ChangeNotifier {
       throw ApiException(
           decoded['error']?['code'] ?? 'SERVER_ERROR',
           decoded['error']?['message'] ?? 'Не удалось выполнить запрос',
-          response.statusCode);
+          response.statusCode,
+          decoded['error']?['details'] is Map
+              ? Map<String, dynamic>.from(decoded['error']['details'])
+              : const {});
     }
     serverTime = decoded['meta']?['server_time'];
     return decoded['data'];
@@ -268,40 +285,108 @@ class JobaApi extends ChangeNotifier {
 
   Future<Json> upload(Uint8List bytes, String mime, String purpose,
       {String? verificationId}) async {
-    final record = await request('/uploads/initiate', method: 'POST', body: {
+    final generation = _generation;
+    final digest = await compute(_uploadDigest, bytes);
+    void checkSession() {
+      if (disposed || generation != _generation)
+        throw ApiException(
+            'SESSION_SUPERSEDED', 'Сессия изменилась. Повторите вход', 401);
+    }
+
+    checkSession();
+    final fingerprint =
+        '${session?['user']?['id']}:$purpose:$mime:$verificationId:$digest';
+    Json? record = _pendingUploads[fingerprint];
+    if (record != null) {
+      try {
+        record = await request('/uploads/${record['id']}/metadata') as Json;
+      } on ApiException catch (error) {
+        if (error.status != 404) rethrow;
+        record = null;
+        _pendingUploads.remove(fingerprint);
+      }
+    }
+    checkSession();
+    record ??= await request('/uploads/initiate', method: 'POST', body: {
       'size': bytes.length,
       'mime': mime,
       'purpose': purpose,
       if (verificationId != null) 'verification_id': verificationId,
     }) as Json;
-    final key = uuid.v4();
-    Future<http.Response> put() async {
-      final req = http.Request('PUT', url('/uploads/${record['id']}/content'))
-        ..followRedirects = false
-        ..headers.addAll({
+    checkSession();
+    Json current = record;
+    _pendingUploads[fingerprint] = current;
+    while (_pendingUploads.length > 20)
+      _pendingUploads.remove(_pendingUploads.keys.first);
+    final id = current['id'];
+    if (current['status'] == 'initiated') {
+      final key = uuid.v4();
+      Future<http.Response> put() async {
+        checkSession();
+        final request = http.Request('PUT', url('/uploads/$id/content'))
+          ..followRedirects = false;
+        request.headers.addAll({
           'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/octet-stream',
           'Idempotency-Key': key
-        })
-        ..bodyBytes = bytes;
-      return http.Response.fromStream(
-          await transport.send(req).timeout(const Duration(seconds: 60)));
-    }
+        });
+        request.bodyBytes = bytes;
+        try {
+          return await http.Response.fromStream(await transport.send(request))
+              .timeout(const Duration(seconds: 60));
+        } on TimeoutException {
+          throw ApiException('TIMEOUT',
+              'Сервер не ответил. Проверьте соединение и повторите запрос.');
+        } on http.ClientException {
+          throw ApiException(
+              'OFFLINE', 'Нет соединения с сервером. Проверьте сеть.');
+        }
+      }
 
-    var response = await put();
-    if (response.statusCode == 401) {
-      await refresh();
-      response = await put();
+      var response = await put();
+      checkSession();
+      if (response.statusCode == 401) {
+        await refresh();
+        response = await put();
+      }
+      checkSession();
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final data = jsonDecode(response.body);
+        throw ApiException(
+            data['error']?['code'] ?? 'UPLOAD_FAILED',
+            data['error']?['message'] ?? 'Загрузка не удалась',
+            response.statusCode);
+      }
+      current = {...current, 'status': 'uploaded'};
     }
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      final data = jsonDecode(response.body);
+    if (current['status'] == 'uploaded') {
+      try {
+        current =
+            await request('/uploads/$id/finalize', method: 'POST') as Json;
+      } on ApiException catch (error) {
+        if (!['TIMEOUT', 'OFFLINE'].contains(error.code)) rethrow;
+        current = await request('/uploads/$id/metadata') as Json;
+      }
+    }
+    final deadline = DateTime.now().add(const Duration(minutes: 2));
+    while (['processing', 'scanning'].contains(current['status']) &&
+        DateTime.now().isBefore(deadline)) {
+      checkSession();
+      if (current['failure_code'] != null)
+        throw ApiException(current['failure_code'],
+            'Файл ещё не прошёл безопасную проверку.', 503);
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      current = await request('/uploads/$id/metadata') as Json;
+    }
+    checkSession();
+    if (current['status'] != 'clean') {
+      if (['infected', 'rejected', 'expired'].contains(current['status']))
+        _pendingUploads.remove(fingerprint);
       throw ApiException(
-          data['error']?['code'] ?? 'UPLOAD_FAILED',
-          data['error']?['message'] ?? 'Загрузка не удалась',
-          response.statusCode);
+          'UNSAFE_UPLOAD', 'Файл ещё не прошёл безопасную проверку.');
     }
-    return await request('/uploads/${record['id']}/finalize', method: 'POST')
-        as Json;
+    _pendingUploads.remove(fingerprint);
+    return current;
   }
 
   Future<Uint8List> download(String id, {bool rotated = false}) async {
@@ -330,3 +415,5 @@ class JobaApi extends ChangeNotifier {
 
 List<Json> items(dynamic value) =>
     ((value as Json?)?['items'] as List? ?? []).cast<Json>();
+
+String _uploadDigest(Uint8List bytes) => sha256.convert(bytes).toString();

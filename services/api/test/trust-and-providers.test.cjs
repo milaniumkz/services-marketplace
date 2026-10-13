@@ -24,7 +24,8 @@ test('staff MFA is mandatory and audit is append-only',async()=>{
     await rejection(()=>command(api,u,'GET','/admin/users'),'FORBIDDEN');
     await rejection(()=>api.handle('POST','/auth/staff-login',{country:'KZ',phone:user.phone,password:'a sufficiently long password',mfa_code:'000000'},undefined,undefined,{},'staff'),'INVALID_CREDENTIALS');
     const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:user.phone,password:'a sufficiently long password',mfa_code:totp(secret)},undefined,undefined,{},'staff');
-    assert.equal((await command(api,staff,'GET','/admin/users')).items.length,1);
+    const ordinary=await account(api,'+77000000102');
+    const visibleUsers=(await command(api,staff,'GET','/admin/users')).items;assert.equal(visibleUsers.length,1);assert.equal(visibleUsers[0].id,ordinary.user.id);
     const d=await command(api,staff,'POST','/admin/categories',{title:'Категория услуг',payload:{},reason:'Настройка рабочего каталога'});
     const audits=await api.store.all('audit','KZ');assert.equal(audits.length,1);
     await assert.rejects(()=>api.store.put({...audits[0],reason:'Переписать историю'}),/append-only/);

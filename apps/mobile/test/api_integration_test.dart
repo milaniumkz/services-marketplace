@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:services_marketplace/core/api.dart';
 import 'widget_test.dart' show MemoryVault;
@@ -45,6 +46,17 @@ void main() {
       'city': cities.first['name']
     }) as Json;
     expect(updated['display_name'], 'Новое имя');
+    final image = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEklEQVQImWNQib6tEn2bAUIBACMKBWmBjKz3AAAAAElFTkSuQmCC');
+    final avatar = await api.upload(image, 'image/png', 'avatar');
+    expect(avatar['status'], 'clean');
+    final profileWithPhoto = await api.request('/me', method: 'PATCH', body: {
+      'expected_version': updated['version'],
+      'avatar_id': avatar['id']
+    }) as Json;
+    expect(profileWithPhoto['avatar_id'], avatar['id']);
+    expect((await api.download(avatar['id'])).isNotEmpty, true);
+
     expect((await api.request('/me/contractor-profile'))['profile'], isNull);
     expect(items(await api.request('/me/assigned-orders')), isEmpty);
     expect(items(await api.request('/me/offers')), isEmpty);

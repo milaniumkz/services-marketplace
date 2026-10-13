@@ -6,6 +6,7 @@ import { verifyTotp } from './totp';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
 import { Providers } from './providers';
 import { Commerce } from './commerce';
+import { PopplerPdfSanitizer } from './pdf-sanitizer';
 import { PrivateFiles, ClamAvScanner } from './private-files';
 import sharp from 'sharp';
 import { Moderation, validateRules } from './moderation';
@@ -39,6 +40,9 @@ const safeUser = (u: RecordData) => ({id:u.id,display_name:u.display_name,city:u
 type Actor = { id: string; country: string; family: string; user: RecordData; mfa: boolean };
 export class Marketplace {
   readonly events=new EventEmitter().setMaxListeners(0);
+  private uploadTasks=new Map<string,Promise<any>>();
+  private scanSlots=2;
+  private scanWaiters:Array<()=>void>=[];
   store: Store;
   readonly providers: Providers;
   readonly commerce: Commerce;
@@ -47,21 +51,23 @@ export class Marketplace {
   readonly growth:Growth;
   readonly branding:Branding;
   private queue: Promise<any> = Promise.resolve();
-  private attempts = new Map<string, { count: number; until: number }>();
   constructor(store = new Store(), providers = new Providers(), files = new PrivateFiles()) {
     this.store=store;this.providers=providers;this.commerce=new Commerce(store,providers);this.files=files;
     this.configuration=new Configuration(store,providers);this.growth=new Growth(store,providers);this.branding=new Branding(store,files);
     const moderation=new Moderation(store);store.contentHook=data=>moderation.check(data);
     if(process.env.JOBA_CLAMSCAN_PATH)providers.scanner=new ClamAvScanner();
+    if(process.env.JOBA_PDFTOPPM_PATH)providers.pdfSanitizer=new PopplerPdfSanitizer();
   }
   async initialize() { await this.store.initialize();await seedReferenceData(this.store); }
   private record(kind: string, actor: {id:string;country:string}, data: any = {}): RecordData { return {...data,id:randomUUID(),kind,owner:actor.id,country:actor.country,version:1,created_at:new Date().toISOString()}; }
-  private limited(key: string, max=20) {
-    const now=Date.now(), prev=this.attempts.get(key);
-    const v=prev && prev.until>now ? prev : {count:0,until:now+60_000};
-    if (++v.count>max) fail(429,'RATE_LIMITED','Слишком много попыток. Повторите позже.');
-    this.attempts.set(key,v);
-    if (this.attempts.size>10000) for(const [k,v] of this.attempts) if(v.until<now)this.attempts.delete(k);
+  private async limited(key:string,max=20){
+    const scope=await this.files.requestDigest('rate-limit:'+key);
+    const result=await this.store.db.query<any>(`INSERT INTO rate_limits(scope_hash,window_start,attempts) VALUES($1,CURRENT_TIMESTAMP,1)
+      ON CONFLICT(scope_hash) DO UPDATE SET
+        attempts=CASE WHEN rate_limits.window_start<=CURRENT_TIMESTAMP-INTERVAL '60 seconds' THEN 1 ELSE rate_limits.attempts+1 END,
+        window_start=CASE WHEN rate_limits.window_start<=CURRENT_TIMESTAMP-INTERVAL '60 seconds' THEN CURRENT_TIMESTAMP ELSE rate_limits.window_start END
+      RETURNING attempts`,[scope]);
+    if(result.rows[0].attempts>max)fail(429,'RATE_LIMITED','Слишком много попыток. Повторите позже.');
   }
   private async tokens(user: RecordData, family=randomUUID(), mfa=false,ip='unknown') {
     const settings=await this.settings(user.country);
@@ -92,6 +98,15 @@ export class Marketplace {
     if(a.user.status!=='active')fail(403,'FORBIDDEN','Новые действия ограничены. Поддержка доступна.');
     if(verified&&!a.user.roles.includes('executor'))fail(403,'EXECUTOR_ROLE_REQUIRED','Настройте роль исполнителя');
     if(verified&&a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Требуется проверка документа исполнителя');
+    if(['publish_order','select_offer','send_offer','publish_profile'].includes(capability)) {
+      const current=(await this.store.all('legal_document',a.country)).filter(d=>d.status==='published'&&d.locale===(a.user.locale??'ru')&&['privacy','privacy_policy','terms','terms_of_use'].includes(d.type)).sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id));
+      const checked=new Set<string>();
+      for(const document of current) {
+        const type=['privacy','privacy_policy'].includes(document.type)?'privacy':'terms';if(checked.has(type))continue;checked.add(type);
+        const consent=(await this.store.db.query<any>("SELECT data FROM records WHERE kind='consent' AND country=$1 AND owner=$2 AND data->>'document_id'=$3 ORDER BY (data->>'sequence')::integer DESC LIMIT 1",[a.country,a.id,document.id])).rows[0]?.data;
+        if(!consent?.accepted||consent.document_hash!==document.hash)fail(403,'CONSENT_REQUIRED','Примите текущую версию условий и политики конфиденциальности',{document_id:document.id});
+      }
+    }
     await this.promotionGrant(a);
     const grants=(await this.store.select('grant',a.country,{owner:a.id,limit:1000})).filter(r=>r.owner===a.id && r.valid_until>new Date().toISOString() && r.capabilities.includes(capability)&&(r.balance===undefined||r.balance>0));
     if(!grants.length)fail(403,'ENTITLEMENT_REQUIRED','Нужен действующий доступ',{capability});
@@ -106,20 +121,28 @@ export class Marketplace {
     if(!has||!a.mfa||a.user.status!=='active')fail(403,'FORBIDDEN','Недостаточно служебных прав или MFA');
   }
   async handle(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local') {
-    if(path.startsWith('/auth/')||path.startsWith('/public/')||path.startsWith('/webhooks/'))key=undefined;
+    if(path.startsWith('/auth/')||path.startsWith('/public/')&&!path.startsWith('/public/recovery-threads')||path.startsWith('/webhooks/'))key=undefined;
     // Serialize commands: version check, idempotency, business writes and outbox commit together.
     const run = async () => {
       if(method==='GET')return this.dispatch(method,path,body,authorization,query,ip);
       let actor: Actor|undefined;
       if(!path.startsWith('/auth/')&&!path.startsWith('/public/')&&!path.startsWith('/webhooks/'))actor=await this.actor(authorization);
-      if(actor)this.limited('mutations:'+actor.id,120);
+      // Counters commit independently of rejected business commands.
+      if(actor)await this.limited('mutations:'+actor.id,120);
+      if(path==='/auth/register')await this.limited('register:'+ip,5);
+      if(['/auth/login','/auth/staff-login'].includes(path)){await this.limited('login:'+ip,10);await this.limited('login-account:'+String(body.country)+':'+String(body.phone),10);}
+      if(path==='/auth/refresh')await this.limited('refresh:'+ip);
+      if(path==='/public/recovery-threads')await this.limited('recovery:'+ip,3);
+      if(path.startsWith('/public/recovery-threads/')&&path.endsWith('/messages'))await this.limited('recovery-messages:'+ip);
+      if(path.startsWith('/listing-votes/')&&actor)await this.limited('votes:'+actor.id,30);
       const exempt=path.startsWith('/auth/')||path.startsWith('/public/')||path.startsWith('/webhooks/');
-      if(!exempt && (!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key)))fail(400,'VALIDATION_ERROR','Требуется Idempotency-Key');
+      if(key&&!/^[A-Za-z0-9_-]{8,128}$/.test(key)||!exempt&&!key)fail(400,'VALIDATION_ERROR','Требуется Idempotency-Key');
       const scope=`${actor?.id??ip}:${method}:${path}`, bodyHash=key?await this.files.requestDigest(Buffer.isBuffer(body)?body.toString('base64'):JSON.stringify(body)):'';
-      const cached=key ? (await this.store.db.query<any>('SELECT * FROM idempotency WHERE scope=$1 AND key=$2',[scope,key])).rows[0] : null;
-      if(cached){if(cached.body_hash!==bodyHash)fail(409,'IDEMPOTENCY_CONFLICT','Ключ уже использован с другими данными');return cached.result;}
       await this.store.db.exec('BEGIN');
       try {
+        if(key)await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[scope+':'+key]);
+        const cached=key?(await this.store.db.query<any>('SELECT * FROM idempotency WHERE scope=$1 AND key=$2',[scope,key])).rows[0]:null;
+        if(cached){if(cached.body_hash!==bodyHash)fail(409,'IDEMPOTENCY_CONFLICT','Ключ уже использован с другими данными');await this.store.db.exec('COMMIT');return cached.result;}
         const rawResult=await this.dispatch(method,path,body,authorization,query,ip);
         const result=JSON.parse(JSON.stringify(rawResult??null));
         if(key)await this.store.db.query('INSERT INTO idempotency(scope,key,body_hash,result) VALUES($1,$2,$3,$4)',[scope,key,bodyHash,JSON.stringify(result??null)]);
@@ -131,7 +154,16 @@ export class Marketplace {
         throw e;
       }
     };
-    const pending=this.queue.then(run,run);this.queue=pending.catch(()=>{});return pending;
+    const pending=this.queue.then(run,run);this.queue=pending.catch(()=>{});
+    const finalize=method==='POST'?path.match(/^\/uploads\/([^/]+)\/finalize$/):null;
+    if(finalize)return pending.then(async result=>{
+      if(!['processing','scanning'].includes(result?.status))return result;
+      const finished=await this.processUpload(finalize[1]);
+      if(['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','FILE_PROCESSING_UNAVAILABLE'].includes(finished.failure_code))fail(503,finished.failure_code,'Проверка недоступна. Файл остаётся закрытым.');
+      if(finished.status==='rejected')fail(422,'POLICY_REJECTED','Файл не прошёл безопасную обработку');
+      return finished;
+    });
+    return pending;
   }
   private async dispatch(method: string,path: string,b: any,authorization: string|undefined,q: any,ip: string): Promise<any> {
     const db=this.store.db;
@@ -139,7 +171,12 @@ export class Marketplace {
     const orderReview=path.match(/^\/orders\/([^/]+)\/reviews$/);if(orderReview){b={...b,order_id:orderReview[1]};path='/reviews';}
     if(path==='/reports')path='/cases';
     if(path==='/public/config'&&method==='GET')return {countries:Object.entries(countries).map(([code,c])=>({code,...c,launch_status:'unverified',checkout_enabled:false})),subscription_enabled:true,banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development'};
-    if(path==='/legal/documents'&&method==='GET')return {items:(await this.store.all('legal_document',q.country??'KZ')).filter(x=>x.status==='published'&&(!q.locale||x.locale===q.locale))};
+    if(path==='/legal/documents'&&method==='GET') {
+      if(!countries[q.country??'KZ']||q.locale&&!['ru','kk','sr','be'].includes(q.locale))fail(400,'VALIDATION_ERROR','Проверьте страну и язык');
+      const versions=(await this.store.all('legal_document',q.country??'KZ')).filter(x=>x.status==='published'&&(!q.locale||x.locale===q.locale)).sort((a,b)=>String(b.published_at??b.created_at).localeCompare(String(a.published_at??a.created_at))||b.id.localeCompare(a.id));
+      const seen=new Set<string>(),visible=q.all_versions==='true'?versions:versions.filter(d=>{const key=d.type+':'+d.locale;if(seen.has(key))return false;seen.add(key);return true;});
+      return {items:visible.map(({id,country,type,locale,content,hash,version,created_at,published_at})=>({id,country,type,locale,content,hash,version,created_at,published_at}))};
+    }
     const webhook=path.match(/^\/webhooks\/(billing|ads)\/([^/]+)$/);
     if(webhook&&method==='POST') {
       if(!b.raw_body||!b.headers)fail(400,'VALIDATION_ERROR','Требуется исходное тело webhook');
@@ -157,7 +194,6 @@ export class Marketplace {
       if(!claimed.rows.length)fail(404,'NOT_FOUND','Ссылка уже использована');return {download_buffer:await this.files.read(upload.id),mime:upload.mime};
     }
     if(path==='/auth/register'&&method==='POST') {
-      this.limited(`register:${ip}`,5);
       const country=text(b,'country',2,2);if(!countries[country])fail(400,'VALIDATION_ERROR','Недопустимая страна');
       if(process.env.JOBA_REGION&&country!==process.env.JOBA_REGION)fail(403,'COUNTRY_DISABLED','Выбран неверный региональный endpoint');
       const phone=text(b,'phone',8,16);const number=parsePhoneNumberFromString(phone);
@@ -171,14 +207,14 @@ export class Marketplace {
     }
     if(['/auth/login','/auth/staff-login'].includes(path)&&method==='POST') {
       if(process.env.JOBA_REGION&&b.country!==process.env.JOBA_REGION)fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
-      this.limited(`login:${ip}`,10);this.limited(`login-account:${digest(String(b.country)+String(b.phone))}`,10);
       const c=(await db.query<any>('SELECT * FROM credentials WHERE country=$1 AND phone=$2',[String(b.country),String(b.phone)])).rows[0];
       // Hash even nonexistent credentials to avoid the obvious timing distinction.
       const ok=c?await verify(c.password_hash,String(b.password)):await hash(String(b.password??''),{memoryCost:19456,timeCost:2,parallelism:1}).then(()=>false);
       if(!ok)fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       const u=await this.store.get(c.user_id);if(!u || u.status==='deleted')fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       if(path==='/auth/staff-login') {
-        if(!u!.staff_permissions?.length||!u!.totp_secret||!verifyTotp(u!.totp_secret,String(b.mfa_code)))fail(401,'INVALID_CREDENTIALS','Неверные служебные данные или второй фактор');
+        const secret=u!.totp_secret_sealed?await this.files.unsealSecret(u!.totp_secret_sealed,u!.id):process.env.NODE_ENV==='production'?undefined:u!.totp_secret;
+        if(!u!.staff_permissions?.length||!secret||!verifyTotp(secret,String(b.mfa_code)))fail(401,'INVALID_CREDENTIALS','Неверные служебные данные или второй фактор');
         if(u!.last_totp_step===Math.floor(Date.now()/30000)||u!.last_totp_code_hash===digest(String(b.mfa_code)))fail(401,'MFA_REPLAY','Код уже использован');
         await this.store.put({...u!,last_totp_step:Math.floor(Date.now()/30000),last_totp_code_hash:digest(String(b.mfa_code)),version:u!.version+1});
         return this.tokens(u!,randomUUID(),true,ip);
@@ -187,8 +223,7 @@ export class Marketplace {
       return this.tokens(u!,randomUUID(),false,ip);
     }
     if(path==='/auth/refresh'&&method==='POST') {
-      this.limited(`refresh:${ip}`);
-      const t=(await db.query<any>('SELECT * FROM tokens WHERE hash=$1 AND kind=\'refresh\'',[digest(String(b.refresh_token))])).rows[0];
+      const t=(await db.query<any>('SELECT * FROM tokens WHERE hash=$1 AND kind=\'refresh\' FOR UPDATE',[digest(String(b.refresh_token))])).rows[0];
       if(t?.used){await db.query('UPDATE tokens SET revoked=true WHERE family=$1',[t.family]);fail(401,'REFRESH_REPLAY','Сессия отозвана');}
       if(!t||t.revoked||new Date(t.expires_at).getTime()<=Date.now())fail(401,'TOKEN_EXPIRED','Сессия истекла');
       await db.query('UPDATE tokens SET used=true WHERE hash=$1',[t.hash]);
@@ -196,7 +231,6 @@ export class Marketplace {
       return this.tokens((await this.store.get(t.user_id))!,t.family,t.mfa_verified,ip);
     }
     if(path==='/public/recovery-threads'&&method==='POST') {
-      this.limited(`recovery:${ip}`,3);
       if(!countries[b.country])fail(400,'VALIDATION_ERROR','Выберите страну');
       const secret=randomBytes(32).toString('base64url');
       const t=this.record('recovery',{id:'anonymous',country:b.country},{capability_hash:digest(secret),status:'new',subject:text(b,'subject',5,120),expires_at:new Date(Date.now()+86400000).toISOString()});
@@ -205,7 +239,6 @@ export class Marketplace {
     }
     const recovery=path.match(/^\/public\/recovery-threads\/([^/]+)\/messages$/);
     if(recovery) {
-      this.limited(`recovery-messages:${ip}`);
       const t=await this.store.get(recovery[1]);
       if(!t||t.kind!=='recovery'||t.capability_hash!==digest(String(authorization?.replace('Bearer ','')))||t.expires_at<=new Date().toISOString())fail(404,'NOT_FOUND','Обращение не найдено');
       const messages=(await this.store.all('recovery_message',t!.country)).filter(x=>x.thread_id===t!.id);
@@ -214,6 +247,7 @@ export class Marketplace {
     }
     const a=await this.actor(authorization);
     const settings=await this.settings(a.country);
+    if(a.user.staff_permissions?.length&&(path.startsWith('/orders')||path.startsWith('/me/contractor-profile')||path.startsWith('/me/portfolio-projects')||path==='/reviews'))fail(403,'FORBIDDEN','Для действий на бирже используйте отдельный пользовательский аккаунт');
     q={...q,_scope:a.id+':'+path};
     if(path==='/auth/logout'&&method==='POST'){await db.query('UPDATE tokens SET revoked=true WHERE family=$1',[a.family]);return {logged_out:true};}
     if(path==='/auth/logout-all'&&method==='POST') {
@@ -276,6 +310,7 @@ export class Marketplace {
       const r=await this.object(verificationSubmit[1],a,'verification',true);this.version(r,b);
       if(!['draft','rejected'].includes(r.status))fail(409,'STATE_CONFLICT','Заявка уже отправлена');
       const uploads=await this.safeUploads(a,b.upload_ids,'identity');if(!uploads.length)fail(400,'VALIDATION_ERROR','Загрузите документ');
+      for(const id of uploads){const upload=await this.store.get(id);if(upload?.verification_id!==r.id)fail(422,'POLICY_REJECTED','Документ загружен для другой заявки');}
       await this.store.put({...a.user,verification:'pending_review',version:a.user.version+1});
       return this.store.put({...r,status:'pending_review',document_refs:uploads,document_revision:r.document_revision+1,version:r.version+1});
     }
@@ -315,7 +350,8 @@ export class Marketplace {
       const projects=(await this.store.all('portfolio',a.country)).filter(x=>x.owner===a.id&&x.status!=='archived');if(projects.length>=settings.portfolio_projects)fail(422,'LIMIT_EXCEEDED','Максимум 20 проектов');
       if(b.rights_confirmed!==undefined&&typeof b.rights_confirmed!=='boolean')fail(400,'VALIDATION_ERROR','Проверьте подтверждение прав');
       const category=(await this.store.all('category',a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
-      return this.store.put(this.record('portfolio',a,{title:text(b,'title',5,120),description:text(b,'description',0,3000),category_id:category!.id,rights_confirmed:b.rights_confirmed===true,status:'draft',position:projects.length,photos:[]}));
+      let orderId:string|null=null;if(b.order_id){const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||![order.owner,order.executor_id].includes(a.id))fail(422,'POLICY_REJECTED','Можно связать только свой завершённый заказ');orderId=order.id;}
+      return this.store.put(this.record('portfolio',a,{title:text(b,'title',5,120),description:text(b,'description',0,3000),category_id:category!.id,order_id:orderId,rights_confirmed:b.rights_confirmed===true,status:'draft',position:projects.length,photos:[]}));
     }
     const portfolio=path.match(/^\/me\/portfolio-projects\/([^/]+)(?:\/(submit))?$/);
     if(portfolio) {
@@ -335,17 +371,17 @@ export class Marketplace {
     }
     if(path==='/contractors'&&method==='GET'){await this.entitlement(a,'search_full');return this.page('contractor',a,q,{statuses:['published'],publicActor:a.id});}
     const contractor=path.match(/^\/contractors\/([^/]+)(?:\/(portfolio))?$/);
-    if(contractor&&method==='GET'){await this.entitlement(a,'search_full');const p=await this.object(contractor[1],a,'contractor');if(p.status!=='published'||p.moderation_status==='quarantined'||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');return contractor[2]?this.list((await this.store.all('portfolio',a.country)).filter(x=>x.owner===p.owner&&x.status==='published'&&x.moderation_status!=='quarantined'),q):p;}
+    if(contractor&&method==='GET'){await this.entitlement(a,'search_full');const p=await this.object(contractor[1],a,'contractor');const owner=await this.store.get(p.owner);if(owner?.status!=='active'||owner.verification!=='passed'||p.status!=='published'||p.moderation_status==='quarantined'||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');return contractor[2]?this.list((await this.store.all('portfolio',a.country)).filter(x=>x.owner===p.owner&&x.status==='published'&&x.moderation_status!=='quarantined'),q):p;}
     const publicCustomer=path.match(/^\/customers\/([^/]+)$/);
     if(publicCustomer&&method==='GET') {
-      await this.entitlement(a,'search_full');const u=await this.object(publicCustomer[1],a,'user');if(await this.blocked(a,u.id))fail(404,'NOT_FOUND','Профиль недоступен');
+      await this.entitlement(a,'search_full');const u=await this.object(publicCustomer[1],a,'user');if(u.status!=='active'||u.staff_permissions?.length||await this.blocked(a,u.id))fail(404,'NOT_FOUND','Профиль недоступен');
       const reviews=(await this.store.all('review',a.country)).filter(r=>r.target_id===u.id&&r.status==='published'&&r.moderation_status!=='quarantined');
       return {...safeUser(u),city_source:'self_reported',completed_orders:(await this.store.all('order',a.country)).filter(o=>o.owner===u.id&&o.status==='completed').length,rating:{count:reviews.length,average:reviews.length?reviews.reduce((sum,r)=>sum+r.rating,0)/reviews.length:null}};
     }
     const publicReviews=path.match(/^\/users\/([^/]+)\/reviews$/);
-    if(publicReviews&&method==='GET'){await this.entitlement(a,'search_full');await this.object(publicReviews[1],a,'user');return this.list((await this.store.all('review',a.country)).filter(r=>r.target_id===publicReviews[1]&&r.status==='published'&&r.moderation_status!=='quarantined'),q);}
+    if(publicReviews&&method==='GET'){await this.entitlement(a,'search_full');const target=await this.object(publicReviews[1],a,'user');if(target.status!=='active'||target.staff_permissions?.length||await this.blocked(a,target.id))fail(404,'NOT_FOUND','Профиль недоступен');return this.list((await this.store.all('review',a.country)).filter(r=>r.target_id===publicReviews[1]&&r.status==='published'&&r.moderation_status!=='quarantined'),q);}
     if(path==='/orders'&&method==='POST') {
-      const budget=b.budget?b.budget.mode==='negotiable'?null:b.budget.amount_minor:b.budget_amount;
+      const budget=b.budget?b.budget.mode==='negotiable'?null:b.budget.amount_minor:(b.budget_amount??null);
       if(budget!==null && (!Number.isSafeInteger(budget)||budget<0))fail(400,'VALIDATION_ERROR','Бюджет должен быть целым числом в минимальных единицах валюты либо null');
       if(b.country&&b.country!==a.country||b.budget?.currency&&b.budget.currency!==countries[a.country].currency)fail(400,'VALIDATION_ERROR','Страна и валюта не совпадают с регионом');
       if(!['onsite','remote','hybrid'].includes(b.work_mode??'onsite'))fail(400,'VALIDATION_ERROR','Проверьте формат работы');
@@ -355,6 +391,7 @@ export class Marketplace {
       return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
     }
     if(path==='/me/orders'&&method==='GET')return this.page('order',a,q,{owner:a.id});
+    if(path==='/me/completed-orders'&&method==='GET')return this.page('order',a,q,{participant:a.id,statuses:['completed']});
     if(path==='/me/assigned-orders'&&method==='GET')return this.list((await this.store.all('order',a.country)).filter(x=>x.executor_id===a.id),q);
     if(path==='/me/offers'&&method==='GET')return this.list((await this.store.all('offer',a.country)).filter(x=>x.owner===a.id),q);
     if(path==='/me/order-change-requests'&&method==='GET')return this.list([...(await this.store.all('cancel_request',a.country)),...(await this.store.all('amendment',a.country))].filter(x=>x.owner===a.id||x.recipient_id===a.id),q);
@@ -519,7 +556,6 @@ export class Marketplace {
       await this.entitlement(a,'search_full');const target=await this.object(votes[2],a,votes[1]==='orders'?'order':'contractor');
       if(target.owner===a.id)fail(403,'FORBIDDEN','Нельзя голосовать за свою карточку');
       if(!['open','published'].includes(target.status))fail(409,'STATE_CONFLICT','Карточка недоступна');
-      this.limited(`votes:${a.id}`,30);
       if(method==='DELETE'){await db.query('DELETE FROM votes WHERE voter=$1 AND target=$2',[a.id,target.id]);return {removed:true};}
       if(![-1,1].includes(b.value))fail(400,'VALIDATION_ERROR','Голос: 1 либо -1');
       await db.query('INSERT INTO votes(voter,target,value) VALUES($1,$2,$3) ON CONFLICT(voter,target) DO UPDATE SET value=excluded.value,created_at=now()',[a.id,target.id,b.value]);return {target_id:target.id,value:b.value};
@@ -582,14 +618,14 @@ export class Marketplace {
       const limit=(b.purpose==='chat'?settings.upload_chat_mb:settings.upload_image_mb)*1024*1024;
       if(!Number.isInteger(b.size)||b.size<1||b.size>limit)fail(413,'FILE_TOO_LARGE','Файл слишком большой');
       if(!['image/jpeg','image/png','application/pdf'].includes(b.mime)||b.mime==='application/pdf'&& !['chat','identity'].includes(b.purpose))fail(422,'POLICY_REJECTED','Формат не разрешён');
-      const r=this.record('upload',a,{purpose:b.purpose,mime:b.mime,size:b.size,status:'initiated',expires_at:new Date(Date.now()+86400000).toISOString()});await this.store.put(r);
+      const r=this.record('upload',a,{purpose:b.purpose,...(b.purpose==='identity'?{verification_id:b.verification_id}:{}),mime:b.mime,size:b.size,status:'initiated',expires_at:new Date(Date.now()+86400000).toISOString()});await this.store.put(r);
       return {...r,upload_url:'/api/v1/uploads/'+r.id+'/content',method:'PUT'};
     }
     const upload=path.match(/^\/uploads\/([^/]+)\/(content|finalize|download|download-url|metadata)$/);
     if(upload) {
       const u=await this.object(upload[1],a,'upload');
       if(!['download','download-url','metadata'].includes(upload[2])&&u.owner!==a.id)fail(404,'NOT_FOUND','Файл не найден');
-      if(upload[2]==='metadata'&&method==='GET'){await this.authorizeFile(u,a,q);return {id:u.id,mime:u.mime,size:u.size,status:u.status};}
+      if(upload[2]==='metadata'&&method==='GET'){if(u.owner!==a.id)await this.authorizeFile(u,a,q);return {id:u.id,mime:u.mime,size:u.size,status:u.status,version:u.version,failure_code:u.failure_code};}
       if(upload[2]==='content'&&method==='PUT') {
         if(!Buffer.isBuffer(b)||b.length!==u.size)fail(400,'VALIDATION_ERROR','Размер файла не совпадает');
         if(u.status!=='initiated'&&!(u.status==='uploaded'&&u.content_hash===digest(b.toString('base64'))))fail(409,'STATE_CONFLICT','Загрузка уже завершена');
@@ -599,16 +635,13 @@ export class Marketplace {
         await this.files.write(u.id,b);return this.store.put({...u,status:'uploaded',content_hash:digest(b.toString('base64')),version:u.version+1});
       }
       if(upload[2]==='finalize'&&method==='POST') {
-        if(u.status==='clean')return u;if(u.status!=='uploaded')fail(409,'STATE_CONFLICT','Файл не загружен');
+        if(u.status==='clean')return u;
+        if(u.expires_at<=new Date().toISOString())fail(409,'STATE_CONFLICT','Загрузка истекла');
+        if(!['uploaded','processing','scanning'].includes(u.status))fail(409,'STATE_CONFLICT','Файл не загружен');
         if(!this.providers.scanner)fail(503,'SCANNER_UNAVAILABLE','Антивирус и база сигнатур ещё не настроены. Файл остаётся закрытым.');
-        const raw=await this.files.read(u.id);let scan='unavailable';try{scan=await this.providers.scanner!.scan(raw,u.mime);}catch{fail(503,'SCANNER_UNAVAILABLE','Проверка недоступна. Файл остаётся закрытым.');}
-        if(scan!=='clean')return this.store.put({...u,status:'infected',version:u.version+1});
-        let clean:Buffer;
-        if(u.mime==='application/pdf') {
-          if(!this.providers.pdfSanitizer)fail(503,'PDF_SANITIZER_UNAVAILABLE','Проверка активных элементов PDF ещё не настроена');
-          try{clean=await this.providers.pdfSanitizer!.sanitize(raw);}catch{fail(422,'POLICY_REJECTED','PDF не прошёл безопасную обработку');}
-        }else {try{clean=await sharp(raw,{limitInputPixels:16_777_216}).rotate().jpeg({quality:90}).toBuffer();}catch{fail(422,'POLICY_REJECTED','Изображение повреждено или превышает лимит пикселей');}}
-        await this.files.write(u.id,clean!);return this.store.put({...u,status:'clean',mime:u.mime==='application/pdf'?'application/pdf':'image/jpeg',stored_size:clean!.length,version:u.version+1});
+        if(u.mime==='application/pdf'&&!this.providers.pdfSanitizer)fail(503,'PDF_SANITIZER_UNAVAILABLE','Проверка активных элементов PDF ещё не настроена');
+        if(u.status!=='uploaded')return u;
+        return this.store.put({...u,status:'processing',version:u.version+1});
       }
       if(upload[2]==='download'&&method==='GET') {
         await this.authorizeFile(u,a,q);
@@ -622,10 +655,10 @@ export class Marketplace {
     }
     if(path.startsWith('/admin/')) {
       const section=path.split('/')[2];
-      const permission=({audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer','price-versions':'billing','monetization-configs':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','placement-policies':'promotion','brand-icons':'brand_owner',cases:'moderator',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','placement-policies':'promotion','brand-icons':'brand_owner',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
-      const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy',verifications:'verification'};
-      if(path==='/admin/dashboard'&&method==='GET')return {users:(await this.store.all('user',a.country)).length,orders:(await this.store.all('order',a.country)).length,support:(await this.store.all('support',a.country)).filter(x=>x.status!=='resolved').length,country:a.country,mode:'development',checkout_enabled:false};
+      const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy',verifications:'verification'};
+      if(path==='/admin/dashboard'&&method==='GET')return {users:(await this.store.all('user',a.country)).filter(u=>!u.staff_permissions?.length).length,orders:(await this.store.all('order',a.country)).length,support:(await this.store.all('support',a.country)).filter(x=>x.status!=='resolved').length,country:a.country,mode:'development',checkout_enabled:false};
       if(path==='/admin/boost-grants'&&method==='POST'){await this.staff(a,'promotion');const reason=text(b,'reason',10,1000);const result=await this.growth.adminBoost(a.id,a.country,{...b,reason});await this.audit(a,'boost.admin_grant',result.id,reason);return result;}
       if(path==='/admin/boost-reports'&&method==='GET'){await this.staff(a,'promotion');return this.list(await this.store.all('boost',a.country),q);}
       if(path==='/admin/runtime-settings'&&method==='GET')return {settings:await this.settings(a.country),items:await this.store.all('runtime_settings',a.country)};
@@ -671,11 +704,12 @@ export class Marketplace {
         }
         const result=await this.branding.generate(r);await this.audit(a,'brand.generated',r.id,text(b,'reason',10,1000));return result;
       }
+      if(path==='/admin/legal/documents'&&method==='GET')return {items:await this.store.all('legal_document',a.country)};
       if(path==='/admin/legal/documents'&&method==='POST') {
         const content=text(b,'content',50,100000);const r=this.record('legal_document',a,{type:text(b,'type',2,50),locale:text(b,'locale',2,5),content,hash:digest(content),status:'draft'});await this.store.put(r);await this.audit(a,'legal.draft',r.id,text(b,'reason',5,1000));return r;
       }
       const legalPublish=path.match(/^\/admin\/legal\/documents\/([^/]+)\/publish$/);
-      if(legalPublish&&method==='POST'){const r=await this.object(legalPublish[1],a,'legal_document');this.version(r,b);if(r.owner===a.id)fail(403,'SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого уполномоченного сотрудника');const result=await this.store.put({...r,status:'published',version:r.version+1});await this.audit(a,'legal.published',r.id,text(b,'reason',5,1000));return result;}
+      if(legalPublish&&method==='POST'){const r=await this.object(legalPublish[1],a,'legal_document');this.version(r,b);if(r.owner===a.id)fail(403,'SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого уполномоченного сотрудника');const result=await this.store.put({...r,status:'published',published_at:new Date().toISOString(),version:r.version+1});await this.audit(a,'legal.published',r.id,text(b,'reason',5,1000));return result;}
       const vd=path.match(/^\/admin\/verifications\/([^/]+)\/decision$/);
       if(vd&&method==='POST') {
         const r=await this.object(vd[1],a,'verification');this.version(r,b);if(r.status!=='pending_review'||b.document_revision!==r.document_revision)fail(409,'STATE_CONFLICT','Ревизия документа изменилась');
@@ -684,7 +718,22 @@ export class Marketplace {
         const u=(await this.store.get(r.owner))!;await this.store.put({...u,verification:b.decision,version:u.version+1});
         const result=await this.store.put({...r,status:b.decision,expires_at:b.decision==='passed'?new Date(end).toISOString():null,reason,reviewer_id:a.id,decided_at:new Date().toISOString(),version:r.version+1});await this.audit(a,'verification.'+b.decision,r.id,reason);if(b.decision==='passed')await this.growth.qualify(r.owner,a.country,'executor_verified',r.id);return {...result,document_refs:undefined};
       }
-      if(method==='GET'&&kinds[section]&&path.split('/').length===3)return this.list((await this.store.all(kinds[section],a.country)).map(x=>section==='users'?{...safeUser(x),version:x.version,status:x.status}:x),q);
+      if(method==='GET'&&kinds[section]&&path.split('/').length===3)return this.list((await this.store.all(kinds[section],a.country)).filter(x=>section!=='users'||!x.staff_permissions?.length).map(x=>section==='users'?{...safeUser(x),version:x.version,status:x.status}:section==='verifications'?{...x,document_refs:undefined}:x),q);
+      const reviewDetail=path.match(/^\/admin\/(orders|portfolio|contractors|verifications|support-threads|privacy-requests)\/([^/]+)$/);
+      if(reviewDetail&&method==='GET') {
+        const kind=reviewDetail[1]==='contractors'?'contractor':kinds[reviewDetail[1]];
+        const r=await this.object(reviewDetail[2],a,kind);
+        if(reviewDetail[1]==='verifications') {
+          const {document_refs,...safe}=r;
+          if(q.include_documents==='true') {
+            await this.staff(a,'identity_view');const reason=text(q,'reason',10,1000);
+            await this.audit(a,'verification.documents_read',r.id,reason);
+            return {...safe,document_refs};
+          }
+          return safe;
+        }
+        return r;
+      }
       const userDetail=path.match(/^\/admin\/users\/([^/]+)$/);
       const securityEvents=path.match(/^\/admin\/users\/([^/]+)\/security-events$/);
       if(securityEvents&&method==='GET') {
@@ -697,6 +746,8 @@ export class Marketplace {
         return result;
       }
       if(path==='/admin/recovery-threads'&&method==='GET')return this.list((await this.store.all('recovery',a.country)).map(({capability_hash,...r})=>r),q);
+      const recoveryDetail=path.match(/^\/admin\/recovery-threads\/([^/]+)$/);
+      if(recoveryDetail&&method==='GET'){const {capability_hash,...safe}=await this.object(recoveryDetail[1],a,'recovery');return safe;}
       const recoveryStaff=path.match(/^\/admin\/recovery-threads\/([^/]+)\/(assign|messages)$/);
       if(recoveryStaff) {
         const r=await this.object(recoveryStaff[1],a,'recovery');
@@ -809,14 +860,14 @@ export class Marketplace {
   private async nextCursor(id:string,q:any) {
     const payload=Buffer.from(JSON.stringify({after:id,filter_hash:this.filterHash(q),expires_at:new Date(Date.now()+86400000).toISOString()})).toString('base64url');return payload+'.'+await this.files.requestDigest(payload);
   }
-  private async page(kind:string,a:Actor,q:any,options:{owner?:string;statuses?:string[];publicActor?:string}={}) {
+  private async page(kind:string,a:Actor,q:any,options:{owner?:string;participant?:string;statuses?:string[];publicActor?:string}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const selected=await this.store.select(kind,a.country,{...options,limit:limit+1,after,city:q.city,category:q.category_id,search:q.q});
     const items=selected.slice(0,limit).map(x=>options.publicActor&&kind==='order'?{...x,exact_address:undefined}:x);return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};
   }
   private async list(items:any[],q:any) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
-    const filtered=items.filter(x=>(!after||x.id>after)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||String(x.title??x.display_name??x.subject??'').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
+    const filtered=items.filter(x=>(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
     const page=filtered.slice(0,limit);return {items:page,meta:{next_cursor:filtered.length>limit?await this.nextCursor(page.at(-1).id,q):null,total:filtered.length}};
   }
   private async messages(c:RecordData,a:Actor,method:string,b:any,q:any,kind:string) {
@@ -914,12 +965,14 @@ export class Marketplace {
       if(u.purpose==='portfolio') {
         const project=(await this.store.all('portfolio',a.country)).find(p=>p.status==='published'&&p.moderation_status!=='quarantined'&&p.photos?.includes(u.id));
         const profile=(await this.store.all('contractor',a.country)).find(p=>p.owner===u.owner&&p.status==='published'&&p.moderation_status!=='quarantined'&&(project||p.gallery_ids?.includes(u.id)));
-        if(profile&&!await this.blocked(a,profile.owner)){await this.entitlement(a,'search_full');return;}
+        const owner=profile?await this.store.get(profile.owner):undefined;
+        if(profile&&owner?.status==='active'&&owner.verification==='passed'&&!await this.blocked(a,profile.owner)){await this.entitlement(a,'search_full');return;}
       }
       if(u.purpose==='order') {
         const order=(await this.store.all('order',a.country)).find(o=>o.upload_ids?.includes(u.id));
         if(order&&[order.owner,order.executor_id].includes(a.id))return;
-        if(order?.status==='open'&&order.moderation_status!=='quarantined'&&!await this.blocked(a,order.owner)){await this.entitlement(a,'search_full',true);return;}
+        const owner=order?await this.store.get(order.owner):undefined;
+        if(owner?.status==='active'&&order?.expires_at>new Date().toISOString()&&order?.status==='open'&&order.moderation_status!=='quarantined'&&!await this.blocked(a,order.owner)){await this.entitlement(a,'search_full',true);return;}
       }
       if(u.purpose==='avatar') {
         const user=await this.store.get(u.owner);if(user?.status==='active'&&user.avatar_id===u.id&&!await this.blocked(a,u.owner)){await this.entitlement(a,'search_full');return;}
@@ -939,6 +992,50 @@ export class Marketplace {
     if(!promotion)return;
     const existing=(await this.store.all('grant',a.country)).find(g=>g.owner===a.id&&g.source_id===promotion.id);if(existing)return;
     await this.store.put(this.record('grant',a,{source:'subscription_promotion',source_id:promotion.id,valid_until:promotion.preview.promo_end_exclusive,capabilities:['search_full','publish_order','select_offer','send_offer','publish_profile'],terms_snapshot:promotion.preview}));
+  }
+  private async processUpload(id:string):Promise<any>{
+    const running=this.uploadTasks.get(id);if(running)return running;
+    const task=this.runUpload(id).finally(()=>{if(this.uploadTasks.get(id)===task)this.uploadTasks.delete(id);});this.uploadTasks.set(id,task);return task;
+  }
+  private async runUpload(id:string):Promise<any>{
+    if(this.scanSlots>0)this.scanSlots--;else await new Promise<void>(resolve=>this.scanWaiters.push(resolve));
+    try{
+      const upload:any=await this.exclusive(async()=>{
+        await this.store.db.exec('BEGIN');try{
+          await this.store.db.query('SELECT id FROM records WHERE id=$1 FOR UPDATE',[id]);
+          const current=await this.store.get(id);if(!current||current.kind!=='upload')fail(404,'NOT_FOUND','Файл не найден');
+          if(!['processing','scanning'].includes(current!.status)||current!.status==='scanning'&&current!.scan_lease_until>new Date().toISOString()||current!.next_attempt_at>new Date().toISOString()){await this.store.db.exec('COMMIT');return {...current,claimed:false};}
+          if(!this.providers.scanner){await this.store.db.exec('COMMIT');return {...current,claimed:false,failure_code:'SCANNER_UNAVAILABLE'};}
+          const claimed=await this.store.put({...current!,status:'scanning',scan_nonce:randomUUID(),scan_lease_until:new Date(Date.now()+120000).toISOString(),version:current!.version+1});await this.store.db.exec('COMMIT');return {...claimed,claimed:true};
+        }catch(error){await this.store.db.exec('ROLLBACK');throw error;}
+      });
+      if(!upload.claimed)return upload;
+      let state='clean',failure:string|null=null,clean:Buffer|undefined;
+      try{
+        const raw=await this.files.read(id);let verdict:string;
+        try{verdict=await this.providers.scanner!.scan(raw,upload.mime);}catch{throw Error('SCANNER_UNAVAILABLE');}
+        if(verdict==='infected')state='infected';else if(verdict!=='clean')throw Error('SCANNER_UNAVAILABLE');
+        else if(upload.mime==='application/pdf'){
+          if(!this.providers.pdfSanitizer)throw Error('PDF_SANITIZER_UNAVAILABLE');
+          try{clean=await this.providers.pdfSanitizer.sanitize(raw);}catch{throw Error('PDF_POLICY_REJECTED');}
+        }else{try{clean=await sharp(raw,{limitInputPixels:25000000}).jpeg().toBuffer();}catch{throw Error('IMAGE_POLICY_REJECTED');}}
+        if(clean)await this.files.write(id,clean);
+      }catch(error:any){failure=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','PDF_POLICY_REJECTED','IMAGE_POLICY_REJECTED'].includes(error.message)?error.message:'FILE_PROCESSING_UNAVAILABLE';state=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','FILE_PROCESSING_UNAVAILABLE'].includes(failure!)?'processing':'rejected';}
+      return this.exclusive(async()=>{
+        await this.store.db.exec('BEGIN');try{
+          await this.store.db.query('SELECT id FROM records WHERE id=$1 FOR UPDATE',[id]);
+          const current=await this.store.get(id);
+          if(!current||current.scan_nonce!==upload.scan_nonce||current.status!=='scanning'){await this.store.db.exec('COMMIT');return current??{id,status:'expired'};}
+          const attempts=(current.scan_attempts??0)+1;
+          const result=await this.store.put({...current,status:state==='processing'&&attempts>=5?'rejected':state,failure_code:failure,scan_attempts:attempts,next_attempt_at:state==='processing'?new Date(Date.now()+Math.min(3600000,2**attempts*1000)).toISOString():null,scan_lease_until:null,mime:clean&&current.mime!=='application/pdf'?'image/jpeg':current.mime,stored_size:clean?.length??current.stored_size,version:current.version+1});
+          await this.store.db.exec('COMMIT');return result;
+        }catch(error){await this.store.db.exec('ROLLBACK');throw error;}
+      });
+    }finally{const next=this.scanWaiters.shift();if(next)next();else this.scanSlots++;}
+  }
+  async processPendingUploads(){
+    const uploads=await this.exclusive(async()=>(await this.store.all('upload')).filter(u=>u.status==='processing'&&(!u.next_attempt_at||u.next_attempt_at<=new Date().toISOString())||u.status==='scanning'&&u.scan_lease_until<=new Date().toISOString()).slice(0,2));
+    await Promise.all(uploads.map(u=>this.processUpload(u.id)));
   }
   private async processExport(job:RecordData,now:Date){
     const file=this.record('upload',{id:job.owner,country:job.country},{purpose:'export',mime:'application/zip',status:'clean',expires_at:new Date(now.getTime()+7*86400000).toISOString()});
@@ -999,6 +1096,7 @@ export class Marketplace {
           for(const kind of ['contractor','portfolio'])for(const x of await this.store.all(kind,r.country))if(x.owner===r.owner)await this.store.put({...x,status:'archived',description:'',title:'',version:x.version+1});
           await this.store.put({...r,status:'limited_retention',reason:'История заказов и обязательные записи сохраняются по опубликованной политике',policy_id:policy.id,completed_at:now.toISOString(),version:r.version+1});
         }
+        await this.store.db.query("DELETE FROM rate_limits WHERE window_start<CURRENT_TIMESTAMP-INTERVAL '1 day'");
         await this.store.db.exec('COMMIT');
       }catch(e){await this.store.db.exec('ROLLBACK');throw e;}
     };

@@ -12,18 +12,23 @@ async function main(){
  const {AppModule,getMarketplace}=require('../services/api/dist/app.module');
  const {totp}=require('../services/api/dist/totp');
  const app=await NestFactory.create(AppModule,{logger:false});const marketplace=await getMarketplace();
- let browser,page,vite;
+ let browser,page,vite,webVite;
  try{
   const id=randomUUID(),secret=randomBytes(20).toString('hex'),password=randomBytes(32).toString('base64url');
-  await marketplace.store.put({id,kind:'user',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),display_name:'Изолированный сотрудник',phone:'staff-browser-test',roles:['customer'],staff_permissions:['administrator'],totp_secret:secret,status:'active',fixture:true});
+  await marketplace.store.put({id,kind:'user',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),display_name:'Изолированный сотрудник',phone:'staff-browser-test',roles:['customer'],staff_permissions:['administrator','verification_reviewer'],totp_secret:secret,status:'active',fixture:true});
   await marketplace.store.db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',['KZ','staff-browser-test',id,await hash(password)]);
+  const applicant=await marketplace.handle('POST','/auth/register',{country:'KZ',phone:'+77000000431',password:'Isolated browser account password',display_name:'Заявитель проверки'},undefined,undefined,{},'browser-applicant');
+  const verificationId=randomUUID();
+  await marketplace.store.put({id:verificationId,kind:'verification',owner:applicant.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'pending_review',document_type:'passport',document_revision:2,document_refs:[]});
   await app.listen(0,'127.0.0.1');const origin=await app.getUrl();
   browser=await chromium.launch({executablePath:process.env.JOBA_CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
   page=await browser.newPage({viewport:{width:1440,height:1000}});
   // Redirect transport to an isolated real HTTP API; response data are never mocked.
+  let lostDraftResponse=false;
   await page.route('**/api/v1/**',async route=>{
    const request=route.request(),url=new URL(request.url());
    const response=await fetch(origin+url.pathname+url.search,{method:request.method(),headers:request.headers(),body:['GET','HEAD'].includes(request.method())?undefined:request.postData()});
+   if(request.method()==='POST'&&url.pathname==='/api/v1/admin/monetization-configs'&&response.ok&&!lostDraftResponse){lostDraftResponse=true;await response.text();await route.abort('failed');return;}
    await route.fulfill({status:response.status,headers:{'content-type':'application/json'},body:await response.text()});
   });
   let frontend=process.env.JOBA_ADMIN_TEST_URL;
@@ -39,6 +44,9 @@ async function main(){
   await page.getByLabel('Причина',{exact:true}).fill('Изолированная проверка интерфейса');
   await page.getByLabel('Параметры JSON').fill(JSON.stringify({subscription_enabled:true,banner_ads_enabled:false,rewarded_access_enabled:false}));
   await page.getByRole('button',{name:'Сохранить черновик'}).click();
+  await page.getByRole('alert').filter({hasText:'Нет соединения'}).waitFor();
+  assert.equal(await page.getByLabel('Название',{exact:true}).inputValue(),'Проверка реального черновика');
+  await page.getByRole('button',{name:'Сохранить черновик'}).click();
   await page.getByRole('button',{name:'Открыть',exact:true}).click();
   await page.getByLabel('Служебная причина').fill('Проверка двух независимых подтверждений');
   await page.getByRole('button',{name:'Проверить',exact:true}).click();
@@ -46,8 +54,54 @@ async function main(){
   await page.getByRole('button',{name:'Опубликовать',exact:true}).click();
   await page.locator('.result').filter({hasText:'другого сотрудника'}).waitFor();
   const records=await marketplace.store.all('monetization_config','KZ');assert.equal(records.length,1);assert.equal(records[0].status,'draft');
+  await page.goto(frontend+'/#verification');
+  await page.getByRole('link',{name:'Открыть →',exact:true}).click();
+  await page.getByLabel('Основание решения').fill('Документы не соответствуют правилам проверки');
+  await page.getByLabel('Решение',{exact:true}).selectOption('rejected');
+  await page.getByRole('button',{name:'Сохранить решение',exact:true}).click();
+  await page.getByRole('button',{name:'Сохранить решение',exact:true}).waitFor({state:'detached'});
+  assert.equal((await marketplace.store.get(verificationId)).status,'rejected');
+  assert.equal((await marketplace.store.get(applicant.user.id)).verification,'rejected');
+  await page.goto(frontend+'/#record-live/users/'+applicant.user.id);
+  await page.getByLabel('Служебная причина просмотра').fill('Проверка контакта по обращению владельца');
+  await page.getByRole('button',{name:'Показать телефон',exact:true}).click();
+  await page.locator('#sensitive-result').filter({hasText:'+77000000431'}).waitFor();
+  assert.ok((await marketplace.store.all('audit','KZ')).some(x=>x.action==='user.phone_read'&&JSON.stringify(x).includes(applicant.user.id)));
+  await page.goto(frontend+'/#users');
+  await page.getByLabel('Поиск по ID или названию').fill(applicant.user.id);
+  await page.getByRole('button',{name:'Найти',exact:true}).click();
+  await page.getByRole('link',{name:'Открыть →',exact:true}).waitFor();
+  assert.equal(await page.locator('tbody tr').count(),1);
+  await page.goto(frontend+'/#settings');
+  await page.getByLabel('Срок заказа, дни',{exact:true}).fill('12');
+  await page.getByLabel('Причина изменения',{exact:true}).fill('Проверка сохранения срока заказа текущего региона');
+  const settingsResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/admin/runtime-settings');
+  await page.getByRole('button',{name:'Сохранить настройки',exact:true}).click();await settingsResponse;
+  assert.equal((await marketplace.store.all('runtime_settings','KZ'))[0].payload.order_expiry_days,12);
+  await page.waitForFunction(()=>document.querySelector('#setting-order_expiry_days')?.value==='12');
+  await page.goto(frontend+'/#legal');
+  await page.getByLabel('Текст документа',{exact:true}).fill('Проверка настоящего правового черновика: текст сохраняется, но не публикуется без второго сотрудника.');
+  await page.getByLabel('Причина создания',{exact:true}).fill('Изолированная проверка редактора документов');
+  await page.getByRole('button',{name:'Создать черновик',exact:true}).click();
+  await page.getByRole('button',{name:'Опубликовать версию',exact:true}).waitFor();
+  const legal=(await marketplace.store.all('legal_document','KZ'))[0];assert.equal(legal.status,'draft');
   await page.getByRole('button',{name:'Выйти',exact:true}).click();await page.waitForSelector('#staff-login');
-  console.log('Admin browser: real MFA login, identity, draft save, validation, independent approval rejection and logout passed.');
- }catch(error){if(page){await page.screenshot({path:'/tmp/joba-admin-browser-failure.png',fullPage:true});console.error('Page diagnostics:',await page.locator('[role=alert], .note.danger').allTextContents());}throw error;}finally{await browser?.close();await vite?.close();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
+  const {createServer}=await import('vite');
+  webVite=await createServer({root:resolve(__dirname,'../apps/web'),configFile:resolve(__dirname,'../apps/web/vite.config.ts'),server:{port:0,strictPort:false,host:'127.0.0.1'}});await webVite.listen();
+  const web='http://127.0.0.1:'+webVite.httpServer.address().port;
+  await marketplace.store.put({...legal,id:randomUUID(),status:'published',content:'Опубликованная политика: <script>window.untrustedLegal=true</script> Текст отображается безопасно.'});
+  await page.goto(web+'/W03.html');
+  await page.locator('.legal-paper').filter({hasText:'Опубликованная политика'}).waitFor();
+  assert.equal(await page.evaluate(()=>window.untrustedLegal),undefined);
+  await page.getByRole('link',{name:'Условия использования',exact:true}).click();
+  await page.locator('.legal-paper').filter({hasText:'пока не опубликован'}).waitFor();
+  await page.goto(web+'/W02.html');
+  await page.locator('#message').fill('Проверка обращения и восстановления переписки при обновлении страницы');
+  await page.locator('form button[type=submit]').click();
+  await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
+  await page.reload();await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
+  assert.equal((await marketplace.store.all('recovery','KZ')).length,1);
+  console.log('Admin browser: real MFA login, identity, draft save, validation, lost-response retry without duplicate drafts, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, public legal/support persistence and logout passed.');
+ }catch(error){if(page){await page.screenshot({path:'/tmp/joba-admin-browser-failure.png',fullPage:true});console.error('Page diagnostics:',await page.locator('[role=alert], .note.danger').allTextContents());}throw error;}finally{await browser?.close();await vite?.close();await webVite?.close();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error.message);process.exitCode=1;});

@@ -86,3 +86,13 @@ BUILDX_CONFIG="$PWD/.local/buildx" docker build \
 ```
 
 NODE_EXTRA_CA_CERTS задаётся только на время npm ci при наличии build secret. Проверки TLS/checksum включены; CA не копируется в runtime image. Сборка и запуск на отдельном временном PostgreSQL проверены через health/bootstrap HTTP. Это не подтверждает legal/provider/production readiness.
+
+## Первое создание служебного аккаунта
+
+`npm run staff:bootstrap` работает только при `JOBA_STAFF_BOOTSTRAP=1`. Путь к входному JSON задаётся через `JOBA_STAFF_CONFIG_PATH`, путь к новому файлу enrollment — через `JOBA_STAFF_ENROLLMENT_PATH`. Входной файл должен иметь права 0600. JSON содержит `country`, `identifier` (служебный идентификатор `staff-…`), `display_name`, `password`, `permissions`, `reason` и необязательную `locale`. Разрешения выдаются явно; например, просмотр документов дополнительно требует `identity_view`, а решение — `verification_reviewer`. Enrollment-файл создаётся эксклюзивно с правами 0600 и содержит данные настройки TOTP. Не добавляйте эти файлы в Git и не публикуйте их содержимое. После выполнения отключите bootstrap.
+
+## PDF и антивирус на сервере
+
+`JOBA_PDFTOPPM_PATH` и `JOBA_PDFINFO_PATH` указывают доверенные исполняемые файлы Poppler. Максимум 20 страниц, 10 МБ, ограниченное время обработки; результат — новый PDF из растровых страниц. Dockerfile устанавливает Poppler и ClamAV. Установка ClamAV не поставляет актуальную проверенную базу сигнатур: перед запуском файловых сценариев серверный оператор должен настроить её обновление и доступ для пользователя контейнера. Без доступного сканера/сигнатур загрузка не получает статус `clean`.
+
+`npm run admin:verify-browser` проверяет админку и публичные legal/support страницы с Chromium и настоящим временным HTTP API. `npm run verify:concurrency` создаёт и удаляет собственный временный PostgreSQL-контейнер и проверяет конкурентные команды нескольких процессов; пользовательская БД для этого не принимается.

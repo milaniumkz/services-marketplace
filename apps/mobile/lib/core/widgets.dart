@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'l10n.dart';
 import 'api.dart';
 import 'theme.dart';
 
@@ -36,9 +37,9 @@ class _ApiViewState extends State<ApiView> {
               child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Notice('${snapshot.error}', error: true),
+                    Notice(errorText(context, snapshot.error!), error: true),
                     FilledButton(
-                        onPressed: reload, child: const Text('Повторить'))
+                        onPressed: reload, child: const UiText('Повторить'))
                   ])));
         return widget.builder(context, snapshot.data, reload);
       });
@@ -63,7 +64,8 @@ class PagedList extends StatefulWidget {
 
 class _PagedListState extends State<PagedList> {
   final List<Json> rows = [];
-  String? cursor, error;
+  String? cursor;
+  Object? error;
   bool busy = false, end = false;
   int generation = 0;
   @override
@@ -99,7 +101,7 @@ class _PagedListState extends State<PagedList> {
       cursor = result['meta']?['next_cursor'];
       end = cursor == null;
     } catch (e) {
-      if (mounted && run == generation) error = '$e';
+      if (mounted && run == generation) error = e;
     } finally {
       if (mounted && run == generation) setState(() => busy = false);
     }
@@ -118,10 +120,10 @@ class _PagedListState extends State<PagedList> {
                   child: Column(children: [
                     const Icon(Icons.inbox_outlined, size: 48, color: primary),
                     const SizedBox(height: 16),
-                    Text(widget.empty, textAlign: TextAlign.center)
+                    UiText(widget.empty, textAlign: TextAlign.center)
                   ])),
             ...rows.map(widget.tile),
-            if (error != null) Notice(error!, error: true),
+            if (error != null) Notice(errorText(context, error!), error: true),
             if (busy)
               const Padding(
                   padding: EdgeInsets.all(20),
@@ -129,7 +131,7 @@ class _PagedListState extends State<PagedList> {
             if (!busy && (!end || error != null))
               OutlinedButton(
                   onPressed: load,
-                  child: Text(error == null ? 'Показать ещё' : 'Повторить')),
+                  child: UiText(error == null ? 'Показать ещё' : 'Повторить')),
           ]));
 }
 
@@ -137,16 +139,21 @@ class InputSpec {
   final String key, label;
   final String initial;
   final bool secret, multiline;
-  final bool required;
+  final bool required, translateOptions;
+  final String? hint;
+  final IconData? prefixIcon;
   final Map<String, String>? options;
   final TextInputType? keyboard;
   final String? Function(String)? validate;
   final void Function(String)? changed;
   const InputSpec(this.key, this.label,
       {this.initial = '',
+      this.hint,
+      this.prefixIcon,
       this.secret = false,
       this.multiline = false,
       this.required = true,
+      this.translateOptions = true,
       this.options,
       this.keyboard,
       this.validate,
@@ -158,10 +165,12 @@ class ActionForm extends StatefulWidget {
   final String button;
   final Future<void> Function(Map<String, String>) submit;
   final List<Widget> before, after;
+  final bool authLayout;
   const ActionForm(
       {required this.fields,
       required this.submit,
       this.button = 'Сохранить',
+      this.authLayout = false,
       this.before = const [],
       this.after = const [],
       super.key});
@@ -174,7 +183,7 @@ class _ActionFormState extends State<ActionForm> {
   late Map<String, TextEditingController> controllers;
   final Set<String> visible = {};
   bool busy = false;
-  String? error;
+  Object? error;
   @override
   void initState() {
     super.initState();
@@ -214,7 +223,7 @@ class _ActionFormState extends State<ActionForm> {
     try {
       await widget.submit(controllers.map((k, v) => MapEntry(k, v.text)));
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = e);
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -225,7 +234,7 @@ class _ActionFormState extends State<ActionForm> {
       key: form,
       child: ListView(padding: const EdgeInsets.all(20), children: [
         ...widget.before,
-        if (error != null) Notice(error!, error: true),
+        if (error != null) Notice(errorText(context, error!), error: true),
         for (final field in widget.fields)
           Padding(
               padding: const EdgeInsets.only(bottom: 18),
@@ -234,9 +243,9 @@ class _ActionFormState extends State<ActionForm> {
                   children: [
                     Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(field.label,
+                        child: UiText(field.label,
                             style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w700))),
+                                fontSize: 12, fontWeight: FontWeight.w700))),
                     if (field.options != null)
                       DropdownButtonFormField<String>(
                           initialValue:
@@ -245,7 +254,10 @@ class _ActionFormState extends State<ActionForm> {
                                   : null,
                           items: field.options!.entries
                               .map((e) => DropdownMenuItem(
-                                  value: e.key, child: Text(e.value)))
+                                  value: e.key,
+                                  child: field.translateOptions
+                                      ? UiText(e.value)
+                                      : Text(e.value)))
                               .toList(),
                           onChanged: busy
                               ? null
@@ -255,7 +267,7 @@ class _ActionFormState extends State<ActionForm> {
                                 },
                           validator: (v) =>
                               field.required && (v == null || v.isEmpty)
-                                  ? 'Выберите значение'
+                                  ? localize(context, 'Выберите значение')
                                   : null)
                     else
                       TextFormField(
@@ -268,11 +280,25 @@ class _ActionFormState extends State<ActionForm> {
                           autocorrect: !field.secret,
                           enableSuggestions: !field.secret,
                           decoration: InputDecoration(
+                              hintText: field.hint == null
+                                  ? null
+                                  : localize(context, field.hint!),
+                              hintStyle: const TextStyle(
+                                  color: Color(0xFF6B7890), fontSize: 14),
+                              prefixIcon: field.prefixIcon == null
+                                  ? null
+                                  : Icon(field.prefixIcon, color: navy),
+                              contentPadding: widget.authLayout && field.secret
+                                  ? const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 25)
+                                  : null,
                               suffixIcon: field.secret
                                   ? IconButton(
-                                      tooltip: visible.contains(field.key)
-                                          ? 'Скрыть пароль'
-                                          : 'Показать пароль',
+                                      tooltip: localize(
+                                          context,
+                                          visible.contains(field.key)
+                                              ? 'Скрыть пароль'
+                                              : 'Показать пароль'),
                                       onPressed: () => setState(() =>
                                           visible.contains(field.key)
                                               ? visible.remove(field.key)
@@ -281,10 +307,14 @@ class _ActionFormState extends State<ActionForm> {
                                           ? Icons.visibility_off_outlined
                                           : Icons.visibility_outlined))
                                   : null),
-                          validator: (v) =>
-                              field.required && (v ?? '').trim().isEmpty
-                                  ? 'Заполните поле'
-                                  : field.validate?.call(v ?? '')),
+                          validator: (v) {
+                            if (field.required && (v ?? '').trim().isEmpty)
+                              return localize(context, 'Заполните поле');
+                            final problem = field.validate?.call(v ?? '');
+                            return problem == null
+                                ? null
+                                : localize(context, problem);
+                          }),
                   ])),
         FilledButton(
             onPressed: busy ? null : submit,
@@ -294,7 +324,7 @@ class _ActionFormState extends State<ActionForm> {
                     height: 20,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
-                : Text(widget.button)),
+                : UiText(widget.button)),
         const SizedBox(height: 12),
         ...widget.after,
       ]));
@@ -302,10 +332,12 @@ class _ActionFormState extends State<ActionForm> {
 
 class DataCard extends StatelessWidget {
   final String title, subtitle, status;
+  final bool translateTitle;
   final VoidCallback? onTap;
   final Widget? footer;
   const DataCard(this.title,
       {this.subtitle = '',
+      this.translateTitle = false,
       this.status = '',
       this.onTap,
       this.footer,
@@ -333,10 +365,10 @@ class DataCard extends StatelessWidget {
                           decoration: BoxDecoration(
                               color: canvas,
                               borderRadius: BorderRadius.circular(8)),
-                          child: Text(status,
+                          child: UiText(status,
                               style: const TextStyle(
                                   fontSize: 11, fontWeight: FontWeight.w700))),
-                    Text(title,
+                    Text(translateTitle ? localize(context, title) : title,
                         style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w700)),
                     if (subtitle.isNotEmpty)
@@ -406,11 +438,11 @@ class _SearchListingsState extends State<SearchListings> {
                     const Heading('Фильтры поиска'),
                     DropdownButtonFormField<String>(
                         initialValue: category,
-                        decoration:
-                            const InputDecoration(labelText: 'Категория'),
+                        decoration: InputDecoration(
+                            labelText: localize(context, 'Категория')),
                         items: [
                           const DropdownMenuItem(
-                              value: '', child: Text('Все категории')),
+                              value: '', child: UiText('Все категории')),
                           for (final item in items(data[0]))
                             DropdownMenuItem(
                                 value: item['id'], child: Text(item['name']))
@@ -419,10 +451,11 @@ class _SearchListingsState extends State<SearchListings> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                         initialValue: city,
-                        decoration: const InputDecoration(labelText: 'Город'),
+                        decoration: InputDecoration(
+                            labelText: localize(context, 'Город')),
                         items: [
                           const DropdownMenuItem(
-                              value: '', child: Text('Все города')),
+                              value: '', child: UiText('Все города')),
                           for (final item in items(data[1]))
                             DropdownMenuItem(
                                 value: item['name'], child: Text(item['name']))
@@ -434,13 +467,13 @@ class _SearchListingsState extends State<SearchListings> {
                               if (category.isNotEmpty) 'category_id': category,
                               if (city.isNotEmpty) 'city': city
                             }),
-                        child: const Text('Показать результаты')),
+                        child: const UiText('Показать результаты')),
                   ]))));
       if (result != null && mounted) setState(() => filters = result);
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+            .showSnackBar(SnackBar(content: Text(errorText(context, e))));
     }
   }
 
@@ -458,10 +491,10 @@ class _SearchListingsState extends State<SearchListings> {
             child: TextField(
                 controller: search,
                 decoration: InputDecoration(
-                    hintText: 'Что ищете?',
+                    hintText: localize(context, 'Что ищете?'),
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: IconButton(
-                        tooltip: 'Фильтры',
+                        tooltip: localize(context, 'Фильтры'),
                         onPressed: chooseFilters,
                         icon: const Icon(Icons.tune))),
                 onChanged: (v) {
@@ -474,10 +507,12 @@ class _SearchListingsState extends State<SearchListings> {
           Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(children: [
-                Expanded(child: Text(filters['city'] ?? 'Выбрана категория')),
+                Expanded(
+                    child: Text(filters['city'] ??
+                        localize(context, 'Выбрана категория'))),
                 TextButton(
                     onPressed: () => setState(() => filters = {}),
-                    child: const Text('Сбросить'))
+                    child: const UiText('Сбросить'))
               ])),
         Expanded(
             child: PagedList(

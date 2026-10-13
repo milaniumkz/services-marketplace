@@ -47,12 +47,14 @@ class LocalLock {
     await storage.write(key: '$key.biometry', value: 'enabled');
   }
 
-  Future<bool> unlockBiometry() async {
+  Future<bool> unlockBiometry(
+      {String title = 'JOBA', String cancel = 'Cancel'}) async {
     if (!await hasBiometry())
       throw ApiException('BIOMETRY_UNAVAILABLE', 'Биометрия не настроена');
     try {
       return await const MethodChannel('joba.device_security')
-              .invokeMethod<bool>('unlockBiometry', {'alias': alias}) ??
+              .invokeMethod<bool>('unlockBiometry',
+                  {'alias': alias, 'title': title, 'cancel': cancel}) ??
           false;
     } on PlatformException catch (e) {
       if (e.code == 'BIOMETRY_CHANGED') {
@@ -60,7 +62,7 @@ class LocalLock {
         throw ApiException(
             'PIN_EXHAUSTED', 'Биометрия изменилась. Войдите с паролем', 401);
       }
-      rethrow;
+      throw ApiException(e.code, 'Биометрия не настроена');
     }
   }
 

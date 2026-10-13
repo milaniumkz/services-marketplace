@@ -60,7 +60,7 @@ import LocalAuthentication
         var lookup = query
         lookup[kSecReturnRef as String] = true
         if call.method == "checkBiometry" { lookup[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail }
-        else { lookup[kSecUseOperationPrompt as String] = "Разблокировка сохранённой сессии JOBA" }
+        else { lookup[kSecUseOperationPrompt as String] = args["title"] ?? "JOBA" }
         var reference: CFTypeRef?
         let code = SecItemCopyMatching(lookup as CFDictionary, &reference)
         if code == errSecItemNotFound {

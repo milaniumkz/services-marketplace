@@ -1,4 +1,4 @@
-import { createCipheriv,createDecipheriv,randomBytes,createHmac } from 'node:crypto';
+import { createCipheriv,createDecipheriv,randomBytes,createHmac,hkdfSync } from 'node:crypto';
 import { mkdir,readFile,writeFile,open,rename,rm } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { Readable,Transform } from 'node:stream';
@@ -25,7 +25,8 @@ export class PrivateFiles {
     if(!this.key)await this.initialize();
     const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',this.key!,iv);
     const encrypted=Buffer.concat([cipher.update(data),cipher.final()]);
-    await writeFile(this.path(id),Buffer.concat([iv,cipher.getAuthTag(),encrypted]),{mode:0o600});
+    const destination=this.path(id),temporary=destination+'.pending-'+randomBytes(12).toString('hex');
+    try{await writeFile(temporary,Buffer.concat([iv,cipher.getAuthTag(),encrypted]),{mode:0o600,flag:'wx'});await rename(temporary,destination);}finally{await rm(temporary,{force:true});}
   }
   async read(id:string) {
     if(!this.key)await this.initialize();const data=await readFile(this.path(id));
@@ -57,6 +58,20 @@ export class PrivateFiles {
     }finally{await rm(temporary,{force:true});}
   }
   async remove(id:string){await rm(this.path(id),{force:true});}
+  async sealSecret(value:string,scope:string){
+    if(!this.key)await this.initialize();
+    const iv=randomBytes(12),key=Buffer.from(hkdfSync('sha256',this.key!,Buffer.alloc(0),'joba.staff.mfa.v1',32));
+    const cipher=createCipheriv('aes-256-gcm',key,iv);cipher.setAAD(Buffer.from('joba-secret-v1:'+scope));
+    const encrypted=Buffer.concat([cipher.update(value,'utf8'),cipher.final()]);
+    return 'v1.'+Buffer.concat([iv,cipher.getAuthTag(),encrypted]).toString('base64url');
+  }
+  async unsealSecret(value:string,scope:string){
+    if(!this.key)await this.initialize();if(!value.startsWith('v1.'))throw Error('Unsupported secret version');
+    const data=Buffer.from(value.slice(3),'base64url');if(data.length<29)throw Error('Invalid sealed secret');
+    const key=Buffer.from(hkdfSync('sha256',this.key!,Buffer.alloc(0),'joba.staff.mfa.v1',32));
+    const decipher=createDecipheriv('aes-256-gcm',key,data.subarray(0,12));decipher.setAAD(Buffer.from('joba-secret-v1:'+scope));decipher.setAuthTag(data.subarray(12,28));
+    return Buffer.concat([decipher.update(data.subarray(28)),decipher.final()]).toString('utf8');
+  }
   async requestDigest(body:string) {if(!this.key)await this.initialize();return createHmac('sha256',this.key!).update('joba-idempotency-v1\0').update(body).digest('hex');}
 }
 /** Configure a maintained ClamAV executable and signature database on the future server. */
@@ -64,7 +79,7 @@ export class ClamAvScanner implements FileScanner {
   constructor(private executable=process.env.JOBA_CLAMSCAN_PATH??'clamscan'){}
   async scan(file:Buffer):Promise<'clean'|'infected'> {
     return new Promise((resolve,reject)=>{
-      const child=spawn(this.executable,['--no-summary','-'],{stdio:['pipe','ignore','ignore']});
+      const child=spawn(this.executable,['--no-summary','-'],{stdio:['pipe','ignore','ignore'],env:{PATH:process.env.PATH,LANG:'C'}});
       const timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Antivirus timeout'));},30000);
       child.once('error',e=>{clearTimeout(timer);reject(e);});
       child.once('close',code=>{clearTimeout(timer);if(code===0)resolve('clean');else if(code===1)resolve('infected');else reject(Error('Antivirus unavailable or invalid signature database'));});

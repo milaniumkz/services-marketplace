@@ -1,14 +1,14 @@
+import {operationsWorkspace} from './operations-workspace.js';
+import {reviewWorkspace} from './review-workspace.js';
 import './design.js';
+import {staffApi} from './api.js';
 const {routes,render,card,tablecard,field,note,metric,badge}=window.JOBA_ADMIN;
 const designMode=new URLSearchParams(location.search).has('design');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let session,loginDraft,cache={},error='',generation=0;
-const cursors={},configRoutes=new Set(['prices','pricing','monetization','push','referrals','dictionaries','dictionary','categories','ranking','campaigns','placements','verificationPolicies','retention']);
-const sections={users:['users','Аккаунты'],orders:['orders','Заказы'],support:['support-threads','Поддержка'],moderation:['cases','Дела'],portfolio:['portfolio','Портфолио'],privacy:['privacy-requests','Запросы приватности'],blacklist:['blacklist','Черный список'],audit:['audit','Аудит'],prices:['price-versions','Цены'],monetization:['monetization-configs','Монетизация'],push:['push-campaigns','Рассылки'],referrals:['referral-campaigns','Реферальные кампании'],dictionaries:['moderation-dictionaries','Словари'],categories:['categories','Категории'],ranking:['ranking-configs','Рейтинг'],pricing:['price-versions','Каталог цен'],campaigns:['promotions','Кампании'],dictionary:['moderation-dictionaries','Запрещенные слова'],verification:['verifications','Проверка документов'],top100:['boost-reports','Топ и продвижение'],placements:['placement-policies','Размещения'],verificationPolicies:['verification-policies','Правила проверки'],retention:['retention-policies','Сроки хранения']};
-async function api(path,method='GET',body={}) {
-  const r=await fetch('/api/v1'+path,{method,headers:{'Content-Type':'application/json',...(session?{Authorization:'Bearer '+session.access_token}:{}),...(method==='GET'?{}:{'Idempotency-Key':crypto.randomUUID()})},body:method==='GET'?undefined:JSON.stringify(body)});
-  const j=await r.json();if(!r.ok){const e=Error(j.error?.message??'Ошибка сервиса');e.code=j.error?.code;throw e;}return j.data;
-}
+const cursors={},filters={},configRoutes=new Set(['prices','pricing','monetization','push','referrals','dictionaries','dictionary','categories','ranking','campaigns','placements','verificationPolicies','retention']);
+const sections={users:['users','Аккаунты'],orders:['orders','Заказы'],support:['support-threads','Поддержка'],'support-recovery':['recovery-threads','Восстановление доступа'],moderation:['cases','Дела'],portfolio:['portfolio','Портфолио'],privacy:['privacy-requests','Запросы приватности'],blacklist:['blacklist','Черный список'],audit:['audit','Аудит'],prices:['price-versions','Цены'],monetization:['monetization-configs','Монетизация'],push:['push-campaigns','Рассылки'],referrals:['referral-campaigns','Реферальные кампании'],dictionaries:['moderation-dictionaries','Словари'],categories:['categories','Категории'],ranking:['ranking-configs','Рейтинг'],pricing:['price-versions','Каталог цен'],campaigns:['promotions','Кампании'],dictionary:['moderation-dictionaries','Запрещенные слова'],verification:['verifications','Проверка документов'],top100:['boost-reports','Топ и продвижение'],placements:['placement-policies','Размещения'],verificationPolicies:['verification-policies','Правила проверки'],retention:['retention-policies','Сроки хранения']};
+const api=staffApi({getSession:()=>session,saveSession:value=>{session=value;}});
 const namedField=(label,name,type='text')=>field(label,'',type).replace('<input ','<input name="'+name+'" ').replace('<textarea ','<textarea name="'+name+'" ');
 if(!designMode) {
   routes.login.body=()=>`<div class="login"><section class="loginbrand"><div class="brand"><img src="/assets/joba-logo-original.jpeg" alt="JOBA"><div><b>JOBA</b><small>CONTROL CENTER</small></div></div><div><div class="eyebrow" style="color:#92B5F5;margin-bottom:18px">СЕРВИС НАЧИНАЕТСЯ С ДОВЕРИЯ</div><h1>Все инструменты.<br>Одна рабочая среда.</h1><p>Операции, поддержка и безопасность маркетплейса услуг JOBA.</p></div><div class="tiny" style="color:#92A9CE">Только для уполномоченных сотрудников</div></section><section class="loginform"><span class="demobadge">СЛУЖЕБНЫЙ ВХОД</span><h1 style="margin-top:18px">Вход в панель</h1><p class="muted" style="margin-top:10px">Используйте служебную учетную запись. Доступ определяется ролью и страной.</p><form id="staff-login" class="stack">${namedField('Рабочий идентификатор','phone')}${namedField('Пароль','password','password')}<div class="formfield"><label for="staff-country">Страна</label><select id="staff-country" name="country"><option>KZ</option><option>RS</option><option>RU</option><option>BY</option></select></div><button class="primary">Продолжить</button></form>${error?note(esc(error),'danger'):''}<div class="notice-slim" style="margin-top:20px">После ввода пароля потребуется второй фактор. Это отдельный вход, не пользовательский аккаунт JOBA.</div><p class="helptext" style="margin-top:32px">Возникли проблемы со входом? Обратитесь к ответственному за доступ в вашей организации.</p></section></div>`;
@@ -17,12 +17,12 @@ if(!designMode) {
   for(const [route,[endpoint,label]] of Object.entries(sections)) {
     if(!routes[route])routes[route]={key:route,id:route,title:label,section:label,actions:''};
     routes[route].subtitle='Данные API · область текущего сотрудника';
-    routes[route].actions='';
+    routes[route].actions='<button id="refresh-data" type="button">Обновить</button>';
     routes[route].body=()=> {
       const data=cache[route];if(!data)return note('Загрузка данных…');
       const configs=configRoutes.has(route);
-      const rows=data.items.map(x=>[esc(x.id),esc(x.display_name??x.title??x.subject??x.action??x.reason??x.type??''),badge(esc(x.status??'')),esc(x.created_at),route==='moderation'?`<a href="#case-live/${x.id}">Открыть →</a>`:route==='support'?`<a href="#support-live/${x.id}">Открыть →</a>`:configs?`<button type="button" data-record="${esc(x.id)}">Открыть</button>`:'']);
-      return tablecard(label,['ID','Описание','Статус','Дата',''],rows,'',`${data.items.length} записей · ${data.meta?.next_cursor?'Есть следующая страница':'Конец списка'}`)+`<div class="actions"><button id="first-page">Первая страница</button>${data.meta?.next_cursor?'<button id="next-page">Следующая страница</button>':''}</div>`+(configs?card('Новый черновик',`<form id="draft-config" class="stack">${namedField('Название','title')}${namedField('Причина','reason')}${namedField('Параметры JSON','payload','textarea')}<button class="primary">Сохранить черновик</button></form>${note('Публикация требует проверки политики и провайдеров. Сохранение черновика не включает платный доступ.','warn')}`):'');
+      const rows=data.items.map(x=>[esc(x.id),esc(x.display_name??x.title??x.subject??x.action??x.reason??x.type??''),badge(esc(x.status??'')),esc(x.created_at),route==='moderation'?`<a href="#case-live/${x.id}">Открыть →</a>`:route==='support-recovery'?`<a href="#recovery-live/${x.id}">Открыть →</a>`:route==='support'?`<a href="#support-live/${x.id}">Открыть →</a>`:['users','orders','portfolio','verification','privacy'].includes(route)?`<a href="#record-live/${route}/${x.id}">Открыть →</a>`:configs?`<button type="button" data-record="${esc(x.id)}">Открыть</button>`:'']);
+      return `<form id="list-filters" class="filters"><input name="q" aria-label="Поиск по ID или названию" placeholder="ID или название" value="${esc(filters[route]?.q)}"><input name="status" aria-label="Статус записи" placeholder="Статус" value="${esc(filters[route]?.status)}"><button type="submit">Найти</button><button id="reset-filters" type="button">Сбросить</button></form>`+tablecard(label,['ID','Описание','Статус','Дата',''],rows,'',`${data.items.length} записей · ${data.meta?.next_cursor?'Есть следующая страница':'Конец списка'}`)+`<div class="actions"><button id="first-page">Первая страница</button>${data.meta?.next_cursor?'<button id="next-page">Следующая страница</button>':''}</div>`+(configs?card('Новый черновик',`<form id="draft-config" class="stack">${namedField('Название','title')}${namedField('Причина','reason')}${namedField('Параметры JSON','payload','textarea')}<button class="primary">Сохранить черновик</button></form>${note('Публикация требует проверки политики и провайдеров. Сохранение черновика не включает платный доступ.','warn')}`):'');
     };
   }
   // Unimplemented operations remain clearly identified as design references.
@@ -30,7 +30,12 @@ if(!designMode) {
     r.actions='';r.body=()=>note('Сценарий этого раздела ещё не подключён к API.','warn');
   }
 }
+function formError(form,failure){let alert=form.querySelector('[role=alert]');if(!alert){alert=document.createElement('div');alert.className='note danger';alert.role='alert';form.append(alert);}alert.textContent=failure.message;}
+function formBusy(form,busy){form.querySelectorAll('button,input,textarea,select').forEach(element=>element.disabled=busy);}
 function bind(key) {
+  const filter=document.getElementById('list-filters');if(filter)filter.onsubmit=e=>{e.preventDefault();filters[key]=Object.fromEntries(new FormData(filter));delete cursors[key];draw();};
+  const reset=document.getElementById('reset-filters');if(reset)reset.onclick=()=>{delete filters[key];delete cursors[key];draw();};
+  const refresh=document.getElementById('refresh-data');if(refresh)refresh.onclick=()=>draw();
   const next=document.getElementById('next-page');if(next)next.onclick=()=>{cursors[key]=cache[key]?.meta?.next_cursor;draw();};
   const first=document.getElementById('first-page');if(first)first.onclick=()=>{delete cursors[key];draw();};
   document.querySelectorAll('[data-record]').forEach(button=>button.onclick=()=>{
@@ -51,38 +56,45 @@ function bind(key) {
   const mfa=document.getElementById('staff-mfa');if(mfa)mfa.onsubmit=async e=>{e.preventDefault();const button=mfa.querySelector('button');button.disabled=true;
     try{session=await api('/auth/staff-login','POST',{...loginDraft,...Object.fromEntries(new FormData(mfa))});loginDraft=undefined;error='';location.hash='dashboard';}
     catch(e){error=e.message;draw(false);}finally{button.disabled=false;}};
-  const form=document.getElementById('draft-config');if(form)form.onsubmit=async e=>{e.preventDefault();try{const b=Object.fromEntries(new FormData(form));b.payload=JSON.parse(b.payload||'{}');await api('/admin/'+sections[key][0],'POST',b);await draw();}catch(e){error=e.message;draw(false);}};
-  const caseReply=document.getElementById('case-reply');if(caseReply)caseReply.onsubmit=async e=>{e.preventDefault();const button=caseReply.querySelector('button');button.disabled=true;try{await api('/admin/cases/'+cache.case.id+'/messages','POST',Object.fromEntries(new FormData(caseReply)));await draw();}catch(e){error=e.message;draw(false);}finally{button.disabled=false;}};
-  const caseDecision=document.getElementById('case-decision');if(caseDecision)caseDecision.onsubmit=async e=>{e.preventDefault();const button=caseDecision.querySelector('button');button.disabled=true;try{await api('/admin/cases/'+cache.case.id+'/'+(cache.case.status==='appealed'?'appeal-decision':'resolve'),'POST',{...Object.fromEntries(new FormData(caseDecision)),expected_version:cache.case.version});await draw();}catch(e){error=e.message;draw(false);}finally{button.disabled=false;}};
+  const form=document.getElementById('draft-config');if(form)form.onsubmit=async event=>{event.preventDefault();const values=Object.fromEntries(new FormData(form));formBusy(form,true);try{values.payload=JSON.parse(values.payload||'{}');await api('/admin/'+sections[key][0],'POST',values);await draw();}catch(failure){formError(form,failure);}finally{formBusy(form,false);}};
+  const caseReply=document.getElementById('case-reply');if(caseReply)caseReply.onsubmit=async e=>{e.preventDefault();const button=caseReply.querySelector('button');button.disabled=true;try{await api('/admin/cases/'+cache.case.id+'/messages','POST',Object.fromEntries(new FormData(caseReply)));await draw();}catch(e){formError(caseReply,e);}finally{button.disabled=false;}};
+  const caseDecision=document.getElementById('case-decision');if(caseDecision)caseDecision.onsubmit=async e=>{e.preventDefault();const button=caseDecision.querySelector('button');button.disabled=true;try{await api('/admin/cases/'+cache.case.id+'/'+(cache.case.status==='appealed'?'appeal-decision':'resolve'),'POST',{...Object.fromEntries(new FormData(caseDecision)),expected_version:cache.case.version});await draw();}catch(e){formError(caseDecision,e);}finally{button.disabled=false;}};
   const assign=document.getElementById('assign-support');if(assign)assign.onclick=async()=>{try{await api('/admin/support-threads/'+cache.thread.id+'/commands','POST',{command:'assign',reason:'Назначение обращения сотруднику поддержки',expected_version:cache.thread.version});await draw();}catch(e){error=e.message;draw(false);}};
-  const reply=document.getElementById('reply-support');if(reply)reply.onsubmit=async e=>{e.preventDefault();try{await api('/admin/support-threads/'+cache.thread.id+'/messages','POST',{text:new FormData(reply).get('text'),client_message_id:crypto.randomUUID()});await draw();}catch(e){error=e.message;draw(false);}};
+  const reply=document.getElementById('reply-support');if(reply)reply.onsubmit=async e=>{e.preventDefault();try{await api('/admin/support-threads/'+cache.thread.id+'/messages','POST',{text:new FormData(reply).get('text'),client_message_id:crypto.randomUUID()});await draw();}catch(e){formError(reply,e);}};
 }
 async function draw(reload=true) {
   if(designMode){render();return;}
   const key=location.hash.slice(1).split('?')[0]||'dashboard',g=++generation;
   if(!session&&key!=='login'&&!(key==='mfa'&&loginDraft)){location.hash='login';return;}
   if(key==='login')loginDraft=undefined;
+  const request=async(...args)=>{if(g!==generation)throw Error('Экран изменился');const data=await api(...args);if(g!==generation)throw Error('Экран изменился');return data;};
   try {
     if(reload&&session){
-      if(key==='dashboard')cache.dashboard=await api('/admin/dashboard');
-      if(sections[key])cache[key]=await api('/admin/'+sections[key][0]+(cursors[key]?'?cursor='+encodeURIComponent(cursors[key]):''));
+      const workspace=document.querySelector('.workspace');if(workspace){workspace.innerHTML=note('Загрузка данных…');workspace.setAttribute('aria-busy','true');}
+      if(key==='dashboard')cache.dashboard=await request('/admin/dashboard');
+      if(sections[key])cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
+      if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
+      if(key.startsWith('record-live/')){
+        routes[key]=await reviewWorkspace({key,api:request,esc,card,note,namedField,sections,onRefresh:()=>draw()});
+      }
       if(key.startsWith('case-live/')){
-        const caseId=key.split('/')[1];cache.case=await api('/admin/cases/'+caseId);const messages=await api('/admin/cases/'+caseId+'/messages');
+        const caseId=key.split('/')[1];cache.case=await request('/admin/cases/'+caseId);const messages=await request('/admin/cases/'+caseId+'/messages');
         routes[key]={key,id:'A06',title:'Дело и апелляция',subtitle:caseId,section:'Модерация',actions:'',body:()=>`<div class="grid cols2">${card('Обстоятельства',`${badge(esc(cache.case.status))}<p>${esc(cache.case.description??cache.case.reason_code)}</p><p>${esc(cache.case.appeal_reason??'')}</p><p>${esc(cache.case.reason??'')}</p>${cache.case.status==='resolved'?'':`<form id="case-decision" class="stack"><label>Решение</label><select name="decision"><option value="no_violation">Нарушение не подтверждено</option><option value="content_removed">Материал удалён</option><option value="sanction_upheld">Ограничение подтверждено</option><option value="overturned">Решение отменено</option></select>${namedField('Основание решения','reason','textarea')}<button class="primary">${cache.case.status==='appealed'?'Решение по апелляции':'Зафиксировать решение'}</button></form>`}`)}${card('Переписка по делу',`${messages.items.map(m=>`<div class="event"><b>${m.internal?'Внутренняя заметка':m.owner===session.user.id?'Сотрудник':'Участник'}</b><p>${esc(m.text)}</p><time>${esc(m.created_at)}</time></div>`).join('')}<form id="case-reply" class="stack">${namedField('Сообщение участникам','text','textarea')}${namedField('Служебная причина','reason','textarea')}<button class="primary">Отправить сообщение</button></form>`)}</div>`};
       }
       if(key.startsWith('support-live/')) {
-        const list=await api('/admin/support-threads');cache.thread=list.items.find(x=>x.id===key.split('/')[1]);
+        cache.thread=await request('/admin/support-threads/'+encodeURIComponent(key.split('/')[1]));
         if(!cache.thread)throw Error('Обращение не найдено');
-        let messages=[];if(cache.thread.assignee_id===session.user.id)messages=(await api('/admin/support-threads/'+cache.thread.id+'/messages')).items;
+        let messages=[];if(cache.thread.assignee_id===session.user.id)messages=(await request('/admin/support-threads/'+cache.thread.id+'/messages')).items;
         routes[key]={key,id:'A14',title:cache.thread.subject,subtitle:cache.thread.id,section:'Поддержка',actions:'',body:()=>card('Обращение',`${badge(esc(cache.thread.status))}<p>${esc(cache.thread.subject)}</p>${cache.thread.assignee_id!==session.user.id?'<button class="primary" id="assign-support">Назначить себе</button>':messages.map(m=>`<div class="event"><b>${m.owner===session.user.id?'Поддержка':'Пользователь'}</b><p>${esc(m.text)}</p><time>${esc(m.created_at)}</time></div>`).join('')+`<form id="reply-support" class="stack">${namedField('Ответ поддержки','text','textarea')}<button class="primary">Отправить</button></form>`}`)};
       }
     }
-  }catch(e){error=e.message;if(e.code==='TOKEN_EXPIRED'){session=undefined;location.hash='login';return;}}
-  if(g!==generation)return;render();document.querySelector('.statebar')?.remove();
+  }catch(e){if(g!==generation)return;error=e.message;if(key.includes('-live/'))routes[key]={key,id:'',title:'Карточка недоступна',subtitle:'',section:'',actions:'',body:()=>note(esc(e.message),'danger')};if(e.code==='TOKEN_EXPIRED'){session=undefined;location.hash='login';return;}}
+  if(g!==generation)return;render();document.querySelector('.workspace')?.removeAttribute('aria-busy');document.querySelector('.statebar')?.remove();
   if(session){
+    const nav=document.querySelector('.nav');if(nav&&!nav.querySelector('[href="#legal"]')){const link=document.createElement('a');link.href='#legal';link.textContent='Правовые документы';nav.append(link);}
     document.querySelectorAll('.nav .count').forEach(el=>el.remove());
     const account=document.querySelector('.account');if(account)account.innerHTML=`<span class="avatar">${esc((session.user.display_name||session.user.phone||'').slice(0,2))}</span><div><b>${esc(session.user.display_name||session.user.phone)}</b><small>${esc(session.user.country)} · сотрудник</small></div><button id="staff-logout">Выйти</button>`;
-    document.querySelector('#staff-logout')?.addEventListener('click',async()=>{try{await api('/auth/logout','POST');}finally{session=undefined;cache={};location.hash='login';}});
+    document.querySelector('#staff-logout')?.addEventListener('click',async()=>{try{await api('/auth/logout','POST');}finally{session=undefined;cache={};for(const route of Object.keys(routes))if(route.includes('-live/'))delete routes[route];location.hash='login';}});
     const country=document.querySelector('.select-country');if(country)country.textContent=session.user.country;
     const env=document.querySelector('.env');if(env)env.textContent='API · служебный доступ';
     const demo=document.querySelector('.demobadge');if(demo)demo.textContent='API';
@@ -91,6 +103,7 @@ async function draw(reload=true) {
   }
   if(error&&!['login','mfa'].includes(key)){const el=document.createElement('div');el.innerHTML=note(esc(error),'danger');el.setAttribute('role','alert');document.querySelector('.workspace')?.prepend(el);}
   bind(key);
+  routes[key]?.bind?.();
 }
 window.addEventListener('hashchange',()=>{error='';draw();});
 draw();

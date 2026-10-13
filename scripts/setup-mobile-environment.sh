@@ -60,4 +60,4 @@ PY
 "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" 'platform-tools' 'platforms;android-36' 'platforms;android-34' 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.0.12077973' 'cmake;3.22.1'
 cd "$repo_dir/apps/mobile"
 "$FLUTTER_ROOT/bin/flutter" pub get --enforce-lockfile
-"$FLUTTER_ROOT/bin/flutter" test --reporter expanded test/widget_test.dart test/local_lock_test.dart
+"$FLUTTER_ROOT/bin/flutter" test --reporter expanded test/widget_test.dart test/local_lock_test.dart test/localization_test.dart

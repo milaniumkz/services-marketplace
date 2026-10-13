@@ -27,7 +27,10 @@
     "mobile:test": "bash scripts/flutter-mobile.sh test --reporter expanded",
     "mobile:verify-api": "node scripts/verify-mobile-api.cjs",
     "mobile:build:android": "bash scripts/flutter-mobile.sh build apk --debug --dart-define=JOBA_API_URL=http://10.0.2.2:3000",
-    "admin:verify-browser": "npm run build --workspace @marketplace/api && node scripts/verify-admin-browser.cjs"
+    "admin:verify-browser": "npm run build --workspace @marketplace/api && node scripts/verify-admin-browser.cjs",
+    "verify:concurrency": "npm run build --workspace @marketplace/api && node scripts/verify-api-concurrency.cjs",
+    "mobile:l10n": "node scripts/generate-mobile-localizations.cjs",
+    "staff:bootstrap": "npm run build --workspace @marketplace/api && node scripts/bootstrap-staff.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0"

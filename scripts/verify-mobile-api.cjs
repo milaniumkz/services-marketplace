@@ -13,6 +13,8 @@ async function main(){
   const app=await NestFactory.create(AppModule,{logger:false,rawBody:true});
   app.use('/api/v1/uploads',express.raw({type:'application/octet-stream',limit:'10mb'}));
   const marketplace=await getMarketplace();
+  // Explicit isolated test adapter; this does not validate production antivirus signatures.
+  marketplace.providers.scanner={scan:async()=> 'clean'};
   await app.listen(0,'127.0.0.1');
   const stop=startRealtime(app.getHttpServer(),marketplace);
   try{
