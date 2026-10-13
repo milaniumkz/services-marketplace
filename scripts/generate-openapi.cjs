@@ -4,7 +4,7 @@ const root=resolve(__dirname,'..');
 const routes=[];
 
 const add=(method,path,access='user',schema)=>routes.push({method,path,access,schema});
-add('GET','/offers/{id}');add('GET','/admin/cases/{id}','staff');add('GET','/admin/cases/{id}/messages','staff');add('POST','/admin/cases/{id}/messages','staff');add('GET','/cases/{id}/messages');add('GET','/me/completed-orders');add('GET','/me/blocks');add('GET','/uploads/{id}/metadata');add('POST','/me/portfolio-projects/reorder');add('GET','/cases/{id}');add('POST','/me/privacy-requests/{id}/cancel');
+add('GET','/admin/country-capabilities','staff');add('GET','/admin/search','staff');add('POST','/admin/jobs/{id}/retry','staff');add('GET','/admin/security-events','staff');add('GET','/admin/jobs','staff');add('GET','/offers/{id}');add('GET','/admin/cases/{id}','staff');add('GET','/admin/cases/{id}/messages','staff');add('POST','/admin/cases/{id}/messages','staff');add('GET','/cases/{id}/messages');add('GET','/me/completed-orders');add('GET','/me/blocks');add('GET','/uploads/{id}/metadata');add('POST','/me/portfolio-projects/reorder');add('GET','/cases/{id}');add('POST','/me/privacy-requests/{id}/cancel');
 for(const name of ['register','login','staff-login','refresh'])add('POST','/auth/'+name,'public',name==='register'?'Registration':undefined);
 for(const name of ['logout','logout-all'])add('POST','/auth/'+name);
 for(const path of ['/public/config','/legal/documents'])add('GET',path,'public');
@@ -32,7 +32,7 @@ for(const path of ['/admin/runtime-settings','/admin/legal/documents','/admin/le
 for(const base of ['support-threads','recovery-threads'])for(const method of ['GET','POST'])add(method,'/admin/'+base+'/{id}/messages','staff',method==='POST'?'MessageCreate':undefined);
 add('POST','/admin/support-threads/{id}/commands','staff','VersionedCommand');
 for(const method of ['GET','POST'])add(method,'/admin/support-threads/{id}/internal-notes','staff');
-for(const config of ['categories','price-versions','monetization-configs','push-campaigns','referral-campaigns','moderation-dictionaries','ranking-configs','promotions','placement-policies','verification-policies','retention-policies']){
+for(const config of ['categories','price-versions','monetization-configs','push-campaigns','referral-campaigns','moderation-dictionaries','ranking-configs','promotions','placement-policies','verification-policies','retention-policies','country-controls']){
   add('GET','/admin/'+config,'staff');add('POST','/admin/'+config,'staff');
   for(const command of ['validate','preview','publish','stop','cancel','rollback'])add('POST','/admin/'+config+'/{id}/'+command,'staff','VersionedCommand');
 }

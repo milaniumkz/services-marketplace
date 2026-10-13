@@ -11,6 +11,9 @@ export class Configuration {
   constructor(private store:Store,private providers:Providers){}
   async validate(r:RecordData) {
     const p=r.payload??{};
+    if(r.kind==='country_control') {
+      if(typeof p.registration_enabled!=='boolean'||typeof p.stop_new_business!=='boolean')fail('VALIDATION_ERROR','Укажите состояние регистрации и новых действий');
+    }
     if(r.kind==='price_version') {
       if(!Number.isSafeInteger(p.amount_minor)||p.amount_minor<0||!['KZT','RSD','RUB','BYN'].includes(p.currency))fail('VALIDATION_ERROR','Проверьте цену и валюту');
       const provider=this.providers.billing.get(p.provider);if(!provider)fail('PROVIDER_UNAVAILABLE','Сначала подключите платёжного провайдера',503);

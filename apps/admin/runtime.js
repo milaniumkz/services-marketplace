@@ -1,3 +1,6 @@
+import {countryWorkspace} from './country-workspace.js';
+import {wireLiveShell,clearStaffDialogs} from './live-shell.js';
+import {systemWorkspace} from './system-workspace.js';
 import {monetizationWorkspace} from './monetization-workspace.js';
 import {operationsWorkspace} from './operations-workspace.js';
 import {reviewWorkspace} from './review-workspace.js';
@@ -65,6 +68,7 @@ function bind(key) {
 }
 async function draw(reload=true) {
   if(designMode){render();return;}
+  clearStaffDialogs();
   const key=location.hash.slice(1).split('?')[0]||'dashboard',g=++generation;
   if(!session&&key!=='login'&&!(key==='mfa'&&loginDraft)){location.hash='login';return;}
   if(key==='login')loginDraft=undefined;
@@ -72,7 +76,8 @@ async function draw(reload=true) {
   try {
     if(reload&&session){
       const workspace=document.querySelector('.workspace');if(workspace){workspace.innerHTML=note('Загрузка данных…');workspace.setAttribute('aria-busy','true');}
-      if(key==='dashboard')cache.dashboard=await request('/admin/dashboard');
+      if(key==='countries')routes[key]=await countryWorkspace({key,api:request,esc,card,note,badge,namedField,onRefresh:()=>draw()});
+      if(['dashboard','security','jobs'].includes(key))routes[key]=await systemWorkspace({key,api:request,esc,card,tablecard,note,metric,badge,onRefresh:()=>draw()});
       if(sections[key])cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
       if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
@@ -90,7 +95,7 @@ async function draw(reload=true) {
         routes[key]={key,id:'A14',title:cache.thread.subject,subtitle:cache.thread.id,section:'Поддержка',actions:'',body:()=>card('Обращение',`${badge(esc(cache.thread.status))}<p>${esc(cache.thread.subject)}</p>${cache.thread.assignee_id!==session.user.id?'<button class="primary" id="assign-support">Назначить себе</button>':messages.map(m=>`<div class="event"><b>${m.owner===session.user.id?'Поддержка':'Пользователь'}</b><p>${esc(m.text)}</p><time>${esc(m.created_at)}</time></div>`).join('')+`<form id="reply-support" class="stack">${namedField('Ответ поддержки','text','textarea')}<button class="primary">Отправить</button></form>`}`)};
       }
     }
-  }catch(e){if(g!==generation)return;error=e.message;if(key.includes('-live/'))routes[key]={key,id:'',title:'Карточка недоступна',subtitle:'',section:'',actions:'',body:()=>note(esc(e.message),'danger')};if(e.code==='TOKEN_EXPIRED'){session=undefined;location.hash='login';return;}}
+  }catch(e){if(g!==generation)return;error=e.message;if(!['login','mfa'].includes(key))routes[key]={key,id:'',title:'Карточка недоступна',subtitle:'',section:'',actions:'',body:()=>note(esc(e.message),'danger')};if(e.code==='TOKEN_EXPIRED'){session=undefined;location.hash='login';return;}}
   if(g!==generation)return;render();document.querySelector('.workspace')?.removeAttribute('aria-busy');document.querySelector('.statebar')?.remove();
   if(session){
     const portfolioLink=document.querySelector('.nav a[href="#portfolio"]');if(portfolioLink&&!document.querySelector('.nav a[href="#contractors"]')){const link=document.createElement('a');link.href='#contractors';link.textContent='Профили исполнителей';portfolioLink.after(link);}
@@ -107,6 +112,7 @@ async function draw(reload=true) {
   if(error&&!['login','mfa'].includes(key)){const el=document.createElement('div');el.innerHTML=note(esc(error),'danger');el.setAttribute('role','alert');document.querySelector('.workspace')?.prepend(el);}
   bind(key);
   routes[key]?.bind?.();
+  if(session)wireLiveShell({api,esc,card,onRefresh:()=>draw()});
 }
 window.addEventListener('hashchange',()=>{error='';draw();});
 draw();

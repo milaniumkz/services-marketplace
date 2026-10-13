@@ -54,7 +54,7 @@ export class Store {
       where.push(`EXISTS(SELECT 1 FROM records account WHERE account.kind='user' AND account.id::text=r.owner AND account.country=r.country AND account.data->>'status'='active' ${kind==='contractor'?"AND account.data->>'verification'='passed'":''})`);
       if(kind==='order')where.push("(data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP");
     }
-    if(options.search){const parameter=bind('%'+options.search+'%');where.push(`(data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);}
+    if(options.search){const parameter=bind('%'+options.search+'%');where.push(`(id::text ILIKE ${parameter} OR owner ILIKE ${parameter} OR data->>'event' ILIKE ${parameter} OR data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);}
     const limit=options.limit??101;const r=await this.db.query<{data:RecordData}>('SELECT data FROM records r WHERE '+where.join(' AND ')+' ORDER BY id LIMIT '+bind(limit),args);return r.rows.map(r=>r.data);
   }
   async get(id: string): Promise<RecordData | undefined> {

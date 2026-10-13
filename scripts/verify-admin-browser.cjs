@@ -1,4 +1,4 @@
-const {mkdtemp,rm}=require('node:fs/promises');
+const {mkdtemp,rm,readFile,mkdir}=require('node:fs/promises');
 const {tmpdir}=require('node:os');
 const {join,resolve}=require('node:path');
 const {randomUUID,randomBytes}=require('node:crypto');
@@ -53,6 +53,34 @@ async function main(){
   await page.getByRole('button',{name:'Продолжить',exact:true}).click();
   await page.getByLabel('Код второго фактора').fill(totp(secret));await page.getByRole('button',{name:'Продолжить',exact:true}).click();
   await page.waitForSelector('#staff-logout');assert.equal(await page.locator('.account b').textContent(),'Изолированный сотрудник');
+  await page.locator('#dashboard-period').waitFor();
+  await page.getByRole('button',{name:'Поиск по стране',exact:true}).click();
+  await page.getByLabel('Имя, название или ID',{exact:true}).fill(applicant.user.id);
+  await page.locator('#staff-global-search').getByRole('button',{name:'Найти',exact:true}).click();
+  await page.locator('#staff-search-results').filter({hasText:'Заявитель проверки'}).waitFor();
+  await page.getByRole('button',{name:'Закрыть',exact:true}).click();
+  await page.getByRole('button',{name:'Уведомления',exact:true}).click();
+  await page.locator('#staff-dialog-body').filter({hasText:'Новых уведомлений нет'}).waitFor();
+  await page.getByRole('button',{name:'Закрыть',exact:true}).click();
+
+  const capture=async name=>{if(!process.env.JOBA_SCREENSHOT_DIR)return;await mkdir(process.env.JOBA_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.JOBA_SCREENSHOT_DIR,name+'.png'),fullPage:true});};
+  await capture('A02-dashboard');
+  await page.locator('#dashboard-period').selectOption('30');
+  await page.waitForFunction(()=>document.querySelector('#dashboard-period')?.value==='30');
+  await page.getByRole('button',{name:'Определения всех метрик',exact:true}).click();
+  await page.locator('#metric-definitions-result').filter({hasText:'Активные аккаунты'}).waitFor();
+  const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Экспорт сводки',exact:true}).click();
+  const download=await downloadEvent,report=JSON.parse(await readFile(await download.path(),'utf8'));
+  assert.equal(report.country,'KZ');assert.equal(report.days,30);assert.equal(report.series.length,30);
+  await page.goto(frontend+'/#security');await page.locator('#system-filter').waitFor();
+  await capture('A12-security');
+  assert.ok(await page.locator('tbody tr').count());assert.equal(await page.getByText(secret,{exact:true}).count(),0);
+  const operationalJob=randomUUID();await marketplace.store.put({id:operationalJob,kind:'privacy',type:'export',owner:applicant.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'failed',attempts:5,failure_code:'EXPORT_RETRY_REQUIRED'});
+  await page.goto(frontend+'/#jobs');await page.locator('[data-job="'+operationalJob+'"]').waitFor();await capture('A15-jobs');await page.locator('[data-job="'+operationalJob+'"]').click();
+  await page.getByLabel('Служебная причина',{exact:true}).fill('Повтор после проверки причины изолированного сбоя');
+  await page.getByRole('button',{name:'Поставить повтор в очередь',exact:true}).click();
+  await page.waitForFunction(id=>!document.querySelector('[data-job="'+id+'"]'),operationalJob);
+  assert.equal((await marketplace.store.get(operationalJob)).status,'requested');
   await page.locator('.nav a[href="#monetization"]').click();
   await page.getByLabel('Название',{exact:true}).fill('Проверка реального черновика');
   await page.getByLabel('Причина',{exact:true}).fill('Изолированная проверка интерфейса');
@@ -122,6 +150,17 @@ async function main(){
   await page.getByRole('button',{name:'Найти',exact:true}).click();
   await page.getByRole('link',{name:'Открыть →',exact:true}).waitFor();
   assert.equal(await page.locator('tbody tr').count(),1);
+  await page.goto(frontend+'/#countries');
+  await page.getByLabel('Название изменения',{exact:true}).fill('Проверка управления текущей страной');
+  await page.getByLabel('Служебная причина',{exact:true}).fill('Изолированная проверка формы управления страной');
+  await page.getByLabel('Остановить новые бизнес-действия',{exact:true}).check();
+  await capture('A14-countries');
+  await page.getByRole('button',{name:'Сохранить черновик',exact:true}).click();
+  await page.getByRole('button',{name:'Опубликовать версию',exact:true}).waitFor();
+  await page.getByLabel('Основание публикации',{exact:true}).fill('Проверка обязательного независимого подтверждения');
+  await page.getByRole('button',{name:'Опубликовать версию',exact:true}).click();
+  await page.locator('[role=alert]').filter({hasText:'Нужно подтверждение другого сотрудника'}).waitFor();
+  const controls=await marketplace.store.all('country_control','KZ');assert.equal(controls.length,1);assert.equal(controls[0].status,'draft');assert.equal(controls[0].payload.stop_new_business,true);
   await page.goto(frontend+'/#settings');
   await page.getByLabel('Срок заказа, дни',{exact:true}).fill('12');
   await page.getByLabel('Причина изменения',{exact:true}).fill('Проверка сохранения срока заказа текущего региона');
@@ -156,7 +195,7 @@ async function main(){
   await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
   await page.reload();await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
   assert.equal((await marketplace.store.all('recovery','KZ')).length,1);
-  console.log('Admin browser: real MFA login, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence passed.');
+  console.log('Admin browser: real MFA login, live dashboard, UTC period selection, report export, masked security events, audited job retry, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence passed.');
  }catch(error){if(page){await page.screenshot({path:'/tmp/joba-admin-browser-failure.png',fullPage:true});console.error('Page diagnostics:',await page.locator('[role=alert], .note.danger').allTextContents());}throw error;}finally{await browser?.close();await vite?.close();await webVite?.close();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error.message);process.exitCode=1;});
