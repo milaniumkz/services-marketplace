@@ -1,7 +1,7 @@
 import type { Store } from './store';
 export const DEFAULT_SETTINGS={
   password_min:15,access_seconds:600,refresh_days:30,order_expiry_days:14,order_expiry_max_days:30,
-  offer_expiry_hours:72,auto_hold_minutes:60,review_blind_days:14,review_correction_hours:48,
+  offer_expiry_hours:72,invite_expiry_hours:72,invite_daily_limit:10,auto_hold_minutes:60,review_blind_days:14,review_correction_hours:48,
   message_edit_minutes:15,portfolio_projects:20,portfolio_photos:10,upload_image_mb:5,upload_chat_mb:10,
   config_ttl_seconds:60,reward_late_hours:72,boost_reservation_minutes:10,
   ranking_window_days:30,ranking_dislike_weight:.5,ranking_age_days:30

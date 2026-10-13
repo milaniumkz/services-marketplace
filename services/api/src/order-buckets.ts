@@ -2,6 +2,7 @@ import {HttpException} from '@nestjs/common';
 export function orderBucket(bucket:unknown):string[]|undefined {
   if(bucket===undefined)return undefined;
   const values:Record<string,string[]>={
+    open:['open'],
     active:['open','assigned','in_progress','completion_requested'],
     completed:['completed','cancelled','expired'],
     drafts:['draft'],

@@ -53,12 +53,15 @@ class PagedList extends StatefulWidget {
   final Json query;
   final Widget Function(Json) tile;
   final String empty;
+  final Widget? header, footer;
   const PagedList(
       {required this.api,
       required this.path,
       required this.tile,
       this.query = const {},
       this.empty = 'Пока здесь ничего нет',
+      this.header,
+      this.footer,
       super.key});
   @override
   State<PagedList> createState() => _PagedListState();
@@ -116,6 +119,7 @@ class _PagedListState extends State<PagedList> {
           padding: const EdgeInsets.all(20),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            if (widget.header != null) widget.header!,
             if (!busy && error == null && rows.isEmpty)
               Padding(
                   padding: const EdgeInsets.symmetric(vertical: 70),
@@ -137,6 +141,7 @@ class _PagedListState extends State<PagedList> {
                           (error as ApiException).details['restart_required'] ==
                               true),
                   child: UiText(error == null ? 'Показать ещё' : 'Повторить')),
+            if (widget.footer != null) widget.footer!,
           ]));
 }
 
@@ -145,6 +150,7 @@ class InputSpec {
   final String initial;
   final bool secret, multiline;
   final bool required, translateOptions;
+  final int lines;
   final String? hint;
   final IconData? prefixIcon;
   final String? originalIcon;
@@ -162,6 +168,7 @@ class InputSpec {
       this.originalIcon,
       this.secret = false,
       this.multiline = false,
+      this.lines = 5,
       this.required = true,
       this.translateOptions = true,
       this.options,
@@ -352,7 +359,7 @@ class _ActionFormState extends State<ActionForm> {
                           keyboardType: field.keyboard,
                           style: const TextStyle(
                               fontSize: 14, letterSpacing: 0, color: navy),
-                          maxLines: field.multiline ? 5 : 1,
+                          maxLines: field.multiline ? field.lines : 1,
                           obscureText:
                               field.secret && !visible.contains(field.key),
                           autocorrect: !field.secret,

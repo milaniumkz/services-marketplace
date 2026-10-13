@@ -1,5 +1,5 @@
 import {pipeline} from 'node:stream/promises';
-import { All, Controller, Get, Module, Req, Res } from '@nestjs/common';
+import { All, Controller, Get, Module, Req, Res, ServiceUnavailableException } from '@nestjs/common';
 import { Marketplace } from './marketplace';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpErrors } from './http-errors';
@@ -8,7 +8,12 @@ let ready: Promise<void> | undefined;
 export async function getMarketplace() {marketplace??=new Marketplace();ready??=marketplace.initialize();await ready;return marketplace;}
 @Controller()
 export class HealthController {
-  @Get('health') health() { return { status: 'ok', mode: 'demo' }; }
+  @Get('health') async health() {
+    try {
+      const service=await getMarketplace();await service.store.db.query('SELECT 1');
+      return {status:'ok',mode:process.env.NODE_ENV==='production'?'production':'development',database:'ready'};
+    }catch{throw new ServiceUnavailableException('Database readiness check failed');}
+  }
 }
 @Controller('api/v1')
 export class MarketplaceController {

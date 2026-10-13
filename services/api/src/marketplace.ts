@@ -99,7 +99,7 @@ export class Marketplace {
   private version(r: RecordData, b: any) {
     if(b.expected_version!==r.version)fail(409,'STATE_CONFLICT','Данные изменились. Обновите экран.',{current_version:r.version});
   }
-  private async entitlement(a: Actor, capability: string, verified=false) {
+  private async entitlement(a: Actor, capability: string, verified=false, consume=true) {
     if(['publish_order','select_offer','send_offer','publish_profile'].includes(capability)) {
       const control=(await this.store.all('country_control',a.country)).find(r=>r.status==='effective');
       if(control?.payload.stop_new_business)fail(503,'COUNTRY_BUSINESS_PAUSED','Новые действия в этой стране временно приостановлены. Чат, завершение заказов и поддержка доступны.');
@@ -121,7 +121,7 @@ export class Marketplace {
     const grants=(await this.store.select('grant',a.country,{owner:a.id,limit:1000})).filter(r=>r.owner===a.id && r.valid_until>new Date().toISOString() && r.capabilities.includes(capability)&&(r.balance===undefined||r.balance>0));
     if(!grants.length)fail(403,'ENTITLEMENT_REQUIRED','Нужен действующий доступ',{capability});
     const selected=grants.find(g=>g.balance===undefined)??grants[0];
-    if(selected.balance!==undefined&&['publish_order','send_offer','select_offer','publish_profile'].includes(capability)) {
+    if(consume&&selected.balance!==undefined&&['publish_order','send_offer','select_offer','publish_profile'].includes(capability)) {
       await this.store.put({...selected,balance:selected.balance-1,version:selected.version+1});
       await this.store.put(this.record('entitlement_consumption',a,{grant_id:selected.id,capability,consumed_at:new Date().toISOString()}));
     }
@@ -468,10 +468,18 @@ export class Marketplace {
         await this.store.put(chat);await this.store.put(offer);await this.notify(o.owner,a,'offer.created',o.id);return offer;
       }
       if(action==='invites'&&method==='POST') {
-        if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');await this.entitlement(a,'publish_order');
-        if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ закрыт');
+        if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');await this.entitlement(a,'publish_order',false,false);
+        await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['invites:'+a.country+':'+a.id]);
+        if(o.status!=='open'||o.expires_at<=new Date().toISOString()||['quarantined','hidden','rejected'].includes(o.moderation_status))fail(409,'STATE_CONFLICT','Заказ закрыт');
         const p=await this.object(String(b.contractor_id),a,'contractor'),owner=await this.store.get(p.owner);if(owner?.status!=='active'||owner.verification!=='passed'||await this.blocked(a,p.owner)||p.owner===a.id||p.status!=='published'||p.availability==='paused')fail(422,'POLICY_REJECTED','Исполнитель недоступен');
-        const i=this.record('invite',a,{order_id:o.id,recipient_id:p.owner,status:'pending',order_revision:o.revision});await this.store.put(i);await this.notify(p.owner,a,'invite.created',i.id);return i;
+        await this.entitlement({...a,id:owner!.id,user:owner!},'send_offer',true,false);
+        const now=new Date();
+        const active=(await db.query("SELECT id FROM records WHERE kind='invite' AND country=$1 AND data->>'order_id'=$2 AND data->>'recipient_id'=$3 AND data->>'status'='pending' AND (data->>'expires_at' IS NULL OR (data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP) LIMIT 1",[a.country,o.id,p.owner])).rows;
+        if(active.length)fail(409,'STATE_CONFLICT','Исполнителю уже отправлено приглашение');
+        const midnight=new Date(now);midnight.setUTCHours(0,0,0,0);
+        const daily=(await db.query<{total:string}>("SELECT count(*) AS total FROM records WHERE kind='invite' AND country=$1 AND owner=$2 AND data->>'created_at'>=$3",[a.country,a.id,midnight.toISOString()])).rows[0];
+        if(Number(daily.total)>=settings.invite_daily_limit)fail(429,'RATE_LIMITED','Достигнут суточный лимит приглашений');
+        const i=this.record('invite',a,{order_id:o.id,recipient_id:p.owner,status:'pending',order_revision:o.revision,message:b.message===undefined?'':text(b,'message',0,2000),expires_at:new Date(now.getTime()+settings.invite_expiry_hours*3600000).toISOString()});await this.store.put(i);await this.notify(p.owner,a,'invite.created',i.id);return i;
       }
       if(['cancel-requests','amendments'].includes(action??'')&&method==='POST') {
         if(!participant)fail(404,'NOT_FOUND','Заказ не найден');this.version(o,b);
@@ -541,14 +549,29 @@ export class Marketplace {
       if(offerCommand[2]==='acknowledge'&&method==='POST'){if(b.order_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия изменились');return this.store.put({...f,acknowledged_revision:o.revision,version:f.version+1});}
       if(method==='PATCH'){if(!Number.isSafeInteger(b.amount)||b.amount<0)fail(400,'VALIDATION_ERROR','Проверьте цену');return this.store.put({...f,text:text(b,'text',1,3000),amount:b.amount,version:f.version+1});}
     }
-    if(path==='/me/order-invites'&&method==='GET')return this.list((await this.store.all('invite',a.country)).filter(x=>x.recipient_id===a.id),q);
+    if(path==='/me/order-invites'&&method==='GET'){
+      if(q.status&&!['pending','accepted','declined','expired','revoked'].includes(q.status))fail(400,'VALIDATION_ERROR','Неизвестный статус приглашения');
+      const result=await this.page('invite',a,q,{recipient:a.id,inviteState:q.status});
+      result.items=result.items.map(x=>({...x,status:x.status==='pending'&&x.expires_at&&x.expires_at<=new Date().toISOString()?'expired':x.status}));
+      result.items=await Promise.all(result.items.map(async i=>{
+        const order=await this.store.get(i.order_id),sender=await this.store.get(i.owner);
+        const visible=order?.country===a.country&&sender?.status==='active'&&!await this.blocked(a,i.owner)&&!['quarantined','hidden','rejected'].includes(order?.moderation_status);
+        return {...i,customer:visible?{display_name:sender?.display_name,avatar_id:sender?.avatar_id}:null,order:visible?{title:order?.title,city:order?.city,budget_amount:order?.budget_amount,currency:order?.currency,time_window:order?.time_window}:null};
+      }));return result;
+    }
     const inviteCommand=path.match(/^\/order-invites\/([^/]+)\/(respond|revoke)$/);
     if(inviteCommand&&method==='POST') {
       const r=await this.object(inviteCommand[1],a,'invite');if((inviteCommand[2]==='respond'?r.recipient_id:r.owner)!==a.id)fail(404,'NOT_FOUND','Приглашение не найдено');this.version(r,b);
-      if(r.status!=='pending')fail(409,'STATE_CONFLICT','Приглашение обработано');
+      if(r.status!=='pending'||r.expires_at&&r.expires_at<=new Date().toISOString())fail(409,'STATE_CONFLICT','Приглашение обработано или срок истёк');
       if(inviteCommand[2]==='revoke')return this.store.put({...r,status:'revoked',version:r.version+1});
       if(!['accept','decline'].includes(b.decision))fail(400,'VALIDATION_ERROR','Выберите accept или decline');
-      if(b.decision==='accept')await this.entitlement(a,'send_offer',true);return this.store.put({...r,status:b.decision==='accept'?'accepted':'declined',version:r.version+1});
+      if(b.decision==='accept'){
+        const o=await this.object(r.order_id,a,'order'),sender=await this.store.get(r.owner);
+        if(o.status!=='open'||o.expires_at<=new Date().toISOString()||['quarantined','hidden','rejected'].includes(o.moderation_status)||o.revision!==r.order_revision)fail(409,'STATE_CONFLICT','Заказ закрыт или условия изменились');
+        if(!sender||sender.status!=='active'||await this.blocked(a,r.owner))fail(404,'NOT_FOUND','Приглашение недоступно');
+        await this.entitlement({...a,id:sender!.id,user:sender!},'publish_order',false,false);
+        await this.entitlement(a,'send_offer',true,false);
+      }return this.store.put({...r,status:b.decision==='accept'?'accepted':'declined',version:r.version+1});
     }
     if(path==='/me/conversations'&&method==='GET')return {items:(await this.store.all('conversation',a.country)).filter(x=>x.members.includes(a.id))};
     const readConversation=path.match(/^\/conversations\/([^/]+)\/(read|delivered)$/);
@@ -640,20 +663,53 @@ export class Marketplace {
       if(!['requested','awaiting_retention_policy'].includes(r.status))fail(409,'STATE_CONFLICT','Обработка уже началась');
       return this.store.put({...r,status:'cancelled',version:r.version+1});
     }
-    if(path==='/cases'&&method==='POST')return this.store.put(this.record('case',a,{target_type:text(b,'target_type',1,30),target_id:text(b,'target_id',1,100),reason_code:text(b,'reason_code',1,50),description:text(b,'description',10,3000),status:'new'}));
-    if(path==='/me/cases'&&method==='GET')return this.list((await this.store.all('case',a.country)).filter(x=>x.owner===a.id||x.subject_user_id===a.id).map(({internal_notes,...r})=>r),q);
+    if(path==='/cases'&&method==='POST'){
+      const type=text(b,'target_type',1,30);
+      if(!['order','contractor','user','message'].includes(type))fail(400,'VALIDATION_ERROR','Выберите доступный тип объекта');
+      const target=await this.object(text(b,'target_id',1,100),a,type);
+      let visible=target.owner===a.id;const subject=target.kind==='user'?target.id:target.owner;
+      if(type==='order'){
+        const owner=await this.store.get(target.owner);
+        visible=visible||target.executor_id===a.id||owner?.status==='active'&&target.status==='open'&&target.expires_at>new Date().toISOString()&&!['quarantined','hidden','rejected'].includes(target.moderation_status)&&!await this.blocked(a,target.owner);
+      }
+      if(type==='contractor'){
+        const owner=await this.store.get(target.owner);
+        visible=visible||target.status==='published'&&owner?.status==='active'&&owner.verification==='passed'&&!['quarantined','hidden','rejected'].includes(target.moderation_status)&&!await this.blocked(a,target.owner);
+      }
+      if(type==='message'){
+        const conversation=await this.store.get(target.thread_id);
+        visible=conversation?.kind==='conversation'&&conversation.country===a.country&&conversation.members?.includes(a.id);
+      }
+      if(type==='user'){
+        visible=target.id===a.id||(await this.store.all('conversation',a.country)).some(c=>c.members?.includes(a.id)&&c.members?.includes(target.id))||(await this.store.all('order',a.country)).some(o=>[o.owner,o.executor_id].includes(a.id)&&[o.owner,o.executor_id].includes(target.id));
+      }
+      if(!visible)fail(404,'NOT_FOUND','Объект недоступен для обращения');
+      const reason=text(b,'reason_code',1,50);if(!['agreement','spam','fraud','content','other','harassment','unsafe','privacy'].includes(reason))fail(400,'VALIDATION_ERROR','Выберите причину обращения');
+      const existing=(await this.store.all('case',a.country)).find(c=>c.owner===a.id&&c.target_id===target.id&&!['resolved','closed','dismissed'].includes(c.status));
+      if(existing)fail(409,'STATE_CONFLICT','По этому объекту уже есть открытое обращение',{case_id:existing.id});
+      return this.store.put(this.record('case',a,{target_type:type,target_id:target.id,target_version:target.version,target_revision:target.revision,target_hash:digest(JSON.stringify(target)),subject_user_id:subject,reporter_private:true,upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[],reason_code:reason,description:text(b,'description',10,3000),status:'new'}));
+    }
+    if(path==='/me/cases/overview'&&method==='GET'){
+      const count=(await db.query<{open_count:string;resolved_count:string}>("SELECT count(*) FILTER(WHERE data->>'status' NOT IN ('resolved','closed','dismissed')) AS open_count,count(*) FILTER(WHERE data->>'status' IN ('resolved','closed','dismissed')) AS resolved_count FROM records WHERE kind='case' AND country=$1 AND (owner=$2 OR data->>'subject_user_id'=$2 AND COALESCE(data->>'reporter_private','false')<>'true')",[a.country,a.id])).rows[0];
+      return {open:Number(count.open_count),resolved:Number(count.resolved_count)};
+    }
+    if(path==='/me/cases'&&method==='GET'){
+      if(q.bucket&&!['open','resolved'].includes(q.bucket))fail(400,'VALIDATION_ERROR','Неизвестный раздел обращений');
+      const result=await this.page('case',a,q,{caseActor:a.id,caseBucket:q.bucket,statuses:q.status?[q.status]:undefined});
+      result.items=result.items.map(({internal_notes,...r})=>r);return result;
+    }
     const caseRead=path.match(/^\/cases\/([^/]+)$/);
     if(caseRead&&method==='GET') {
-      const c=await this.object(caseRead[1],a,'case');if(c.owner!==a.id&&c.subject_user_id!==a.id)fail(404,'NOT_FOUND','Дело не найдено');
+      const c=await this.object(caseRead[1],a,'case');if(c.owner!==a.id&&(c.reporter_private||c.subject_user_id!==a.id))fail(404,'NOT_FOUND','Дело не найдено');
       const {internal_notes,...visible}=c;return visible;
     }
     const caseUpdate=path.match(/^\/cases\/([^/]+)\/(messages|appeals)$/);
     if(caseUpdate&&method==='GET'&&caseUpdate[2]==='messages') {
-      const c=await this.object(caseUpdate[1],a,'case');if(c.owner!==a.id&&c.subject_user_id!==a.id)fail(404,'NOT_FOUND','Дело не найдено');
+      const c=await this.object(caseUpdate[1],a,'case');if(c.owner!==a.id&&(c.reporter_private||c.subject_user_id!==a.id))fail(404,'NOT_FOUND','Дело не найдено');
       return this.list((await this.store.all('case_message',a.country)).filter(x=>x.case_id===c.id&&!x.internal),q);
     }
     if(caseUpdate&&method==='POST') {
-      const c=await this.object(caseUpdate[1],a,'case');if(c.owner!==a.id&&c.subject_user_id!==a.id)fail(404,'NOT_FOUND','Дело не найдено');
+      const c=await this.object(caseUpdate[1],a,'case');if(c.owner!==a.id&&(c.reporter_private||c.subject_user_id!==a.id))fail(404,'NOT_FOUND','Дело не найдено');
       if(caseUpdate[2]==='appeals') {
         if(c.subject_user_id!==a.id||!['resolved','restricted'].includes(c.status))fail(409,'STATE_CONFLICT','Апелляция недоступна');
         this.version(c,b);const result=await this.store.put({...c,status:'appealed',appeal_reason:text(b,'reason',10,3000),version:c.version+1});return result;
@@ -994,7 +1050,7 @@ export class Marketplace {
   private async nextCursor(id:string,q:any) {
     const payload=Buffer.from(JSON.stringify({after:id,filter_hash:this.filterHash(q),expires_at:new Date(Date.now()+86400000).toISOString()})).toString('base64url');return payload+'.'+await this.files.requestDigest(payload);
   }
-  private async page(kind:string,a:Actor,q:any,options:{owner?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string}={}) {
+  private async page(kind:string,a:Actor,q:any,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const selected=await this.store.select(kind,a.country,{...options,limit:limit+1,after,city:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
     const batch=selected.slice(0,limit);
@@ -1104,6 +1160,12 @@ export class Marketplace {
       const support=supportMessage?await this.store.get(supportMessage.thread_id):undefined;
       if(support?.owner===a.id)return;
       if(support?.assignee_id===a.id){await this.staff(a,'support');return;}
+      const caseMessage=(await this.store.all('case_message',a.country)).find(m=>!m.internal&&m.upload_ids?.includes(u.id));
+      const linkedCase=caseMessage?await this.store.get(caseMessage.case_id):(await this.store.all('case',a.country)).find(c=>c.upload_ids?.includes(u.id));
+      if(linkedCase){
+        if(linkedCase.owner===a.id||!linkedCase.reporter_private&&linkedCase.subject_user_id===a.id)return;
+        if(a.mfa&&(a.user.staff_permissions?.includes('moderator')||a.user.staff_permissions?.includes('administrator'))){await this.staff(a,'moderator');const reason=text(q,'reason',10,1000);await this.audit(a,'case.evidence_read',u.id,reason);return;}
+      }
       if(u.purpose==='portfolio') {
         if(a.mfa&&(a.user.staff_permissions?.includes('content')||a.user.staff_permissions?.includes('administrator'))) {
           const projects=await this.store.all('portfolio',a.country),profiles=await this.store.all('contractor',a.country);

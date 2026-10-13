@@ -34,7 +34,7 @@ export async function exportSnapshot(store:Store,owner:string,country:string){
  for(const kind of Object.keys(fields))raw[kind]=await store.all(kind,country);
  const chats=new Set(raw.conversation.filter(r=>r.members?.includes(owner)).map(r=>r.id));
  const support=new Set(raw.support.filter(r=>r.owner===owner).map(r=>r.id));
- const cases=new Set(raw.case.filter(r=>r.owner===owner||r.subject_user_id===owner).map(r=>r.id));
+ const cases=new Set(raw.case.filter(r=>r.owner===owner||!r.reporter_private&&r.subject_user_id===owner).map(r=>r.id));
  const data:Record<string,any[]>={};
  for(const [kind,rows] of Object.entries(raw))data[kind]=rows.filter(r=>
   kind==='conversation'?chats.has(r.id):kind==='message'?chats.has(r.thread_id):kind==='support_message'?support.has(r.thread_id):kind==='case_message'?cases.has(r.case_id)&&!r.internal:

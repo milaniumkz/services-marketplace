@@ -10,7 +10,7 @@ export async function accountOverview(store:Store, owner:string, country:string)
       count(*) FILTER (WHERE kind='order' AND owner=$1 AND data->>'status'='completed') AS orders_completed,
       count(*) FILTER (WHERE kind='order' AND data->>'executor_id'=$1 AND data->>'status' IN ('assigned','in_progress','completion_requested')) AS assigned_active,
       count(*) FILTER (WHERE kind='order' AND data->>'executor_id'=$1 AND data->>'status'='completed') AS assigned_completed,
-      count(*) FILTER (WHERE kind='invite' AND data->>'recipient_id'=$1 AND data->>'status'='pending') AS invitations_pending,
+      count(*) FILTER (WHERE kind='invite' AND data->>'recipient_id'=$1 AND data->>'status'='pending' AND (data->>'expires_at' IS NULL OR (data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP)) AS invitations_pending,
       count(*) FILTER (WHERE kind='portfolio' AND owner=$1 AND data->>'status'='published') AS projects_published,
       count(*) FILTER (WHERE kind='portfolio' AND owner=$1 AND COALESCE(data->'draft'->>'status',data->>'status')='pending_review') AS projects_pending,
       count(*) FILTER (WHERE kind='review' AND data->>'target_id'=$1 AND data->>'status'='published' AND COALESCE(data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')) AS reviews_count,

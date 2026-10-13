@@ -274,3 +274,61 @@ class JobaSection extends StatelessWidget {
                     const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)))
       ]));
 }
+
+class JobaUploadButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  const JobaUploadButton(this.label, {required this.onPressed, super.key});
+  @override
+  Widget build(BuildContext context) => Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: CustomPaint(
+          foregroundPainter: const _UploadOutline(),
+          child: Material(
+              color: const Color(0xFFF6F9FF),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                  onTap: onPressed,
+                  borderRadius: BorderRadius.circular(14),
+                  child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 98),
+                      child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const JobaIcon('attach', size: 24),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                    child: UiText(label,
+                                        style: TextStyle(
+                                            color: onPressed == null
+                                                ? muted
+                                                : primary,
+                                            fontSize: 14)))
+                              ])))))));
+}
+
+class _UploadOutline extends CustomPainter {
+  const _UploadOutline();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Offset.zero & size, const Radius.circular(14)));
+    final paint = Paint()
+      ..color = const Color(0xFFB9CBE9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final metric in path.computeMetrics()) {
+      for (double offset = 0; offset < metric.length; offset += 10) {
+        canvas.drawPath(
+            metric.extractPath(offset, (offset + 6).clamp(0, metric.length)),
+            paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _UploadOutline oldDelegate) => false;
+}

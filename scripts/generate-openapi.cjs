@@ -9,7 +9,7 @@ for(const name of ['register','login','staff-login','refresh'])add('POST','/auth
 for(const name of ['logout','logout-all'])add('POST','/auth/'+name);
 for(const path of ['/public/config','/legal/documents'])add('GET',path,'public');
 add('POST','/public/recovery-threads','public');for(const method of ['GET','POST'])add(method,'/public/recovery-threads/{id}/messages','recovery');
-for(const path of ['/me/overview','/me/content-revisions','/me','/me/sessions','/me/consents','/catalog/categories','/geo/cities','/me/monetization-config','/me/entitlements','/me/verification','/me/portfolio-projects','/contractors','/me/orders','/me/assigned-orders','/me/offers','/me/order-change-requests','/me/contractor-profile','/orders','/me/conversations','/me/support-threads','/me/notifications','/me/notification-preferences','/me/privacy-requests','/me/cases','/me/subscriptions','/me/referrals','/me/boosts','/boost-offers','/billing/offers','/top-listings','/events'])add('GET',path);
+for(const path of ['/me/cases/overview','/me/overview','/me/content-revisions','/me','/me/sessions','/me/consents','/catalog/categories','/geo/cities','/me/monetization-config','/me/entitlements','/me/verification','/me/portfolio-projects','/contractors','/me/orders','/me/assigned-orders','/me/offers','/me/order-change-requests','/me/contractor-profile','/orders','/me/conversations','/me/support-threads','/me/notifications','/me/notification-preferences','/me/privacy-requests','/me/cases','/me/subscriptions','/me/referrals','/me/boosts','/boost-offers','/billing/offers','/top-listings','/events'])add('GET',path);
 add('PATCH','/me');add('PATCH','/me/notification-preferences');add('PUT','/me/contractor-profile');
 for(const path of ['/me/password/change','/me/phone-change-requests','/me/consents','/me/verification-sessions','/me/contractor-profile/publish','/me/portfolio-projects','/orders','/support/threads','/reviews','/me/privacy-requests','/cases','/reports','/me/blocks','/me/push-tokens','/me/notifications/read-all','/billing/verify-purchase','/billing/restore','/billing/refund-requests','/ads/reward-sessions','/referrals/attribute','/boost-reservations','/boost-purchases/verify','/uploads/initiate'])add('POST',path,'user',path==='/orders'?'OrderCreate':undefined);
 for(const path of ['/me/sessions/{id}','/me/blocks/{id}','/me/push-tokens/{id}'])add('DELETE',path);
@@ -36,8 +36,17 @@ for(const config of ['categories','price-versions','monetization-configs','push-
   add('GET','/admin/'+config,'staff');add('POST','/admin/'+config,'staff');
   for(const command of ['validate','preview','publish','stop','cancel','rollback'])add('POST','/admin/'+config+'/{id}/'+command,'staff','VersionedCommand');
 }
+for(const route of routes){
+ if(route.method==='POST'&&['/cases','/reports'].includes(route.path))route.schema='CaseCreate';
+ if(route.method==='POST'&&route.path==='/orders/{id}/invites')route.schema='InviteCreate';
+ if(route.method==='POST'&&route.path==='/order-invites/{id}/respond')route.schema='InviteRespond';
+}
 const uuid={type:'string',format:'uuid'};
 const schemas={
+  InviteCreate:{type:'object',required:['contractor_id'],properties:{contractor_id:uuid,message:{type:'string',maxLength:2000}}},
+  InviteRespond:{type:'object',required:['expected_version','decision'],properties:{expected_version:{type:'integer',minimum:1},decision:{type:'string',enum:['accept','decline']}}},
+  CaseCreate:{type:'object',required:['target_type','target_id','reason_code','description'],properties:{target_type:{type:'string',enum:['order','contractor','user','message']},target_id:uuid,reason_code:{type:'string',enum:['agreement','spam','fraud','content','other','harassment','unsafe','privacy']},description:{type:'string',minLength:10,maxLength:3000},upload_ids:{type:'array',items:uuid,maxItems:10,uniqueItems:true}},description:'Only visible regional targets or targets in existing work/chat may be reported. Reports are private to the author and authorized staff; evidence files must already be clean.'},
+
   Registration:{type:'object',required:['country','phone','password'],properties:{country:{type:'string',enum:['KZ','RS','RU','BY']},phone:{type:'string',pattern:'^\\+[1-9]\\d{7,14}$'},password:{type:'string',minLength:15,maxLength:128,writeOnly:true},display_name:{type:'string',minLength:2,maxLength:60},locale:{type:'string',enum:['ru','kk','sr','be']}}},
   VersionedCommand:{type:'object',properties:{expected_version:{type:'integer',minimum:1},reason:{type:'string',maxLength:3000}},additionalProperties:true},
   MessageCreate:{type:'object',required:['client_message_id','text'],properties:{client_message_id:uuid,text:{type:'string',minLength:1,maxLength:3000},upload_ids:{type:'array',items:uuid,maxItems:5}}},
@@ -49,6 +58,12 @@ const paths={};
 for(const r of routes){
   const parameters=[...r.path.matchAll(/\{(\w+)\}/g)].map(m=>({name:m[1],in:'path',required:true,schema:m[1]==='id'?uuid:{type:'string'}}));
   if(!['GET'].includes(r.method)&&['user','staff'].includes(r.access))parameters.push({name:'Idempotency-Key',in:'header',required:true,schema:{type:'string',minLength:8,maxLength:128}});
+  if(r.method==='GET'&&['/me/cases','/me/order-invites','/me/orders','/me/assigned-orders'].includes(r.path)){
+    parameters.push({name:'cursor',in:'query',schema:{type:'string'}},{name:'limit',in:'query',schema:{type:'integer',minimum:1,maximum:100,default:20}});
+    if(r.path==='/me/cases')parameters.push({name:'bucket',in:'query',schema:{type:'string',enum:['open','resolved']}});
+    if(r.path==='/me/order-invites')parameters.push({name:'status',in:'query',schema:{type:'string',enum:['pending','accepted','declined','expired','revoked']}});
+    if(['/me/orders','/me/assigned-orders'].includes(r.path))parameters.push({name:'bucket',in:'query',schema:{type:'string',enum:['open','active','completed','drafts']}});
+  }
   const security=r.access==='public'||r.access==='signed'?[]:r.access==='provider'?[{ProviderSignature:[]}]:[{BearerAuth:[]}];
   const op={operationId:r.method.toLowerCase()+'_'+r.path.replace(/[^A-Za-z0-9]+/g,'_'),tags:[r.path.split('/')[1]],description:r.access==='staff'?'Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.':r.access==='provider'?'Requires a registered server-side provider adapter and verified raw request evidence. Unconfigured providers return 503.':undefined,security,parameters,responses:{200:{description:'Successful command or query',content:{'application/json':{schema:{$ref:'#/components/schemas/Envelope'}}}},...Object.fromEntries([400,401,403,404,409,413,422,429,503].map(code=>[code,{description:'Structured error',content:{'application/json':{schema:{$ref:'#/components/schemas/Error'}}}}]))}};
   if(r.method!=='GET'&&r.method!=='DELETE')op.requestBody={required:true,content:r.path.endsWith('/content')?{'application/octet-stream':{schema:{type:'string',format:'binary'}}}:{'application/json':{schema:r.schema?{$ref:'#/components/schemas/'+r.schema}:{type:'object',additionalProperties:true}}}};

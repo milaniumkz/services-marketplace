@@ -51,6 +51,7 @@ void main() {
       'version': 1
     };
     var rejectLanguage = true;
+    var rejectInvitation = true;
     final api = JobaApi('https://example.com', vault: _Vault(),
         transport: MockClient((request) async {
       requests.add(request);
@@ -115,6 +116,82 @@ void main() {
               'current': true
             }
           ]
+        });
+      if (path.endsWith('/me/cases/overview'))
+        return _ok({'open': 1, 'resolved': 1});
+      if (path.endsWith('/me/cases'))
+        return _ok({
+          'items': [
+            {
+              'id': request.url.queryParameters['bucket'] == 'resolved'
+                  ? 'resolved-case'
+                  : 'created-case',
+              'status': request.url.queryParameters['bucket'] == 'resolved'
+                  ? 'resolved'
+                  : 'new',
+              'reason_code': 'unsafe',
+              'description': 'Описание конкретной проблемы в работе.'
+            }
+          ]
+        });
+      if (path.endsWith('/cases') && request.method == 'POST')
+        return _ok({
+          'id': 'created-case',
+          'status': 'new',
+          ...jsonDecode(request.body)
+        });
+      if (path.endsWith('/cases/created-case'))
+        return _ok({
+          'id': 'created-case',
+          'status': 'new',
+          'reason_code': 'unsafe',
+          'description': 'Описание конкретной проблемы в работе.'
+        });
+      if (path.endsWith('/contractors/contractor'))
+        return _ok({
+          'id': 'contractor',
+          'display_name': 'Алексей К.',
+          'title': 'Ремонт и отделка'
+        });
+      if (path.endsWith('/orders/working-order/invites') && rejectInvitation) {
+        rejectInvitation = false;
+        return http.Response(
+            jsonEncode({
+              'error': {
+                'code': 'TEMPORARILY_UNAVAILABLE',
+                'message': 'Повторите попытку.'
+              }
+            }),
+            503,
+            headers: {'content-type': 'application/json; charset=utf-8'});
+      }
+      if (path.endsWith('/me/order-invites'))
+        return _ok({
+          'items': [
+            {
+              'id': 'incoming-invite',
+              'order_id': 'invited-order',
+              'version': 1,
+              'status': 'pending',
+              'created_at': '2026-10-13T09:10:00Z',
+              'expires_at': '2026-10-16T09:10:00Z',
+              'customer': {'display_name': 'Марина П.'},
+              'order': {
+                'title': 'Обновить стены в гостиной',
+                'city': 'Алматы',
+                'budget_amount': 8000000,
+                'currency': 'KZT'
+              }
+            }
+          ]
+        });
+      if (path.endsWith('/orders/invited-order'))
+        return _ok({
+          'id': 'invited-order',
+          'title': 'Обновить стены в гостиной',
+          'revision': 1,
+          'status': 'open',
+          'version': 1
         });
       if (path.endsWith('/contractors'))
         return _ok({
@@ -188,6 +265,71 @@ void main() {
     expect(user['active_role'], 'executor');
     expect(find.text('Найдём ваш\nследующий заказ'), findsOneWidget);
     await capture('S09-executor-home');
+    state.go('invite', 'contractor');
+    await tester.pumpAndSettle();
+    expect(requests.last.url.queryParameters['bucket'], 'open');
+    await tester.tap(find.text('Собрать кухню и подключить мойку'));
+    await tester.enterText(find.byType(TextField), 'Подойдут ли вам сроки?');
+    await capture('S19-invite');
+    await tester.tap(find.text('Отправить приглашение'));
+    await tester.pumpAndSettle();
+    expect(state.route, 'invite');
+    expect(find.text('Подойдут ли вам сроки?'), findsOneWidget);
+    await tester.tap(find.text('Отправить приглашение'));
+    await tester.pumpAndSettle();
+    final sentInvites = requests
+        .where((r) => r.url.path.endsWith('/orders/working-order/invites'))
+        .toList();
+    expect(sentInvites.length, 2);
+    expect(
+        jsonDecode(sentInvites.last.body)['message'], 'Подойдут ли вам сроки?');
+    expect(state.route, 'home');
+    expect(find.text('Найдём ваш\nследующий заказ'), findsOneWidget);
+
+    state.reportObject('contractor', 'contractor');
+    await tester.pumpAndSettle();
+    await capture('S29-report');
+    await tester.enterText(find.byType(TextFormField).first,
+        'Описание конкретной проблемы в работе.');
+    await tester.ensureVisible(find.text('Небезопасное поведение'));
+    await tester.tap(find.text('Небезопасное поведение'));
+    await tester.pumpAndSettle();
+    expect(find.text('Описание конкретной проблемы в работе.'), findsOneWidget);
+    await capture('S29-report-filled');
+    await tester.tap(find.text('Отправить обращение'));
+    await tester.pumpAndSettle();
+    final complaint = requests
+        .firstWhere((r) => r.url.path.endsWith('/cases') && r.method == 'POST');
+    expect(jsonDecode(complaint.body)['target_type'], 'contractor');
+    expect(jsonDecode(complaint.body)['reason_code'], 'unsafe');
+    expect(state.route, 'case');
+    expect(state.objectId, 'created-case');
+    state.go('cases');
+    await tester.pumpAndSettle();
+    await capture('S30-cases');
+    await tester.tap(find.text('Решённые · 1'));
+    await tester.pumpAndSettle();
+    expect(requests.last.url.queryParameters['bucket'], 'resolved');
+    expect(find.text('Решено'), findsOneWidget);
+    await tester.tap(find.text('Новое обращение'));
+    await tester.pumpAndSettle();
+    expect(state.route, 'support');
+
+    state.go('invitations');
+    await tester.pumpAndSettle();
+    expect(find.text('Обновить стены в гостиной'), findsOneWidget);
+    expect(find.text('Марина П.'), findsOneWidget);
+    await capture('S20-invitations');
+    await tester.tap(find.text('Ответить'));
+    await tester.pumpAndSettle();
+    final invitationResponse = requests.firstWhere(
+        (r) => r.url.path.endsWith('/order-invites/incoming-invite/respond'));
+    expect(jsonDecode(invitationResponse.body)['decision'], 'accept');
+    expect(state.route, 'offer');
+    expect(state.objectId, 'invited-order');
+    state.go('executor-home');
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Профиль'));
     await tester.pumpAndSettle();
     await capture('S11-account');

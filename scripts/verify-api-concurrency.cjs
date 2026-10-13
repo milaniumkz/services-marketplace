@@ -39,6 +39,27 @@ async function main(){
   stage='competing revisions';
   const edits=await Promise.allSettled([first,second].map((api,index)=>api.handle('PATCH','/orders/'+saved[0].id,{expected_version:1,title:'Конкурирующая правка '+index},auth,randomUUID())));
   assert.equal(edits.filter(r=>r.status==='fulfilled').length,1);assert.equal(edits.find(r=>r.status==='rejected').reason.getResponse().error.code,'STATE_CONFLICT');
+  stage='invitation pair and daily limits';
+  const executor=await first.handle('POST','/auth/register',{country:'KZ',phone:'+77000000702',password:'Isolated executor invitation password!'},undefined,undefined,{},'isolated-executor-register');
+  const executorUser=await first.store.get(executor.user.id);await first.store.put({...executorUser,roles:['executor'],verification:'passed',version:executorUser.version+1});
+  const until=new Date(Date.now()+86400000).toISOString(),now=new Date().toISOString();
+  const put=(kind,owner,data)=>first.store.put({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:now,...data});
+  const customerGrant=await put('grant',credentials.user.id,{capabilities:['publish_order'],valid_until:until,balance:2});
+  await put('grant',executor.user.id,{capabilities:['send_offer'],valid_until:until,balance:2});
+  const profile=await put('contractor',executor.user.id,{status:'published',availability:'available'});
+  const opened=await first.store.get(saved[0].id);await first.store.put({...opened,status:'open',expires_at:until,version:opened.version+1});
+  const inviteBody={contractor_id:profile.id,message:'Параллельная проверка приглашений.'};
+  const pair=await Promise.allSettled([first,second].map(api=>api.handle('POST','/orders/'+opened.id+'/invites',inviteBody,auth,randomUUID())));
+  assert.equal(pair.filter(r=>r.status==='fulfilled').length,1);assert.equal(pair.find(r=>r.status==='rejected').reason.getResponse().error.code,'STATE_CONFLICT');
+  assert.equal((await first.store.get(customerGrant.id)).balance,2);
+  for(let i=0;i<8;i++)await put('invite',credentials.user.id,{order_id:randomUUID(),recipient_id:executor.user.id,status:'declined'});
+  const dailyOrders=[];for(let i=0;i<2;i++)dailyOrders.push(await put('order',credentials.user.id,{title:'Проверка дневного лимита '+i,status:'open',revision:1,expires_at:until}));
+  const daily=await Promise.allSettled([first,second].map((api,i)=>api.handle('POST','/orders/'+dailyOrders[i].id+'/invites',inviteBody,auth,randomUUID())));
+  assert.equal(daily.filter(r=>r.status==='fulfilled').length,1);assert.equal(daily.find(r=>r.status==='rejected').reason.getResponse().error.code,'RATE_LIMITED');
+  stage='duplicate safety reports';
+  const reportBody={target_type:'order',target_id:opened.id,reason_code:'agreement',description:'Проверка единственного дела при параллельных запросах.'};
+  const reports=await Promise.allSettled([first,second].map(api=>api.handle('POST','/cases',reportBody,auth,randomUUID())));
+  assert.equal(reports.filter(r=>r.status==='fulfilled').length,1);assert.equal(reports.find(r=>r.status==='rejected').reason.getResponse().error.code,'STATE_CONFLICT');
   stage='session rotation';
   const rotation=await Promise.allSettled([first,second].map(api=>api.handle('POST','/auth/refresh',{refresh_token:credentials.refresh_token},undefined,undefined,{},'isolated-refresh')));
   assert.equal(rotation.filter(r=>r.status==='fulfilled').length,1);assert.equal(rotation.find(r=>r.status==='rejected').reason.getResponse().error.code,'REFRESH_REPLAY');
@@ -49,7 +70,7 @@ async function main(){
   stage='new API process';
   const third=await make();await assert.rejects(()=>third.handle('POST','/auth/login',{country:'KZ',phone:'+77000000701',password:'Isolated concurrent API password!'},undefined,undefined,{},'new-process-new-ip'),error=>error.getResponse().error.code==='RATE_LIMITED');
   const scopes=(await first.store.db.query('SELECT scope_hash FROM rate_limits')).rows;assert.ok(scopes.length);assert.ok(scopes.every(row=>/^[0-9a-f]{64}$/.test(row.scope_hash)));
-  console.log('PostgreSQL concurrency: one result per idempotency key, one winning revision, refresh replay family revocation, shared persistent failed-login limits and hashed scopes passed.');
+  console.log('PostgreSQL concurrency: one result per idempotency key, one winning revision, refresh replay family revocation, shared persistent failed-login limits, hashed scopes, invitation active pairs and daily limits, free invitation credits and duplicate safety reports passed.');
  }finally{
   for(const api of instances)await api.store.close();
   if(started)docker(['stop',name]);await rm(dir,{recursive:true,force:true});

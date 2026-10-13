@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../core/api.dart';
 import 'profile_editor.dart';
+import 'invite_editor.dart';
 import '../core/theme.dart';
 import '../core/design_icons.dart';
 import '../core/design_widgets.dart';
@@ -738,15 +739,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'report':
         return reportScreen();
       case 'cases':
-        return page(
-            'Мои обращения',
-            paged(
-                '/me/cases',
-                (r) => DataCard(
-                    '${r['reason_code'] ?? r['type'] ?? 'Обращение'}',
-                    subtitle: '${r['description'] ?? r['reason'] ?? ''}',
-                    status: status(r),
-                    onTap: () => go('case', r['id']))));
+        return casesScreen();
       case 'case':
         return caseScreen();
       case 'notifications':
@@ -2428,7 +2421,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 () => go(o['conversation_id'] == null ? 'messages' : 'chat',
                     o['conversation_id']),
                 outline: true),
-          button('Пожаловаться', () => go('report', o['id']), outline: true),
+          button('Пожаловаться', () => reportObject(o['id'], 'order'),
+              outline: true),
         ]);
       }));
   Widget editOrderScreen() => page(
@@ -2685,7 +2679,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     outline: true),
                 button('Отзывы', () => go('reviews', r['owner']),
                     outline: true),
-                button('Пожаловаться', () => go('report', r['id']),
+                button(
+                    'Пожаловаться', () => reportObject(r['id'], 'contractor'),
                     outline: true),
                 button(
                     'Заблокировать контакт',
@@ -2943,58 +2938,156 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         });
         reload();
       });
-  Widget inviteScreen() {
-    final contractor = objectId;
-    return page(
-        'Пригласить исполнителя',
-        paged(
-            '/me/orders',
-            (o) => DataCard('${o['title']}',
-                status: status(o),
-                footer: o['status'] == 'open'
-                    ? button(
-                        'Пригласить',
-                        () => act(() async {
-                              await api.request('/orders/${o['id']}/invites',
-                                  method: 'POST',
-                                  body: {'contractor_id': contractor});
-                              success('Приглашение отправлено');
-                              back();
-                            }))
-                    : const UiText(
-                        'Для приглашения заказ должен быть открыт'))));
-  }
+  Widget inviteScreen() => page(
+      'Предложить заказ',
+      InviteEditor(
+          key: ValueKey('invite:$objectId'),
+          api: api,
+          contractorId: objectId!,
+          locale: locale,
+          period: windowLabel,
+          onCreateOrder: () => go('create'),
+          onSent: () {
+            success('Приглашение отправлено');
+            back();
+          }));
 
   Widget invitationsScreen() => page(
-      'Входящие приглашения',
-      paged(
-          '/me/order-invites',
-          (i) => DataCard('Приглашение в заказ',
-              translateTitle: true,
-              status: status(i),
-              onTap: () => go('order', i['order_id']),
-              footer: i['status'] == 'pending'
-                  ? Column(children: [
-                      for (final entry in {
-                        'accept': 'Принять',
-                        'decline': 'Отклонить'
-                      }.entries)
-                        button(
-                            entry.value,
-                            () => act(() async {
-                                  await api.request(
-                                      '/order-invites/${i['id']}/respond',
-                                      method: 'POST',
-                                      body: {
-                                        'expected_version': i['version'],
-                                        'decision': entry.key
-                                      });
-                                  setState(() => revision++);
-                                  success('Ответ сохранён');
-                                }),
-                            outline: entry.key == 'decline')
-                    ])
-                  : null)));
+      'Приглашения',
+      PagedList(
+          key: ValueKey('invitations:$revision'),
+          api: api,
+          path: '/me/order-invites',
+          header: const Padding(
+              padding: EdgeInsets.only(bottom: 22),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    UiText('Вас приглашают',
+                        style: TextStyle(
+                            fontSize: 26,
+                            height: 1.35,
+                            letterSpacing: -.9,
+                            fontWeight: FontWeight.w700)),
+                    SizedBox(height: 12),
+                    UiText('Заказчики предлагают вам работу.',
+                        style:
+                            TextStyle(color: muted, fontSize: 12, height: 1.55))
+                  ])),
+          tile: (i) {
+            final order = i['order'] as Json?;
+            final customer = i['customer'] as Json?;
+            final pending = i['status'] == 'pending' && order != null;
+            return Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: line),
+                    borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        if (customer != null) ...[
+                          JobaAvatar(
+                              api: api,
+                              name: customer['display_name'] ?? '',
+                              id: customer['avatar_id'],
+                              size: 42),
+                          const SizedBox(width: 10),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                Text(customer['display_name'] ?? '',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13)),
+                                const SizedBox(height: 4),
+                                Text(dateLabel(i['created_at']),
+                                    style: const TextStyle(
+                                        color: muted, fontSize: 10))
+                              ])),
+                        ] else
+                          const Spacer(),
+                        JobaBadge(pending ? 'Новое' : status(i))
+                      ]),
+                      const SizedBox(height: 18),
+                      Text(
+                          order?['title'] ??
+                              localize(context, 'Приглашение в заказ'),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                              height: 1.4)),
+                      if (order != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                            [order['city'], windowLabel(order)]
+                                .where((v) =>
+                                    v != null &&
+                                    v.toString().isNotEmpty &&
+                                    v != '—')
+                                .join(' · '),
+                            style: const TextStyle(
+                                color: muted, fontSize: 12, height: 1.55)),
+                        if (order['budget_amount'] != null) ...[
+                          const SizedBox(height: 14),
+                          Text(price(order['budget_amount'], order['currency']),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 16))
+                        ],
+                        if ((i['message'] ?? '').toString().isNotEmpty)
+                          Padding(
+                              padding: const EdgeInsets.only(top: 14),
+                              child: Text('«${i['message']}»',
+                                  style: const TextStyle(
+                                      fontSize: 12, height: 1.55))),
+                        if (pending) ...[
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            for (final entry in {
+                              'decline': 'Отказаться',
+                              'accept': 'Ответить'
+                            }.entries) ...[
+                              if (entry.key == 'accept')
+                                const SizedBox(width: 12),
+                              Expanded(
+                                  child: button(
+                                      entry.value,
+                                      () => act(() async {
+                                            await api.request(
+                                                '/order-invites/${i['id']}/respond',
+                                                method: 'POST',
+                                                body: {
+                                                  'expected_version':
+                                                      i['version'],
+                                                  'decision': entry.key
+                                                });
+                                            setState(() => revision++);
+                                            if (entry.key == 'accept') {
+                                              go('offer', i['order_id']);
+                                            } else {
+                                              success('Ответ сохранён');
+                                            }
+                                          }),
+                                      outline: entry.key == 'decline')),
+                            ]
+                          ])
+                        ] else
+                          button('Подробнее', () => go('order', i['order_id']),
+                              outline: true),
+                      ],
+                      if (i['expires_at'] != null)
+                        Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                                '${localize(context, 'Приглашение действует до')} ${dateLabel(i['expires_at'])}',
+                                style: const TextStyle(
+                                    fontSize: 10, color: muted)))
+                    ]));
+          }));
   Widget chatScreen(bool support) => page(
       support ? 'Поддержка JOBA' : 'Чат заказа',
       MessageThread(
@@ -3155,31 +3248,214 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               reload();
             });
       }));
+  String reportTargetType = 'order', reportReason = 'agreement';
+  final List<String> reportUploads = [];
+  void reportObject(String id, String type) {
+    reportTargetType = type;
+    reportReason = 'agreement';
+    reportUploads.clear();
+    go('report', id);
+  }
+
   Widget reportScreen() => page(
       'Сообщить о проблеме',
       ActionForm(
-          fields: const [
-            InputSpec('target_type', 'Тип объекта', initial: 'order', options: {
-              'order': 'Заказ',
-              'contractor': 'Услуга',
-              'user': 'Пользователь',
-              'message': 'Сообщение'
-            }),
-            InputSpec('reason_code', 'Причина', initial: 'other', options: {
-              'spam': 'Спам',
-              'fraud': 'Подозрение на обман',
-              'content': 'Нарушение содержания',
-              'other': 'Другая причина'
-            }),
-            InputSpec('description', 'Опишите ситуацию', multiline: true)
+          stickySubmit: true,
+          externalBusy: actionBusy,
+          before: [
+            const UiHeading('Поможем разобраться',
+                'Обращение будет видно только вам и поддержке.'),
+            const UiText('Причина',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            const SizedBox(height: 8),
+            RadioGroup<String>(
+                groupValue: reportReason,
+                onChanged: (value) => setState(() => reportReason = value!),
+                child: Column(children: [
+                  for (final reason in {
+                    'agreement': [
+                      'Нарушение договорённости',
+                      'Сроки, результат или условия'
+                    ],
+                    'unsafe': [
+                      'Небезопасное поведение',
+                      'Угрозы, оскорбления или подозрительные действия'
+                    ],
+                    'content': [
+                      'Недопустимый контент',
+                      'Фото, текст или контакты'
+                    ]
+                  }.entries)
+                    Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                            color: reportReason == reason.key
+                                ? const Color(0xFFF0F4FF)
+                                : Colors.white,
+                            border: Border.all(
+                                color: reportReason == reason.key
+                                    ? primary
+                                    : line),
+                            borderRadius: BorderRadius.circular(14)),
+                        child: RadioListTile<String>(
+                            value: reason.key,
+                            controlAffinity: ListTileControlAffinity.trailing,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 6),
+                            fillColor: WidgetStateProperty.resolveWith(
+                                (states) =>
+                                    states.contains(WidgetState.selected)
+                                        ? primary
+                                        : const Color(0xFFB8C8E3)),
+                            enabled: !actionBusy,
+                            title: UiText(reason.value.first,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 14)),
+                            subtitle: UiText(reason.value.last,
+                                style: const TextStyle(
+                                    color: muted, fontSize: 12))))
+                ]))
           ],
-          button: 'Отправить жалобу',
-          submit: (v) async {
-            await api.request('/cases',
-                method: 'POST', body: {...v, 'target_id': objectId});
+          fields: [
+            InputSpec('description', 'Что произошло?',
+                multiline: true,
+                lines: 4,
+                validate: (value) => value.trim().length < 10
+                    ? localize(context, 'Опишите ситуацию подробнее')
+                    : null)
+          ],
+          afterFields: [
+            const UiText('Материалы',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            for (final id in reportUploads)
+              Row(children: [
+                Expanded(child: AttachmentView(api: api, id: id)),
+                IconButton(
+                    onPressed: actionBusy
+                        ? null
+                        : () => setState(() => reportUploads.remove(id)),
+                    tooltip: localize(context, 'Удалить'),
+                    icon: const JobaIcon('trash'))
+              ]),
+            if (reportUploads.length < 10)
+              JobaUploadButton('Добавить файл или фото',
+                  onPressed: actionBusy
+                      ? null
+                      : () => act(() async {
+                            final scope = objectId;
+                            final file = await pickUpload('chat');
+                            if (file != null &&
+                                mounted &&
+                                route == 'report' &&
+                                objectId == scope)
+                              setState(() => reportUploads.add(file['id']));
+                          })),
+            const SizedBox(height: 8),
+            const UiText('Безопасные вложения проверяются перед показом.',
+                style: TextStyle(color: muted, fontSize: 10))
+          ],
+          button: 'Отправить обращение',
+          submit: (fields) async {
+            final record = await api.request('/cases', method: 'POST', body: {
+              ...fields,
+              'target_type': reportTargetType,
+              'target_id': objectId,
+              'reason_code': reportReason,
+              'upload_ids': reportUploads
+            }) as Json;
+            reportUploads.clear();
             success('Жалоба отправлена');
-            go('cases');
+            go('case', record['id']);
           }));
+  String casesBucket = 'open';
+  Widget casesScreen() => page(
+      'Мои обращения',
+      loaded(
+          '/me/cases/overview',
+          (data, reload) => PagedList(
+              key: ValueKey('cases:$casesBucket:$revision'),
+              api: api,
+              path: '/me/cases',
+              query: {'bucket': casesBucket},
+              header: Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Row(children: [
+                    for (final entry in {
+                      'open': 'Открытые',
+                      'resolved': 'Решённые'
+                    }.entries) ...[
+                      if (entry.key == 'resolved') const SizedBox(width: 8),
+                      ChoiceChip(
+                          selected: casesBucket == entry.key,
+                          onSelected: (_) =>
+                              setState(() => casesBucket = entry.key),
+                          label: Text(
+                              '${localize(context, entry.value)} · ${data[entry.key]}'),
+                          showCheckmark: false,
+                          selectedColor: navy,
+                          backgroundColor: Colors.white,
+                          labelStyle: TextStyle(
+                              color: casesBucket == entry.key
+                                  ? Colors.white
+                                  : navy,
+                              fontSize: 12),
+                          side: BorderSide(
+                              color: casesBucket == entry.key ? navy : line),
+                          shape: const StadiumBorder())
+                    ]
+                  ])),
+              tile: caseCard,
+              footer: button('Новое обращение', () => go('support'),
+                  outline: true))));
+  Widget caseCard(Json record) => Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: line),
+          borderRadius: BorderRadius.circular(16)),
+      child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => go('case', record['id']),
+              child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          JobaBadge(status(record)),
+                          const Spacer(),
+                          Text(
+                              '№ ${record['id'].toString().substring(0, 8).toUpperCase()}',
+                              style:
+                                  const TextStyle(fontSize: 10, color: muted))
+                        ]),
+                        const SizedBox(height: 12),
+                        UiText(
+                            const {
+                                  'agreement': 'Нарушение договорённости',
+                                  'unsafe': 'Небезопасное поведение',
+                                  'content': 'Недопустимый контент',
+                                  'spam': 'Спам',
+                                  'fraud': 'Подозрение на обман',
+                                  'dictionary_match': 'Проверка содержания'
+                                }[record['reason_code']] ??
+                                'Обращение',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 8),
+                        Text(record['description'] ?? record['reason'] ?? '',
+                            style: const TextStyle(
+                                fontSize: 12, color: muted, height: 1.55)),
+                        if (record['response_due_at'] != null)
+                          Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Text(
+                                  '${localize(context, 'Ответить до')} ${dateLabel(record['response_due_at'])}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: primary)))
+                      ])))));
   Widget caseScreen() => page(
       'Обращение',
       loaded(
@@ -3188,6 +3464,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 DataCard('${data['reason_code'] ?? 'Обращение'}',
                     status: status(data),
                     subtitle: '${data['description'] ?? ''}'),
+                for (final id in data['upload_ids'] as List? ?? [])
+                  AttachmentView(api: api, id: id),
                 SizedBox(
                     height: 280,
                     child: paged(
@@ -3969,7 +4247,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Future<Json?> pickUpload(String purpose, {String? verificationId}) async {
     final selected = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: purpose == 'identity'
+        allowedExtensions: purpose == 'identity' || purpose == 'chat'
             ? ['jpg', 'jpeg', 'png', 'pdf']
             : ['jpg', 'jpeg', 'png'],
         withData: true);

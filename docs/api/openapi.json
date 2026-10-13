@@ -1749,6 +1749,52 @@
         }
       }
     },
+    "/me/cases/overview": {
+      "get": {
+        "operationId": "get__me_cases_overview",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
     "/me/overview": {
       "get": {
         "operationId": "get__me_overview",
@@ -2510,7 +2556,38 @@
             "BearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "bucket",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "active",
+                "completed",
+                "drafts"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/Success"
@@ -2556,7 +2633,38 @@
             "BearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "bucket",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "active",
+                "completed",
+                "drafts"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/Success"
@@ -3279,7 +3387,36 @@
             "BearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "bucket",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "resolved"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/Success"
@@ -4104,8 +4241,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/CaseCreate"
               }
             }
           }
@@ -4172,8 +4308,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/CaseCreate"
               }
             }
           }
@@ -6697,7 +6832,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedCommand"
+                "$ref": "#/components/schemas/InviteCreate"
               }
             }
           }
@@ -7551,7 +7686,39 @@
             "BearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "accepted",
+                "declined",
+                "expired",
+                "revoked"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/Success"
@@ -7655,7 +7822,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedCommand"
+                "$ref": "#/components/schemas/InviteRespond"
               }
             }
           }
@@ -19137,6 +19304,94 @@
   },
   "components": {
     "schemas": {
+      "InviteCreate": {
+        "type": "object",
+        "required": [
+          "contractor_id"
+        ],
+        "properties": {
+          "contractor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      },
+      "InviteRespond": {
+        "type": "object",
+        "required": [
+          "expected_version",
+          "decision"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "decline"
+            ]
+          }
+        }
+      },
+      "CaseCreate": {
+        "type": "object",
+        "required": [
+          "target_type",
+          "target_id",
+          "reason_code",
+          "description"
+        ],
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "order",
+              "contractor",
+              "user",
+              "message"
+            ]
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "agreement",
+              "spam",
+              "fraud",
+              "content",
+              "other",
+              "harassment",
+              "unsafe",
+              "privacy"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 3000
+          },
+          "upload_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 10,
+            "uniqueItems": true
+          }
+        },
+        "description": "Only visible regional targets or targets in existing work/chat may be reported. Reports are private to the author and authorized staff; evidence files must already be clean."
+      },
       "Registration": {
         "type": "object",
         "required": [

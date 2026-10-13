@@ -31,15 +31,26 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0002_runtime.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0003_rate_limits.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0004_account_views.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0005_invite_queries.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string}={}) {
+  async select(kind:string,country:string,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
+    if(options.recipient)where.push("data->>'recipient_id'="+bind(options.recipient));
+    if(options.caseActor){const actor=bind(options.caseActor);where.push(`(owner=${actor} OR data->>'subject_user_id'=${actor} AND COALESCE(data->>'reporter_private','false')<>'true')`);}
+    if(options.caseBucket)where.push("data->>'status' "+(options.caseBucket==='resolved'?'IN':'NOT IN')+" ('resolved','closed','dismissed')");
+
+    if(options.inviteState){
+      if(options.inviteState==='pending')where.push("data->>'status'='pending' AND (data->>'expires_at' IS NULL OR (data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP)");
+      else if(options.inviteState==='expired')where.push("(data->>'status'='expired' OR data->>'status'='pending' AND (data->>'expires_at')::timestamptz <= CURRENT_TIMESTAMP)");
+      else where.push("data->>'status'="+bind(options.inviteState));
+    }
+
     if(options.executor)where.push("data->>'executor_id'="+bind(options.executor));
     if(options.participant){const participant=bind(options.participant);where.push(`(owner=${participant} OR data->>'executor_id'=${participant})`);}
     if(options.statuses)where.push("data->>'status'=ANY("+bind(options.statuses)+'::text[])');
