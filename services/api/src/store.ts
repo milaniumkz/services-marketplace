@@ -34,7 +34,7 @@ export class Store {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string}={}) {
+  async select(kind:string,country:string,options:{owner?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;publicActor?:string}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
@@ -42,8 +42,15 @@ export class Store {
     if(options.after)where.push('id>'+bind(options.after)+'::uuid');
     if(options.city)where.push("data->>'city'="+bind(options.city));
     if(options.category)where.push("data->>'category_id'="+bind(options.category));
+    if(options.publicActor){
+      const viewer=bind(options.publicActor);
+      where.push("COALESCE(data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')");
+      where.push(`NOT EXISTS(SELECT 1 FROM records block WHERE block.kind='pair_block' AND block.country=r.country AND block.data->>'status'='active' AND ((block.owner=${viewer} AND block.data->>'target_id'=r.owner) OR (block.owner=r.owner AND block.data->>'target_id'=${viewer})))`);
+      where.push(`EXISTS(SELECT 1 FROM records account WHERE account.kind='user' AND account.id::text=r.owner AND account.country=r.country AND account.data->>'status'='active' ${kind==='contractor'?"AND account.data->>'verification'='passed'":''})`);
+      if(kind==='order')where.push("(data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP");
+    }
     if(options.search){const parameter=bind('%'+options.search+'%');where.push(`(data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);}
-    const limit=options.limit??101;const r=await this.db.query<{data:RecordData}>('SELECT data FROM records WHERE '+where.join(' AND ')+' ORDER BY id LIMIT '+bind(limit),args);return r.rows.map(r=>r.data);
+    const limit=options.limit??101;const r=await this.db.query<{data:RecordData}>('SELECT data FROM records r WHERE '+where.join(' AND ')+' ORDER BY id LIMIT '+bind(limit),args);return r.rows.map(r=>r.data);
   }
   async get(id: string): Promise<RecordData | undefined> {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return undefined;

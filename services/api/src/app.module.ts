@@ -24,7 +24,7 @@ export class MarketplaceController {
       const etag=`"config-${result.version}"`;res.setHeader('ETag',etag);res.setHeader('X-Config-Expires-At',result.expires_at);
       if(req.headers['if-none-match']===etag){res.status(304).end();return;}
     }
-    if(result?.download_buffer){res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition',`attachment; filename="document.${result.mime==='application/json'?'json':result.mime==='application/pdf'?'pdf':'jpg'}"`);res.setHeader('X-Content-Type-Options','nosniff');res.send(result.download_buffer);return;}
+    if(result?.download_buffer){res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition',`attachment; filename="document.${result.mime==='application/zip'?'zip':result.mime==='application/json'?'json':result.mime==='application/pdf'?'pdf':'jpg'}"`);res.setHeader('X-Content-Type-Options','nosniff');res.send(result.download_buffer);return;}
     res.json({data:result,meta:{request_id:req.joba_request_id,server_time:new Date().toISOString()}});
   }
 }

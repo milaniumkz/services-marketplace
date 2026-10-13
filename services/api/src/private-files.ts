@@ -1,5 +1,8 @@
 import { createCipheriv,createDecipheriv,randomBytes,createHmac } from 'node:crypto';
-import { mkdir,readFile,writeFile } from 'node:fs/promises';
+import { mkdir,readFile,writeFile,open,rename,rm } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { Readable,Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { FileScanner } from './providers';
@@ -29,6 +32,31 @@ export class PrivateFiles {
     const decipher=createDecipheriv('aes-256-gcm',this.key!,data.subarray(0,12));decipher.setAuthTag(data.subarray(12,28));
     return Buffer.concat([decipher.update(data.subarray(28)),decipher.final()]);
   }
+  async readStream(id:string):Promise<Readable> {
+    if(!this.key)await this.initialize();
+    const handle=await open(this.path(id),'r');
+    const header=Buffer.alloc(28);
+    try {
+      const result=await handle.read(header,0,28,0);if(result.bytesRead!==28)throw Error('Invalid encrypted file');
+      const decipher=createDecipheriv('aes-256-gcm',this.key!,header.subarray(0,12));decipher.setAuthTag(header.subarray(12));
+      pipeline(handle.createReadStream({start:28}),decipher).catch(error=>decipher.destroy(error));
+      return decipher;
+    }catch(error){await handle.close();throw error;}
+  }
+  async writeStream(id:string,source:Readable):Promise<number> {
+    if(!this.key)await this.initialize();
+    const destination=this.path(id),temporary=destination+'.pending-'+randomBytes(12).toString('hex');
+    const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',this.key!,iv);
+    let size=0;
+    const counter=new Transform({transform(chunk,_encoding,done){size+=chunk.length;done(null,chunk);}});
+    try {
+      const output=createWriteStream(temporary,{flags:'wx',mode:0o600});output.write(Buffer.concat([iv,Buffer.alloc(16)]));
+      await pipeline(source,counter,cipher,output);
+      const handle=await open(temporary,'r+');try{await handle.write(cipher.getAuthTag(),0,16,12);}finally{await handle.close();}
+      await rename(temporary,destination);return size;
+    }finally{await rm(temporary,{force:true});}
+  }
+  async remove(id:string){await rm(this.path(id),{force:true});}
   async requestDigest(body:string) {if(!this.key)await this.initialize();return createHmac('sha256',this.key!).update('joba-idempotency-v1\0').update(body).digest('hex');}
 }
 /** Configure a maintained ClamAV executable and signature database on the future server. */

@@ -41,6 +41,7 @@ const states = {
   'revoked': 'Отозвано',
   'restricted': 'Ограничено',
   'appealed': 'Апелляция на рассмотрении',
+  'failed': 'Обработка не завершена',
   'available': 'Можно активировать',
   'redeemed': 'Активирована',
   'awaiting_retention_policy': 'Ожидается проверка сроков хранения',
@@ -52,6 +53,8 @@ const eventTitles = {
   'invite.created': 'Приглашение в заказ',
   'message.created': 'Новое сообщение',
   'support.message.created': 'Ответ поддержки',
+  'case.message.created': 'Сообщение по обращению',
+  'privacy.export.ready': 'Архив данных готов',
   'cancel_request.accepted': 'Отмена согласована',
   'cancel_request.rejected': 'Отмена отклонена',
   'amendment.accepted': 'Новые условия согласованы',
@@ -476,6 +479,46 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       button(
                           'Открыть чат', () => go('chat', r['conversation_id']),
                           outline: true),
+                      if (r['status'] == 'active') ...[
+                        button('Редактировать отклик', () => editOffer(r),
+                            outline: true),
+                        button(
+                            'Подтвердить актуальные условия',
+                            () => act(() async {
+                                  final order = await api.request(
+                                      '/orders/${r['order_id']}') as Json;
+                                  if (!mounted) return;
+                                  final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (c) => AlertDialog(
+                                              title:
+                                                  const Text('Условия заказа'),
+                                              content: Text(
+                                                  '${order['title']}\n${order['description']}'),
+                                              actions: [
+                                                TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(c, false),
+                                                    child:
+                                                        const Text('Отмена')),
+                                                TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(c, true),
+                                                    child: const Text(
+                                                        'Подтвердить'))
+                                              ]));
+                                  if (confirmed != true) return;
+                                  await api.request(
+                                      '/offers/${r['id']}/acknowledge',
+                                      method: 'POST',
+                                      body: {
+                                        'expected_version': r['version'],
+                                        'order_revision': order['revision']
+                                      });
+                                  if (mounted) setState(() => revision++);
+                                }),
+                            outline: true),
+                      ],
                       if (r['status'] == 'active')
                         button(
                             'Отозвать отклик',
@@ -500,6 +543,19 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             nav: true);
       case 'contractor':
         return contractorScreen();
+      case 'public-portfolio':
+        return page(
+            'Портфолио исполнителя',
+            paged(
+                '/contractors/$objectId/portfolio',
+                (project) => DataCard('${project['title']}',
+                    subtitle: '${project['description']}',
+                    footer: Column(children: [
+                      for (final photo in (project['photos'] as List? ?? []))
+                        Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: PrivatePhoto(api: api, id: photo))
+                    ]))));
       case 'services':
         return servicesScreen();
       case 'invitations':
@@ -553,8 +609,40 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     onTap: () => act(() async {
                           await api.request('/me/notifications/${r['id']}/read',
                               method: 'POST');
-                          setState(() => revision++);
+                          if (!mounted) return;
+                          final type = '${r['type']}';
+                          if (type == 'message.created') {
+                            go('chat', r['target_id']);
+                          } else if (type == 'support.message.created') {
+                            go('support-chat', r['target_id']);
+                          } else if (type.startsWith('order.') ||
+                              type == 'offer.created') {
+                            go('order', r['target_id']);
+                          } else if (type == 'privacy.export.ready') {
+                            go('privacy');
+                          } else if (type == 'case.message.created') {
+                            go('case', r['target_id']);
+                          } else if (type == 'invite.created') {
+                            go('invitations');
+                          } else if (type.startsWith('amendment.') ||
+                              type.startsWith('cancel_request.')) {
+                            go('change-requests');
+                          } else {
+                            setState(() => revision++);
+                          }
                         }))),
+            actions: [
+              IconButton(
+                  tooltip: 'Прочитать все',
+                  icon: const Icon(Icons.done_all),
+                  onPressed: () => act(() async {
+                        final before = api.serverTime;
+                        if (before == null) return;
+                        await api.request('/me/notifications/read-all',
+                            method: 'POST', body: {'before': before});
+                        if (mounted) setState(() => revision++);
+                      }))
+            ],
             nav: true);
       case 'access':
       case 'my-access':
@@ -693,19 +781,27 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     size: 20),
               ]))));
   Widget welcomeScreen() => Scaffold(
-          body: SafeArea(
-              child: Column(children: [
+      backgroundColor: canvas,
+      body: SafeArea(
+          child: Column(children: [
         Expanded(
             child: listBody([
-          const Text('JOBA',
+          const Text.rich(
+              TextSpan(children: [
+                TextSpan(text: 'JOBA'),
+                TextSpan(text: '•', style: TextStyle(color: yellow))
+              ]),
               style: TextStyle(
                   fontSize: 25,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -1.8,
                   color: primary)),
           const SizedBox(height: 24),
-          Image.asset('assets/joba-logo-original.jpeg',
-              height: 140, fit: BoxFit.contain),
+          Center(
+              child: ClipRRect(
+                  borderRadius: BorderRadius.circular(31),
+                  child: Image.asset('assets/joba-logo-original.jpeg',
+                      width: 140, height: 140, fit: BoxFit.contain))),
           const SizedBox(height: 24),
           const Heading('Дела становятся проще',
               'Находите специалистов и заказы в вашем городе.'),
@@ -722,6 +818,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           const SizedBox(height: 16),
           const Text('Язык интерфейса',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
           DropdownButtonFormField<String>(
               initialValue: locale,
               items: const [
@@ -736,8 +833,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               'Страна и язык выбираются отдельно. Доступность функций зависит от региона.',
               style: TextStyle(fontSize: 11, color: Color(0xFF6B7890))),
         ])),
-        Padding(
-            padding: const EdgeInsets.all(20),
+        Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             child: FilledButton(
                 onPressed: () => go('login'), child: const Text('Продолжить'))),
       ])));
@@ -857,6 +955,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               await api.refresh();
               me = await api.request('/me') as Json;
               country = me!['country'];
+              executor = me!['active_role'] == 'executor';
               if (mounted)
                 setState(() {
                   locked = false;
@@ -879,6 +978,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         await api.refresh();
                         me = await api.request('/me') as Json;
                         country = me!['country'];
+                        executor = me!['active_role'] == 'executor';
                         if (mounted)
                           setState(() {
                             locked = false;
@@ -906,9 +1006,24 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     children: [
                       Text(me?['city'] ?? country),
                       TextButton(
-                          onPressed: () => setState(() {
-                                executor = !executor;
-                                revision++;
+                          onPressed: () => act(() async {
+                                final role = executor ? 'customer' : 'executor';
+                                if (!(me!['roles'] as List).contains(role)) {
+                                  go('services');
+                                  return;
+                                }
+                                final fresh = await api.request('/me') as Json;
+                                me = await api.request('/me',
+                                    method: 'PATCH',
+                                    body: {
+                                      'expected_version': fresh['version'],
+                                      'active_role': role
+                                    }) as Json;
+                                if (mounted)
+                                  setState(() {
+                                    executor = role == 'executor';
+                                    revision++;
+                                  });
                               }),
                           child: Text(executor ? 'Исполнитель' : 'Заказчик'))
                     ]),
@@ -963,6 +1078,33 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return listBody([
           Heading(
               me!['display_name'] ?? '', '${me!['city']} · ${me!['country']}'),
+          if (me!['avatar_id'] != null)
+            PrivatePhoto(api: api, id: me!['avatar_id']),
+          button(
+              'Изменить фото профиля',
+              () => act(() async {
+                    final upload = await pickUpload('avatar');
+                    if (upload == null) return;
+                    final current = await api.request('/me') as Json;
+                    me = await api.request('/me', method: 'PATCH', body: {
+                      'expected_version': current['version'],
+                      'avatar_id': upload
+                    }) as Json;
+                    reload();
+                  }),
+              outline: true),
+          if (me!['avatar_id'] != null)
+            button(
+                'Удалить фото профиля',
+                () => act(() async {
+                      final current = await api.request('/me') as Json;
+                      me = await api.request('/me', method: 'PATCH', body: {
+                        'expected_version': current['version'],
+                        'avatar_id': null
+                      }) as Json;
+                      reload();
+                    }),
+                outline: true),
           Text('${me!['phone']}'),
           const Notice(
               'Телефон используется как неподтверждённый идентификатор входа.'),
@@ -1322,6 +1464,33 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     }))));
   }
 
+  void editOffer(Json offer) => Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+          builder: (c) => Scaffold(
+              appBar: AppBar(title: const Text('Редактировать отклик')),
+              body: ActionForm(
+                  fields: [
+                    InputSpec('amount', 'Ваша цена',
+                        initial:
+                            ((offer['amount'] as num) / 100).toStringAsFixed(2),
+                        keyboard: TextInputType.number),
+                    InputSpec('text', 'Комментарий',
+                        initial: '${offer['text']}', multiline: true)
+                  ],
+                  button: 'Сохранить',
+                  submit: (v) async {
+                    await api.request('/offers/${offer['id']}',
+                        method: 'PATCH',
+                        body: {
+                          'expected_version': offer['version'],
+                          'amount': minor(v['amount']!),
+                          'text': v['text']
+                        });
+                    if (c.mounted) Navigator.pop(c);
+                    if (mounted) setState(() => revision++);
+                  }))));
+
   Widget offerScreen() => page(
       'Отклик на заказ',
       loaded(
@@ -1412,7 +1581,26 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           (r, reload) => listBody([
                 Heading('${r['title']}', '${r['city']}'),
                 Text('${r['description']}'),
+                if (r['price'] != null)
+                  DataCard('Ориентировочная стоимость',
+                      subtitle: r['price']['mode'] == 'negotiable'
+                          ? 'По договорённости'
+                          : 'От ${money(r['price']['amount_min'], r['price']['currency'])}'),
+                if (r['experience_years'] != null)
+                  Text(
+                      'Опыт: ${r['experience_years']} лет · со слов исполнителя'),
+                if (r['service_cities'] != null)
+                  Text(
+                      'Обслуживание: ${(r['service_cities'] as List).join(', ')}'),
+                if (r['languages'] != null)
+                  Text('Языки: ${(r['languages'] as List).join(', ')}'),
+                if (r['travel_radius_km'] != null)
+                  Text('Радиус выезда: ${r['travel_radius_km']} км'),
                 button('Пригласить в заказ', () => go('invite', r['id'])),
+                for (final photo in (r['gallery_ids'] as List? ?? []))
+                  PrivatePhoto(api: api, id: photo),
+                button('Портфолио', () => go('public-portfolio', r['id']),
+                    outline: true),
                 button('Отзывы', () => go('reviews', r['owner']),
                     outline: true),
                 button('Пожаловаться', () => go('report', r['id']),
@@ -1447,15 +1635,114 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       options: {
                         for (final r in items(data)) r['id']: r['name']
                       }),
-                  InputSpec('city', 'Город', initial: p?['city'] ?? me!['city'])
+                  InputSpec('city', 'Город',
+                      initial: p?['city'] ?? me!['city']),
+                  InputSpec('work_mode', 'Формат работы',
+                      initial: (p?['work_modes'] as List?)?.first ?? 'onsite',
+                      options: const {
+                        'onsite': 'На месте',
+                        'remote': 'Удалённо',
+                        'hybrid': 'На месте и удалённо'
+                      }),
+                  InputSpec(
+                      'service_cities', 'Города обслуживания (через запятую)',
+                      initial: (p?['service_cities'] as List?)?.join(', ') ??
+                          me!['city']),
+                  InputSpec('travel_radius_km', 'Радиус выезда, км',
+                      initial: '${p?['travel_radius_km'] ?? 0}',
+                      keyboard: TextInputType.number),
+                  InputSpec('experience_years',
+                      'Опыт работы, лет (со слов исполнителя)',
+                      initial: '${p?['experience_years'] ?? ''}',
+                      required: false,
+                      keyboard: TextInputType.number),
+                  InputSpec('languages', 'Языки общения (ru, kk, sr, be, en)',
+                      initial: (p?['languages'] as List?)?.join(', ') ?? 'ru'),
+                  InputSpec('availability', 'Доступность',
+                      initial: p?['availability'] ?? 'available',
+                      options: const {
+                        'available': 'Принимаю предложения',
+                        'busy': 'Занят',
+                        'paused': 'Приостановлено'
+                      }),
+                  InputSpec('price_mode', 'Тип цены',
+                      initial: p?['price']?['mode'] ?? 'negotiable',
+                      options: const {
+                        'negotiable': 'По договорённости',
+                        'fixed': 'За работу',
+                        'hourly': 'За час',
+                        'per_unit': 'За единицу'
+                      }),
+                  InputSpec('price_min', 'Ориентировочная цена от',
+                      initial: p?['price']?['amount_min'] == null
+                          ? ''
+                          : ((p!['price']['amount_min'] as num) / 100)
+                              .toStringAsFixed(2),
+                      required: false,
+                      keyboard: TextInputType.number),
+                  InputSpec('price_max', 'Ориентировочная цена до',
+                      initial: p?['price']?['amount_max'] == null
+                          ? ''
+                          : ((p!['price']['amount_max'] as num) / 100)
+                              .toStringAsFixed(2),
+                      required: false,
+                      keyboard: TextInputType.number),
+                  InputSpec('price_unit', 'Единица',
+                      initial: p?['price']?['unit'] ?? 'job',
+                      options: const {
+                        'job': 'Работа',
+                        'hour': 'Час',
+                        'day': 'День',
+                        'piece': 'Штука',
+                        'm2': 'м²',
+                        'm3': 'м³',
+                        'meter': 'Метр',
+                        'visit': 'Выезд'
+                      })
                 ],
                 submit: (v) async {
-                  await api.request('/me/contractor-profile',
-                      method: 'PUT',
-                      body: {
-                        ...v,
-                        if (p != null) 'expected_version': p['version']
-                      });
+                  await api
+                      .request('/me/contractor-profile', method: 'PUT', body: {
+                    'title': v['title'],
+                    'description': v['description'],
+                    'category_id': v['category_id'],
+                    'city': v['city'],
+                    'work_modes': v['work_mode'] == 'hybrid'
+                        ? ['hybrid', 'onsite', 'remote']
+                        : [v['work_mode']],
+                    'service_cities': v['service_cities']!
+                        .split(',')
+                        .map((e) => e.trim())
+                        .where((e) => e.isNotEmpty)
+                        .toList(),
+                    'languages': v['languages']!
+                        .split(',')
+                        .map((e) => e.trim())
+                        .where((e) => e.isNotEmpty)
+                        .toList(),
+                    'travel_radius_km': double.tryParse(
+                        v['travel_radius_km']!.replaceAll(',', '.')),
+                    'experience_years': v['experience_years']!.isEmpty
+                        ? null
+                        : int.tryParse(v['experience_years']!),
+                    'availability': v['availability'],
+                    'price': {
+                      'mode': v['price_mode'],
+                      'currency': const {
+                        'KZ': 'KZT',
+                        'RS': 'RSD',
+                        'RU': 'RUB',
+                        'BY': 'BYN'
+                      }[me!['country']],
+                      if (v['price_mode'] != 'negotiable')
+                        'amount_min': minor(v['price_min']!),
+                      if (v['price_mode'] != 'negotiable' &&
+                          v['price_max']!.isNotEmpty)
+                        'amount_max': minor(v['price_max']!),
+                      'unit': v['price_unit']
+                    },
+                    if (p != null) 'expected_version': p['version']
+                  });
                   success('Черновик сохранён');
                   reload();
                 },
@@ -1637,6 +1924,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 DataCard('${data['reason_code'] ?? 'Обращение'}',
                     status: status(data),
                     subtitle: '${data['description'] ?? ''}'),
+                SizedBox(
+                    height: 280,
+                    child: paged(
+                        '/cases/${data['id']}/messages',
+                        (message) => DataCard(
+                            message['owner'] == me!['id']
+                                ? 'Вы'
+                                : 'Участник обращения',
+                            subtitle: '${message['text']}',
+                            status: '${message['created_at']}'))),
                 button('Написать по обращению',
                     () => caseForm(false, data, reload),
                     outline: true),
@@ -1718,9 +2015,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                         .saveFile(
                                             dialogTitle:
                                                 'Сохранить данные JOBA',
-                                            fileName: 'joba-export.json',
+                                            fileName: 'joba-export.zip',
                                             type: FileType.custom,
-                                            allowedExtensions: ['json'],
+                                            allowedExtensions: ['zip'],
                                             bytes: bytes);
                                     if (saved != null)
                                       success('Архив сохранён');
@@ -1865,7 +2162,27 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           options: const {
                             'true': 'Включены',
                             'false': 'Отключены'
-                          })
+                          }),
+                    InputSpec('quiet_enabled', 'Часы тишины',
+                        initial:
+                            data[1]['quiet_hours'] == null ? 'false' : 'true',
+                        options: const {
+                          'false': 'Отключены',
+                          'true': 'Включены'
+                        }),
+                    InputSpec('quiet_start', 'Начало (ЧЧ:ММ)',
+                        initial:
+                            '${data[1]['quiet_hours']?['start'] ?? '22:00'}'),
+                    InputSpec('quiet_end', 'Окончание (ЧЧ:ММ)',
+                        initial:
+                            '${data[1]['quiet_hours']?['end'] ?? '08:00'}'),
+                    InputSpec('time_zone', 'Часовой пояс IANA',
+                        initial: '${data[1]['quiet_hours']?['time_zone'] ?? {
+                              'KZ': 'Asia/Almaty',
+                              'RS': 'Europe/Belgrade',
+                              'RU': 'Europe/Moscow',
+                              'BY': 'Europe/Minsk'
+                            }[me?['country']] ?? 'UTC'}')
                   ],
                   submit: (v) async {
                     await api.request('/me/notification-preferences',
@@ -1873,7 +2190,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         body: {
                           'expected_version': data[0]['version'],
                           'preferences': {
-                            for (final e in v.entries) e.key: e.value == 'true'
+                            for (final key in ['chat', 'service', 'marketing'])
+                              key: v[key] == 'true',
+                            'quiet_hours': v['quiet_enabled'] == 'true'
+                                ? {
+                                    'start': v['quiet_start'],
+                                    'end': v['quiet_end'],
+                                    'time_zone': v['time_zone']
+                                  }
+                                : null
                           }
                         });
                     success('Настройки сохранены');

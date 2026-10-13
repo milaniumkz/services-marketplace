@@ -4,7 +4,7 @@ const root=resolve(__dirname,'..');
 const routes=[];
 
 const add=(method,path,access='user',schema)=>routes.push({method,path,access,schema});
-add('GET','/me/blocks');add('GET','/uploads/{id}/metadata');add('POST','/me/portfolio-projects/reorder');add('GET','/cases/{id}');add('POST','/me/privacy-requests/{id}/cancel');
+add('GET','/admin/cases/{id}','staff');add('GET','/admin/cases/{id}/messages','staff');add('POST','/admin/cases/{id}/messages','staff');add('GET','/cases/{id}/messages');add('GET','/me/blocks');add('GET','/uploads/{id}/metadata');add('POST','/me/portfolio-projects/reorder');add('GET','/cases/{id}');add('POST','/me/privacy-requests/{id}/cancel');
 for(const name of ['register','login','staff-login','refresh'])add('POST','/auth/'+name,'public',name==='register'?'Registration':undefined);
 for(const name of ['logout','logout-all'])add('POST','/auth/'+name);
 for(const path of ['/public/config','/legal/documents'])add('GET',path,'public');

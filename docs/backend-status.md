@@ -14,7 +14,7 @@
 - Модерация по версионированным словарям без пользовательского regex, quarantine/case/temporary hold, expiry без автоматического постоянного blacklist; ручные решения и апелляции.
 - Append-only audit/финансовые записи, independent ad flags, админские price/config drafts и двойное подтверждение, promo timezone boundary, finite compensation grants.
 - Referral attribution/qualification/redeem с бюджетом; boost capacity/reservation/verified purchase/admin provenance и eligibility/expiry.
-- Outbox worker, retry/dead-letter, quiet hours и реальные provider send outcomes; export JSON job, reauth deletion request и остановка удаления при отсутствии утверждённого retention policy.
+- Outbox worker, retry/dead-letter, quiet hours и реальные provider send outcomes; потоковая сборка зашифрованного ZIP с JSON/CSV и собственными вложениями вне очереди API, reauth deletion request и остановка удаления при отсутствии утверждённого retention policy.
 
 ## Проверенное
 

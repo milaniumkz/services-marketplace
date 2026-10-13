@@ -9,12 +9,23 @@ test('mobile detail ACL, portfolio order, draft editing and privacy cancellation
  const register=p=>call(null,'POST','/auth/register',{country:'KZ',phone:p,password:'Isolated mobile queries password!'});
  try{
   const owner=await register('+77000000501'),other=await register('+77000000502');
+  const identity=await call(owner,'GET','/me');
+  const preferences=await call(owner,'PATCH','/me',{expected_version:identity.version,roles:['customer','executor'],active_role:'executor',languages:['ru','kk']});
+  assert.equal(preferences.active_role,'executor');assert.deepEqual((await call(owner,'GET','/me')).languages,['ru','kk']);
+  await assert.rejects(()=>call(owner,'PATCH','/me',{expected_version:preferences.version,roles:['administrator']}),e=>e.getStatus()===400);
   const order=await call(owner,'POST','/orders',{title:'Первый черновик','description':'Описание реального редактируемого черновика в изолированном тесте.',city:'Алматы',category_id:'1',budget_amount:null});
   const edited=await call(owner,'PATCH','/orders/'+order.id,{expected_version:order.version,title:'Изменённый черновик',budget_amount:25000,work_mode:'remote'});
   assert.equal(edited.budget_amount,25000);assert.equal(edited.description,order.description);assert.equal(edited.revision,order.revision+1);
   const report=await call(owner,'POST','/cases',{target_type:'order',target_id:order.id,reason_code:'other',description:'Проверка доступности обращения для владельца'});
   assert.equal((await call(owner,'GET','/cases/'+report.id)).id,report.id);
   await assert.rejects(()=>call(other,'GET','/cases/'+report.id),e=>e.getResponse().error.code==='NOT_FOUND');
+  const message=await call(owner,'POST','/cases/'+report.id+'/messages',{text:'Уточнение обстоятельств обращения'});
+  assert.equal((await call(owner,'GET','/cases/'+report.id+'/messages')).items[0].id,message.id);
+  await assert.rejects(()=>call(other,'GET','/cases/'+report.id+'/messages'),e=>e.getStatus()===404);
+  const profile=await call(owner,'PUT','/me/contractor-profile',{title:'Ремонт и обслуживание',description:'Описание услуг и опыта исполнителя для проверки настоящего профиля.',category_id:'1',city:'Алматы',work_modes:['onsite','remote'],languages:['ru','kk'],service_cities:['Алматы','Астана'],experience_years:7,travel_radius_km:25,price:{mode:'per_unit',currency:'KZT',amount_min:25000,amount_max:35000,unit:'m2'}});
+  assert.equal(profile.price.amount_min,25000);assert.deepEqual(profile.languages,['ru','kk']);
+  await assert.rejects(()=>call(owner,'PUT','/me/contractor-profile',{...profile,expected_version:profile.version,price:{mode:'fixed',currency:'USD',amount_min:0}}),e=>e.getStatus()===400);
+  assert.equal((await call(owner,'GET','/me/contractor-profile')).profile.version,profile.version);
   const first=await call(owner,'POST','/me/portfolio-projects',{title:'Первый проект',description:'Описание проекта',category_id:'1',rights_confirmed:true});
   const second=await call(owner,'POST','/me/portfolio-projects',{title:'Второй проект',description:'Описание второго проекта',category_id:'1'});
   const body={project_ids:[second.id,first.id],expected_versions:{[first.id]:first.version,[second.id]:second.version}};
@@ -78,5 +89,29 @@ test('chat history pages, edit tombstones and scoped read events stay consistent
   assert.equal((await call(sender,'GET','/me/notifications')).items.length,0);
   await call(sender,'DELETE','/messages/'+edited.id,{expected_version:edited.version});
   const deleted=await call(reader,'GET',path,{}, {before_sequence:2});assert.equal(deleted.items[0].tombstone,true);assert.equal(deleted.items[0].text,'');
+ }finally{await api.store.close();}
+});
+
+test('public search filters blocked and hidden records before cursor pagination',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ const call=(u,m,p,b={},q={})=>api.handle(m,p,b,u?'Bearer '+u.access_token:undefined,randomUUID(),q,'search-visibility-test');
+ try{
+  const users=[];for(let i=0;i<4;i++)users.push(await call(null,'POST','/auth/register',{country:'KZ',phone:'+7700000060'+i,password:'Isolated search visibility password!'}));
+  const [reader,blocked,hidden,visible]=users;
+  for(const u of users){const account=await api.store.get(u.user.id);await api.store.put({...account,roles:['customer','executor'],verification:'passed'});}
+  await api.store.put({id:randomUUID(),kind:'grant',owner:reader.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['search_full']});
+  await call(reader,'POST','/me/blocks',{target_user_id:blocked.user.id});
+  const category=(await call(reader,'GET','/catalog/categories')).items[0].id;
+  const base={kind:'contractor',country:'KZ',version:1,created_at:new Date().toISOString(),title:'Проверяемая услуга',description:'Проверка видимости каталога в изолированном тесте.',city:'Алматы',category_id:category,status:'published'};
+  await api.store.put({...base,id:'00000000-0000-4000-8000-000000000001',owner:blocked.user.id});
+  await api.store.put({...base,id:'00000000-0000-4000-8000-000000000002',owner:hidden.user.id,moderation_status:'quarantined'});
+  await api.store.put({...base,id:'00000000-0000-4000-8000-000000000003',owner:visible.user.id});
+  await api.store.put({...base,id:'00000000-0000-4000-8000-000000000004',owner:visible.user.id});
+  const first=await call(reader,'GET','/contractors',{}, {limit:1});assert.equal(first.items[0].id,'00000000-0000-4000-8000-000000000003');assert.ok(first.meta.next_cursor);
+  const second=await call(reader,'GET','/contractors',{}, {limit:1,cursor:first.meta.next_cursor});assert.equal(second.items[0].id,'00000000-0000-4000-8000-000000000004');assert.equal(second.meta.next_cursor,null);
+  await assert.rejects(()=>call(reader,'GET','/contractors/00000000-0000-4000-8000-000000000001'),e=>e.getStatus()===404);
+  const order={...base,kind:'order',owner:visible.user.id,id:randomUUID(),status:'open',expires_at:new Date(Date.now()+86400000).toISOString(),exact_address:'Секретный адрес теста'};
+  await api.store.put(order);await api.store.put({...order,id:randomUUID(),expires_at:new Date(Date.now()-1000).toISOString()});
+  const orders=await call(reader,'GET','/orders');assert.equal(orders.items.length,1);assert.equal(orders.items[0].exact_address,undefined);
  }finally{await api.store.close();}
 });

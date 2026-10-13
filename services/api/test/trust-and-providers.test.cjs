@@ -96,9 +96,21 @@ test('export job produces an encrypted archive without passwords, tokens or staf
   const dir=await mkdtemp(join(tmpdir(),'joba-export-')),api=new Marketplace(new Store('memory://'),new Providers(),new PrivateFiles(dir));await api.initialize();
   try {
     const u=await account(api);
+    api.providers.scanner={scan:async()=> 'clean'}; // Isolated scanner adapter; production never trusts this.
+    const image=await sharp({create:{width:3,height:3,channels:3,background:'#245BDB'}}).png().toBuffer();
+    const upload=await command(api,u,'POST','/uploads/initiate',{purpose:'portfolio',mime:'image/png',size:image.length});
+    await command(api,u,'PUT',`/uploads/${upload.id}/content`,image);await command(api,u,'POST',`/uploads/${upload.id}/finalize`);
+    const clean=await api.files.read(upload.id);
     const job=await command(api,u,'POST','/me/privacy-requests',{type:'export',current_password:'a sufficiently long password'});
     await api.maintenance();const result=await command(api,u,'GET',`/me/privacy-requests/${job.id}`);assert.equal(result.status,'completed');
-    const archive=JSON.parse((await command(api,u,'GET',`/uploads/${result.upload_id}/download`)).download_buffer.toString());
+    const download=await command(api,u,'GET',`/uploads/${result.upload_id}/download`);assert.equal(download.mime,'application/zip');
+    const zipPath=join(dir,'isolated-export.zip');await writeFile(zipPath,download.download_buffer);
+    const {execFileSync}=require('node:child_process');
+    const archive=JSON.parse(execFileSync('unzip',['-p',zipPath,'data.json']).toString());
+    const csv=execFileSync('unzip',['-p',zipPath,'csv/user.csv']).toString();assert.ok(csv.includes('+77000000101'));
+    const manifest=JSON.parse(execFileSync('unzip',['-p',zipPath,'manifest.json']).toString());assert.equal(manifest.format_version,1);assert.equal(manifest.attachment_count,1);assert.deepEqual(execFileSync('unzip',['-p',zipPath,'attachments/'+upload.id+'.jpg']),clean);
+    const stored=await readFile(join(dir,result.upload_id+'.encrypted'));assert.notEqual(stored.subarray(0,4).toString('hex'),'504b0304');
+    assert.equal((await command(api,u,'GET','/me/notifications')).items.some(n=>n.type==='privacy.export.ready'),true);
     assert.equal(archive.user[0].phone,'+77000000101');assert.equal(JSON.stringify(archive).includes('password_hash'),false);assert.equal(JSON.stringify(archive).includes(u.access_token),false);
   } finally {await api.store.close();await rm(dir,{recursive:true,force:true});}
 });

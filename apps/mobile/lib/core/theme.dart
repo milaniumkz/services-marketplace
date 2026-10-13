@@ -8,6 +8,8 @@ const yellow = Color(0xFFFFD65A);
 
 ThemeData jobaTheme() => ThemeData(
       useMaterial3: true,
+      visualDensity: VisualDensity.standard,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
       fontFamily: 'Noto',
       scaffoldBackgroundColor: Colors.white,
       colorScheme: ColorScheme.fromSeed(seedColor: primary)
@@ -86,7 +88,7 @@ class Notice extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
           color: error ? const Color(0xFFFFEEEE) : const Color(0xFFEAF0FC),
-          borderRadius: BorderRadius.circular(14)),
+          borderRadius: BorderRadius.circular(12)),
       child: Text(text,
           style: TextStyle(
               color: error ? const Color(0xFFA02C32) : navy,

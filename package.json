@@ -26,7 +26,8 @@
     "mobile:analyze": "node scripts/analyze-mobile.cjs",
     "mobile:test": "bash scripts/flutter-mobile.sh test --reporter expanded",
     "mobile:verify-api": "node scripts/verify-mobile-api.cjs",
-    "mobile:build:android": "bash scripts/flutter-mobile.sh build apk --debug --dart-define=JOBA_API_URL=http://10.0.2.2:3000"
+    "mobile:build:android": "bash scripts/flutter-mobile.sh build apk --debug --dart-define=JOBA_API_URL=http://10.0.2.2:3000",
+    "admin:verify-browser": "npm run build --workspace @marketplace/api && node scripts/verify-admin-browser.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0"
