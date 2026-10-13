@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../core/api.dart';
+import 'profile_editor.dart';
 import '../core/theme.dart';
 import '../core/design_icons.dart';
+import '../core/design_widgets.dart';
 import '../core/l10n.dart';
 import '../core/widgets.dart';
 import '../core/local_lock.dart';
@@ -15,6 +18,12 @@ import '../core/currency.dart';
 
 const states = {
   'draft': 'Черновик',
+  'not_started': 'Не начата',
+  'busy': 'Занят',
+  'archived': 'В архиве',
+  'approved': 'Одобрено',
+  'effective': 'Действует',
+  'not_selected': 'Выбран другой исполнитель',
   'paused': 'На паузе',
   'open': 'Открыт',
   'assigned': 'Исполнитель выбран',
@@ -41,7 +50,6 @@ const states = {
   'accepted': 'Принято',
   'declined': 'Отклонено',
   'withdrawn': 'Отозван',
-  'not_selected': 'Выбран другой исполнитель',
   'expired': 'Срок истёк',
   'revoked': 'Отозвано',
   'restricted': 'Ограничено',
@@ -93,9 +101,20 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Json? me, recovery;
   String country = 'KZ', route = 'welcome';
   String locale = 'ru';
+  String? pendingLocale;
+  bool registrationInProgress = false;
   String? draftCategory;
   Set<String>? serviceCategories;
   String? objectId;
+  Json listingFilters = {};
+  String ordersBucket = 'active';
+  final List<String> draftPhotos = [];
+  Json? draftWindow;
+  bool offerAcknowledged = false, selectionAcknowledged = false;
+  int? acknowledgedOrderRevision;
+  String? acknowledgedSelection;
+  String cancellationReason = 'plans';
+  int reviewRating = 0;
   final List<(String, String?)> history = [];
   bool starting = true, executor = false, actionBusy = false;
   Object? startupError;
@@ -151,6 +170,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       setState(() {
         me = null;
         recovery = null;
+        draftPhotos.clear();
+        draftWindow = null;
+        registrationInProgress = false;
         route = 'login';
         objectId = null;
         history.clear();
@@ -254,16 +276,34 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   void go(String next, [String? id]) {
+    ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
+    if (next == 'languages') pendingLocale = null;
     setState(() {
       history.add((route, objectId));
       route = next;
+      if (next == 'offer') {
+        offerAcknowledged = false;
+        acknowledgedOrderRevision = null;
+      }
+      if (next == 'select-contractor') {
+        selectionAcknowledged = false;
+        acknowledgedSelection = null;
+      }
+      if (next == 'cancel') cancellationReason = 'plans';
+      if (next == 'review') reviewRating = 0;
       if (next == 'services') serviceCategories = null;
+      if (next == 'create') {
+        draftPhotos.clear();
+        draftWindow = null;
+        draftCategory = null;
+      }
       objectId = id;
       revision++;
     });
   }
 
   void back() {
+    ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     setState(() {
       if (history.isNotEmpty) {
         final previous = history.removeLast();
@@ -320,69 +360,40 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   onPressed: actionBusy ? null : onPressed,
                   child: UiText(label)));
   Widget page(String title, Widget body,
-          {List<Widget> actions = const [], bool nav = false}) =>
+          {List<Widget> actions = const [],
+          bool nav = false,
+          bool chrome = true}) =>
       PopScope(
           canPop: history.isEmpty,
           onPopInvokedWithResult: (popped, result) {
             if (!popped) back();
           },
           child: Scaffold(
-              backgroundColor:
-                  ['login', 'register'].contains(route) ? canvas : null,
-              appBar: AppBar(
-                  title: UiText(title),
-                  leading: IconButton(
-                      onPressed: back,
-                      tooltip: localize(context, 'Назад'),
-                      icon: const JobaIcon('back')),
-                  actions: actions),
-              body: body,
+              backgroundColor: canvas,
+              appBar: chrome
+                  ? AppBar(
+                      title: UiText(title),
+                      leading: IconButton(
+                          onPressed: back,
+                          tooltip: localize(context, 'Назад'),
+                          icon: const JobaIcon('back')),
+                      actions: actions)
+                  : null,
+              body: chrome
+                  ? body
+                  : Container(
+                      color: Colors.white,
+                      child: SafeArea(
+                          bottom: false,
+                          child: Container(color: canvas, child: body))),
               bottomNavigationBar: nav
-                  ? SafeArea(
-                      top: false,
-                      child: Container(
-                          height: 60,
-                          decoration: const BoxDecoration(
-                              color: Colors.white,
-                              border: Border(top: BorderSide(color: line))),
-                          child: Row(children: [
-                            for (final item in [
-                              ('home', 'Главная', Icons.home_outlined),
-                              ('catalog', 'Поиск', Icons.search),
-                              (
-                                'messages',
-                                'Сообщения',
-                                Icons.chat_bubble_outline
-                              ),
-                              (
-                                'notifications',
-                                'События',
-                                Icons.notifications_outlined
-                              ),
-                              ('account', 'Профиль', Icons.person_outline)
-                            ])
-                              Expanded(
-                                  child: InkWell(
-                                      onTap: () => go(item.$1),
-                                      child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(item.$3,
-                                                color: route == item.$1
-                                                    ? primary
-                                                    : const Color(0xFF627187),
-                                                size: 23),
-                                            const SizedBox(height: 4),
-                                            UiText(item.$2,
-                                                style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: route == item.$1
-                                                        ? primary
-                                                        : const Color(
-                                                            0xFF6B7890)))
-                                          ]))),
-                          ])))
+                  ? JobaNavigation(
+                      route: route,
+                      executor: executor,
+                      onSelect: (next) {
+                        listingFilters = {};
+                        go(next);
+                      })
                   : null));
   Widget listBody(List<Widget> content) =>
       ListView(padding: const EdgeInsets.all(20), children: content);
@@ -392,11 +403,112 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           key: ValueKey('$route:$objectId:$revision:$path'),
           load: () => api.request(path, query: query),
           builder: (c, data, reload) => render(data, reload));
-  Widget orderCard(Json order) => DataCard('${order['title']}',
-      subtitle:
-          '${order['city']} · ${price(order['budget_amount'], order['currency'] ?? 'KZT')}',
-      status: status(order),
-      onTap: () => go('order', order['id']));
+  Widget orderCard(Json order) => Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: line),
+          borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => go(
+              ['assigned', 'in_progress', 'completion_requested']
+                      .contains(order['status'])
+                  ? 'work'
+                  : 'order',
+              order['id']),
+          child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      JobaBadge(status(order)),
+                      const Spacer(),
+                      Text(
+                          '№ ${order['id'].toString().split('-').first.toUpperCase()}',
+                          style: const TextStyle(fontSize: 10, color: muted))
+                    ]),
+                    const SizedBox(height: 11),
+                    Text(order['title'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            height: 1.44,
+                            letterSpacing: -.2,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    Text(order['city'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 12, color: muted, height: 1.5)),
+                    const SizedBox(height: 16),
+                    Row(children: [
+                      Expanded(
+                          child: Text(
+                              price(order['budget_amount'],
+                                  order['currency'] ?? 'KZT'),
+                              style: const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.w700))),
+                      const UiText('Подробнее',
+                          style: TextStyle(fontSize: 12, color: primary)),
+                      const SizedBox(width: 4),
+                      const JobaIcon('right', size: 14, color: primary)
+                    ])
+                  ]))));
+  Widget ordersScreen() => page(
+          'Мои заказы',
+          Column(children: [
+            Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(children: [
+                  for (final entry in const {
+                    'active': 'Активные',
+                    'completed': 'Завершённые',
+                    'drafts': 'Черновики'
+                  }.entries)
+                    if (!executor || entry.key != 'drafts')
+                      Expanded(
+                          child: InkWell(
+                              onTap: () =>
+                                  setState(() => ordersBucket = entry.key),
+                              child: Container(
+                                  constraints:
+                                      const BoxConstraints(minHeight: 48),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                      border: Border(
+                                          bottom: BorderSide(
+                                              width: 2,
+                                              color: ordersBucket == entry.key
+                                                  ? primary
+                                                  : line))),
+                                  child: UiText(entry.value,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: ordersBucket == entry.key
+                                              ? primary
+                                              : muted,
+                                          fontWeight: ordersBucket == entry.key ? FontWeight.w700 : FontWeight.w400)))))
+                ])),
+            Expanded(
+                child: PagedList(
+                    key: ValueKey('orders:$executor:$ordersBucket:$revision'),
+                    api: api,
+                    path: executor ? '/me/assigned-orders' : '/me/orders',
+                    query: {'bucket': ordersBucket},
+                    tile: orderCard,
+                    empty: ordersBucket == 'drafts'
+                        ? 'Черновиков пока нет'
+                        : 'Заказов пока нет'))
+          ]),
+          nav: true,
+          actions: [
+            if (!executor)
+              IconButton(
+                  tooltip: localize(context, 'Создать заказ'),
+                  onPressed: () => go('create'),
+                  icon: const JobaIcon('plus'))
+          ]);
   Widget paged(String path, Widget Function(Json) tile,
           {Json query = const {}, String empty = 'Пока здесь ничего нет'}) =>
       PagedList(
@@ -461,23 +573,24 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'recovery-chat':
         return recoveryChat();
       case 'home':
+      case 'executor-home':
         return homeScreen();
       case 'account':
         return accountScreen();
       case 'onboarding':
+      case 'profile-edit':
         return profileForm();
       case 'orders':
-        return page('Мои заказы',
-            paged(executor ? '/me/assigned-orders' : '/me/orders', orderCard),
-            actions: [
-              IconButton(
-                  tooltip: localize(context, 'Создать заказ'),
-                  onPressed: () => go('create'),
-                  icon: const Icon(Icons.add))
-            ]);
+        return ordersScreen();
       case 'jobs':
-        return page('Заказы рядом',
-            SearchListings(api: api, path: '/orders', tile: orderCard));
+        return page(
+            'Заказы рядом',
+            SearchListings(
+                api: api,
+                path: '/orders',
+                initialFilters: listingFilters,
+                tile: orderCard),
+            nav: true);
       case 'create':
         return createScreen();
       case 'edit-order':
@@ -486,8 +599,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return changeRequestsScreen();
       case 'order':
       case 'work':
-      case 'publish':
         return orderScreen();
+      case 'publish':
+        return publishScreen();
+      case 'select-contractor':
+        return selectionScreen();
+      case 'complete':
+        return completionScreen();
+      case 'cancel':
+        return cancellationScreen();
       case 'offer':
         return offerScreen();
       case 'offers':
@@ -563,9 +683,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             SearchListings(
                 api: api,
                 path: '/contractors',
-                tile: (r) => DataCard('${r['title']}',
-                    subtitle: '${r['city']}\n${r['description']}',
-                    onTap: () => go('contractor', r['id']))),
+                initialFilters: listingFilters,
+                tile: contractorCard),
             nav: true);
       case 'contractor':
         return contractorScreen();
@@ -731,6 +850,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return phoneScreen();
       case 'settings':
         return settingsScreen();
+      case 'languages':
+        return languageScreen();
+      case 'country':
+        return countryScreen();
+      case 'about':
+        return aboutScreen();
+      case 'sessions':
+        return sessionsScreen();
       case 'notification-settings':
         return notificationSettings();
       case 'referrals':
@@ -950,6 +1077,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 if (register) 'display_name': v['display_name'],
                 if (register) 'locale': locale
               }, register: register);
+              registrationInProgress = register;
               me = await api.request('/me') as Json;
               if (me!['locale'] != locale)
                 me = await api.request('/me', method: 'PATCH', body: {
@@ -1012,6 +1140,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             ]));
   }
 
+  void finishLocalSetup() {
+    if (history.isNotEmpty && history.last.$1 == 'security')
+      back();
+    else
+      go('terms');
+  }
+
   Widget lockSetup() => page(
       'Защитите вход',
       ActionForm(
@@ -1031,7 +1166,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             await lock!.configure(v['pin']!);
             await api.setPersistence(true);
             localProtected = true;
-            go('terms');
+            finishLocalSetup();
           },
           after: [
             button(
@@ -1040,7 +1175,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       await lock!.enableBiometry();
                       await api.setPersistence(true);
                       localProtected = true;
-                      go('terms');
+                      finishLocalSetup();
                     }),
                 outline: true),
             button(
@@ -1048,7 +1183,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 () => act(() async {
                       await api.setPersistence(false);
                       localProtected = false;
-                      go('terms');
+                      finishLocalSetup();
                     }),
                 outline: true)
           ]));
@@ -1120,181 +1255,607 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             button('Войти с номером и паролем', () => act(() => api.forget()),
                 outline: true)
           ]));
-  Widget homeScreen() => page(
-      'JOBA',
-      loaded(
-          executor ? '/me/assigned-orders' : '/me/orders',
-          (result, reload) => listBody([
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(me?['city'] ?? country),
-                      TextButton(
-                          onPressed: () => act(() async {
-                                final role = executor ? 'customer' : 'executor';
-                                if (!(me!['roles'] as List).contains(role)) {
-                                  go('services');
-                                  return;
-                                }
-                                final fresh = await api.request('/me') as Json;
-                                me = await api.request('/me',
-                                    method: 'PATCH',
-                                    body: {
-                                      'expected_version': fresh['version'],
-                                      'active_role': role
-                                    }) as Json;
-                                if (mounted)
-                                  setState(() {
-                                    executor = role == 'executor';
-                                    revision++;
-                                  });
-                              }),
-                          child: UiText(executor ? 'Исполнитель' : 'Заказчик'))
-                    ]),
-                UiHeading(executor
-                    ? 'Новые заказы.\nВаши возможности.'
-                    : 'Хорошие мастера.\nВаши задачи.'),
-                Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                        color: yellow, borderRadius: BorderRadius.circular(20)),
-                    child: Column(
+  String countryName(String code) => localize(
+      context,
+      const {
+            'KZ': 'Казахстан',
+            'RS': 'Сербия',
+            'RU': 'Россия',
+            'BY': 'Беларусь'
+          }[code] ??
+          code);
+  String dateLabel(dynamic value) {
+    final date = DateTime.tryParse('$value');
+    return date == null ? '' : DateFormat.yMMMMd(locale).format(date.toLocal());
+  }
+
+  Future<void> switchRole() async {
+    final target = executor ? 'customer' : 'executor';
+    if (!(me?['roles'] as List? ?? []).contains(target)) {
+      go('services');
+      return;
+    }
+    final fresh = await api.request('/me') as Json;
+    final updated = await api.request('/me',
+            method: 'PATCH',
+            body: {'expected_version': fresh['version'], 'active_role': target})
+        as Json;
+    if (!mounted) return;
+    setState(() {
+      me = updated;
+      executor = target == 'executor';
+      if (executor && ordersBucket == 'drafts') ordersBucket = 'active';
+      revision++;
+    });
+  }
+
+  Widget roleButton() => OutlinedButton(
+      style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      onPressed: actionBusy ? null : () => act(switchRole),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        UiText(executor ? 'Исполнитель' : 'Заказчик',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400)),
+        const SizedBox(width: 4),
+        const JobaIcon('down', size: 14)
+      ]));
+  Widget contractorCard(Json record) => Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: line),
+          borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+          onTap: () => go('contractor', record['id']),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          UiText(
-                              executor
-                                  ? 'Найдите следующую работу'
-                                  : 'Расскажите о задаче',
+                          JobaAvatar(
+                              api: api,
+                              name: record['display_name'] ??
+                                  record['title'] ??
+                                  '',
+                              id: record['owner_avatar_id'] ??
+                                  record['avatar_id'],
+                              size: 52),
+                          const SizedBox(width: 10),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                Row(children: [
+                                  Expanded(
+                                      child: Text(
+                                          record['display_name'] ??
+                                              record['title'] ??
+                                              '',
+                                          style: const TextStyle(
+                                              fontSize: 16,
+                                              height: 1.44,
+                                              letterSpacing: -.2,
+                                              fontWeight: FontWeight.w700))),
+                                  const JobaIcon('shield',
+                                      size: 18, color: primary)
+                                ]),
+                                if (record['display_name'] != null)
+                                  Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(record['title'] ?? '',
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              height: 1.5,
+                                              color: muted))),
+                                if ((record['rating']?['count'] ?? 0) > 0)
+                                  Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Row(children: [
+                                        const JobaIcon('star',
+                                            size: 14, color: Color(0xFFCC941A)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                            '${NumberFormat('0.0', locale).format(record['rating']['average'])} (${record['rating']['count']})',
+                                            style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700))
+                                      ]))
+                              ]))
+                        ]),
+                    Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Text(record['description'] ?? '',
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 12, height: 1.5, color: muted))),
+                    Row(children: [
+                      Expanded(
+                          child: Text(
+                              price(
+                                  record['price']?['amount_min'],
+                                  record['price']?['currency'] ??
+                                      record['currency'] ??
+                                      'KZT'),
                               style: const TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.w700)),
-                          button(executor ? 'Найти заказ' : 'Создать заказ',
-                              () => go(executor ? 'jobs' : 'create'))
-                        ])),
-                const SizedBox(height: 24),
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const UiText('Ваши заказы',
-                          style: TextStyle(
-                              fontSize: 19, fontWeight: FontWeight.w700)),
-                      TextButton(
-                          onPressed: () => go('orders'),
-                          child: const UiText('Все'))
+                                  fontSize: 16, fontWeight: FontWeight.w700))),
+                      const JobaIcon('pin', size: 14, color: muted),
+                      const SizedBox(width: 4),
+                      Flexible(
+                          child: Text(record['city'] ?? '',
+                              style:
+                                  const TextStyle(fontSize: 11, color: muted)))
+                    ])
+                  ]))));
+  Widget homeCategory(Json? category, int index) {
+    final icons = ['tool', 'spark', 'truck', 'brush', 'book', 'grid'];
+    final colors = [
+      const Color(0xFFEFF4FD),
+      const Color(0xFFEAF5F1),
+      const Color(0xFFFFF5DA),
+      const Color(0xFFF1EEFA),
+      const Color(0xFFFFF5DA),
+      const Color(0xFFEFF4FD)
+    ];
+    return Expanded(
+        child: InkWell(
+            onTap: () {
+              listingFilters = {
+                if (category != null) 'category_id': category['id'],
+                if ((me?['city'] ?? '').isNotEmpty) 'city': me!['city']
+              };
+              go('catalog');
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(children: [
+                  Container(
+                      width: 52,
+                      height: 44,
+                      decoration: BoxDecoration(
+                          color: colors[index],
+                          borderRadius: BorderRadius.circular(15)),
+                      child: Center(
+                          child: JobaIcon(icons[index],
+                              size: 25, color: primary))),
+                  const SizedBox(height: 8),
+                  Text(category?['name'] ?? localize(context, 'Все услуги'),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, height: 1.36))
+                ]))));
+  }
+
+  Widget homeScreen() => page(
+      'JOBA',
+      ListView(children: [
+        Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            child: Column(children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                const Text.rich(
+                    TextSpan(children: [
+                      TextSpan(text: 'JOBA'),
+                      TextSpan(text: '•', style: TextStyle(color: yellow))
                     ]),
-                if (items(result).isEmpty) const Notice('Заказов пока нет'),
-                ...items(result).take(3).map(orderCard),
-                if (executor)
-                  button('Мои отклики', () => go('my-offers'), outline: true),
-                button('Входящие приглашения', () => go('invitations'),
-                    outline: true),
+                    style: TextStyle(
+                        fontSize: 25,
+                        letterSpacing: -1.8,
+                        fontWeight: FontWeight.w700,
+                        color: primary)),
+                roleButton()
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                const JobaIcon('pin', size: 14, color: muted),
+                const SizedBox(width: 5),
+                Expanded(
+                    child: Text(
+                        '${me?['city'] ?? ''}${(me?['city'] ?? '').isEmpty ? '' : ', '}${countryName(country)}',
+                        style: const TextStyle(fontSize: 12, color: muted))),
+                const JobaIcon('down', size: 14)
+              ])
+            ])),
+        if (!executor)
+          Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const JobaHomeHeadline(),
+                    Material(
+                        color: canvas,
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                            onTap: () => go('catalog'),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                                constraints:
+                                    const BoxConstraints(minHeight: 52),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                    border: Border.all(color: line),
+                                    borderRadius: BorderRadius.circular(14)),
+                                child: const Row(children: [
+                                  JobaIcon('search', color: muted),
+                                  SizedBox(width: 10),
+                                  Expanded(
+                                      child: UiText('Какая услуга нужна?',
+                                          style: TextStyle(
+                                              fontSize: 14, color: muted)))
+                                ])))),
+                    const SizedBox(height: 12),
+                    ApiView(
+                        key: ValueKey('home-categories:$locale'),
+                        load: () => api.request('/catalog/categories',
+                            query: {'locale': locale}),
+                        builder: (c, data, retry) {
+                          final categories = items(data).take(5).toList();
+                          return Column(children: [
+                            for (var start = 0;
+                                start < categories.length;
+                                start += 3)
+                              Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    for (var i = start; i < start + 3; i++)
+                                      if (i < categories.length)
+                                        homeCategory(categories[i], i)
+                                      else if (i == categories.length)
+                                        homeCategory(null, 5)
+                                      else
+                                        const Spacer()
+                                  ]),
+                            if (categories.length == 3 || categories.isEmpty)
+                              Row(children: [
+                                homeCategory(null, 5),
+                                const Spacer(),
+                                const Spacer()
+                              ])
+                          ]);
+                        })
+                  ])),
+        if (executor)
+          Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              child: Column(children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Expanded(
+                      child: UiHeading('Найдём ваш\nследующий заказ')),
+                  JobaAvatar(
+                      api: api,
+                      name: me?['display_name'] ?? '',
+                      id: me?['avatar_id'])
+                ]),
+                loaded('/me/contractor-profile', (data, retry) {
+                  final profile = data['profile'];
+                  return Row(children: [
+                    const Expanded(
+                        child: UiText('Принимаю новые заказы',
+                            style: TextStyle(fontSize: 12, color: muted))),
+                    Switch(
+                        value: profile != null &&
+                            profile['availability'] == 'available',
+                        onChanged: actionBusy
+                            ? null
+                            : (value) => act(() async {
+                                  if (profile == null) {
+                                    go('services');
+                                    return;
+                                  }
+                                  await api.request(
+                                      '/me/contractor-profile/availability',
+                                      method: 'PATCH',
+                                      body: {
+                                        'availability':
+                                            value ? 'available' : 'paused',
+                                        'expected_version': profile['version']
+                                      });
+                                  retry();
+                                }))
+                  ]);
+                })
               ])),
-      actions: [
-        IconButton(
-            tooltip: localize(context, 'Уведомления'),
-            onPressed: () => go('notifications'),
-            icon: const Icon(Icons.notifications_outlined))
-      ],
-      nav: true);
+        Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (!executor)
+                Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(19),
+                    decoration: BoxDecoration(
+                        color: navy, borderRadius: BorderRadius.circular(18)),
+                    child: Stack(children: [
+                      Positioned(
+                          right: -25,
+                          bottom: 5,
+                          child: Transform.rotate(
+                              angle: .32,
+                              child: Container(
+                                  width: 125,
+                                  height: 125,
+                                  decoration: BoxDecoration(
+                                      border: Border.all(
+                                          color: const Color(0xFF4D648B)),
+                                      borderRadius:
+                                          BorderRadius.circular(40))))),
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const UiText('Расскажите о задаче',
+                                style: TextStyle(
+                                    fontSize: 20,
+                                    height: 1.3,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white)),
+                            const SizedBox(height: 6),
+                            const SizedBox(
+                                width: 280,
+                                child: UiText(
+                                    'Специалисты сами предложат цену и удобное время',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        height: 1.55,
+                                        color: Color(0xFFDAE3F5)))),
+                            const SizedBox(height: 12),
+                            FilledButton(
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: yellow,
+                                    foregroundColor: navy,
+                                    minimumSize:
+                                        const Size(double.infinity, 48),
+                                    textStyle: const TextStyle(
+                                        fontFamily: 'Noto',
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700)),
+                                onPressed: () => go('create'),
+                                child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      UiText('Создать заказ'),
+                                      SizedBox(width: 8),
+                                      JobaIcon('plus', size: 16)
+                                    ]))
+                          ])
+                    ])),
+              if (executor)
+                loaded(
+                    '/me/overview',
+                    (data, retry) => Row(children: [
+                          Expanded(
+                              child: homeMetric(
+                                  '${data['assigned_orders']?['active'] ?? 0}',
+                                  'заказов в работе',
+                                  () => go('orders'))),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: homeMetric(
+                                  '${data['invitations']?['pending'] ?? 0}',
+                                  'новых приглашений',
+                                  () => go('invitations')))
+                        ])),
+              JobaSection(executor ? 'Подходящие заказы' : 'Рядом с вами',
+                  () => go(executor ? 'jobs' : 'catalog'),
+                  action: executor ? 'Фильтры' : 'Все'),
+              homeListings(),
+              if (executor)
+                JobaMenu([
+                  JobaMenuEntry('Мои отклики', 'chat', () => go('my-offers')),
+                  JobaMenuEntry('Топ-100', 'crown', () => go('top'))
+                ])
+            ]))
+      ]),
+      nav: true,
+      chrome: false);
+  Widget homeMetric(String value, String label, VoidCallback onTap) => Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  border: Border.all(color: line),
+                  borderRadius: BorderRadius.circular(14)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(value,
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w700)),
+                    UiText(label,
+                        style: const TextStyle(fontSize: 11, color: muted))
+                  ]))));
+  Widget homeListings() => ApiView(
+      key: ValueKey('home-listings:$executor:$revision'),
+      load: () async {
+        try {
+          return await api.request(executor ? '/orders' : '/contractors',
+              query: {
+                'limit': 3,
+                if ((me?['city'] ?? '').isNotEmpty) 'city': me!['city']
+              });
+        } on ApiException catch (error) {
+          if (error.code == 'ENTITLEMENT_REQUIRED')
+            return {'access_required': true};
+          rethrow;
+        }
+      },
+      builder: (c, data, retry) {
+        if (data['access_required'] == true)
+          return JobaMenu([
+            JobaMenuEntry('Мой доступ', 'card', () => go('my-access'),
+                subtitle: 'Выбор доступа')
+          ]);
+        if (items(data).isEmpty)
+          return Notice(executor ? 'Заказов пока нет' : 'Пока здесь ничего нет',
+              icon: 'search');
+        return Column(
+            children: items(data)
+                .map(executor ? orderCard : contractorCard)
+                .toList());
+      });
   Widget accountScreen() => page(
       'Мой профиль',
-      loaded('/me', (data, reload) {
-        me = data as Json;
-        return listBody([
-          Heading(
-              me!['display_name'] ?? '', '${me!['city']} · ${me!['country']}'),
-          if (me!['avatar_id'] != null)
-            PrivatePhoto(api: api, id: me!['avatar_id']),
-          button(
-              'Изменить фото профиля',
-              () => act(() async {
-                    final upload = await pickUpload('avatar');
-                    if (upload == null) return;
-                    final current = await api.request('/me') as Json;
-                    me = await api.request('/me', method: 'PATCH', body: {
-                      'expected_version': current['version'],
-                      'avatar_id': upload['id']
-                    }) as Json;
-                    reload();
-                  }),
-              outline: true),
-          if (me!['avatar_id'] != null)
-            button(
-                'Удалить фото профиля',
-                () => act(() async {
-                      final current = await api.request('/me') as Json;
-                      me = await api.request('/me', method: 'PATCH', body: {
-                        'expected_version': current['version'],
-                        'avatar_id': null
-                      }) as Json;
-                      reload();
-                    }),
-                outline: true),
-          Text('${me!['phone']}'),
-          const Notice(
-              'Телефон используется как неподтверждённый идентификатор входа.'),
-          for (final entry in {
-            'onboarding': 'Редактировать профиль',
-            'services': 'Мои услуги',
-            'verification': 'Документ исполнителя',
-            'portfolio': 'Моё портфолио',
-            'reviews': 'Отзывы',
-            'my-access': 'Мой доступ',
-            'referrals': 'Приглашения и бонусы',
-            'top': 'Топ-100',
-            'promotion': 'Продвинуть объявление',
-            'cases': 'Мои обращения',
-            'support': 'Поддержка',
-            'privacy': 'Приватность',
-            'security': 'Безопасность',
-            'settings': 'Настройки'
-          }.entries)
-            ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: UiText(entry.value),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => go(entry.key)),
-          button('Выйти', () => act(() => api.logout()), outline: true)
-        ]);
-      }),
-      nav: true);
+      ApiView(
+          key: ValueKey('account:$revision'),
+          load: () =>
+              Future.wait([api.request('/me'), api.request('/me/overview')]),
+          builder: (c, result, reload) {
+            final data = result[0] as Json, summary = result[1] as Json;
+            me = data;
+            final orders = summary['orders'] ?? {},
+                rating = summary['rating'] ?? {};
+            return ListView(children: [
+              Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(children: [
+                    Row(children: [
+                      const Expanded(
+                          child: UiText('Мой профиль',
+                              style: TextStyle(
+                                  fontSize: 26,
+                                  height: 1.269,
+                                  letterSpacing: -.9,
+                                  fontWeight: FontWeight.w700))),
+                      IconButton(
+                          tooltip: localize(context, 'Настройки'),
+                          onPressed: () => go('settings'),
+                          icon: const JobaIcon('dots'))
+                    ]),
+                    const SizedBox(height: 20),
+                    Row(children: [
+                      JobaAvatar(
+                          api: api,
+                          name: data['display_name'] ?? '',
+                          id: data['avatar_id'],
+                          size: 68),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(data['display_name'] ?? '',
+                                style: const TextStyle(
+                                    fontSize: 20,
+                                    height: 1.35,
+                                    letterSpacing: -.4,
+                                    fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text(
+                                '${data['city'] ?? ''}${(data['city'] ?? '').isEmpty ? '' : ' · '}${countryName(country)}',
+                                style: const TextStyle(
+                                    fontSize: 12, color: muted)),
+                            const SizedBox(height: 8),
+                            roleButton()
+                          ]))
+                    ]),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                        onPressed: () => go('profile-edit'),
+                        child: const UiText('Редактировать профиль'))
+                  ])),
+              Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(children: [
+                    JobaMenu([
+                      JobaMenuEntry(
+                          summary['subscription_until'] == null
+                              ? 'Мой доступ'
+                              : 'Подписка активна',
+                          'card',
+                          () => go('my-access'),
+                          subtitle: summary['subscription_until'] == null
+                              ? 'Выбор доступа'
+                              : dateLabel(summary['subscription_until']),
+                          translateSubtitle:
+                              summary['subscription_until'] == null)
+                    ]),
+                    const SizedBox(height: 16),
+                    JobaMenu([
+                      JobaMenuEntry('Мои заказы', 'brief', () => go('orders'),
+                          subtitle:
+                              '${orders['active'] ?? 0} · ${localize(context, 'Активные')} · ${orders['open'] ?? 0} · ${localize(context, 'Открыт')}',
+                          translateSubtitle: false),
+                      JobaMenuEntry('Мои услуги и портфолио', 'tool',
+                          () => go('services'),
+                          subtitle: summary['contractor'] == null
+                              ? 'Настройте профиль исполнителя'
+                              : states[summary['contractor']['status']]),
+                      JobaMenuEntry(
+                          'Отзывы обо мне', 'star', () => go('reviews'),
+                          subtitle: (rating['count'] ?? 0) == 0
+                              ? 'Отзывов пока нет'
+                              : '${NumberFormat('0.0', locale).format(rating['average'])} · ${rating['count']}',
+                          translateSubtitle: (rating['count'] ?? 0) == 0),
+                      JobaMenuEntry('Топ-100', 'crown', () => go('top'),
+                          subtitle: 'Популярные услуги и заказы'),
+                      JobaMenuEntry(
+                          'Продвижение', 'spark', () => go('promotion'),
+                          subtitle: 'Ваши размещения'),
+                      JobaMenuEntry(
+                          'Приглашения и бонусы', 'gift', () => go('referrals'),
+                          subtitle: 'Пригласить друга')
+                    ]),
+                    const SizedBox(height: 16),
+                    JobaMenu([
+                      JobaMenuEntry(
+                          'Безопасность', 'lock', () => go('security'),
+                          subtitle: 'PIN, пароль и устройства'),
+                      JobaMenuEntry('Поддержка', 'help', () => go('support'),
+                          subtitle: 'Поможем с вашим вопросом'),
+                      JobaMenuEntry(
+                          'Приватность', 'shield', () => go('privacy'),
+                          subtitle: 'Ваши данные и согласия'),
+                      JobaMenuEntry('Настройки', 'globe', () => go('settings'),
+                          subtitle: 'Язык, страна, уведомления')
+                    ]),
+                    const SizedBox(height: 16),
+                    JobaMenu([
+                      JobaMenuEntry('Мои обращения', 'flag', () => go('cases'))
+                    ])
+                  ]))
+            ]);
+          }),
+      nav: true,
+      chrome: false);
   Widget profileForm() => page(
-      'Мой профиль',
+      route == 'onboarding' ? 'Расскажите о себе' : 'Редактировать профиль',
       loaded(
           '/me',
-          (data, reload) => ActionForm(
-                  fields: [
-                    InputSpec('display_name', 'Имя',
-                        initial: data['display_name']),
-                    InputSpec('city', 'Город',
-                        initial: data['city'], required: false),
-                    InputSpec('locale', 'Язык',
-                        initial: data['locale'],
-                        options: const {
-                          'ru': 'Русский',
-                          'kk': 'Қазақша',
-                          'sr': 'Srpski',
-                          'be': 'Беларуская'
-                        }),
-                    InputSpec('languages', 'Языки общения (ru, kk, sr, be, en)',
-                        initial: (data['languages'] as List? ??
-                                [data['locale'] ?? 'ru'])
-                            .join(', '))
-                  ],
-                  submit: (v) async {
-                    me = await api.request('/me', method: 'PATCH', body: {
-                      ...v,
-                      'languages': v['languages']!
-                          .split(',')
-                          .map((value) => value.trim())
-                          .where((value) => value.isNotEmpty)
-                          .toList(),
-                      'expected_version': data['version']
-                    }) as Json;
-                    locale = me!['locale'] ?? 'ru';
-                    widget.onLocaleChanged?.call(locale);
-                    success('Профиль сохранён');
-                    back();
-                  })));
+          (data, reload) => ProfileEditor(
+              api: api,
+              initial: data,
+              onboarding: route == 'onboarding',
+              pickAvatar: () => pickUpload('avatar'),
+              onSaved: (saved) {
+                me = saved;
+                locale = saved['locale'] ?? locale;
+                executor = saved['active_role'] == 'executor';
+                widget.onLocaleChanged?.call(locale);
+                success('Профиль сохранён');
+                if (route == 'onboarding') {
+                  registrationInProgress = false;
+                  go('access');
+                } else
+                  back();
+              })));
   Widget createScreen() => page(
       'Новый заказ',
       ApiView(
@@ -1302,52 +1863,160 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           load: () => Future.wait(
               [api.request('/catalog/categories'), api.request('/geo/cities')]),
           builder: (c, data, reload) => ActionForm(
-                  before: const [
-                    UiHeading('Что нужно сделать?')
-                  ],
-                  fields: [
-                    InputSpec('category_id', 'Категория',
-                        translateOptions: false,
-                        initial: draftCategory ?? '',
-                        options: {
-                          for (final r in items(data[0])) r['id']: r['name']
-                        },
-                        changed: (v) => setState(() => draftCategory = v)),
-                    ...attributeFields(items(data[0])),
-                    const InputSpec('title', 'Название', validate: titleCheck),
-                    const InputSpec('description', 'Опишите задачу',
-                        multiline: true, validate: descriptionCheck),
-                    InputSpec('city_id', 'Город',
-                        translateOptions: false,
-                        options: {
-                          for (final r in items(data[1])) r['id']: r['name']
-                        }),
-                    const InputSpec('work_mode', 'Формат работы',
-                        initial: 'onsite',
-                        options: {
-                          'onsite': 'На месте',
-                          'remote': 'Удалённо',
-                          'hybrid': 'Смешанный'
-                        }),
-                    const InputSpec('budget', 'Бюджет',
-                        required: false, keyboard: TextInputType.number)
-                  ],
-                  button: 'Предпросмотр заказа',
-                  submit: (v) async {
-                    final order =
-                        await api.request('/orders', method: 'POST', body: {
-                      'title': v['title'],
-                      'description': v['description'],
-                      'category_id': v['category_id'],
-                      'city_id': v['city_id'],
-                      'work_mode': v['work_mode'],
-                      'budget_amount':
-                          v['budget']!.isEmpty ? null : minor(v['budget']!),
-                      'attributes': attributeValues(items(data[0]), v),
-                      'upload_ids': []
-                    }) as Json;
-                    go('publish', order['id']);
-                  })));
+              stickySubmit: true,
+              externalBusy: actionBusy,
+              beforeField: {
+                'budget': [draftDateField()]
+              },
+              afterFields: [
+                const UiText('Фотографии задачи',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                if (draftPhotos.isNotEmpty)
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final id in draftPhotos)
+                      SizedBox(
+                          width: 100,
+                          child: Column(children: [
+                            PrivatePhoto(api: api, id: id),
+                            IconButton(
+                                tooltip: localize(context, 'Удалить фото'),
+                                onPressed: actionBusy
+                                    ? null
+                                    : () =>
+                                        setState(() => draftPhotos.remove(id)),
+                                icon: const JobaIcon('close', size: 18))
+                          ]))
+                  ]),
+                OutlinedButton(
+                    onPressed: actionBusy || draftPhotos.length >= 10
+                        ? null
+                        : () => act(() async {
+                              final run = revision;
+                              final file = await pickUpload('order');
+                              if (file != null &&
+                                  mounted &&
+                                  route == 'create' &&
+                                  run == revision)
+                                setState(() => draftPhotos.add(file['id']));
+                            }),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      JobaIcon('camera'),
+                      SizedBox(width: 10),
+                      UiText('Добавить фото')
+                    ])),
+                const Notice('Точный адрес не будет виден в открытом каталоге.',
+                    icon: 'shield')
+              ],
+              before: const [
+                Row(children: [
+                  UiText('Шаг 1 из 2',
+                      style: TextStyle(fontSize: 12, color: muted)),
+                  Spacer(),
+                  JobaBadge('Черновик')
+                ]),
+                SizedBox(height: 22),
+                UiHeading('Что нужно сделать?')
+              ],
+              fields: [
+                InputSpec('category_id', 'Категория',
+                    translateOptions: false,
+                    initial: draftCategory ?? '',
+                    options: {
+                      for (final r in items(data[0])) r['id']: r['name']
+                    },
+                    changed: (v) => setState(() => draftCategory = v)),
+                ...attributeFields(items(data[0])),
+                const InputSpec('title', 'Название', validate: titleCheck),
+                const InputSpec('description', 'Опишите задачу',
+                    multiline: true, validate: descriptionCheck),
+                InputSpec('city_id', 'Город',
+                    translateOptions: false,
+                    options: {
+                      for (final r in items(data[1])) r['id']: r['name']
+                    }),
+                const InputSpec('work_mode', 'Формат работы',
+                    initial: 'onsite',
+                    options: {
+                      'onsite': 'На месте',
+                      'remote': 'Удалённо',
+                      'hybrid': 'Смешанный'
+                    }),
+                const InputSpec('budget', 'Бюджет',
+                    required: false, keyboard: TextInputType.number)
+              ],
+              button: 'Предпросмотр заказа',
+              submit: (v) async {
+                final order =
+                    await api.request('/orders', method: 'POST', body: {
+                  'title': v['title'],
+                  'description': v['description'],
+                  'category_id': v['category_id'],
+                  'city_id': v['city_id'],
+                  'work_mode': v['work_mode'],
+                  'budget_amount':
+                      v['budget']!.isEmpty ? null : minor(v['budget']!),
+                  'attributes': attributeValues(items(data[0]), v),
+                  'upload_ids': List<String>.from(draftPhotos),
+                  if (draftWindow != null) 'time_window': draftWindow
+                }) as Json;
+                go('publish', order['id']);
+              })));
+  Widget draftDateField() => Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const UiText('Срок',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        OutlinedButton(
+            style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                alignment: Alignment.centerLeft),
+            onPressed: actionBusy
+                ? null
+                : () async {
+                    final today = DateUtils.dateOnly(DateTime.now());
+                    final initial = draftWindow == null
+                        ? null
+                        : DateTimeRange(
+                            start: DateTime.parse(draftWindow!['start_date']),
+                            end: DateTime.parse(draftWindow!['end_date']));
+                    final range = await showDateRangePicker(
+                        context: context,
+                        firstDate: today,
+                        lastDate: today.add(const Duration(days: 365)),
+                        initialDateRange: initial);
+                    if (range == null || !mounted) return;
+                    setState(() => draftWindow = {
+                          'start_date':
+                              DateFormat('yyyy-MM-dd').format(range.start),
+                          'end_date':
+                              DateFormat('yyyy-MM-dd').format(range.end),
+                          'time_zone': const {
+                            'KZ': 'Asia/Almaty',
+                            'RS': 'Europe/Belgrade',
+                            'RU': 'Europe/Moscow',
+                            'BY': 'Europe/Minsk'
+                          }[country]
+                        });
+                  },
+            child: Row(children: [
+              const JobaIcon('clock', size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: draftWindow == null
+                      ? const UiText('Выберите даты')
+                      : Text(
+                          '${dateLabel(draftWindow!['start_date'])} — ${dateLabel(draftWindow!['end_date'])}',
+                          style: const TextStyle(fontSize: 14)))
+            ])),
+        if (draftWindow != null)
+          TextButton(
+              onPressed: () => setState(() => draftWindow = null),
+              child: const UiText('Очистить срок'))
+      ]));
   Json categorySchema(List<Json> categories) {
     for (final category in categories) {
       if (category['id'] == draftCategory) return category['schema'] as Json;
@@ -1402,6 +2071,294 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       v.trim().length < 5 || v.length > 120 ? 'От 5 до 120 символов' : null;
   static String? descriptionCheck(String v) =>
       v.trim().length < 20 || v.length > 5000 ? 'От 20 до 5000 символов' : null;
+  String windowLabel(Json order) {
+    final window = order['time_window'];
+    if (window == null) return localize(context, 'По договорённости');
+    return '${dateLabel(window['start_date'] ?? window['start'])} — ${dateLabel(window['end_date'] ?? window['end'])}';
+  }
+
+  Widget fact(String label, String value) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+            child: UiText(label,
+                style: const TextStyle(fontSize: 12, color: muted))),
+        Expanded(
+            child: Text(value,
+                textAlign: TextAlign.right,
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)))
+      ]));
+  Widget stickyActions(List<Widget> actions) => SafeArea(
+      top: false,
+      child: Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Row(children: [
+            for (var index = 0; index < actions.length; index++) ...[
+              if (index > 0) const SizedBox(width: 10),
+              Expanded(child: actions[index])
+            ]
+          ])));
+  Widget publishScreen() => page(
+      'Проверьте заказ',
+      loaded('/orders/$objectId', (data, reload) {
+        final order = data as Json;
+        return Column(children: [
+          Expanded(
+              child: listBody([
+            const Row(children: [
+              UiText('Шаг 2 из 2',
+                  style: TextStyle(fontSize: 12, color: muted)),
+              Spacer(),
+              JobaBadge('Предпросмотр')
+            ]),
+            const SizedBox(height: 22),
+            Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: line),
+                    borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Heading(order['title']),
+                      Text(order['description'],
+                          style: const TextStyle(
+                              fontSize: 12, color: muted, height: 1.55)),
+                      const SizedBox(height: 14),
+                      fact('Бюджет',
+                          price(order['budget_amount'], order['currency'])),
+                      const Divider(height: 1),
+                      fact('Город', order['city']),
+                      const Divider(height: 1),
+                      fact('Когда', windowLabel(order))
+                    ])),
+            for (final id in order['upload_ids'] as List? ?? [])
+              Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: PrivatePhoto(api: api, id: id)),
+            const Notice('После проверки заказ появится в поиске.',
+                icon: 'shield'),
+            const UiText(
+                'Цена услуги согласуется с исполнителем. JOBA не принимает оплату за работу.',
+                style: TextStyle(fontSize: 12, color: muted, height: 1.5)),
+            button('Изменить заказ', () => go('edit-order', order['id']),
+                outline: true)
+          ])),
+          stickyActions([
+            FilledButton(
+                onPressed: actionBusy
+                    ? null
+                    : () => act(() async {
+                          if (order['status'] != 'draft') {
+                            go('order', order['id']);
+                            return;
+                          }
+                          await api.request('/orders/${order['id']}/publish',
+                              method: 'POST',
+                              body: {'expected_version': order['version']});
+                          go('order', order['id']);
+                        }),
+                child: UiText(order['status'] == 'draft'
+                    ? 'Опубликовать заказ'
+                    : 'Открыть заказ'))
+          ])
+        ]);
+      }));
+  Widget selectionScreen() => page(
+      'Подтвердить исполнителя',
+      loaded('/offers/$objectId', (data, reload) {
+        final offer = data as Json, order = offer['order'] as Json;
+        return ActionForm(
+            stickySubmit: true,
+            submitEnabled: order['owner'] == me?['id'] &&
+                selectionAcknowledged &&
+                acknowledgedSelection ==
+                    '${order['version']}:${offer['version']}' &&
+                order['status'] == 'open' &&
+                offer['status'] == 'active',
+            fields: const [],
+            before: [
+              const UiHeading('Договоримся о главном',
+                  'После выбора остальные отклики закроются.'),
+              Row(children: [
+                JobaAvatar(
+                    api: api,
+                    name: offer['executor']?['display_name'] ?? '',
+                    id: offer['executor']?['avatar_id']),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Text(offer['executor']?['display_name'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)))
+              ]),
+              const SizedBox(height: 16),
+              Text(order['title'],
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700)),
+              fact('Стоимость работы',
+                  price(offer['amount'], offer['currency'])),
+              const Divider(height: 1),
+              fact('Когда', windowLabel(order)),
+              Text(
+                  '${localize(context, 'Версия')} ${order['revision']} · ${offer['version']}',
+                  style: const TextStyle(fontSize: 10, color: muted)),
+              const Notice(
+                  'Оплату услуги вы согласуете напрямую с исполнителем. JOBA не хранит и не переводит эти деньги.',
+                  icon: 'info'),
+              CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: selectionAcknowledged &&
+                      acknowledgedSelection ==
+                          '${order['version']}:${offer['version']}',
+                  onChanged: (value) => setState(() {
+                        selectionAcknowledged = value == true;
+                        acknowledgedSelection =
+                            '${order['version']}:${offer['version']}';
+                      }),
+                  title: const UiText(
+                      'Условия понятны. Подтверждаю выбор исполнителя.',
+                      style: TextStyle(fontSize: 12, height: 1.58)))
+            ],
+            button: 'Выбрать исполнителя',
+            submit: (fields) async {
+              await api.request('/orders/${order['id']}/select-offer',
+                  method: 'POST',
+                  body: {
+                    'expected_version': order['version'],
+                    'offer_id': offer['id'],
+                    'offer_version': offer['version']
+                  });
+              go('work', order['id']);
+            });
+      }));
+  Widget completionScreen() => page(
+      'Результат работы',
+      loaded('/orders/$objectId', (data, reload) {
+        final order = data as Json;
+        final allowed = order['status'] == 'completion_requested' &&
+            order['owner'] == me?['id'];
+        return Column(children: [
+          Expanded(
+              child: listBody([
+            JobaBadge(status(order)),
+            const SizedBox(height: 16),
+            Heading(order['title']),
+            if (order['executor'] != null)
+              Row(children: [
+                JobaAvatar(
+                    api: api,
+                    name: order['executor']['display_name'] ?? '',
+                    id: order['executor']['avatar_id']),
+                const SizedBox(width: 10),
+                Expanded(child: Text(order['executor']['display_name'] ?? ''))
+              ]),
+            const Notice(
+                'Проверьте работу перед подтверждением. Если что-то осталось, запросите доработку.',
+                icon: 'shield'),
+            if (!allowed) const Notice('Состояние заказа изменилось.'),
+            button(
+                'Открыть чат',
+                () => go(order['conversation_id'] == null ? 'messages' : 'chat',
+                    order['conversation_id']),
+                outline: true)
+          ])),
+          stickyActions([
+            OutlinedButton(
+                onPressed: allowed && !actionBusy
+                    ? () => reasonCommand(order, 'request-revision',
+                        () => go('work', order['id']))
+                    : null,
+                child: const UiText('Нужна доработка')),
+            FilledButton(
+                onPressed: allowed && !actionBusy
+                    ? () => act(() async {
+                          await api.request(
+                              '/orders/${order['id']}/confirm-completion',
+                              method: 'POST',
+                              body: {'expected_version': order['version']});
+                          go('review', order['id']);
+                        })
+                    : null,
+                child: const UiText('Принять работу'))
+          ])
+        ]);
+      }));
+  Widget cancellationScreen() => page(
+      'Отмена заказа',
+      loaded('/orders/$objectId', (data, reload) {
+        final order = data as Json;
+        const reasons = {
+          'plans': 'Изменились планы',
+          'agreement': 'Не удалось договориться',
+          'problem': 'Проблема с исполнителем',
+          'other': 'Другая причина'
+        };
+        return ActionForm(
+            stickySubmit: true,
+            submitEnabled:
+                [order['owner'], order['executor_id']].contains(me?['id']) &&
+                    [
+                      'draft',
+                      'open',
+                      'assigned',
+                      'in_progress',
+                      'completion_requested'
+                    ].contains(order['status']),
+            before: [
+              const UiHeading('Почему отменяете?'),
+              Text(order['title'],
+                  style: const TextStyle(fontSize: 12, color: muted)),
+              const SizedBox(height: 16),
+              RadioGroup<String>(
+                  groupValue: cancellationReason,
+                  onChanged: (value) =>
+                      setState(() => cancellationReason = value!),
+                  child: Column(children: [
+                    for (final entry in reasons.entries)
+                      RadioListTile<String>(
+                          contentPadding: EdgeInsets.zero,
+                          title: UiText(entry.value,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w700)),
+                          value: entry.key)
+                  ]))
+            ],
+            fields: [
+              InputSpec('comment', 'Комментарий',
+                  multiline: true,
+                  required: false,
+                  validate: (value) =>
+                      cancellationReason == 'other' && value.trim().length < 5
+                          ? 'Укажите причину подробнее'
+                          : null)
+            ],
+            afterFields: const [
+              Notice(
+                  'Исполнитель получит запрос. При несогласии откроется дело поддержки. Отмена не означает возврат оплаты за услугу.',
+                  icon: 'info')
+            ],
+            button: ['draft', 'open'].contains(order['status'])
+                ? 'Отменить заказ'
+                : 'Отправить запрос',
+            submit: (fields) async {
+              final command = ['draft', 'open'].contains(order['status'])
+                  ? 'cancel'
+                  : 'cancel-requests';
+              await api.request('/orders/${order['id']}/$command',
+                  method: 'POST',
+                  body: {
+                    'expected_version': order['version'],
+                    'reason':
+                        '${localize(context, reasons[cancellationReason]!)}. ${fields['comment'] ?? ''}'
+                  });
+              go(command == 'cancel' ? 'order' : 'change-requests',
+                  order['id']);
+            });
+      }));
   Widget orderScreen() => page(
       route == 'publish' ? 'Проверьте заказ' : 'Карточка заказа',
       loaded('/orders/$objectId', (data, reload) {
@@ -1441,8 +2398,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             button('Запросить завершение',
                 () => orderCommand(o, 'complete', reload)),
           if (owner && o['status'] == 'completion_requested') ...[
-            button('Подтвердить завершение',
-                () => orderCommand(o, 'confirm-completion', reload)),
+            button('Проверить результат', () => go('complete', o['id'])),
             button('Запросить доработку',
                 () => reasonCommand(o, 'request-revision', reload),
                 outline: true)
@@ -1450,8 +2406,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           if ((owner || assigned) &&
               ['assigned', 'in_progress', 'completion_requested']
                   .contains(o['status']))
-            button('Запросить отмену',
-                () => reasonCommand(o, 'cancel-requests', reload),
+            button('Запросить отмену', () => go('cancel', o['id']),
                 outline: true),
           if ((owner || assigned) &&
               ['assigned', 'in_progress', 'completion_requested']
@@ -1463,12 +2418,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 outline: true)
           ],
           if (owner && ['draft', 'open'].contains(o['status']))
-            button('Отменить заказ', () => reasonCommand(o, 'cancel', reload),
+            button('Отменить заказ', () => go('cancel', o['id']),
                 outline: true),
           if ((owner || assigned) && o['status'] == 'completed')
             button('Оставить отзыв', () => go('review', o['id'])),
           if (owner || assigned)
-            button('Сообщения', () => go('messages'), outline: true),
+            button(
+                'Сообщения',
+                () => go(o['conversation_id'] == null ? 'messages' : 'chat',
+                    o['conversation_id']),
+                outline: true),
           button('Пожаловаться', () => go('report', o['id']), outline: true),
         ]);
       }));
@@ -1634,28 +2593,44 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       loaded(
           '/orders/$objectId',
           (o, reload) => ActionForm(
-                  before: [
-                    Heading('${o['title']}'),
-                    const Notice(
-                        'Отправляя отклик, вы подтверждаете актуальные условия заказа.')
-                  ],
-                  fields: const [
-                    InputSpec('amount', 'Ваша цена',
-                        keyboard: TextInputType.number),
-                    InputSpec('text', 'Комментарий', multiline: true)
-                  ],
-                  button: 'Отправить отклик',
-                  submit: (v) async {
-                    final offer = await api.request('/orders/$objectId/offers',
-                        method: 'POST',
-                        body: {
-                          'amount': minor(v['amount']!),
-                          'text': v['text'],
-                          'acknowledged_revision': o['revision']
-                        }) as Json;
-                    success('Отклик отправлен');
-                    go('chat', offer['conversation_id']);
-                  })));
+              stickySubmit: true,
+              submitEnabled: offerAcknowledged &&
+                  acknowledgedOrderRevision == o['revision'],
+              afterFields: [
+                CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: offerAcknowledged &&
+                        acknowledgedOrderRevision == o['revision'],
+                    onChanged: (value) => setState(() {
+                          offerAcknowledged = value == true;
+                          acknowledgedOrderRevision = o['revision'];
+                        }),
+                    title: const UiText(
+                        'Подтверждаю текущую версию условий заказа.',
+                        style: TextStyle(fontSize: 12, height: 1.58)))
+              ],
+              before: [
+                Heading('${o['title']}'),
+                const Notice(
+                    'Отправляя отклик, вы подтверждаете актуальные условия заказа.')
+              ],
+              fields: const [
+                InputSpec('amount', 'Ваша цена',
+                    keyboard: TextInputType.number),
+                InputSpec('text', 'Комментарий', multiline: true)
+              ],
+              button: 'Отправить отклик',
+              submit: (v) async {
+                final offer = await api
+                    .request('/orders/$objectId/offers', method: 'POST', body: {
+                  'amount': minor(v['amount']!),
+                  'text': v['text'],
+                  'acknowledged_revision': o['revision']
+                }) as Json;
+                success('Отклик отправлен');
+                go('chat', offer['conversation_id']);
+              })));
   Widget offersScreen() => page(
       'Список откликов',
       loaded(
@@ -1674,42 +2649,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                 outline: true),
                             if (offer['status'] == 'active' &&
                                 order['status'] == 'open')
-                              button(
-                                  'Выбрать исполнителя',
-                                  () => act(() async {
-                                        final approved = await showDialog<bool>(
-                                            context: context,
-                                            builder: (c) => AlertDialog(
-                                                    title: const UiText(
-                                                        'Выбрать исполнителя?'),
-                                                    content: const UiText(
-                                                        'Другие отклики будут закрыты. Условия выбранного отклика будут закреплены в заказе.'),
-                                                    actions: [
-                                                      TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                  c, false),
-                                                          child: const UiText(
-                                                              'Назад')),
-                                                      FilledButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                  c, true),
-                                                          child: const UiText(
-                                                              'Выбрать'))
-                                                    ]));
-                                        if (approved != true) return;
-                                        await api.request(
-                                            '/orders/${order['id']}/select-offer',
-                                            method: 'POST',
-                                            body: {
-                                              'expected_version':
-                                                  order['version'],
-                                              'offer_id': offer['id'],
-                                              'offer_version': offer['version']
-                                            });
-                                        go('work', order['id']);
-                                      }))
+                              button('Выбрать исполнителя',
+                                  () => go('select-contractor', offer['id']))
                           ])),
                   ]))));
   Widget contractorScreen() => page(
@@ -2113,30 +3054,107 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     onTap: () => go('support-chat', t['id']))))
       ]));
   Widget reviewScreen() => page(
-      'Оценить работу',
-      ActionForm(
-          fields: const [
-            InputSpec('rating', 'Оценка', initial: '5', options: {
-              '1': '1 ★',
-              '2': '2 ★',
-              '3': '3 ★',
-              '4': '4 ★',
-              '5': '5 ★'
-            }),
-            InputSpec('text', 'Ваш отзыв', multiline: true, required: false)
-          ],
-          button: 'Отправить отзыв',
-          before: const [
-            Notice(
-                'Отзывы участников публикуются одновременно или после окончания срока ожидания.')
-          ],
-          submit: (v) async {
-            await api.request('/orders/$objectId/reviews',
-                method: 'POST',
-                body: {'rating': int.parse(v['rating']!), 'text': v['text']});
-            success('Отзыв сохранён');
-            back();
-          }));
+      'Как всё прошло?',
+      loaded('/orders/$objectId', (data, reload) {
+        final order = data as Json;
+        final own = order['my_review'];
+        final person =
+            order['owner'] == me?['id'] ? order['executor'] : order['customer'];
+        if (own != null)
+          return listBody([
+            const UiHeading('Отзыв сохранён'),
+            JobaBadge(status(own)),
+            const Notice(
+                'Отзывы участников публикуются одновременно или после окончания срока ожидания.',
+                icon: 'info'),
+            DataCard('${own['rating']} ★', subtitle: own['text'] ?? ''),
+            button(
+                'Редактировать отзыв',
+                () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                        builder: (c) => Scaffold(
+                            appBar: AppBar(
+                                title: const UiText('Редактировать отзыв')),
+                            body: ActionForm(
+                                fields: [
+                                  InputSpec('rating', 'Оценка',
+                                      initial: '${own['rating']}',
+                                      options: {
+                                        for (var value = 1; value <= 5; value++)
+                                          '$value': '$value ★'
+                                      }),
+                                  InputSpec('text', 'Ваш отзыв',
+                                      initial: own['text'] ?? '',
+                                      required: false,
+                                      multiline: true)
+                                ],
+                                submit: (fields) async {
+                                  await api.request('/reviews/${own['id']}',
+                                      method: 'PATCH',
+                                      body: {
+                                        'expected_version': own['version'],
+                                        'rating': int.parse(fields['rating']!),
+                                        'text': fields['text']
+                                      });
+                                  if (c.mounted) Navigator.pop(c);
+                                  reload();
+                                })))),
+                outline: true)
+          ]);
+        return ActionForm(
+            stickySubmit: true,
+            submitEnabled: reviewRating > 0 &&
+                order['status'] == 'completed' &&
+                [order['owner'], order['executor_id']].contains(me?['id']),
+            before: [
+              Center(
+                  child: JobaAvatar(
+                      api: api,
+                      name: person?['display_name'] ?? '',
+                      id: person?['avatar_id'],
+                      size: 68)),
+              const SizedBox(height: 16),
+              Center(
+                  child: Text(person?['display_name'] ?? '',
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w700))),
+              const SizedBox(height: 4),
+              Center(
+                  child: Text(order['title'] ?? '',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12, color: muted))),
+              const SizedBox(height: 20),
+              Row(children: [
+                for (var value = 1; value <= 5; value++)
+                  Expanded(
+                      child: IconButton(
+                          tooltip: '${localize(context, 'Оценка')} $value',
+                          onPressed: () => setState(() => reviewRating = value),
+                          icon: JobaIcon('star',
+                              size: 37,
+                              color: reviewRating >= value
+                                  ? const Color(0xFFC39119)
+                                  : line,
+                              fill: reviewRating >= value ? yellow : null)))
+              ])
+            ],
+            fields: const [
+              InputSpec('text', 'Ваш отзыв', multiline: true, required: false)
+            ],
+            afterFields: const [
+              Notice(
+                  'Отзывы участников публикуются одновременно или после окончания срока ожидания.',
+                  icon: 'info')
+            ],
+            button: 'Отправить отзыв',
+            submit: (fields) async {
+              await api.request('/orders/${order['id']}/reviews',
+                  method: 'POST',
+                  body: {'rating': reviewRating, 'text': fields['text']});
+              reload();
+            });
+      }));
   Widget reportScreen() => page(
       'Сообщить о проблеме',
       ActionForm(
@@ -2319,30 +3337,99 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   }))));
   Widget securityScreen() => page(
       'Безопасность',
+      ApiView(
+          key: ValueKey('security:$revision'),
+          load: () => Future.wait([
+                api.request('/me/sessions'),
+                lock?.hasPin() ?? Future.value(false),
+                lock?.hasBiometry() ?? Future.value(false)
+              ]),
+          builder: (c, result, reload) => listBody([
+                const UiHeading('Вы управляете доступом',
+                    'Один аккаунт, только ваши устройства.'),
+                JobaMenu([
+                  JobaMenuEntry(
+                      'PIN приложения', 'lock', () => go('lock-setup'),
+                      subtitle: result[1] == true ? 'Настроен' : 'Не настроен'),
+                  JobaMenuEntry('Биометрия', 'face', () => go('lock-setup'),
+                      subtitle: result[2] == true
+                          ? 'Включена на этом устройстве'
+                          : 'Не настроена'),
+                  JobaMenuEntry('Пароль', 'lock', () => go('password'),
+                      subtitle: 'Изменить пароль аккаунта'),
+                  JobaMenuEntry(
+                      'Устройства и сессии', 'phone', () => go('sessions'),
+                      subtitle:
+                          '${items(result[0]).length} · ${localize(context, 'Активные')}',
+                      translateSubtitle: false)
+                ]),
+                const SizedBox(height: 20),
+                Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: line),
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(children: [
+                            JobaIcon('shield', size: 30, color: primary),
+                            SizedBox(width: 10),
+                            Expanded(
+                                child: UiText('Сохранённая сессия',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        height: 1.35,
+                                        letterSpacing: -.4,
+                                        fontWeight: FontWeight.w700)))
+                          ]),
+                          const SizedBox(height: 14),
+                          const UiText(
+                              'PIN или биометрия открывают приложение только на этом устройстве. Для нового устройства нужен полный вход.',
+                              style: TextStyle(
+                                  fontSize: 12, color: muted, height: 1.55))
+                        ])),
+                const Notice(
+                    'Проверка документа исполнителя выполняется отдельно от PIN и биометрии.',
+                    icon: 'info',
+                    margin: EdgeInsets.only(top: 16, bottom: 0)),
+                const SizedBox(height: 20),
+                JobaMenu([
+                  JobaMenuEntry(
+                      'Изменить номер телефона', 'phone', () => go('phone')),
+                  JobaMenuEntry(
+                      'Заблокированные контакты', 'shield', () => go('blocks')),
+                  JobaMenuEntry(
+                      'Документ исполнителя', 'file', () => go('verification'))
+                ])
+              ])));
+  Widget sessionsScreen() => page(
+      'Устройства и сессии',
       loaded(
           '/me/sessions',
           (data, reload) => listBody([
-                button('Изменить пароль', () => go('password'), outline: true),
-                button('Изменить номер телефона', () => go('phone'),
-                    outline: true),
-                button('Настроить PIN и биометрию', () => go('lock-setup'),
-                    outline: true),
-                button('Заблокированные контакты', () => go('blocks'),
-                    outline: true),
-                button('Завершить все сессии', () => go('logout-all'),
-                    outline: true),
-                for (final r in items(data))
+                const UiHeading('Активные сессии',
+                    'Завершите сеансы, которые вам не нужны.'),
+                for (final record in items(data))
                   DataCard('Сессия',
                       translateTitle: true,
-                      subtitle: 'Действует до ${r['expires_at']}',
+                      subtitle: dateLabel(record['expires_at']),
                       footer: button(
                           'Завершить сессию',
                           () => act(() async {
-                                await api.request('/me/sessions/${r['family']}',
+                                await api.request(
+                                    '/me/sessions/${record['family']}',
                                     method: 'DELETE');
+                                if (record['current'] == true) {
+                                  await api.forget();
+                                  return;
+                                }
                                 reload();
                               }),
                           outline: true)),
+                button('Завершить все сессии', () => go('logout-all'),
+                    outline: true)
               ])));
   Widget passwordScreen() => page(
       'Изменить пароль',
@@ -2383,11 +3470,196 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Widget settingsScreen() => page(
       'Настройки',
       listBody([
-        button('Язык и профиль', () => go('onboarding'), outline: true),
-        button('Уведомления', () => go('notification-settings'), outline: true),
-        button('Безопасность', () => go('security'), outline: true),
-        button('Документы и согласия', () => go('terms'), outline: true),
-        Notice('Страна услуг: ${me?['country'] ?? country}')
+        JobaMenu([
+          JobaMenuEntry('Язык интерфейса', 'globe', () => go('languages'),
+              subtitle: const {
+                'ru': 'Русский',
+                'kk': 'Қазақша',
+                'sr': 'Српски',
+                'be': 'Беларуская'
+              }[locale]),
+          JobaMenuEntry('Страна услуг', 'pin', () => go('country'),
+              subtitle: countryName(country), translateSubtitle: false),
+          JobaMenuEntry(
+              'Уведомления', 'bell', () => go('notification-settings'),
+              subtitle: 'События заказов и сообщения'),
+          JobaMenuEntry('Безопасность', 'lock', () => go('security'),
+              subtitle: 'PIN, биометрия, пароль'),
+          JobaMenuEntry('О приложении', 'info', () => go('about'),
+              subtitle: 'JOBA · 0.1.0', translateSubtitle: false)
+        ]),
+        const Notice(
+            'Смена страны не переносит данные автоматически. Проверьте доступность и условия нового региона.',
+            icon: 'info',
+            margin: EdgeInsets.only(top: 24, bottom: 24)),
+        OutlinedButton(
+            onPressed: actionBusy ? null : confirmLogout,
+            child: const UiText('Выйти из аккаунта'))
+      ]));
+  Future<void> confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+                title: const UiText('Завершить сеанс на этом устройстве?'),
+                content: const UiText(
+                    'Локальный PIN и приватный кэш будут удалены. Для следующего входа понадобится номер и пароль.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c, false),
+                      child: const UiText('Остаться')),
+                  TextButton(
+                      onPressed: () => Navigator.pop(c, true),
+                      child: const UiText('Выйти'))
+                ]));
+    if (confirmed == true && mounted) await act(() => api.logout());
+  }
+
+  Widget languageScreen() {
+    var selected = pendingLocale ?? locale;
+    return page(
+        'Язык приложения',
+        StatefulBuilder(
+            builder: (c, update) => Column(children: [
+                  Expanded(
+                      child: listBody([
+                    const UiHeading('Выберите язык',
+                        'Язык интерфейса не меняет страну услуги.'),
+                    for (final language in const {
+                      'ru': 'Русский',
+                      'kk': 'Қазақша',
+                      'sr': 'Српски',
+                      'be': 'Беларуская'
+                    }.entries)
+                      Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Material(
+                              color: selected == language.key
+                                  ? const Color(0xFFF1F5FE)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              child: InkWell(
+                                  onTap: () => update(() {
+                                        selected = language.key;
+                                        pendingLocale = selected;
+                                      }),
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                      constraints:
+                                          const BoxConstraints(minHeight: 76),
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                          border: Border.all(
+                                              color: selected == language.key
+                                                  ? primary
+                                                  : line),
+                                          borderRadius:
+                                              BorderRadius.circular(14)),
+                                      child: Row(children: [
+                                        Expanded(
+                                            child: Text(language.value,
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight:
+                                                        FontWeight.w700))),
+                                        Icon(
+                                            selected == language.key
+                                                ? Icons.radio_button_checked
+                                                : Icons.radio_button_off,
+                                            size: 20,
+                                            color: selected == language.key
+                                                ? primary
+                                                : line)
+                                      ])))))
+                  ])),
+                  SafeArea(
+                      top: false,
+                      child: Container(
+                          color: Colors.white,
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                          child: FilledButton(
+                              onPressed: actionBusy
+                                  ? null
+                                  : () => act(() async {
+                                        final current =
+                                            await api.request('/me') as Json;
+                                        final result = await api.request('/me',
+                                            method: 'PATCH',
+                                            body: {
+                                              'expected_version':
+                                                  current['version'],
+                                              'locale': selected
+                                            }) as Json;
+                                        if (!mounted) return;
+                                        me = result;
+                                        locale = selected;
+                                        widget.onLocaleChanged?.call(selected);
+                                        back();
+                                      }),
+                              child: const UiText('Сохранить выбор'))))
+                ])));
+  }
+
+  Widget countryScreen() => page(
+      'Страна услуг',
+      listBody([
+        const UiHeading(
+            'Выберите страну', 'Страна и язык выбираются отдельно.'),
+        const Notice(
+            'Смена страны не переносит данные автоматически. Проверьте доступность и условия нового региона.',
+            icon: 'info'),
+        for (final entry in const {
+          'KZ': 'Казахстан',
+          'RS': 'Сербия',
+          'RU': 'Россия',
+          'BY': 'Беларусь'
+        }.entries)
+          Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: OutlinedButton(
+                  onPressed: actionBusy
+                      ? null
+                      : () => act(() async {
+                            if (entry.key == country) return;
+                            final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (c) => AlertDialog(
+                                        title: const UiText(
+                                            'Сменить страну услуг?'),
+                                        content: const UiText(
+                                            'Для смены страны завершите текущую сессию и войдите в аккаунт выбранного региона.'),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(c, false),
+                                              child: const UiText('Отмена')),
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(c, true),
+                                              child: const UiText('Продолжить'))
+                                        ]));
+                            if (confirmed != true) return;
+                            await api.logout();
+                            if (mounted) setState(() => country = entry.key);
+                          }),
+                  child: UiText(entry.value)))
+      ]));
+  Widget aboutScreen() => page(
+      'О приложении',
+      listBody([
+        Center(
+            child: Image.asset('assets/joba-logo-original.jpeg',
+                width: 140, height: 140)),
+        const SizedBox(height: 24),
+        const UiHeading(
+            'JOBA', 'Находите специалистов и заказы в вашем городе.'),
+        const Center(
+            child: Text('0.1.0 · 1',
+                style: TextStyle(fontSize: 12, color: muted))),
+        const SizedBox(height: 24),
+        JobaMenu([
+          JobaMenuEntry('Документы и согласия', 'file', () => go('terms')),
+          JobaMenuEntry('Поддержка', 'help', () => go('support'))
+        ])
       ]));
   Widget notificationSettings() => page(
       'Уведомления',
@@ -2559,9 +3831,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api.request('/catalog/categories'),
                 objectId == null
                     ? Future.value(null)
-                    : api.request('/me/portfolio-projects/$objectId'),
-                api.request('/me/completed-orders',
-                    query: {'limit': 100, 'role': 'executor'})
+                    : api.request('/me/portfolio-projects/$objectId')
               ]),
           builder: (c, data, reload) {
             final p = data[1] as Json?;
@@ -2580,14 +3850,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         for (final r in items(data[0])) r['id']: r['name']
                       }),
                   InputSpec('order_id', 'Связать с выполненным заказом',
+                      pickerApi: api,
+                      pickerPath: '/me/completed-orders',
+                      pickerQuery: const {'role': 'executor'},
                       translateOptions: false,
                       initial: p?['order_id'] ?? '',
                       required: false,
-                      options: {
-                        '': 'Без связи с заказом',
-                        for (final order in items(data[2]))
-                          order['id']: order['title'],
-                      }),
+                      options: const {'': 'Без связи с заказом'}),
                   InputSpec('rights_confirmed',
                       'У меня есть права на публикацию материалов',
                       initial: '${p?['rights_confirmed'] ?? false}',
@@ -2863,7 +4132,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 const Notice(
                     'Чтобы продолжить, примите условия использования и политику конфиденциальности.'),
               FilledButton(
-                  onPressed: canContinue ? () => go('home') : null,
+                  onPressed: canContinue
+                      ? () => go(registrationInProgress ? 'onboarding' : 'home')
+                      : null,
                   child: const UiText('Продолжить')),
               TextButton(
                   onPressed: () => go('support'),

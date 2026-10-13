@@ -4,6 +4,7 @@ import 'l10n.dart';
 import 'api.dart';
 import 'theme.dart';
 import 'design_icons.dart';
+import 'resource_picker.dart';
 
 class ApiView extends StatefulWidget {
   final Future<dynamic> Function() load;
@@ -148,6 +149,9 @@ class InputSpec {
   final IconData? prefixIcon;
   final String? originalIcon;
   final Map<String, String>? options;
+  final JobaApi? pickerApi;
+  final String? pickerPath;
+  final Json pickerQuery;
   final TextInputType? keyboard;
   final String? Function(String)? validate;
   final void Function(String)? changed;
@@ -161,6 +165,9 @@ class InputSpec {
       this.required = true,
       this.translateOptions = true,
       this.options,
+      this.pickerApi,
+      this.pickerPath,
+      this.pickerQuery = const {},
       this.keyboard,
       this.validate,
       this.changed});
@@ -170,13 +177,19 @@ class ActionForm extends StatefulWidget {
   final List<InputSpec> fields;
   final String button;
   final Future<void> Function(Map<String, String>) submit;
-  final List<Widget> before, after;
-  final bool authLayout;
+  final List<Widget> before, after, afterFields;
+  final Map<String, List<Widget>> beforeField;
+  final bool authLayout, stickySubmit, externalBusy, submitEnabled;
   const ActionForm(
       {required this.fields,
       required this.submit,
       this.button = 'Сохранить',
       this.authLayout = false,
+      this.stickySubmit = false,
+      this.externalBusy = false,
+      this.submitEnabled = true,
+      this.afterFields = const [],
+      this.beforeField = const {},
       this.before = const [],
       this.after = const [],
       super.key});
@@ -188,7 +201,9 @@ class _ActionFormState extends State<ActionForm> {
   final form = GlobalKey<FormState>();
   late Map<String, TextEditingController> controllers;
   final Set<String> visible = {};
+  final Map<String, String> pickedLabels = {};
   bool busy = false;
+  bool get disabled => busy || widget.externalBusy;
   Object? error;
   @override
   void initState() {
@@ -221,7 +236,8 @@ class _ActionFormState extends State<ActionForm> {
   }
 
   Future<void> submit() async {
-    if (busy || !form.currentState!.validate()) return;
+    if (disabled || !widget.submitEnabled || !form.currentState!.validate())
+      return;
     setState(() {
       busy = true;
       error = null;
@@ -235,13 +251,12 @@ class _ActionFormState extends State<ActionForm> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) => Form(
-      key: form,
-      child: ListView(padding: const EdgeInsets.all(20), children: [
+  Widget content(BuildContext context) =>
+      ListView(padding: const EdgeInsets.all(20), children: [
         ...widget.before,
         if (error != null) Notice(errorText(context, error!), error: true),
-        for (final field in widget.fields)
+        for (final field in widget.fields) ...[
+          ...?widget.beforeField[field.key],
           Padding(
               padding: EdgeInsets.only(
                   bottom: widget.authLayout && field == widget.fields.last
@@ -255,8 +270,59 @@ class _ActionFormState extends State<ActionForm> {
                         child: UiText(field.label,
                             style: const TextStyle(
                                 fontSize: 12, fontWeight: FontWeight.w700))),
-                    if (field.options != null)
+                    if (field.pickerPath != null)
+                      FormField<String>(
+                          initialValue: controllers[field.key]!.text,
+                          validator: (value) =>
+                              field.required && (value ?? '').isEmpty
+                                  ? localize(context, 'Выберите значение')
+                                  : null,
+                          builder: (state) => InkWell(
+                              onTap: disabled
+                                  ? null
+                                  : () async {
+                                      final result = await pickResource(
+                                          context,
+                                          field.pickerApi!,
+                                          field.pickerPath!,
+                                          field.pickerQuery,
+                                          field.label,
+                                          optional: !field.required);
+                                      if (!mounted || result == null) return;
+                                      final id = result['id'] as String;
+                                      controllers[field.key]!.text = id;
+                                      state.didChange(id);
+                                      setState(() => pickedLabels[field.key] =
+                                          result['title'] ?? id);
+                                      field.changed?.call(id);
+                                    },
+                              child: InputDecorator(
+                                  decoration: InputDecoration(
+                                      errorText: state.errorText),
+                                  child: Row(children: [
+                                    Expanded(
+                                        child: Text(
+                                            pickedLabels[field.key] ??
+                                                field.options?[
+                                                    controllers[field.key]!
+                                                        .text] ??
+                                                (controllers[field.key]!
+                                                        .text
+                                                        .isEmpty
+                                                    ? localize(
+                                                        context,
+                                                        field.required
+                                                            ? 'Выберите значение'
+                                                            : 'Без связи с заказом')
+                                                    : localize(context,
+                                                        'Выбранный заказ')),
+                                            style:
+                                                const TextStyle(fontSize: 14))),
+                                    const JobaIcon('down', size: 18)
+                                  ]))))
+                    else if (field.options != null)
                       DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue:
                               field.options!.containsKey(field.initial)
                                   ? field.initial
@@ -268,7 +334,7 @@ class _ActionFormState extends State<ActionForm> {
                                       ? UiText(e.value)
                                       : Text(e.value)))
                               .toList(),
-                          onChanged: busy
+                          onChanged: disabled
                               ? null
                               : (v) {
                                   controllers[field.key]!.text = v ?? '';
@@ -281,7 +347,7 @@ class _ActionFormState extends State<ActionForm> {
                     else
                       TextFormField(
                           controller: controllers[field.key],
-                          enabled: !busy,
+                          enabled: !disabled,
                           onChanged: field.changed,
                           keyboardType: field.keyboard,
                           style: const TextStyle(
@@ -337,18 +403,35 @@ class _ActionFormState extends State<ActionForm> {
                                 : localize(context, problem);
                           }),
                   ])),
-        FilledButton(
-            onPressed: busy ? null : submit,
-            child: busy
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : UiText(widget.button)),
-        SizedBox(height: widget.authLayout ? 0 : 12),
+        ],
+        ...widget.afterFields,
+        if (!widget.stickySubmit) submitButton(),
+        if (!widget.stickySubmit) SizedBox(height: widget.authLayout ? 0 : 12),
         ...widget.after,
-      ]));
+      ]);
+  Widget submitButton() => FilledButton(
+      onPressed: disabled || !widget.submitEnabled ? null : submit,
+      child: disabled
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white))
+          : UiText(widget.button));
+  @override
+  Widget build(BuildContext context) => Form(
+      key: form,
+      child: widget.stickySubmit
+          ? Column(children: [
+              Expanded(child: content(context)),
+              SafeArea(
+                  top: false,
+                  child: Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                      child: submitButton()))
+            ])
+          : content(context));
 }
 
 class DataCard extends StatelessWidget {
@@ -368,37 +451,43 @@ class DataCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: line)),
       child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (status.isNotEmpty)
                       Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
+                              horizontal: 7, vertical: 3),
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
-                              color: canvas,
-                              borderRadius: BorderRadius.circular(8)),
+                              color: const Color(0xFFEAF0FC),
+                              borderRadius: BorderRadius.circular(7)),
                           child: UiText(status,
                               style: const TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.w700))),
+                                  fontSize: 10,
+                                  height: 1.6,
+                                  color: primary,
+                                  fontWeight: FontWeight.w700))),
                     Text(translateTitle ? localize(context, title) : title,
                         style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w700)),
+                            fontSize: 16,
+                            height: 1.44,
+                            letterSpacing: -.2,
+                            fontWeight: FontWeight.w700)),
                     if (subtitle.isNotEmpty)
                       Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(subtitle,
                               style: const TextStyle(
-                                  color: Color(0xFF6B7890),
-                                  fontSize: 13,
+                                  color: Color(0xFF627187),
+                                  fontSize: 12,
                                   height: 1.5))),
                     if (footer != null)
                       Padding(
@@ -467,9 +556,14 @@ class PrivatePhoto extends StatelessWidget {
 class SearchListings extends StatefulWidget {
   final JobaApi api;
   final String path;
+  final Json initialFilters;
   final Widget Function(Json) tile;
   const SearchListings(
-      {required this.api, required this.path, required this.tile, super.key});
+      {required this.api,
+      required this.path,
+      required this.tile,
+      this.initialFilters = const {},
+      super.key});
   @override
   State<SearchListings> createState() => _SearchListingsState();
 }
@@ -479,6 +573,12 @@ class _SearchListingsState extends State<SearchListings> {
   Json filters = {};
   String query = '';
   Timer? debounce;
+  @override
+  void initState() {
+    super.initState();
+    filters = Map<String, dynamic>.from(widget.initialFilters);
+  }
+
   Future<void> chooseFilters() async {
     try {
       final data = await Future.wait([
@@ -488,6 +588,8 @@ class _SearchListingsState extends State<SearchListings> {
       var category = filters['category_id'] as String? ?? '',
           city = filters['city'] as String? ?? '';
       if (!mounted) return;
+      if (category.isNotEmpty &&
+          !items(data[0]).any((item) => item['id'] == category)) category = '';
       final result = await showModalBottomSheet<Json>(
           context: context,
           isScrollControlled: true,
@@ -516,6 +618,10 @@ class _SearchListingsState extends State<SearchListings> {
                         items: [
                           const DropdownMenuItem(
                               value: '', child: UiText('Все города')),
+                          if (city.isNotEmpty &&
+                              !items(data[1])
+                                  .any((item) => item['name'] == city))
+                            DropdownMenuItem(value: city, child: Text(city)),
                           for (final item in items(data[1]))
                             DropdownMenuItem(
                                 value: item['name'], child: Text(item['name']))

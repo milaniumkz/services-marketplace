@@ -33,12 +33,15 @@ test('marketplace lifecycle, access boundaries, command retry and refresh replay
     await rejects(()=>call(executor,'POST',`/orders/${order.id}/offers`,{text:'Готов выполнить',amount:4500000,acknowledged_revision:1}),'REVISION_NOT_ACKNOWLEDGED');
     const offer=await call(executor,'POST',`/orders/${order.id}/offers`,{text:'Готов выполнить',amount:4500000,acknowledged_revision:order.revision});
     await rejects(()=>call(stranger,'GET',`/conversations/${offer.conversation_id}/messages`),'NOT_FOUND');
+    const visibleOffer=await call(customer,'GET',`/offers/${offer.id}`);assert.equal(visibleOffer.order.id,order.id);assert.equal(visibleOffer.executor.id,executor.user.id);assert.equal(visibleOffer.executor.phone,undefined);
+    await rejects(()=>call(stranger,'GET',`/offers/${offer.id}`),'NOT_FOUND');
     const msg={client_message_id:randomUUID(),text:'Согласуем время работы'};
     const sent=await call(customer,'POST',`/conversations/${offer.conversation_id}/messages`,msg);
     assert.equal((await call(customer,'POST',`/conversations/${offer.conversation_id}/messages`,msg)).id,sent.id);
     await rejects(()=>call(customer,'POST',`/conversations/${offer.conversation_id}/messages`,{...msg,text:'Другой текст'}),'IDEMPOTENCY_CONFLICT');
     const assigned=await call(customer,'POST',`/orders/${order.id}/select`,{expected_version:order.version,offer_id:offer.id,offer_version:offer.version});
     assert.equal(assigned.status,'assigned');
+    const working=await call(customer,'GET',`/orders/${order.id}`);assert.equal(working.conversation_id,offer.conversation_id);assert.equal(working.executor.id,executor.user.id);assert.equal(working.customer.phone,undefined);
     await rejects(()=>call(customer,'POST',`/orders/${order.id}/select`,{expected_version:order.version,offer_id:offer.id,offer_version:1}),'STATE_CONFLICT');
     const started=await call(executor,'POST',`/orders/${order.id}/start`,{expected_version:assigned.version});
     const completing=await call(executor,'POST',`/orders/${order.id}/request-completion`,{expected_version:started.version});

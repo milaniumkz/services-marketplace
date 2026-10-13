@@ -42,6 +42,66 @@ class RecordingSink implements StreamConsumer<List<int>> {
 }
 
 void main() {
+  testWidgets(
+      'Completed order picker keeps executor scope across pages and can clear a saved link',
+      (tester) async {
+    final calls = <Uri>[];
+    final api = JobaApi('https://example.com', vault: MemoryVault(),
+        transport: MockClient((request) async {
+      calls.add(request.url);
+      final next = request.url.queryParameters['cursor'] == 'next';
+      return ok({
+        'items': [
+          {
+            'id': next ? 'completed-129' : 'completed-1',
+            'title':
+                next ? '129-й завершённый заказ' : 'Первый завершённый заказ',
+            'city': 'Алматы'
+          }
+        ],
+        'meta': {'next_cursor': next ? null : 'next'}
+      });
+    }))
+      ..session = {'access_token': 'isolated-picker'};
+    String? selected;
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: ActionForm(
+                fields: [
+          InputSpec('order_id', 'Связать с выполненным заказом',
+              initial: 'old-link',
+              required: false,
+              pickerApi: api,
+              pickerPath: '/me/completed-orders',
+              pickerQuery: const {'role': 'executor'})
+        ],
+                submit: (values) async {
+                  selected = values['order_id'];
+                }))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Выбранный заказ'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Показать ещё'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('129-й завершённый заказ'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+    expect(selected, 'completed-129');
+    expect(calls.length, 2);
+    expect(
+        calls.every((uri) => uri.queryParameters['role'] == 'executor'), true);
+    await tester.tap(find.text('129-й завершённый заказ'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Без связи с заказом'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+    expect(selected, '');
+    await tester.pumpWidget(const SizedBox());
+    api.dispose();
+  });
+
   test('Old command never replays under a newly signed-in account', () async {
     final pending = Completer<http.Response>(), started = Completer<void>();
     var rotations = 0, mutations = 0;

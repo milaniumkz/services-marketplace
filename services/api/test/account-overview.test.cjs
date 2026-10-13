@@ -1,0 +1,39 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {randomUUID}=require('node:crypto');
+const {Store}=require('../dist/store');
+const {Marketplace}=require('../dist/marketplace');
+const {contractorPresentation}=require('../dist/contractor-presentation');
+test('account overview counts before pagination without exposing other accounts or unpublished reviews',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ try{
+  const session=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000091',password:'An isolated test password!',display_name:'Владелец'},undefined,undefined,{},'overview-test');
+  const owner=session.user.id,other=randomUUID(),now=new Date().toISOString();
+  const put=(kind,data={},country='KZ',account=owner)=>api.store.put({id:randomUUID(),kind,owner:account,country,version:1,created_at:now,...data});
+  const get=(path,query={})=>api.handle('GET',path,{},'Bearer '+session.access_token,undefined,query,'overview-test');
+  const empty=await get('/me/overview');assert.equal(empty.orders.active,0);assert.equal(empty.rating.average,null);assert.equal(empty.contractor,null);
+  for(let n=0;n<125;n++)await put('order',{status:'open'});
+  await put('order',{status:'in_progress',executor_id:owner},'KZ',other);
+  await put('order',{status:'draft'});await put('order',{status:'completed'});
+  await put('order',{status:'open'},'KZ',other);await put('order',{status:'open'},'RS');
+  await put('invite',{status:'pending',recipient_id:owner},'KZ',other);
+  await put('invite',{status:'pending',recipient_id:other});
+  await put('review',{status:'published',target_id:owner,rating:4},'KZ',other);
+  await put('review',{status:'published',target_id:owner,rating:1,moderation_status:'quarantined'},'KZ',other);
+  await put('review',{status:'sealed',target_id:owner,rating:1},'KZ',other);
+  await put('portfolio',{status:'published',draft:{status:'pending_review'}});
+  const until=new Date(Date.now()+86400000).toISOString();await put('grant',{source:'subscription',valid_until:until});
+  const profile=await put('contractor',{status:'published',availability:'busy',title:'Услуги владельца',draft:{description:'Secret draft'}});
+  const drafts=await get('/me/orders',{bucket:'drafts',limit:1});assert.equal(drafts.items.length,1);assert.equal(drafts.items[0].status,'draft');
+  const assigned=await get('/me/assigned-orders',{bucket:'active'});assert.equal(assigned.items.length,1);assert.equal(assigned.items[0].executor_id,owner);
+  await assert.rejects(()=>get('/me/orders',{bucket:'invalid'}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
+  const result=await get('/me/overview');assert.deepEqual(result.orders,{active:125,open:125,draft:1,completed:1});
+  assert.deepEqual(result.assigned_orders,{active:1,completed:0});assert.equal(result.invitations.pending,1);
+  assert.deepEqual(result.rating,{count:1,average:4});assert.deepEqual(result.portfolio,{published:1,pending:1});
+  assert.equal(result.subscription_until,until);assert.deepEqual(result.contractor,{status:'published',availability:'busy'});
+  const presented=(await contractorPresentation(api.store,'KZ',[profile]))[0];
+  assert.equal(presented.display_name,'Владелец');assert.deepEqual(presented.rating,{count:1,average:4});
+  assert.equal(presented.phone,undefined);assert.equal(presented.draft,undefined);
+  const sessions=await get('/me/sessions');assert.equal(sessions.items.length,1);assert.equal(sessions.items[0].current,true);
+ }finally{await api.store.close();}
+});

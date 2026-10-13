@@ -1,4 +1,7 @@
 import {editableContent,publicContent,editContent,submitContent} from './content-revisions';
+import {accountOverview} from './account-overview';
+import {contractorPresentation} from './contractor-presentation';
+import {orderBucket} from './order-buckets';
 import { HttpException } from '@nestjs/common';
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { hash, verify } from '@node-rs/argon2';
@@ -256,6 +259,7 @@ export class Marketplace {
       await this.reauth(a,b);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[a.id]);return {logged_out:true};
     }
     if(path==='/me'&&method==='GET')return {...safeUser(a.user),phone:a.user.phone,phone_status:'unverified',status:a.user.status,version:a.user.version};
+    if(path==='/me/overview'&&method==='GET')return accountOverview(this.store,a.id,a.country);
     if(path==='/me'&&method==='PATCH') {
       this.version(a.user,b);const changes:any={};
       for(const [f,min,max] of [['display_name',2,60],['city',0,100],['locale',2,5]] as const)if(b[f]!==undefined)changes[f]=text(b,f,min,max);
@@ -275,7 +279,7 @@ export class Marketplace {
       await db.query('UPDATE credentials SET phone=$1 WHERE user_id=$2',[value,a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);
       await this.store.put({...a.user,phone:value,phone_status:'unverified',version:a.user.version+1});await this.store.put(this.record('security_event',a,{event:'phone.changed',ip,occurred_at:new Date().toISOString()}));return {phone:value,phone_status:'unverified'};
     }
-    if(path==='/me/sessions'&&method==='GET')return {items:(await db.query('SELECT DISTINCT family,expires_at FROM tokens WHERE user_id=$1 AND kind=\'refresh\' AND NOT revoked AND NOT used',[a.id])).rows};
+    if(path==='/me/sessions'&&method==='GET')return {items:(await db.query('SELECT DISTINCT family,expires_at FROM tokens WHERE user_id=$1 AND kind=\'refresh\' AND NOT revoked AND NOT used',[a.id])).rows.map(r=>({...r,current:r.family===a.family}))};
     const revokeSession=path.match(/^\/me\/sessions\/([^/]+)$/);
     if(revokeSession&&method==='DELETE'){await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family=$2',[a.id,revokeSession[1]]);return {revoked:true};}
     if(path==='/me/blocks'&&method==='POST') {
@@ -393,7 +397,7 @@ export class Marketplace {
     if(contractor&&method==='GET'){
       await this.entitlement(a,'search_full');const p=await this.object(contractor[1],a,'contractor'),owner=await this.store.get(p.owner);
       if(owner?.status!=='active'||owner.verification!=='passed'||p.status!=='published'||['quarantined','hidden','rejected'].includes(p.moderation_status)||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');
-      if(!contractor[2])return publicContent(p);
+      if(!contractor[2])return (await contractorPresentation(this.store,a.country,[p]))[0];
       const projects=(await this.store.all('portfolio',a.country)).filter(x=>x.owner===p.owner&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status));
       const visible=await Promise.all(projects.map(async project=>{
         const order=project.order_id?await this.store.get(project.order_id):undefined;
@@ -408,7 +412,7 @@ export class Marketplace {
       return {...safeUser(u),city_source:'self_reported',completed_orders:(await this.store.all('order',a.country)).filter(o=>o.owner===u.id&&o.status==='completed').length,rating:{count:reviews.length,average:reviews.length?reviews.reduce((sum,r)=>sum+r.rating,0)/reviews.length:null}};
     }
     const publicReviews=path.match(/^\/users\/([^/]+)\/reviews$/);
-    if(publicReviews&&method==='GET'){await this.entitlement(a,'search_full');const target=await this.object(publicReviews[1],a,'user');if(target.status!=='active'||target.staff_permissions?.length||await this.blocked(a,target.id))fail(404,'NOT_FOUND','Профиль недоступен');return this.list((await this.store.all('review',a.country)).filter(r=>r.target_id===publicReviews[1]&&r.status==='published'&&r.moderation_status!=='quarantined'),q);}
+    if(publicReviews&&method==='GET'){const target=await this.object(publicReviews[1],a,'user');if(target.id!==a.id){await this.entitlement(a,'search_full');if(target.status!=='active'||target.staff_permissions?.length||await this.blocked(a,target.id))fail(404,'NOT_FOUND','Профиль недоступен');}return this.list((await this.store.all('review',a.country)).filter(r=>r.target_id===publicReviews[1]&&r.status==='published'&&!['quarantined','hidden','rejected'].includes(r.moderation_status)),q);}
     if(path==='/orders'&&method==='POST') {
       const budget=b.budget?b.budget.mode==='negotiable'?null:b.budget.amount_minor:(b.budget_amount??null);
       if(budget!==null && (!Number.isSafeInteger(budget)||budget<0))fail(400,'VALIDATION_ERROR','Бюджет должен быть целым числом в минимальных единицах валюты либо null');
@@ -419,9 +423,9 @@ export class Marketplace {
       const uploads=b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[];
       return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
     }
-    if(path==='/me/orders'&&method==='GET')return this.page('order',a,q,{owner:a.id});
+    if(path==='/me/orders'&&method==='GET')return this.page('order',a,q,{owner:a.id,statuses:orderBucket(q.bucket)});
     if(path==='/me/completed-orders'&&method==='GET'){if(q.role&&!['customer','executor'].includes(q.role))fail(400,'VALIDATION_ERROR','Проверьте роль');return this.page('order',a,q,{...(q.role==='executor'?{executor:a.id}:q.role==='customer'?{owner:a.id}:{participant:a.id}),statuses:['completed']});}
-    if(path==='/me/assigned-orders'&&method==='GET')return this.list((await this.store.all('order',a.country)).filter(x=>x.executor_id===a.id),q);
+    if(path==='/me/assigned-orders'&&method==='GET')return this.page('order',a,q,{executor:a.id,statuses:orderBucket(q.bucket)});
     if(path==='/me/offers'&&method==='GET')return this.list((await this.store.all('offer',a.country)).filter(x=>x.owner===a.id),q);
     if(path==='/me/order-change-requests'&&method==='GET')return this.list([...(await this.store.all('cancel_request',a.country)),...(await this.store.all('amendment',a.country))].filter(x=>x.owner===a.id||x.recipient_id===a.id),q);
     if(path==='/orders'&&method==='GET'){await this.entitlement(a,'search_full',true);return this.page('order',a,q,{statuses:['open'],publicActor:a.id});}
@@ -431,7 +435,13 @@ export class Marketplace {
       const participant=o.owner===a.id||o.executor_id===a.id;
       if(!participant&&(o.status!=='open'||['quarantined','hidden','rejected'].includes(o.moderation_status)||o.expires_at<=new Date().toISOString()||await this.blocked(a,o.owner)))fail(404,'NOT_FOUND','Заказ не найден');
       if(!participant)await this.entitlement(a,'search_full',true);
-      if(method==='GET'&&!action)return participant?o:{...o,exact_address:undefined};
+      if(method==='GET'&&!action){
+        const customer=await this.store.get(o.owner),executor=o.executor_id?await this.store.get(o.executor_id):undefined;
+        const assignment=participant&&o.assignment_id?await this.store.get(o.assignment_id):undefined;
+        const review=participant?(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='review' AND country=$1 AND owner=$2 AND data->>'order_id'=$3 LIMIT 1",[a.country,a.id,o.id])).rows[0]?.data:undefined;
+        const person=(user:RecordData|undefined)=>user?{id:user.id,display_name:user.display_name,avatar_id:user.avatar_id,city:user.city}:null;
+        return {...o,exact_address:participant?o.exact_address:undefined,customer:person(customer),executor:participant?person(executor):undefined,conversation_id:assignment?.conversation_id,my_review:review};
+      }
       if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id)};}
       if(action==='offers'&&method==='POST') {
         await this.entitlement(a,'send_offer',true);if(o.owner===a.id||o.status!=='open')fail(409,'STATE_CONFLICT','Нельзя откликнуться на заказ');
@@ -503,6 +513,12 @@ export class Marketplace {
     }
     const offerCommand=path.match(/^\/offers\/([^/]+)(?:\/(acknowledge|withdraw))?$/);
     if(offerCommand) {
+      if(method==='GET'&&!offerCommand[2]) {
+        const offer=await this.object(offerCommand[1],a,'offer'),order=await this.object(offer.order_id,a,'order');
+        if(offer.owner!==a.id&&order.owner!==a.id)fail(404,'NOT_FOUND','Отклик не найден');
+        const executor=await this.store.get(offer.owner);
+        return {...offer,order:{...order,exact_address:order.owner===a.id||order.executor_id===a.id?order.exact_address:undefined},executor:executor?{id:executor.id,display_name:executor.display_name,avatar_id:executor.avatar_id}:null};
+      }
       const f=await this.object(offerCommand[1],a,'offer',true);this.version(f,b);
       if(f.status!=='active')fail(409,'STATE_CONFLICT','Отклик больше не активен');
       const o=await this.object(f.order_id,a,'order');if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ закрыт');
@@ -552,7 +568,10 @@ export class Marketplace {
       if(!Number.isInteger(b.rating)||b.rating<1||b.rating>5)fail(400,'VALIDATION_ERROR','Оценка от 1 до 5');
       if((await this.store.all('review',a.country)).some(x=>x.order_id===o.id&&x.owner===a.id))fail(409,'STATE_CONFLICT','Отзыв уже оставлен');
       const r=this.record('review',a,{order_id:o.id,target_id:o.owner===a.id?o.executor_id:o.owner,rating:b.rating,text:text(b,'text',0,2000),status:'sealed',publish_after:new Date(Date.parse(o.completed_at)+settings.review_blind_days*86400000).toISOString()});await this.store.put(r);
-      const all=(await this.store.all('review',a.country)).filter(x=>x.order_id===o.id);if(all.length===2)for(const x of all)await this.store.put({...x,status:'published',version:x.version+1});return {...r,status:all.length===2?'published':'sealed'};
+      const all=(await this.store.all('review',a.country)).filter(x=>x.order_id===o.id);
+      const disputed=(await this.store.all('case',a.country)).some(c=>c.target_id===o.id&&!['resolved','closed'].includes(c.status));
+      const publish=all.length===2&&!disputed&&!all.some(x=>['quarantined','hidden','rejected'].includes(x.moderation_status));
+      if(publish)for(const x of all)await this.store.put({...x,status:'published',published_at:new Date().toISOString(),version:x.version+1});return (await this.store.get(r.id))!;
     }
     const editReview=path.match(/^\/reviews\/([^/]+)$/);
     if(editReview&&method==='PATCH') {
@@ -904,7 +923,9 @@ export class Marketplace {
   private async page(kind:string,a:Actor,q:any,options:{owner?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const selected=await this.store.select(kind,a.country,{...options,limit:limit+1,after,city:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
-    const items=selected.slice(0,limit).map(x=>options.publicActor&&kind==='order'?{...x,exact_address:undefined}:options.publicActor&&kind==='contractor'?publicContent(x):x);return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};
+    const batch=selected.slice(0,limit);
+    const items=options.publicActor&&kind==='contractor'?await contractorPresentation(this.store,a.country,batch):batch.map(x=>options.publicActor&&kind==='order'?{...x,exact_address:undefined}:x);
+    return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};
   }
   private async portfolioPage(records:RecordData[],q:any) {
     const sorted=records.filter(r=>(!q.category_id||r.category_id===q.category_id)&&(!q.q||[r.title,r.description].join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((x,y)=>(x.position??0)-(y.position??0)||x.id.localeCompare(y.id));
@@ -914,7 +935,7 @@ export class Marketplace {
   }
   private async list(items:any[],q:any) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
-    const filtered=items.filter(x=>(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
+    const filtered=items.filter(x=>(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.order_id||x.order_id===q.order_id)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
     const page=filtered.slice(0,limit);return {items:page,meta:{next_cursor:filtered.length>limit?await this.nextCursor(page.at(-1).id,q):null,total:filtered.length}};
   }
   private async messages(c:RecordData,a:Actor,method:string,b:any,q:any,kind:string) {
@@ -1127,7 +1148,7 @@ export class Marketplace {
         }
         for(const r of await this.store.all('review'))if(r.status==='sealed'&&r.publish_after<=now.toISOString()) {
           const disputes=(await this.store.all('case',r.country)).filter(c=>c.target_id===r.order_id&&!['resolved','closed'].includes(c.status));
-          if(!disputes.length)await this.store.put({...r,status:'published',version:r.version+1});
+          if(!disputes.length&&!['quarantined','hidden','rejected'].includes(r.moderation_status))await this.store.put({...r,status:'published',published_at:now.toISOString(),version:r.version+1});
         }
         for(const kind of ['cancel_request','amendment','ad_session','recovery','auto_hold','blacklist'])for(const r of await this.store.all(kind)) {
           const end=r.expires_at??r.ends_at;if(end&&end<=now.toISOString()&&['pending','new','active'].includes(r.status))await this.store.put({...r,status:'expired',version:r.version+1});

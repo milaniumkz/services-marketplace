@@ -29,6 +29,7 @@ class LocalLock {
           aOptions: AndroidOptions(encryptedSharedPreferences: true),
           iOptions: IOSOptions(accessibility: KeychainAccessibility.passcode))})
       : key = 'joba.lock.$scope';
+  Future<bool> hasPin() async => await storage.read(key: key) != null;
   Future<bool> configured() async =>
       await storage.read(key: key) != null || await hasBiometry();
   Future<bool> hasBiometry() async =>

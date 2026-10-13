@@ -13,6 +13,15 @@ ThemeData jobaTheme() => ThemeData(
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       fontFamily: 'Noto',
+      textTheme: const TextTheme(
+          bodyMedium: TextStyle(
+              fontFamily: 'Noto',
+              fontSize: 14,
+              letterSpacing: 0,
+              height: 1.55,
+              color: navy),
+          bodyLarge: TextStyle(
+              fontFamily: 'Noto', fontSize: 16, letterSpacing: 0, color: navy)),
       dividerTheme: const DividerThemeData(color: line, thickness: 1),
       scaffoldBackgroundColor: Colors.white,
       colorScheme: ColorScheme.fromSeed(seedColor: primary)

@@ -32,6 +32,10 @@ void main() {
       'upload_ids': []
     }) as Json;
     expect(draft['status'], 'draft');
+    final overview = await api.request('/me/overview') as Json;
+    expect(overview['orders']['draft'], 1);
+    expect(overview['rating']['count'], 0);
+    expect(items(await api.request('/me/sessions')).single['current'], true);
     expect(
         items(await api.request('/me/orders'))
             .any((o) => o['id'] == draft['id']),

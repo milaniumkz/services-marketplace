@@ -71,13 +71,16 @@ class JobaIcon extends StatelessWidget {
   final String name;
   final double size;
   final Color color;
+  final Color? fill;
   const JobaIcon(this.name,
-      {this.size = 22, this.color = const Color(0xFF172B4D), super.key});
+      {this.size = 22,
+      this.color = const Color(0xFF172B4D),
+      this.fill,
+      super.key});
   @override
   Widget build(BuildContext context) => SvgPicture.string(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${_paths[name] ?? _paths['info']}"/></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fill == null ? 'none' : '#' + fill!.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}" stroke="#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${_paths[name] ?? _paths['info']}"/></svg>',
       width: size,
       height: size,
-      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
       excludeFromSemantics: true);
 }
