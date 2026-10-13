@@ -11,6 +11,7 @@ import '../core/l10n.dart';
 import '../core/widgets.dart';
 import '../core/local_lock.dart';
 import '../core/export_saver.dart';
+import '../core/currency.dart';
 
 const states = {
   'draft': 'Черновик',
@@ -65,8 +66,10 @@ const eventTitles = {
   'amendment.rejected': 'Новые условия отклонены'
 };
 String status(Json r) => states[r['status']] ?? '${r['status'] ?? ''}';
-String money(dynamic amount, [String currency = 'KZT']) =>
-    amount == null ? 'По договорённости' : '${(amount as num) / 100} $currency';
+String money(dynamic amount, [String currency = 'KZT', String locale = 'ru']) =>
+    amount == null
+        ? 'По договорённости'
+        : formatMoney((amount as num).toInt(), currency, locale);
 int minor(String value) {
   final normalized = value.trim().replaceAll(',', '.');
   if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(normalized))
@@ -304,7 +307,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   String price(dynamic amount, [String currency = 'KZT']) => amount == null
       ? localize(context, 'По договорённости')
-      : money(amount, currency);
+      : money(amount, currency, locale);
 
   Widget button(String label, VoidCallback onPressed, {bool outline = false}) =>
       Padding(

@@ -17,6 +17,10 @@ export interface RewardProvider {
   readonly name:string;
   verifyCallback(rawBody:Buffer,headers:Record<string,string>):Promise<VerifiedReward>;
 }
+export interface BannerProvider {
+  readonly name:string;
+  validatePlacement(placementId:string,country:string):Promise<{allowed:boolean}>;
+}
 export interface PushProvider {
   send(token:string,event:{event_id:string;title:string;body:string}):Promise<{provider_message_id:string}>;
 }
@@ -25,6 +29,7 @@ export interface PdfSanitizer { sanitize(file:Buffer):Promise<Buffer>; }
 export class Providers {
   readonly billing=new Map<string,BillingProvider>();
   readonly rewards=new Map<string,RewardProvider>();
+  readonly banners=new Map<string,BannerProvider>();
   push?:PushProvider;
   scanner?:FileScanner;
   pdfSanitizer?:PdfSanitizer;

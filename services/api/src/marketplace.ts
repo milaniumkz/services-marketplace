@@ -113,7 +113,7 @@ export class Marketplace {
     const grants=(await this.store.select('grant',a.country,{owner:a.id,limit:1000})).filter(r=>r.owner===a.id && r.valid_until>new Date().toISOString() && r.capabilities.includes(capability)&&(r.balance===undefined||r.balance>0));
     if(!grants.length)fail(403,'ENTITLEMENT_REQUIRED','Нужен действующий доступ',{capability});
     const selected=grants.find(g=>g.balance===undefined)??grants[0];
-    if(selected.balance!==undefined&&['publish_order','send_offer','select_offer'].includes(capability)) {
+    if(selected.balance!==undefined&&['publish_order','send_offer','select_offer','publish_profile'].includes(capability)) {
       await this.store.put({...selected,balance:selected.balance-1,version:selected.version+1});
       await this.store.put(this.record('entitlement_consumption',a,{grant_id:selected.id,capability,consumed_at:new Date().toISOString()}));
     }
@@ -679,12 +679,19 @@ export class Marketplace {
     }
     if(path.startsWith('/admin/')) {
       const section=path.split('/')[2];
-      const permission=({audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','placement-policies':'promotion','brand-icons':'brand_owner',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','placement-policies':'promotion','brand-icons':'brand_owner',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy',verifications:'verification'};
       if(path==='/admin/dashboard'&&method==='GET')return {users:(await this.store.all('user',a.country)).filter(u=>!u.staff_permissions?.length).length,orders:(await this.store.all('order',a.country)).length,support:(await this.store.all('support',a.country)).filter(x=>x.status!=='resolved').length,country:a.country,mode:'development',checkout_enabled:false};
       if(path==='/admin/boost-grants'&&method==='POST'){await this.staff(a,'promotion');const reason=text(b,'reason',10,1000);const result=await this.growth.adminBoost(a.id,a.country,{...b,reason});await this.audit(a,'boost.admin_grant',result.id,reason);return result;}
       if(path==='/admin/boost-reports'&&method==='GET'){await this.staff(a,'promotion');return this.list(await this.store.all('boost',a.country),q);}
+      if(path==='/admin/monetization-summary'&&method==='GET') {
+        const now=new Date().toISOString();
+        const counts=(await this.store.db.query<any>("SELECT COUNT(*) FILTER(WHERE kind='user' AND data->>'status'='active' AND COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0) AS users,COUNT(*) FILTER(WHERE kind='grant' AND data->>'source'='subscription' AND data->>'valid_until'>$2) AS subscription_grants,COUNT(*) FILTER(WHERE kind='ad_session' AND data->>'status' IN ('pending','created','started')) AS pending_rewards FROM records WHERE country=$1",[a.country,now])).rows[0];
+        const current=(await this.store.all('monetization_config',a.country)).filter(r=>r.status==='effective'&&(!r.payload.role||r.payload.role==='all')&&(!r.payload.platform||r.payload.platform==='all')).sort((x,y)=>String(y.published_at).localeCompare(String(x.published_at)))[0]??null;
+        const prices=(await this.store.all('price_version',a.country)).filter(r=>r.status==='effective');
+        return {country:a.country,current,prices,users:Number(counts.users),subscription_grants:Number(counts.subscription_grants),pending_rewards:Number(counts.pending_rewards),config_ttl_seconds:(await this.settings(a.country)).config_ttl_seconds,providers:{billing:[...this.providers.billing.keys()],rewarded:[...this.providers.rewards.keys()],banner:[...this.providers.banners.keys()]}};
+      }
       if(path==='/admin/runtime-settings'&&method==='GET')return {settings:await this.settings(a.country),items:await this.store.all('runtime_settings',a.country)};
       if(path==='/admin/entitlement-grants'&&method==='POST') {
         await this.staff(a,'billing');const owner=await this.object(String(b.user_id),a,'user');

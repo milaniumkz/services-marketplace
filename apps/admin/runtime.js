@@ -1,3 +1,4 @@
+import {monetizationWorkspace} from './monetization-workspace.js';
 import {operationsWorkspace} from './operations-workspace.js';
 import {reviewWorkspace} from './review-workspace.js';
 import './design.js';
@@ -73,6 +74,7 @@ async function draw(reload=true) {
       const workspace=document.querySelector('.workspace');if(workspace){workspace.innerHTML=note('Загрузка данных…');workspace.setAttribute('aria-busy','true');}
       if(key==='dashboard')cache.dashboard=await request('/admin/dashboard');
       if(sections[key])cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
+      if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
       if(key.startsWith('record-live/')){
         routes[key]=await reviewWorkspace({key,api:request,esc,card,note,namedField,sections,onRefresh:()=>draw()});

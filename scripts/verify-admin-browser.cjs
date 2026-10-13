@@ -56,7 +56,8 @@ async function main(){
   await page.locator('.nav a[href="#monetization"]').click();
   await page.getByLabel('Название',{exact:true}).fill('Проверка реального черновика');
   await page.getByLabel('Причина',{exact:true}).fill('Изолированная проверка интерфейса');
-  await page.getByLabel('Параметры JSON').fill(JSON.stringify({subscription_enabled:true,banner_ads_enabled:false,rewarded_access_enabled:false}));
+  assert.equal(await page.getByRole('switch',{name:'Показывать inline-баннеры'}).getAttribute('aria-checked'),'false');
+  assert.equal(await page.getByRole('switch',{name:'Разрешить новые рекламные сессии'}).getAttribute('aria-checked'),'false');
   await page.getByRole('button',{name:'Сохранить черновик'}).click();
   await page.getByRole('alert').filter({hasText:'Нет соединения'}).waitFor();
   assert.equal(await page.getByLabel('Название',{exact:true}).inputValue(),'Проверка реального черновика');
@@ -68,6 +69,16 @@ async function main(){
   await page.getByRole('button',{name:'Опубликовать',exact:true}).click();
   await page.locator('.result').filter({hasText:'другого сотрудника'}).waitFor();
   const records=await marketplace.store.all('monetization_config','KZ');assert.equal(records.length,1);assert.equal(records[0].status,'draft');
+  await page.getByLabel('Название',{exact:true}).fill('Баннерный черновик без интеграции');
+  await page.getByLabel('Причина',{exact:true}).fill('Подготовка независимого баннерного флага');
+  await page.getByRole('switch',{name:'Показывать inline-баннеры',exact:true}).click();
+  assert.equal(await page.getByRole('switch',{name:'Показывать inline-баннеры',exact:true}).getAttribute('aria-checked'),'true');
+  await page.getByRole('button',{name:'Сохранить черновик',exact:true}).click();
+  await page.locator('.event').filter({hasText:'Баннерный черновик без интеграции'}).getByRole('button',{name:'Открыть',exact:true}).click();
+  await page.getByLabel('Служебная причина').fill('Проверка закрытого подключения рекламной сети');
+  await page.getByRole('button',{name:'Проверить',exact:true}).click();
+  await page.locator('.result').filter({hasText:'сеть ещё не подключена'}).waitFor();
+  assert.equal((await marketplace.store.all('monetization_config','KZ')).find(r=>r.title==='Баннерный черновик без интеграции').payload.banner_ads_enabled,true);
   await page.goto(frontend+'/#contractors');
   await page.getByRole('link',{name:'Открыть →',exact:true}).click();
   await page.getByLabel('Причина просмотра фотографий').fill('Проверка фотографии текущей версии профиля');

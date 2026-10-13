@@ -21,11 +21,19 @@ export class Configuration {
     if(r.kind==='monetization_config') {
       if(p.subscription_enabled===false)fail('SUBSCRIPTION_REQUIRED','Опцию подписки нельзя удалить');
       if(typeof p.banner_ads_enabled!=='boolean'||typeof p.rewarded_access_enabled!=='boolean')fail('VALIDATION_ERROR','Рекламные флаги независимы и обязательны');
+      if(p.banner_ads_enabled) {
+        const provider=this.providers.banners.get(p.banner_provider);
+        if(!provider)fail('BANNER_PROVIDER_UNAVAILABLE','Баннерная сеть ещё не подключена',503);
+        if(!Array.isArray(p.banner_placements)||!p.banner_placements.length||p.banner_placements.length>10||p.banner_placements.some((id:any)=>typeof id!=='string'||!id.trim()||id.length>100))fail('VALIDATION_ERROR','Укажите разрешённые размещения');
+        for(const placement of p.banner_placements)if(!(await provider.validatePlacement(placement,r.country)).allowed)fail('BANNER_PLACEMENT_UNAPPROVED','Размещение не подтверждено сетью');
+      }
       if(p.rewarded_access_enabled) {
         if(!this.providers.rewards.has(p.provider)||!p.policy_evidence)fail('REWARD_POLICY_UNAPPROVED','Нужны провайдер и подтверждение допустимости pay-or-ad',503);
         const reward=p.reward_policy;if(!reward||!['duration','action_credits'].includes(reward.kind)||!Array.isArray(reward.capabilities)||!reward.capabilities.length)fail('VALIDATION_ERROR','Проверьте политику награды');
         if(reward.kind==='duration'&&(!Number.isInteger(reward.duration_seconds)||reward.duration_seconds<60||reward.duration_seconds>30*86400))fail('VALIDATION_ERROR','Проверьте длительность награды');
         if(reward.kind==='action_credits'&&(!Number.isInteger(reward.credits)||reward.credits<1||reward.credits>100))fail('VALIDATION_ERROR','Проверьте число кредитов');
+        if(reward.kind==='action_credits'&&reward.capabilities.some((capability:string)=>!['publish_order','send_offer','select_offer','publish_profile'].includes(capability)))fail('VALIDATION_ERROR','Для чтения поиска используйте временный доступ, а не кредиты действий');
+        if(reward.duration_seconds!==undefined&&(!Number.isInteger(reward.duration_seconds)||reward.duration_seconds<60||reward.duration_seconds>30*86400))fail('VALIDATION_ERROR','Проверьте срок награды или кредитов');
       }
     }
     if(r.kind==='promotion') {
