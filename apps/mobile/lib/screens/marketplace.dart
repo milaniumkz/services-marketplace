@@ -2728,7 +2728,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     'Документы доступны только уполномоченным сотрудникам.'),
                 Notice(states[data['status']] ?? '${data['status']}'),
                 for (final r in items(data))
-                  DataCard('${r['document_type']}',
+                  DataCard(
+                      r['document_type'] == 'passport'
+                          ? 'Паспорт'
+                          : r['document_type'] == 'id_card'
+                              ? 'ID-карта'
+                              : '${r['document_type']}',
                       status: status(r),
                       footer: ['draft', 'rejected'].contains(r['status'])
                           ? button(
@@ -2747,32 +2752,53 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     reload();
                                   }))
                           : null),
-                button(
-                    'Начать проверку',
-                    () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (c) => Scaffold(
-                                appBar: AppBar(
-                                    title: const UiText('Тип документа')),
-                                body: ActionForm(
-                                    fields: const [
-                                      InputSpec(
-                                          'document_type', 'Тип документа')
-                                    ],
-                                    before: const [
-                                      Notice(
-                                          'Разрешённые типы и основание проверки определяются утверждённой политикой страны.')
-                                    ],
-                                    submit: (v) async {
-                                      await api.request(
-                                          '/me/verification-sessions',
-                                          method: 'POST',
-                                          body: v);
-                                      if (c.mounted) Navigator.pop(c);
-                                      reload();
-                                    })))),
-                    outline: true),
+                if (data['policy'] != null &&
+                    data['policy']['consent_accepted'] == true)
+                  button(
+                      'Начать проверку',
+                      () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                              builder: (c) => Scaffold(
+                                  appBar: AppBar(
+                                      title: const UiText('Тип документа')),
+                                  body: ActionForm(
+                                      fields: [
+                                        InputSpec(
+                                            'document_type', 'Тип документа',
+                                            initial: (data['policy']
+                                                    ['document_types'] as List)
+                                                .first
+                                                .toString(),
+                                            options: {
+                                              for (final type in data['policy']
+                                                  ['document_types'] as List)
+                                                type.toString():
+                                                    type == 'passport'
+                                                        ? 'Паспорт'
+                                                        : 'ID-карта'
+                                            })
+                                      ],
+                                      before: const [
+                                        Notice(
+                                            'Разрешённые типы и основание проверки определяются утверждённой политикой страны.')
+                                      ],
+                                      submit: (v) async {
+                                        await api.request(
+                                            '/me/verification-sessions',
+                                            method: 'POST',
+                                            body: v);
+                                        if (c.mounted) Navigator.pop(c);
+                                        reload();
+                                      })))),
+                      outline: true),
+                if (data['policy'] == null)
+                  const Notice(
+                      'Разрешённые типы и основание проверки определяются утверждённой политикой страны.'),
+                if (data['policy'] != null &&
+                    data['policy']['consent_accepted'] != true)
+                  const Notice(
+                      'Для начала проверки примите согласие на обработку документа.'),
                 button('Документы и согласие', () => go('terms'),
                     outline: true),
               ])));

@@ -298,12 +298,19 @@ export class Marketplace {
       return {subscription_enabled:true,banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:false,country_gate:'unverified',offers:(await this.commerce.offers(a.country)).items};
     }
     if(path==='/me/entitlements'&&method==='GET')return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};
-    if(path==='/me/verification'&&method==='GET')return {status:a.user.verification,items:(await this.store.all('verification',a.country)).filter(x=>x.owner===a.id).map(({document_refs,...r})=>r)};
+    if(path==='/me/verification'&&method==='GET') {
+      const policy=(await this.store.all('verification_policy',a.country)).filter(x=>x.status==='effective').sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id))[0];
+      const consent=policy?(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id&&x.document_id===policy.payload.document_id).sort((x,y)=>(y.sequence??0)-(x.sequence??0)||y.created_at.localeCompare(x.created_at))[0]:null;
+      const document=policy?await this.store.get(policy.payload.document_id):null;
+      return {status:a.user.verification,policy:policy&&document?.kind==='legal_document'&&document.country===a.country&&document.status==='published'?{id:policy.id,version:policy.version,document_types:policy.payload.document_types,document_id:policy.payload.document_id,consent_accepted:consent?.accepted===true&&consent.document_hash===document.hash}:null,items:(await this.store.all('verification',a.country)).filter(x=>x.owner===a.id).map(({document_refs,...r})=>r)};
+    }
     if(path==='/me/verification-sessions'&&method==='POST') {
-      const policy=(await this.store.all('verification_policy',a.country)).find(x=>x.status==='effective');
+      const policy=(await this.store.all('verification_policy',a.country)).filter(x=>x.status==='effective').sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id))[0];
       if(!policy)fail(503,'COUNTRY_FLOW_UNAPPROVED','Типы документов и основание проверки для страны не утверждены');
       const consent=(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id&&x.document_id===policy!.payload.document_id).sort((x,y)=>(y.sequence??0)-(x.sequence??0)||y.created_at.localeCompare(x.created_at))[0];
-      if(!consent?.accepted)fail(403,'CONSENT_REQUIRED','Требуется согласие на проверку документа');
+      const document=await this.store.get(policy!.payload.document_id);
+      if(!document||document.kind!=='legal_document'||document.country!==a.country||document.status!=='published')fail(503,'COUNTRY_FLOW_UNAPPROVED','Правовое основание проверки недоступно');
+      if(!consent?.accepted||consent.document_hash!==document!.hash)fail(403,'CONSENT_REQUIRED','Требуется согласие на проверку документа');
       if(!policy!.payload.document_types.includes(b.document_type))fail(400,'VALIDATION_ERROR','Тип документа не разрешён');
       return this.store.put(this.record('verification',a,{status:'draft',document_type:b.document_type,policy_id:policy!.id,policy_version:policy!.version,document_revision:1,document_refs:[]}));
     }
