@@ -123,6 +123,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Json listingFilters = {};
   String ordersBucket = 'active';
   final List<String> draftPhotos = [];
+  final Map<String, List<String>> verificationUploads = {};
   Json? draftWindow;
   bool offerAcknowledged = false, selectionAcknowledged = false;
   int? acknowledgedOrderRevision;
@@ -216,9 +217,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         serviceCategories = null;
         draftCategory = null;
         draftPhotos.clear();
+        verificationUploads.clear();
         draftWindow = null;
         history.clear();
         reportUploads.clear();
+        verificationUploads.clear();
         pendingLocale = null;
         revision++;
       });
@@ -250,6 +253,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         me = null;
         recovery = null;
         draftPhotos.clear();
+        verificationUploads.clear();
         draftWindow = null;
         registrationInProgress = false;
         route = 'login';
@@ -395,6 +399,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if (next == 'services') serviceCategories = null;
       if (next == 'create') {
         draftPhotos.clear();
+        verificationUploads.clear();
         draftWindow = null;
         draftCategory = null;
       }
@@ -4404,16 +4409,57 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           ? button(
                               'Загрузить и отправить документ',
                               () => act(() async {
-                                    final file = await pickUpload('identity',
-                                        verificationId: r['id']);
-                                    if (file == null) return;
+                                    final client = api;
+                                    final account = me?['id'];
+                                    final pages =
+                                        (r['required_pages'] as List?) ??
+                                            ['Документ'];
+                                    final selected = verificationUploads
+                                        .putIfAbsent(r['id'], () => []);
+                                    while (selected.length < pages.length) {
+                                      final proceed = await showDialog<bool>(
+                                          context: context,
+                                          builder: (c) => AlertDialog(
+                                                  title: const UiText(
+                                                      'Загрузка документа'),
+                                                  content: Text(
+                                                      '${pages[selected.length]} · ${selected.length + 1} / ${pages.length}'),
+                                                  actions: [
+                                                    TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                c, false),
+                                                        child: const UiText(
+                                                            'Отмена')),
+                                                    TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                c, true),
+                                                        child: const UiText(
+                                                            'Продолжить'))
+                                                  ]));
+                                      if (proceed != true ||
+                                          !mounted ||
+                                          api != client ||
+                                          me?['id'] != account ||
+                                          !client.authenticated) return;
+                                      final file = await pickUpload('identity',
+                                          verificationId: r['id']);
+                                      if (file == null ||
+                                          !mounted ||
+                                          api != client ||
+                                          me?['id'] != account ||
+                                          !client.authenticated) return;
+                                      selected.add(file['id']);
+                                    }
                                     await api.request(
                                         '/me/verification-sessions/${r['id']}/submit',
                                         method: 'POST',
                                         body: {
                                           'expected_version': r['version'],
-                                          'upload_ids': [file['id']]
+                                          'upload_ids': selected
                                         });
+                                    verificationUploads.remove(r['id']);
                                     reload();
                                   }))
                           : null),

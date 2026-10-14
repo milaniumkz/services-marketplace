@@ -15,7 +15,11 @@ test('staff review protects document references, regional data and sensitive rea
   const user=await api.store.get(staffAccount.user.id),secret=randomBytes(20).toString('hex');
   await api.store.put({...user,staff_permissions:['verification_reviewer'],totp_secret:secret});
   const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:user.phone,password,mfa_code:totp(secret)},undefined,undefined,{},'review-staff');
-  const id=randomUUID(),file=randomUUID(),base={kind:'verification',owner:owner.user.id,version:1,created_at:new Date().toISOString(),status:'pending_review',document_type:'passport',document_revision:2,document_refs:[file]};
+  const policyId=randomUUID(),documentId=randomUUID();
+  await api.store.put({id:documentId,kind:'legal_document',country:'KZ',owner:'system',version:1,created_at:new Date().toISOString(),status:'published',hash:'isolated-review-consent'});
+  await api.store.put({id:policyId,kind:'verification_policy',country:'KZ',owner:'system',version:1,created_at:new Date().toISOString(),status:'effective',payload:{document_id:documentId,document_types:['passport'],required_pages:{passport:['Страница с данными']}}});
+  await call(owner,'POST','/me/consents',{document_id:documentId,document_hash:'isolated-review-consent',accepted:true});
+  const id=randomUUID(),file=randomUUID(),base={kind:'verification',policy_id:policyId,policy_version:1,required_pages:['Страница с данными'],owner:owner.user.id,version:1,created_at:new Date().toISOString(),status:'pending_review',document_type:'passport',document_revision:2,document_refs:[file]};
   await api.store.put({...base,id,country:'KZ'});
   const foreign=randomUUID();await api.store.put({...base,id:foreign,country:'RS'});
   const path='/admin/verifications/'+id;

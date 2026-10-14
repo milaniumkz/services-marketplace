@@ -60,6 +60,7 @@ export class Configuration {
     if(['verification_policy','retention_policy'].includes(r.kind)) {
       const document=await this.store.get(p.document_id);if(!document||document.kind!=='legal_document'||document.country!==r.country||document.status!=='published')fail('LEGAL_VERSION_UNAPPROVED','Нужно опубликованное правовое основание');
       if(r.kind==='verification_policy'&&(!Array.isArray(p.document_types)||!p.document_types.length||p.document_types.some((t:string)=>!['passport','id_card'].includes(t))))fail('VALIDATION_ERROR','Укажите допустимые типы документа');
+      if(r.kind==='verification_policy'&&p.document_types.some((type:string)=>!Array.isArray(p.required_pages?.[type])||!p.required_pages[type].length||p.required_pages[type].length>4||new Set(p.required_pages[type]).size!==p.required_pages[type].length||p.required_pages[type].some((page:any)=>typeof page!=='string'||page.trim().length<2||page.length>80)))fail('VALIDATION_ERROR','Укажите утверждённые стороны или страницы для каждого типа документа');
       if(r.kind==='retention_policy'&&(!Number.isInteger(p.document_days)||p.document_days<1||p.document_days>365))fail('VALIDATION_ERROR','Укажите утверждённый срок хранения документов');
     }
     return {valid:true};

@@ -3979,8 +3979,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/VerificationSessionCreate"
               }
             }
           }
@@ -8566,6 +8565,7 @@
         "tags": [
           "me"
         ],
+        "description": "Requires every page in the session policy snapshot, clean identity uploads tied to this session, and current explicit consent. Changed regional policy requires a new session.",
         "security": [
           {
             "BearerAuth": []
@@ -8629,8 +8629,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/VerificationSubmission"
               }
             }
           }
@@ -20007,6 +20006,46 @@
             "minLength": 10,
             "maxLength": 1000,
             "description": "Explanation to the subject without private reporter details."
+          }
+        },
+        "additionalProperties": false
+      },
+      "VerificationSessionCreate": {
+        "type": "object",
+        "required": [
+          "document_type"
+        ],
+        "properties": {
+          "document_type": {
+            "type": "string",
+            "enum": [
+              "passport",
+              "id_card"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "VerificationSubmission": {
+        "type": "object",
+        "required": [
+          "expected_version",
+          "upload_ids"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "upload_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "additionalProperties": false
