@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 132,
-    "not_captured": 55,
+    "captured": 133,
+    "not_captured": 54,
     "captures_with_errors": 30,
     "accepted": 0
   },
@@ -234,13 +234,17 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.115098,
+      "different_pixels_ratio": 0.110154,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile"
+      "surface": "mobile",
+      "open_items": [
+        "Map, result total and sorting are not implemented.",
+        "Visual acceptance remains pending."
+      ]
     },
     {
       "id": "S07.empty",
@@ -255,8 +259,30 @@
       "route": "filters",
       "reference": "mobile/screens/S07.filters-filters.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
-      "surface": "mobile"
+      "status": "review_required",
+      "capture": "S07.filters-filters.png",
+      "actual_route": "filters",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.07039,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile",
+      "open_items": [
+        "Coordinate-based radius search is not implemented.",
+        "Preview result count is not implemented.",
+        "Visual acceptance remains pending."
+      ]
     },
     {
       "id": "S07.gps",
@@ -283,13 +309,17 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.108835,
+      "different_pixels_ratio": 0.112155,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile"
+      "surface": "mobile",
+      "open_items": [
+        "GPS entry and permission flow are not implemented.",
+        "Visual acceptance remains pending."
+      ]
     },
     {
       "id": "S07.map",

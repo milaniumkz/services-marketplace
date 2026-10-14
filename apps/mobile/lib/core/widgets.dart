@@ -1,3 +1,4 @@
+import '../screens/search_filters.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'l10n.dart';
@@ -594,67 +595,15 @@ class _SearchListingsState extends State<SearchListings> {
   }
 
   Future<void> chooseFilters() async {
-    try {
-      final data = await Future.wait([
-        widget.api.request('/catalog/categories'),
-        widget.api.request('/geo/cities')
-      ]);
-      var category = filters['category_id'] as String? ?? '',
-          city = filters['city'] as String? ?? '';
-      if (!mounted) return;
-      if (category.isNotEmpty &&
-          !items(data[0]).any((item) => item['id'] == category)) category = '';
-      final result = await showModalBottomSheet<Json>(
-          context: context,
-          isScrollControlled: true,
-          builder: (c) => SafeArea(
-              child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Heading('Фильтры поиска'),
-                    DropdownButtonFormField<String>(
-                        initialValue: category,
-                        decoration: InputDecoration(
-                            labelText: localize(context, 'Категория')),
-                        items: [
-                          const DropdownMenuItem(
-                              value: '', child: UiText('Все категории')),
-                          for (final item in items(data[0]))
-                            DropdownMenuItem(
-                                value: item['id'], child: Text(item['name']))
-                        ],
-                        onChanged: (v) => category = v!),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                        initialValue: city,
-                        decoration: InputDecoration(
-                            labelText: localize(context, 'Город')),
-                        items: [
-                          const DropdownMenuItem(
-                              value: '', child: UiText('Все города')),
-                          if (city.isNotEmpty &&
-                              !items(data[1])
-                                  .any((item) => item['name'] == city))
-                            DropdownMenuItem(value: city, child: Text(city)),
-                          for (final item in items(data[1]))
-                            DropdownMenuItem(
-                                value: item['name'], child: Text(item['name']))
-                        ],
-                        onChanged: (v) => city = v!),
-                    const SizedBox(height: 20),
-                    FilledButton(
-                        onPressed: () => Navigator.pop(c, {
-                              if (category.isNotEmpty) 'category_id': category,
-                              if (city.isNotEmpty) 'city': city
-                            }),
-                        child: const UiText('Показать результаты')),
-                  ]))));
-      if (result != null && mounted) setState(() => filters = result);
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(errorText(context, e))));
-    }
+    final result = await Navigator.push<Json>(
+        context,
+        MaterialPageRoute(
+            builder: (c) => SearchFilters(
+                api: widget.api,
+                initial: filters,
+                onClose: () => Navigator.pop(c),
+                onApply: (value) => Navigator.pop(c, value))));
+    if (result != null && mounted) setState(() => filters = result);
   }
 
   @override
@@ -667,22 +616,28 @@ class _SearchListingsState extends State<SearchListings> {
   @override
   Widget build(BuildContext context) => Column(children: [
         Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: TextField(
-                controller: search,
-                decoration: InputDecoration(
-                    hintText: localize(context, 'Что ищете?'),
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: IconButton(
-                        tooltip: localize(context, 'Фильтры'),
-                        onPressed: chooseFilters,
-                        icon: const Icon(Icons.tune))),
-                onChanged: (v) {
-                  debounce?.cancel();
-                  debounce = Timer(const Duration(milliseconds: 300), () {
-                    if (mounted) setState(() => query = v.trim());
-                  });
-                })),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Row(children: [
+              Expanded(
+                  child: TextField(
+                      controller: search,
+                      decoration: InputDecoration(
+                          hintText: localize(context, 'Что ищете?'),
+                          prefixIcon: const Padding(
+                              padding: EdgeInsets.all(14),
+                              child: JobaIcon('search'))),
+                      onChanged: (v) {
+                        debounce?.cancel();
+                        debounce = Timer(const Duration(milliseconds: 300), () {
+                          if (mounted) setState(() => query = v.trim());
+                        });
+                      })),
+              const SizedBox(width: 8),
+              IconButton(
+                  tooltip: localize(context, 'Фильтры'),
+                  onPressed: chooseFilters,
+                  icon: const JobaIcon('filter'))
+            ])),
         if (filters.isNotEmpty)
           Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),

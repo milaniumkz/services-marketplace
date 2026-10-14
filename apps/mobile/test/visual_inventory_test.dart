@@ -399,6 +399,14 @@ void main() {
         'capability': 'isolated-visual-capability'
       };
       state.registrationInProgress = route == 'terms';
+      state.listingFilters = route == 'filters'
+          ? <String, dynamic>{
+              'city': 'Алматы',
+              'work_mode': 'onsite',
+              'price_max': 5000000,
+              'rating_min': '4.8'
+            }
+          : <String, dynamic>{};
       state.executor = route == 'executor-home';
       state.objectId = 'visual-object';
       state.history.clear();

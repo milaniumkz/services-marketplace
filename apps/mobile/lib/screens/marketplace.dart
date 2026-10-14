@@ -1,3 +1,4 @@
+import 'search_filters.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -800,6 +801,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return rolesScreen();
       case 'location':
         return locationScreen();
+      case 'filters':
+        return SearchFilters(
+            api: api,
+            initial: listingFilters,
+            onClose: back,
+            onApply: (filters) {
+              listingFilters = filters;
+              go('catalog');
+            });
       case 'catalog':
         return page(
             'Специалисты',
@@ -1670,6 +1680,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           '/geo/cities',
           (data, reload) => CitySelector(
               cities: items(data),
+              countryLabel: countryName(country),
               initial: me?['city'] ?? '',
               onSave: (city) async {
                 final user = await api.request('/me', method: 'PATCH', body: {
@@ -3043,6 +3054,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       initial: (p?['work_modes'] as List?)?.first ?? 'onsite',
                       options: const {
                         'onsite': 'На месте',
+                        'workshop': 'У исполнителя',
                         'remote': 'Удалённо',
                         'hybrid': 'На месте и удалённо'
                       }),

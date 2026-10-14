@@ -37,7 +37,7 @@ export class Store {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string}={}) {
+  async select(kind:string,country:string,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
@@ -56,7 +56,13 @@ export class Store {
     if(options.statuses)where.push("data->>'status'=ANY("+bind(options.statuses)+'::text[])');
     if(options.after)where.push('id>'+bind(options.after)+'::uuid');
     if(options.sourceId)where.push("data->>'source_id'="+bind(options.sourceId));
-    if(options.city)where.push("data->>'city'="+bind(options.city));
+    if(options.city){const city=bind(options.city);where.push(kind==='contractor'?`(data->>'city'=${city} OR COALESCE(data->'service_cities','[]'::jsonb) ? ${city})`:"data->>'city'="+city);}
+    if(kind==='contractor'){
+      if(options.workMode)where.push("COALESCE(data->'work_modes','[\"onsite\"]'::jsonb) ? "+bind(options.workMode));
+      if(options.priceMin!==undefined)where.push("(data->'price'->>'amount_min')::numeric >= "+bind(options.priceMin));
+      if(options.priceMax!==undefined)where.push("(data->'price'->>'amount_min')::numeric <= "+bind(options.priceMax));
+      if(options.ratingMin!==undefined)where.push(`COALESCE((SELECT avg((review.data->>'rating')::numeric) FROM records review WHERE review.kind='review' AND review.country=r.country AND review.data->>'target_id'=r.owner AND review.data->>'status'='published' AND COALESCE(review.data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')),0) >= ${bind(options.ratingMin)}`);
+    }
     if(options.category){const category=bind(options.category);where.push(`(data->>'category_id'=${category} OR COALESCE(data->'category_ids','[]'::jsonb) ? ${category})`);}
     if(options.publicActor){
       const viewer=bind(options.publicActor);

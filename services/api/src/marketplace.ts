@@ -1095,7 +1095,17 @@ export class Marketplace {
   }
   private async page(kind:string,a:Actor,q:any,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
-    const selected=await this.store.select(kind,a.country,{...options,limit:limit+1,after,city:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
+    const filters:any={};
+    if(kind==='contractor'&&options.publicActor){
+      if(q.work_mode!==undefined&&!['onsite','workshop','remote','hybrid'].includes(q.work_mode))fail(400,'VALIDATION_ERROR','Проверьте формат услуги');
+      if(q.verified_only!==undefined&&!['true','false'].includes(q.verified_only))fail(400,'VALIDATION_ERROR','Проверьте фильтр документов');
+      const amount=(key:string)=>{if(q[key]===undefined)return undefined;if(!/^\d+$/.test(String(q[key]))||!Number.isSafeInteger(Number(q[key])))fail(400,'VALIDATION_ERROR','Проверьте диапазон цены');return Number(q[key]);};
+      filters.priceMin=amount('price_min');filters.priceMax=amount('price_max');
+      if(filters.priceMin!==undefined&&filters.priceMax!==undefined&&filters.priceMin>filters.priceMax)fail(400,'VALIDATION_ERROR','Проверьте диапазон цены');
+      if(q.rating_min!==undefined){if(!/^\d(?:\.\d+)?$/.test(String(q.rating_min))||Number(q.rating_min)>5)fail(400,'VALIDATION_ERROR','Проверьте рейтинг');filters.ratingMin=Number(q.rating_min);}
+      filters.workMode=q.work_mode;
+    }
+    const selected=await this.store.select(kind,a.country,{...options,...filters,limit:limit+1,after,city:filters.workMode==='remote'?undefined:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
     const batch=selected.slice(0,limit);
     const items:RecordData[]=options.publicActor&&kind==='contractor'?await contractorPresentation(this.store,a.country,batch):batch.map(x=>options.publicActor&&kind==='order'?{...x,exact_address:undefined}:x);
     return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};

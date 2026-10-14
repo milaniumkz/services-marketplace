@@ -125,6 +125,17 @@ test('public search filters blocked and hidden records before cursor pagination'
   const first=await call(reader,'GET','/contractors',{}, {limit:1});assert.equal(first.items[0].id,'00000000-0000-4000-8000-000000000003');assert.ok(first.meta.next_cursor);
   const second=await call(reader,'GET','/contractors',{}, {limit:1,cursor:first.meta.next_cursor});assert.equal(second.items[0].id,'00000000-0000-4000-8000-000000000004');assert.equal(second.meta.next_cursor,null);
   await assert.rejects(()=>call(reader,'GET','/contractors/00000000-0000-4000-8000-000000000001'),e=>e.getStatus()===404);
+  const selectedProfile=await api.store.get('00000000-0000-4000-8000-000000000003');
+  await api.store.put({...selectedProfile,work_modes:['remote','onsite'],service_cities:['Астана'],price:{mode:'fixed',amount_min:750000,currency:'KZT'}});
+  await api.store.put({id:randomUUID(),kind:'review',owner:reader.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),target_id:visible.user.id,status:'published',rating:5});
+  await api.store.put({id:randomUUID(),kind:'review',owner:reader.user.id,country:'BY',version:1,created_at:new Date().toISOString(),target_id:visible.user.id,status:'published',rating:1});
+  await api.store.put({id:randomUUID(),kind:'review',owner:reader.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),target_id:visible.user.id,status:'published',moderation_status:'hidden',rating:1});
+  const filtered=await call(reader,'GET','/contractors',{}, {city:'Астана',work_mode:'onsite',price_min:'700000',price_max:'800000',rating_min:'4.8',limit:1});
+  assert.equal(filtered.items.length,1);assert.equal(filtered.items[0].id,selectedProfile.id);assert.equal(filtered.meta.next_cursor,null);
+  assert.equal((await call(reader,'GET','/contractors',{}, {city:'Шымкент',work_mode:'remote',price_max:'800000'})).items[0].id,selectedProfile.id);
+  assert.equal((await call(reader,'GET','/contractors',{}, {work_mode:'workshop'})).items.length,0);
+  for(const q of [{price_min:'9',price_max:'2'},{price_min:'1.5'},{rating_min:'6'},{work_mode:'invalid'},{verified_only:'yes'}])await assert.rejects(()=>call(reader,'GET','/contractors',{},q),e=>e.getStatus()===400);
+  await assert.rejects(()=>call(reader,'GET','/contractors',{}, {cursor:first.meta.next_cursor,price_max:'800000'}),e=>e.getStatus()===400);
   const order={...base,kind:'order',owner:visible.user.id,id:randomUUID(),status:'open',expires_at:new Date(Date.now()+86400000).toISOString(),exact_address:'Секретный адрес теста'};
   await api.store.put(order);await api.store.put({...order,id:randomUUID(),expires_at:new Date(Date.now()-1000).toISOString()});
   const orders=await call(reader,'GET','/orders');assert.equal(orders.items.length,1);assert.equal(orders.items[0].exact_address,undefined);

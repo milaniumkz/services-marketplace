@@ -86,6 +86,17 @@ paths['/me/verification-sessions/{id}/submit'].post.requestBody.content['applica
 paths['/me/verification-sessions/{id}/submit'].post.description='Requires every page in the session policy snapshot, clean identity uploads tied to this session, and current explicit consent. Changed regional policy requires a new session.';
 schemas.ConsentWrite={type:'object',required:['document_id','document_hash','accepted'],properties:{document_id:uuid,document_hash:{type:'string',minLength:1},accepted:{type:'boolean'},age_confirmed:{type:'boolean',description:'Explicit declaration of being 18 or older, attached to the terms agreement. This is not identity or age verification.'}},additionalProperties:false};
 paths['/me/consents'].post.requestBody.content['application/json'].schema={$ref:'#/components/schemas/ConsentWrite'};
+paths['/contractors'].get.parameters.push(
+  {name:'q',in:'query',schema:{type:'string'}},
+  {name:'cursor',in:'query',schema:{type:'string'}},
+  {name:'limit',in:'query',schema:{type:'integer',minimum:1,maximum:100,default:20}},
+  {name:'city',in:'query',schema:{type:'string'},description:'Matches profile city or service cities. Ignored for remote work, within the authorized country.'},
+  {name:'category_id',in:'query',schema:uuid},
+  {name:'work_mode',in:'query',schema:{type:'string',enum:['onsite','workshop','remote','hybrid']}},
+  ...['price_min','price_max'].map(name=>({name,in:'query',schema:{type:'integer',minimum:0,maximum:9007199254740991},description:'Starting service price in minor units. Negotiable prices are excluded when a price bound is set.'})),
+  {name:'rating_min',in:'query',schema:{type:'number',minimum:0,maximum:5},description:'Average of visible published reviews in the same country; applied before pagination.'},
+  {name:'verified_only',in:'query',schema:{type:'boolean'},description:'Public contractor visibility already requires a passed document check.'}
+);
 const document={openapi:'3.1.0',info:{title:'JOBA backend API',version:'0.1.0',description:'Development backend for JOBA specification 1.1. Provider integrations and production launch gates are intentionally closed until configured. Some command DTOs remain permissive during implementation; see docs/backend-status.md.'},servers:[{url:'/api/v1'}],paths,components:{schemas,responses:{Success:{description:'Successful command or query',content:{'application/json':{schema:{$ref:'#/components/schemas/Envelope'}}}},Failure:{description:'Structured error',content:{'application/json':{schema:{$ref:'#/components/schemas/Error'}}}}},securitySchemes:{BearerAuth:{type:'http',scheme:'bearer',description:'Opaque access token. Staff sessions additionally require verified MFA.'},ProviderSignature:{type:'apiKey',in:'header',name:'X-Provider-Signature',description:'Actual signature header and verification are provider-specific.'}}}};
 mkdirSync(resolve(root,'docs/api'),{recursive:true});writeFileSync(resolve(root,'docs/api/openapi.json'),JSON.stringify(document,null,2)+'\n');
 console.log('OpenAPI 3.1 inventory generated:',Object.values(paths).reduce((count,path)=>count+Object.keys(path).length,0),'operations');
