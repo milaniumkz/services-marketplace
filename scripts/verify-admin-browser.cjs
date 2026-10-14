@@ -40,7 +40,7 @@ async function main(){
   let lostDraftResponse=false,lostReplyResponse=false;
   await page.route('**/api/v1/**',async route=>{
    const request=route.request(),url=new URL(request.url());
-   const response=await fetch(origin+url.pathname+url.search,{method:request.method(),headers:request.headers(),body:['GET','HEAD'].includes(request.method())?undefined:request.postData()});
+   const response=await fetch(origin+url.pathname+url.search,{method:request.method(),headers:request.headers(),body:['GET','HEAD'].includes(request.method())?undefined:request.postDataBuffer()});
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/monetization-configs'&&response.ok&&!lostDraftResponse){lostDraftResponse=true;await response.text();await route.abort('failed');return;}
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/support-threads/'+supportThread.id+'/messages'&&response.ok&&!lostReplyResponse){lostReplyResponse=true;await response.text();await route.abort('failed');return;}
    await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')||'application/json'},body:Buffer.from(await response.arrayBuffer())});
@@ -65,6 +65,47 @@ async function main(){
 
   const capture=async name=>{if(!process.env.JOBA_SCREENSHOT_DIR)return;await mkdir(process.env.JOBA_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.JOBA_SCREENSHOT_DIR,name+'.png'),fullPage:true});};
   await capture('A02-dashboard');
+  await page.goto(frontend+'/#branding');
+  await page.locator('#brand-source').waitFor();
+  const launcher=await sharp({create:{width:1200,height:1024,channels:4,background:'#245BDB'}}).png().toBuffer();
+  await page.locator('#brand-file').setInputFiles({name:'isolated-launcher.png',mimeType:'image/png',buffer:launcher});
+  await page.locator('#source-details').filter({hasText:'1200 × 1024'}).waitFor();
+  await page.locator('#brand-source [name=reason]').fill('Проверка загрузки исходника через браузер');
+  await page.locator('#brand-source').getByRole('button',{name:'Сохранить версию',exact:true}).click();
+  await page.waitForURL(/#branding\?version=/);
+  await page.locator('[data-brand-mask=ios]:not([hidden])').waitFor();
+  await capture('A19-branding');
+  const brand=(await marketplace.store.all('brand_icon','KZ'))[0];assert.equal(brand.status,'draft');assert.equal(brand.crop.left,88);
+  await page.locator('#brand-command [name=reason]').fill('Проверка запрета утверждения автором');
+  await page.locator('#brand-command').getByRole('button',{name:'Утвердить исходник',exact:true}).click();
+  await page.locator('#brand-command [role=alert]').filter({hasText:'второе подтверждение'}).waitFor();
+  assert.equal((await marketplace.store.get(brand.id)).status,'draft');
+  const approverId=randomUUID();await marketplace.store.put({id:approverId,kind:'user',owner:approverId,country:'KZ',version:1,created_at:new Date().toISOString(),display_name:'Независимый утверждающий',phone:'brand-approver-fixture',roles:['customer'],staff_permissions:['brand_owner'],totp_secret:secret,status:'active',fixture:true});
+  await marketplace.store.db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',['KZ','brand-approver-fixture',approverId,await hash(password)]);
+  const approvalSession=await marketplace.handle('POST','/auth/staff-login',{country:'KZ',phone:'brand-approver-fixture',password,mfa_code:totp(secret)},undefined,undefined,{},'isolated-brand-approval');
+  await marketplace.handle('POST','/admin/brand-icons/'+brand.id+'/approve',{expected_version:brand.version,reason:'Независимая проверка исходника и масок'},'Bearer '+approvalSession.access_token,randomUUID());
+  await page.locator('#brand-refresh').click();
+  await page.locator('#brand-command [name=reason]').fill('Подготовить ресурсы для проверки сборки');
+  await page.locator('#brand-command').getByRole('button',{name:'Сформировать пакет',exact:true}).click();
+  await page.locator('#brand-command').getByRole('button',{name:'Скачать пакет',exact:true}).waitFor();
+  await page.locator('#brand-command [name=reason]').fill('Скачать проверенный пакет ресурсов');
+  const iconsDownload=page.waitForEvent('download');
+  await page.locator('#brand-command').getByRole('button',{name:'Скачать пакет',exact:true}).click();
+  const icons=await iconsDownload;assert.equal(icons.suggestedFilename(),'joba-icons.zip');assert.ok((await readFile(await icons.path())).length>1000);
+  assert.equal((await marketplace.store.get(brand.id)).release_status,'not_built');
+  assert.ok((await marketplace.store.all('audit','KZ')).some(row=>row.action==='brand.bundle_read'));
+
+  const caseOrder=await ownerCommand('POST','/orders',{title:'Проверка материала для дела',description:'Изолированная задача для проверки решения модератора.',category_id:category,city:'Алматы'});
+  const caseReport=await ownerCommand('POST','/cases',{target_type:'order',target_id:caseOrder.id,reason_code:'content',description:'Проверка решения модератора через браузер'});
+  await page.goto(frontend+'/#case-live/'+caseReport.id);
+  await page.locator('#case-decision [name=reason]').fill('Проверенный материал требует скрытия в выдаче');
+  await page.locator('#case-decision [name=decision]').selectOption('content_removed');
+  await page.locator('#case-decision').getByRole('button',{name:'Зафиксировать решение',exact:true}).click();
+  await page.waitForFunction(()=>!document.getElementById('case-decision'));
+  const moderated=await marketplace.store.get(caseOrder.id);assert.equal(moderated.moderation_status,'hidden');assert.equal(moderated.status,'draft');
+  assert.equal((await marketplace.store.get(caseReport.id)).decision,'content_removed');
+  await page.goto(frontend+'/#dashboard');await page.locator('#dashboard-period').waitFor();
+
   await page.locator('#dashboard-period').selectOption('30');
   await page.waitForFunction(()=>document.querySelector('#dashboard-period')?.value==='30');
   await page.getByRole('button',{name:'Определения всех метрик',exact:true}).click();
@@ -195,7 +236,7 @@ async function main(){
   await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
   await page.reload();await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
   assert.equal((await marketplace.store.all('recovery','KZ')).length,1);
-  console.log('Admin browser: real MFA login, live dashboard, UTC period selection, report export, masked security events, audited job retry, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence passed.');
+  console.log('Admin browser: real MFA login, live dashboard, UTC period selection, report export, masked security events, audited job retry, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence, live branding upload/crop/preview/independent approval/iconset download, frozen case evidence and actual content hiding passed.');
  }catch(error){if(page){await page.screenshot({path:'/tmp/joba-admin-browser-failure.png',fullPage:true});console.error('Page diagnostics:',await page.locator('[role=alert], .note.danger').allTextContents());}throw error;}finally{await browser?.close();await vite?.close();await webVite?.close();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error.message);process.exitCode=1;});

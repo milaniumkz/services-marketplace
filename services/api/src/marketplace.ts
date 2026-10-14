@@ -1,3 +1,5 @@
+import {currentLegalDocuments} from './legal-documents';
+import {freezeTarget,visibleCase,resolveEffects,contentHash,targetSnapshot} from './case-evidence';
 import {editableContent,publicContent,editContent,submitContent} from './content-revisions';
 import {accountOverview} from './account-overview';
 import {contractorPresentation} from './contractor-presentation';
@@ -108,7 +110,7 @@ export class Marketplace {
     if(verified&&!a.user.roles.includes('executor'))fail(403,'EXECUTOR_ROLE_REQUIRED','Настройте роль исполнителя');
     if(verified&&a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Требуется проверка документа исполнителя');
     if(['publish_order','select_offer','send_offer','publish_profile'].includes(capability)) {
-      const current=(await this.store.all('legal_document',a.country)).filter(d=>d.status==='published'&&d.locale===(a.user.locale??'ru')&&['privacy','privacy_policy','terms','terms_of_use'].includes(d.type)).sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id));
+      const current=currentLegalDocuments(await this.store.all('legal_document',a.country),a.country,a.user.locale??'ru').filter(d=>['privacy','privacy_policy','terms','terms_of_use'].includes(d.type));
       const checked=new Set<string>();
       for(const document of current) {
         const type=['privacy','privacy_policy'].includes(document.type)?'privacy':'terms';if(checked.has(type))continue;checked.add(type);
@@ -191,7 +193,7 @@ export class Marketplace {
     if(path==='/legal/documents'&&method==='GET') {
       if(!countries[q.country??'KZ']||q.locale&&!['ru','kk','sr','be'].includes(q.locale))fail(400,'VALIDATION_ERROR','Проверьте страну и язык');
       const versions=(await this.store.all('legal_document',q.country??'KZ')).filter(x=>x.status==='published'&&(!q.locale||x.locale===q.locale)).sort((a,b)=>String(b.published_at??b.created_at).localeCompare(String(a.published_at??a.created_at))||b.id.localeCompare(a.id));
-      const seen=new Set<string>(),visible=q.all_versions==='true'?versions:versions.filter(d=>{const key=d.type+':'+d.locale;if(seen.has(key))return false;seen.add(key);return true;});
+      const seen=new Set<string>(),visible=q.required==='true'?currentLegalDocuments(await this.store.all('legal_document',q.country??'KZ'),q.country??'KZ',q.locale??'ru'):q.all_versions==='true'?versions:versions.filter(d=>{const key=d.type+':'+d.locale;if(seen.has(key))return false;seen.add(key);return true;});
       return {items:visible.map(({id,country,type,locale,content,hash,version,created_at,published_at})=>({id,country,type,locale,content,hash,version,created_at,published_at}))};
     }
     const webhook=path.match(/^\/webhooks\/(billing|ads)\/([^/]+)$/);
@@ -653,7 +655,7 @@ export class Marketplace {
       return {items:ranked.slice(0,100),promotions:[],meta:{algorithm_version:1,calculated_at:new Date().toISOString()}};
     }
     const reviews=path.match(/^\/(customers|contractors)\/([^/]+)\/reviews$/);
-    if(reviews&&method==='GET'){await this.entitlement(a,'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'),q);}
+    if(reviews&&method==='GET'){await this.entitlement(a,'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status)),q);}
     if(path==='/me/privacy-requests'&&method==='POST'){await this.reauth(a,b);if(!['export','delete'].includes(b.type))fail(400,'VALIDATION_ERROR','Выберите тип запроса');return this.store.put(this.record('privacy',a,{type:b.type,status:'requested'}));}
     if(path==='/me/privacy-requests'&&method==='GET')return {items:(await this.store.all('privacy',a.country)).filter(x=>x.owner===a.id)};
     const privacy=path.match(/^\/me\/privacy-requests\/([^/]+)$/);if(privacy&&method==='GET')return this.object(privacy[1],a,'privacy',true);
@@ -687,7 +689,7 @@ export class Marketplace {
       const reason=text(b,'reason_code',1,50);if(!['agreement','spam','fraud','content','other','harassment','unsafe','privacy'].includes(reason))fail(400,'VALIDATION_ERROR','Выберите причину обращения');
       const existing=(await this.store.all('case',a.country)).find(c=>c.owner===a.id&&c.target_id===target.id&&!['resolved','closed','dismissed'].includes(c.status));
       if(existing)fail(409,'STATE_CONFLICT','По этому объекту уже есть открытое обращение',{case_id:existing.id});
-      return this.store.put(this.record('case',a,{target_type:type,target_id:target.id,target_version:target.version,target_revision:target.revision,target_hash:digest(JSON.stringify(target)),subject_user_id:subject,reporter_private:true,upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[],reason_code:reason,description:text(b,'description',10,3000),status:'new'}));
+      return this.store.put(this.record('case',a,{target_type:type,target_id:target.id,...freezeTarget(target,target.owner===a.id&&target.draft?'draft':'public'),subject_user_id:subject,reporter_private:true,upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[],reason_code:reason,description:text(b,'description',10,3000),status:'new'})).then(visibleCase);
     }
     if(path==='/me/cases/overview'&&method==='GET'){
       const count=(await db.query<{open_count:string;resolved_count:string}>("SELECT count(*) FILTER(WHERE data->>'status' NOT IN ('resolved','closed','dismissed')) AS open_count,count(*) FILTER(WHERE data->>'status' IN ('resolved','closed','dismissed')) AS resolved_count FROM records WHERE kind='case' AND country=$1 AND (owner=$2 OR data->>'subject_user_id'=$2 AND COALESCE(data->>'reporter_private','false')<>'true')",[a.country,a.id])).rows[0];
@@ -696,12 +698,12 @@ export class Marketplace {
     if(path==='/me/cases'&&method==='GET'){
       if(q.bucket&&!['open','resolved'].includes(q.bucket))fail(400,'VALIDATION_ERROR','Неизвестный раздел обращений');
       const result=await this.page('case',a,q,{caseActor:a.id,caseBucket:q.bucket,statuses:q.status?[q.status]:undefined});
-      result.items=result.items.map(({internal_notes,...r})=>r);return result;
+      result.items=result.items.map(visibleCase);return result;
     }
     const caseRead=path.match(/^\/cases\/([^/]+)$/);
     if(caseRead&&method==='GET') {
       const c=await this.object(caseRead[1],a,'case');if(c.owner!==a.id&&(c.reporter_private||c.subject_user_id!==a.id))fail(404,'NOT_FOUND','Дело не найдено');
-      const {internal_notes,...visible}=c;return visible;
+      return visibleCase(c);
     }
     const caseUpdate=path.match(/^\/cases\/([^/]+)\/(messages|appeals)$/);
     if(caseUpdate&&method==='GET'&&caseUpdate[2]==='messages') {
@@ -711,7 +713,7 @@ export class Marketplace {
     if(caseUpdate&&method==='POST') {
       const c=await this.object(caseUpdate[1],a,'case');if(c.owner!==a.id&&(c.reporter_private||c.subject_user_id!==a.id))fail(404,'NOT_FOUND','Дело не найдено');
       if(caseUpdate[2]==='appeals') {
-        if(c.subject_user_id!==a.id||!['resolved','restricted'].includes(c.status))fail(409,'STATE_CONFLICT','Апелляция недоступна');
+        if(c.subject_user_id!==a.id||!['resolved','restricted'].includes(c.status)||c.status==='resolved'&&!['content_removed','sanction_upheld'].includes(c.decision))fail(409,'STATE_CONFLICT','Апелляция недоступна');
         this.version(c,b);const result=await this.store.put({...c,status:'appealed',appeal_reason:text(b,'reason',10,3000),version:c.version+1});return result;
       }
       return this.store.put(this.record('case_message',a,{case_id:c.id,text:text(b,'text',1,3000),upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[]}));
@@ -731,8 +733,8 @@ export class Marketplace {
     if(path==='/me/boosts'&&method==='GET')return this.list((await this.store.all('boost',a.country)).filter(x=>x.owner===a.id),q);
     if(path==='/uploads/initiate'&&method==='POST') {
       if(!['avatar','portfolio','order','chat','identity','brand'].includes(b.purpose))fail(400,'VALIDATION_ERROR','Недопустимая цель загрузки');
+      if(b.purpose==='brand'){await this.staff(a,'content');if(b.mime!=='image/png'||b.size>5*1024*1024)fail(422,'POLICY_REJECTED','Нужен PNG до 5 MB');}
       if(b.purpose==='identity'){const verification=await this.object(String(b.verification_id),a,'verification',true);if(!['draft','rejected'].includes(verification.status))fail(409,'STATE_CONFLICT','Заявка не принимает файлы');}
-      if(b.purpose==='brand')await this.staff(a,'brand_owner');
       const limit=(b.purpose==='chat'?settings.upload_chat_mb:settings.upload_image_mb)*1024*1024;
       if(!Number.isInteger(b.size)||b.size<1||b.size>limit)fail(413,'FILE_TOO_LARGE','Файл слишком большой');
       if(!['image/jpeg','image/png','application/pdf'].includes(b.mime)||b.mime==='application/pdf'&& !['chat','identity'].includes(b.purpose))fail(422,'POLICY_REJECTED','Формат не разрешён');
@@ -791,7 +793,19 @@ export class Marketplace {
         return {kinds:allowed,items:rows.map(({data:r})=>({id:r.id,kind:r.kind,country:r.country,status:r.status,
           title:r.display_name??r.title??r.subject??r.reason_code??r.document_type??r.id}))};
       }
-      const permission=({'security-events':'security',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','placement-policies':'promotion','brand-icons':'brand_owner',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      if(section==='brand-icons'&&method==='GET'){
+        if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.some((p:string)=>['content','brand_owner','release','administrator'].includes(p)))fail(403,'FORBIDDEN','Нужны служебные права брендинга и MFA');
+        const match=path.match(/^\/admin\/brand-icons\/([^/]+)(?:\/(preview|source|bundle))?$/);
+        if(!match)return this.page('brand_icon',a,q);
+        const record=await this.object(match[1],a,'brand_icon');
+        if(!match[2])return record;
+        if(match[2]==='source'){const upload=await this.object(record.source_upload_id,a,'upload');if(upload.purpose!=='brand'||upload.status!=='clean'||!['image/png','image/jpeg'].includes(upload.mime))fail(404,'NOT_FOUND','Исходник недоступен');return {download_buffer:await this.files.read(upload.id),mime:upload.mime};}
+        if(match[2]==='preview')return {download_buffer:await this.branding.preview(record,String(q.mask??'ios')),mime:'image/png'};
+        if(record.status!=='generated'||!record.bundle_file_id)fail(409,'STATE_CONFLICT','Пакет ещё не сформирован');
+        await this.audit(a,'brand.bundle_read',record.id,text(q,'reason',10,1000));
+        return {download_stream:await this.files.readStream(record.bundle_file_id),download_size:record.bundle_size,download_filename:'joba-icons.zip',mime:'application/zip'};
+      }
+      const permission=({'security-events':'security',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy','country-controls':'country_control',verifications:'verification'};
       if(path==='/admin/dashboard'&&method==='GET') {
@@ -884,14 +898,14 @@ export class Marketplace {
         const reason=text(b,'reason',10,1000),end=Date.parse(String(b.ends_at));if(b.decision==='extend'&&(!Number.isFinite(end)||end<=Date.now()))fail(400,'VALIDATION_ERROR','Нужен конечный срок');
         const result=await this.store.put({...r,status:b.decision==='extend'?'active':b.decision==='overturn'?'overturned':'released',ends_at:b.decision==='extend'?new Date(end).toISOString():r.ends_at,reason,version:r.version+1});await this.audit(a,'blacklist.'+b.decision,r.id,reason);return result;
       }
-      if(path==='/admin/brand-icons'&&method==='POST')return this.branding.version(a.id,a.country,String(b.upload_id),b.crop);
+      if(path==='/admin/brand-icons'&&method==='POST'){const reason=text(b,'reason',10,1000);const result=await this.branding.version(a.id,a.country,String(b.upload_id),b.crop);await this.audit(a,'brand.draft_created',result.id,reason);return result;}
       const brand=path.match(/^\/admin\/brand-icons\/([^/]+)\/(approve|generate)$/);
       if(brand&&method==='POST') {
         const r=await this.object(brand[1],a,'brand_icon');this.version(r,b);
         if(brand[2]==='approve') {
-          if(r.owner===a.id)fail(403,'SECOND_APPROVAL_REQUIRED','Нужно второе подтверждение');const result=await this.store.put({...r,status:'approved',approved_by:a.id,version:r.version+1});await this.audit(a,'brand.approved',r.id,text(b,'reason',10,1000));return result;
+          if(r.status!=='draft')fail(409,'STATE_CONFLICT','Версия уже утверждена');if(r.owner===a.id)fail(403,'SECOND_APPROVAL_REQUIRED','Нужно второе подтверждение');const result=await this.store.put({...r,status:'approved',approved_by:a.id,version:r.version+1});await this.audit(a,'brand.approved',r.id,text(b,'reason',10,1000));return result;
         }
-        const result=await this.branding.generate(r);await this.audit(a,'brand.generated',r.id,text(b,'reason',10,1000));return result;
+        const reason=text(b,'reason',10,1000);if(r.status==='generated')return r;const result=await this.branding.generate(r);await this.audit(a,'brand.generated',r.id,reason);return result;
       }
       if(path==='/admin/legal/documents'&&method==='GET')return {items:await this.store.all('legal_document',a.country)};
       if(path==='/admin/legal/documents'&&method==='POST') {
@@ -1003,7 +1017,11 @@ export class Marketplace {
       const staffCase=path.match(/^\/admin\/cases\/([^/]+)(?:\/(messages))?$/);
       if(staffCase&&['GET','POST'].includes(method)){
         const c=await this.object(staffCase[1],a,'case');
-        if(!staffCase[2]&&method==='GET')return c;
+        if(!staffCase[2]&&method==='GET'){
+          const target=await this.store.read(c.target_id),scope=c.target_scope??'public';
+          await this.audit(a,'case.evidence_read',c.id,'Просмотр зафиксированного материала по делу');
+          return {...c,target_context:target&&target.country===a.country?{version:target.version,kind:target.kind,status:target.status,scope,changed:c.target_content_hash?contentHash(targetSnapshot(target,scope))!==c.target_content_hash:false}:null};
+        }
         if(staffCase[2]){
           if(method==='GET')return this.list((await this.store.all('case_message',a.country)).filter(m=>m.case_id===c.id),q);
           const reason=text(b,'reason',10,1000);const m=await this.store.put(this.record('case_message',a,{case_id:c.id,text:text(b,'text',1,3000),internal:false,upload_ids:[]}));
@@ -1012,9 +1030,22 @@ export class Marketplace {
       }
       const caseDecision=path.match(/^\/admin\/cases\/([^/]+)\/(resolve|appeal-decision)$/);
       if(caseDecision&&method==='POST') {
-        const c=await this.object(caseDecision[1],a,'case');this.version(c,b);if(caseDecision[2]==='appeal-decision'&&(!a.user.staff_permissions.includes('senior_moderator')||c.decision_actor===a.id))fail(403,'FORBIDDEN','Нужен независимый старший модератор');
-        const reason=text(b,'reason',10,1000);if(!['no_violation','content_removed','sanction_upheld','overturned'].includes(b.decision))fail(400,'VALIDATION_ERROR','Недопустимое решение');
-        const r=await this.store.put({...c,status:'resolved',decision:b.decision,decision_actor:a.id,reason,version:c.version+1});await this.audit(a,'case.'+b.decision,c.id,reason);return r;
+        const peek=await this.store.read(caseDecision[1]);if(!peek||peek.kind!=='case'||peek.country!==a.country)fail(404,'NOT_FOUND','Дело не найдено');
+        const target=await this.store.read(peek!.target_id);if(target?.country===a.country)await this.store.get(peek!.subject_user_id??target.owner);
+        const c=await this.object(caseDecision[1],a,'case');this.version(c,b);
+        if(caseDecision[2]==='appeal-decision'&&(!a.user.staff_permissions.includes('senior_moderator')||c.decision_actor===a.id||c.initial_decision_actor===a.id))fail(403,'FORBIDDEN','Нужен независимый старший модератор');
+        if(caseDecision[2]==='appeal-decision'&&c.status!=='appealed'||caseDecision[2]==='resolve'&&['resolved','closed','dismissed','appealed'].includes(c.status))fail(409,'STATE_CONFLICT','Решение недоступно в текущем состоянии');
+        const reason=text(b,'reason',10,1000);if(!['no_violation','content_removed','sanction_upheld','overturned'].includes(b.decision)||caseDecision[2]==='resolve'&&b.decision==='overturned'||caseDecision[2]==='appeal-decision'&&!['sanction_upheld','overturned'].includes(b.decision))fail(400,'VALIDATION_ERROR','Недопустимое решение');
+        const effects=await resolveEffects(this.store,c,b.decision,b.expected_target_version);
+        const r=await this.store.put({...c,status:'resolved',decision:b.decision,decision_actor:a.id,initial_decision_actor:c.initial_decision_actor??c.decision_actor??a.id,reason,effects,version:c.version+1});
+        await this.store.put(this.record('case_decision',a,{case_id:c.id,decision:b.decision,target_version:effects.target_version,reason,status:'applied'}));
+        if(c.reporter_private&&c.subject_user_id&&c.subject_user_id!==c.owner&&['content_removed','sanction_upheld'].includes(b.decision)){
+          const notice=this.record('case',{id:c.subject_user_id,country:a.country},{subject_user_id:c.subject_user_id,source_private_case_id:c.id,target_type:c.target_type,target_id:c.target_id,target_scope:c.target_scope,target_snapshot:c.target_snapshot,target_content_hash:c.target_content_hash,target_version:c.target_version,previous_target_status:c.previous_target_status,reason_code:c.reason_code,description:b.public_reason===undefined?'Материал ограничен после проверки. Вы можете обратиться за объяснением и подать апелляцию.':text(b,'public_reason',10,3000),status:'resolved',decision:b.decision,decision_actor:a.id,initial_decision_actor:a.id,effects,upload_ids:[]});
+          await this.store.put(notice);await this.notify(c.subject_user_id,a,'case.updated',notice.id);
+        }
+        if(c.source_private_case_id){const parent=await this.object(c.source_private_case_id,a,'case');const synced=await this.store.put({...parent,status:'resolved',decision:b.decision,decision_actor:a.id,reason,effects,version:parent.version+1});await this.notify(synced.owner,a,'case.updated',synced.id);}
+
+        await this.audit(a,'case.'+b.decision,c.id,reason);await this.notify(c.owner,a,'case.updated',c.id);if(c.subject_user_id&&['hidden','restored'].includes(effects.target_action))await this.notify(c.subject_user_id,a,'content.moderated',c.target_id);if(c.subject_user_id&&c.subject_user_id!==c.owner&&!c.reporter_private)await this.notify(c.subject_user_id,a,'case.updated',c.id);return r;
       }
       const configurationCommand=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(validate|preview|publish)$/);
       if(configurationCommand&&configKinds.includes(section)&&method==='POST') {
@@ -1078,10 +1109,10 @@ export class Marketplace {
       const recipients=(c.members??[]).filter((id:string)=>id!==m.owner);
       const read=recipients.length&&recipients.every((id:string)=>(c.read_sequences?.[id]??0)>=m.sequence);
       const delivered=recipients.length&&recipients.every((id:string)=>(c.delivered_sequences?.[id]??0)>=m.sequence);
-      const hidden=m.moderation_status==='quarantined'&&m.owner!==a.id;
+      const hidden=['hidden','rejected'].includes(m.moderation_status)||m.moderation_status==='quarantined'&&m.owner!==a.id;
       return {...m,...(m.tombstone||hidden?{text:'',upload_ids:[]}:{}),hidden,delivery_state:m.moderation_status==='quarantined'?'quarantined':read?'read':delivered?'delivered':'sent'};
       };
-      const visible=all.filter(m=>m.moderation_status!=='quarantined'||m.owner===a.id);
+      const visible=all.filter(m=>!['quarantined','hidden','rejected'].includes(m.moderation_status)||m.owner===a.id);
       const selected=q.after_sequence!==undefined?visible.filter(m=>m.sequence>Number(q.after_sequence)).slice(0,100):visible.filter(m=>q.before_sequence===undefined||m.sequence<Number(q.before_sequence)).slice(-100);
       const updates=q.updated_since?all.filter(m=>m.edited_at&&m.edited_at>=q.updated_since):[];
       return {items:selected.map(render),updates:updates.slice(0,100).map(render),meta:{server_time:watermark,updates_truncated:updates.length>100,has_more:selected.length>0&&visible.some(m=>m.sequence<selected[0].sequence)}};
@@ -1151,19 +1182,20 @@ export class Marketplace {
   }
   private async authorizeFile(u:RecordData,a:Actor,q:any) {
     if(u.status!=='clean'||u.purpose==='export'&&u.expires_at<=new Date().toISOString())fail(404,'NOT_FOUND','Файл недоступен');
+    if(u.purpose==='brand'){if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.some((p:string)=>['content','brand_owner','release','administrator'].includes(p)))fail(403,'FORBIDDEN','Нужны служебные права брендинга и MFA');return;}
     if(u.purpose==='identity') {
       await this.staff(a,'identity_view');if(!q.reason||String(q.reason).length<10)fail(400,'VALIDATION_ERROR','Требуется служебная причина просмотра');await this.audit(a,'identity.sensitive_read',u.id,String(q.reason));
     }else if(u.owner!==a.id) {
-      const related=(await this.store.all('message',a.country)).find(m=>!m.tombstone&&m.moderation_status!=='quarantined'&&m.upload_ids?.includes(u.id));const c=related?await this.store.get(related.thread_id):undefined;
+      const related=(await this.store.all('message',a.country)).find(m=>!m.tombstone&&!['quarantined','hidden','rejected'].includes(m.moderation_status)&&m.upload_ids?.includes(u.id));const c=related?await this.store.get(related.thread_id):undefined;
       if(c?.members.includes(a.id))return;
-      const supportMessage=(await this.store.all('support_message',a.country)).find(m=>!m.tombstone&&m.moderation_status!=='quarantined'&&m.upload_ids?.includes(u.id));
+      const supportMessage=(await this.store.all('support_message',a.country)).find(m=>!m.tombstone&&!['quarantined','hidden','rejected'].includes(m.moderation_status)&&m.upload_ids?.includes(u.id));
       const support=supportMessage?await this.store.get(supportMessage.thread_id):undefined;
       if(support?.owner===a.id)return;
       if(support?.assignee_id===a.id){await this.staff(a,'support');return;}
       const caseMessage=(await this.store.all('case_message',a.country)).find(m=>!m.internal&&m.upload_ids?.includes(u.id));
-      const linkedCase=caseMessage?await this.store.get(caseMessage.case_id):(await this.store.all('case',a.country)).find(c=>c.upload_ids?.includes(u.id));
+      const linkedCase=caseMessage?await this.store.get(caseMessage.case_id):(await this.store.all('case',a.country)).find(c=>[...c.upload_ids??[],...c.target_snapshot?.upload_ids??[],...c.target_snapshot?.gallery_ids??[],...c.target_snapshot?.photos??[],...(c.target_snapshot?.avatar_id?[c.target_snapshot.avatar_id]:[])].includes(u.id));
       if(linkedCase){
-        if(linkedCase.owner===a.id||!linkedCase.reporter_private&&linkedCase.subject_user_id===a.id)return;
+        if(linkedCase.upload_ids?.includes(u.id)&&(linkedCase.owner===a.id||!linkedCase.reporter_private&&linkedCase.subject_user_id===a.id))return;
         if(a.mfa&&(a.user.staff_permissions?.includes('moderator')||a.user.staff_permissions?.includes('administrator'))){await this.staff(a,'moderator');const reason=text(q,'reason',10,1000);await this.audit(a,'case.evidence_read',u.id,reason);return;}
       }
       if(u.purpose==='portfolio') {
@@ -1227,8 +1259,8 @@ export class Marketplace {
         else if(upload.mime==='application/pdf'){
           if(!this.providers.pdfSanitizer)throw Error('PDF_SANITIZER_UNAVAILABLE');
           try{clean=await this.providers.pdfSanitizer.sanitize(raw);}catch{throw Error('PDF_POLICY_REJECTED');}
-        }else{try{const image=sharp(raw,{limitInputPixels:25000000}),metadata=await image.metadata();if(metadata.format!==(upload.mime==='image/png'?'png':'jpeg'))throw Error('Unexpected image format');clean=await image.rotate().jpeg().toBuffer();}catch{throw Error('IMAGE_POLICY_REJECTED');}}
-        if(clean){await this.files.write(id,clean);if(upload.mime!=='application/pdf'){const preview=await sharp(clean).resize({width:960,withoutEnlargement:true}).jpeg({quality:80}).toBuffer();previewId=randomUUID();await this.files.write(previewId,preview);}}
+        }else{try{const image=sharp(raw,{limitInputPixels:25000000}),metadata=await image.metadata();if(metadata.format!==(upload.mime==='image/png'?'png':'jpeg'))throw Error('Unexpected image format');if(upload.purpose==='brand'){if(!metadata.width||!metadata.height||metadata.width<1024||metadata.height<1024||metadata.width>4096||metadata.height>4096)throw Error('IMAGE_POLICY_REJECTED');clean=await image.rotate().png().toBuffer();}else clean=await image.rotate().jpeg().toBuffer();}catch{throw Error('IMAGE_POLICY_REJECTED');}}
+        if(clean){await this.files.write(id,clean);if(upload.mime!=='application/pdf'){const preview=upload.purpose==='brand'?await sharp(clean).resize({width:960,withoutEnlargement:true}).png().toBuffer():await sharp(clean).resize({width:960,withoutEnlargement:true}).jpeg({quality:80}).toBuffer();previewId=randomUUID();await this.files.write(previewId,preview);}}
       }catch(error:any){failure=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','PDF_POLICY_REJECTED','IMAGE_POLICY_REJECTED'].includes(error.message)?error.message:'FILE_PROCESSING_UNAVAILABLE';state=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','FILE_PROCESSING_UNAVAILABLE'].includes(failure!)?'processing':'rejected';}
       return this.exclusive(async()=>{
         await this.store.db.exec('BEGIN');try{
@@ -1236,7 +1268,7 @@ export class Marketplace {
           const current=await this.store.get(id);
           if(!current||current.scan_nonce!==upload.scan_nonce||current.status!=='scanning'){await this.store.db.exec('COMMIT');return current??{id,status:'expired'};}
           const attempts=(current.scan_attempts??0)+1;
-          const result=await this.store.put({...current,status:state==='processing'&&attempts>=5?'rejected':state,failure_code:failure,scan_attempts:attempts,next_attempt_at:state==='processing'?new Date(Date.now()+Math.min(3600000,2**attempts*1000)).toISOString():null,scan_lease_until:null,mime:clean&&current.mime!=='application/pdf'?'image/jpeg':current.mime,stored_size:clean?.length??current.stored_size,...(previewId?{preview_file_id:previewId}:{}),version:current.version+1});
+          const result=await this.store.put({...current,status:state==='processing'&&attempts>=5?'rejected':state,failure_code:failure,scan_attempts:attempts,next_attempt_at:state==='processing'?new Date(Date.now()+Math.min(3600000,2**attempts*1000)).toISOString():null,scan_lease_until:null,mime:clean&&current.mime!=='application/pdf'&&current.purpose!=='brand'?'image/jpeg':current.mime,stored_size:clean?.length??current.stored_size,...(previewId?{preview_file_id:previewId}:{}),version:current.version+1});
           await this.store.db.exec('COMMIT');return result;
         }catch(error){await this.store.db.exec('ROLLBACK');throw error;}
       });

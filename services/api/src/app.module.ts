@@ -1,5 +1,6 @@
 import {pipeline} from 'node:stream/promises';
-import { All, Controller, Get, Module, Req, Res, ServiceUnavailableException } from '@nestjs/common';
+import { All, Controller, Get, Module, Req, Res, ServiceUnavailableException, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import express from 'express';
 import { Marketplace } from './marketplace';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpErrors } from './http-errors';
@@ -31,13 +32,17 @@ export class MarketplaceController {
       if(req.headers['if-none-match']===etag){res.status(304).end();return;}
     }
     if(result?.download_stream){
-      res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition','attachment; filename="joba-export.zip"');res.setHeader('X-Content-Type-Options','nosniff');
+      res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition',`attachment; filename="${result.download_filename==='joba-icons.zip'?'joba-icons.zip':'joba-export.zip'}"`);res.setHeader('X-Content-Type-Options','nosniff');
       if(Number.isSafeInteger(result.download_size))res.setHeader('Content-Length',result.download_size);
       try{await pipeline(result.download_stream,res);}catch{if(res.headersSent)res.destroy();else{res.removeHeader('Content-Length');res.status(503).json({error:{code:'DOWNLOAD_UNAVAILABLE',message:'Архив недоступен. Повторите запрос.',details:{},retryable:true}});}}return;
     }
-    if(result?.download_buffer){res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition',`attachment; filename="document.${result.mime==='application/zip'?'zip':result.mime==='application/json'?'json':result.mime==='application/pdf'?'pdf':'jpg'}"`);res.setHeader('X-Content-Type-Options','nosniff');res.send(result.download_buffer);return;}
+    if(result?.download_buffer){res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition',`attachment; filename="document.${result.mime==='application/zip'?'zip':result.mime==='application/json'?'json':result.mime==='application/pdf'?'pdf':result.mime==='image/png'?'png':'jpg'}"`);res.setHeader('X-Content-Type-Options','nosniff');res.send(result.download_buffer);return;}
     res.json({data:result,meta:{request_id:req.joba_request_id,server_time:new Date().toISOString()}});
   }
 }
 @Module({ controllers: [HealthController, MarketplaceController], providers:[{provide:APP_FILTER,useClass:HttpErrors}] })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer:MiddlewareConsumer) {
+    consumer.apply(express.raw({type:'application/octet-stream',limit:'10mb',verify:(request,_response,buffer)=>{(request as any).rawBody=buffer;}})).forRoutes(MarketplaceController);
+  }
+}

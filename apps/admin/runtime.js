@@ -1,3 +1,4 @@
+import {brandingWorkspace} from './branding-workspace.js';
 import {countryWorkspace} from './country-workspace.js';
 import {wireLiveShell,clearStaffDialogs} from './live-shell.js';
 import {systemWorkspace} from './system-workspace.js';
@@ -9,7 +10,7 @@ import {staffApi} from './api.js';
 const {routes,render,card,tablecard,field,note,metric,badge}=window.JOBA_ADMIN;
 const designMode=new URLSearchParams(location.search).has('design');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let session,loginDraft,cache={},error='',generation=0;
+let session,loginDraft,cache={},error='',generation=0,disposeWorkspace;
 const cursors={},filters={},configRoutes=new Set(['prices','pricing','monetization','push','referrals','dictionaries','dictionary','categories','ranking','campaigns','placements','verificationPolicies','retention']);
 const sections={users:['users','Аккаунты'],orders:['orders','Заказы'],support:['support-threads','Поддержка'],'support-recovery':['recovery-threads','Восстановление доступа'],moderation:['cases','Дела'],portfolio:['portfolio','Портфолио'],contractors:['contractors','Профили исполнителей'],privacy:['privacy-requests','Запросы приватности'],blacklist:['blacklist','Черный список'],audit:['audit','Аудит'],prices:['price-versions','Цены'],monetization:['monetization-configs','Монетизация'],push:['push-campaigns','Рассылки'],referrals:['referral-campaigns','Реферальные кампании'],dictionaries:['moderation-dictionaries','Словари'],categories:['categories','Категории'],ranking:['ranking-configs','Рейтинг'],pricing:['price-versions','Каталог цен'],campaigns:['promotions','Кампании'],dictionary:['moderation-dictionaries','Запрещенные слова'],verification:['verifications','Проверка документов'],top100:['boost-reports','Топ и продвижение'],placements:['placement-policies','Размещения'],verificationPolicies:['verification-policies','Правила проверки'],retention:['retention-policies','Сроки хранения']};
 const api=staffApi({getSession:()=>session,saveSession:value=>{session=value;}});
@@ -62,12 +63,13 @@ function bind(key) {
     catch(e){error=e.message;draw(false);}finally{button.disabled=false;}};
   const form=document.getElementById('draft-config');if(form)form.onsubmit=async event=>{event.preventDefault();const values=Object.fromEntries(new FormData(form));formBusy(form,true);try{values.payload=JSON.parse(values.payload||'{}');await api('/admin/'+sections[key][0],'POST',values);await draw();}catch(failure){formError(form,failure);}finally{formBusy(form,false);}};
   const caseReply=document.getElementById('case-reply');if(caseReply)caseReply.onsubmit=async e=>{e.preventDefault();const button=caseReply.querySelector('button');button.disabled=true;try{await api('/admin/cases/'+cache.case.id+'/messages','POST',Object.fromEntries(new FormData(caseReply)));await draw();}catch(e){formError(caseReply,e);}finally{button.disabled=false;}};
-  const caseDecision=document.getElementById('case-decision');if(caseDecision)caseDecision.onsubmit=async e=>{e.preventDefault();const button=caseDecision.querySelector('button');button.disabled=true;try{await api('/admin/cases/'+cache.case.id+'/'+(cache.case.status==='appealed'?'appeal-decision':'resolve'),'POST',{...Object.fromEntries(new FormData(caseDecision)),expected_version:cache.case.version});await draw();}catch(e){formError(caseDecision,e);}finally{button.disabled=false;}};
+  const caseDecision=document.getElementById('case-decision');if(caseDecision)caseDecision.onsubmit=async e=>{e.preventDefault();const button=caseDecision.querySelector('button');button.disabled=true;try{await api('/admin/cases/'+cache.case.id+'/'+(cache.case.status==='appealed'?'appeal-decision':'resolve'),'POST',{...Object.fromEntries(new FormData(caseDecision)),expected_version:cache.case.version,expected_target_version:cache.case.target_context?.version});await draw();}catch(e){formError(caseDecision,e);}finally{button.disabled=false;}};
   const assign=document.getElementById('assign-support');if(assign)assign.onclick=async()=>{try{await api('/admin/support-threads/'+cache.thread.id+'/commands','POST',{command:'assign',reason:'Назначение обращения сотруднику поддержки',expected_version:cache.thread.version});await draw();}catch(e){error=e.message;draw(false);}};
   const reply=document.getElementById('reply-support');if(reply){const pendingMessages=new Map(),threadId=cache.thread.id;reply.onsubmit=async e=>{e.preventDefault();const text=String(new FormData(reply).get('text')||'').trim();const messageId=pendingMessages.get(text)||crypto.randomUUID();pendingMessages.set(text,messageId);while(pendingMessages.size>20)pendingMessages.delete(pendingMessages.keys().next().value);formBusy(reply,true);try{await api('/admin/support-threads/'+threadId+'/messages','POST',{text,client_message_id:messageId});await draw();}catch(e){formError(reply,e);}finally{formBusy(reply,false);}};}
 }
 async function draw(reload=true) {
   if(designMode){render();return;}
+  disposeWorkspace?.();disposeWorkspace=undefined;
   clearStaffDialogs();
   const key=location.hash.slice(1).split('?')[0]||'dashboard',g=++generation;
   if(!session&&key!=='login'&&!(key==='mfa'&&loginDraft)){location.hash='login';return;}
@@ -76,6 +78,7 @@ async function draw(reload=true) {
   try {
     if(reload&&session){
       const workspace=document.querySelector('.workspace');if(workspace){workspace.innerHTML=note('Загрузка данных…');workspace.setAttribute('aria-busy','true');}
+      if(key==='branding')routes[key]=await brandingWorkspace({key,api:request,files:{upload:async file=>{if(g!==generation)throw Error('Экран изменился');const result=await api.upload(file);if(g!==generation)throw Error('Экран изменился');return result;},download:async path=>{if(g!==generation)throw Error('Экран изменился');const result=await api.download(path);if(g!==generation)throw Error('Экран изменился');return result;}},esc,card,note,badge,namedField,onRefresh:()=>draw()});
       if(key==='countries')routes[key]=await countryWorkspace({key,api:request,esc,card,note,badge,namedField,onRefresh:()=>draw()});
       if(['dashboard','security','jobs'].includes(key))routes[key]=await systemWorkspace({key,api:request,esc,card,tablecard,note,metric,badge,onRefresh:()=>draw()});
       if(sections[key])cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
@@ -86,7 +89,7 @@ async function draw(reload=true) {
       }
       if(key.startsWith('case-live/')){
         const caseId=key.split('/')[1];cache.case=await request('/admin/cases/'+caseId);const messages=await request('/admin/cases/'+caseId+'/messages');
-        routes[key]={key,id:'A06',title:'Дело и апелляция',subtitle:caseId,section:'Модерация',actions:'',body:()=>`<div class="grid cols2">${card('Обстоятельства',`${badge(esc(cache.case.status))}<p>${esc(cache.case.description??cache.case.reason_code)}</p><p>${esc(cache.case.appeal_reason??'')}</p><p>${esc(cache.case.reason??'')}</p>${cache.case.status==='resolved'?'':`<form id="case-decision" class="stack"><label>Решение</label><select name="decision"><option value="no_violation">Нарушение не подтверждено</option><option value="content_removed">Материал удалён</option><option value="sanction_upheld">Ограничение подтверждено</option><option value="overturned">Решение отменено</option></select>${namedField('Основание решения','reason','textarea')}<button class="primary">${cache.case.status==='appealed'?'Решение по апелляции':'Зафиксировать решение'}</button></form>`}`)}${card('Переписка по делу',`${messages.items.map(m=>`<div class="event"><b>${m.internal?'Внутренняя заметка':m.owner===session.user.id?'Сотрудник':'Участник'}</b><p>${esc(m.text)}</p><time>${esc(m.created_at)}</time></div>`).join('')}<form id="case-reply" class="stack">${namedField('Сообщение участникам','text','textarea')}${namedField('Служебная причина','reason','textarea')}<button class="primary">Отправить сообщение</button></form>`)}</div>`};
+        routes[key]={key,id:'A06',title:'Дело и апелляция',subtitle:caseId,section:'Модерация',actions:'',body:()=>`<div class="grid cols2">${card('Обстоятельства',`${badge(esc(cache.case.status))}<p>${esc(cache.case.description??cache.case.reason_code)}</p><p>${esc(cache.case.appeal_reason??'')}</p><p>${esc(cache.case.reason??'')}</p>${cache.case.target_snapshot?`<details><summary>Зафиксированный материал · версия ${esc(cache.case.target_version)}</summary><pre>${esc(JSON.stringify(cache.case.target_snapshot,null,2))}</pre></details>`:''}${cache.case.target_context?.changed?note('Материал после обращения изменён. Решение не удаляет другую версию.','warn'):''}${cache.case.status==='resolved'?'':`<form id="case-decision" class="stack"><label>Решение</label><select name="decision">${cache.case.status==='appealed'?'<option value="sanction_upheld">Оставить решение</option><option value="overturned">Отменить решение</option>':'<option value="no_violation">Нарушение не подтверждено</option><option value="content_removed">Скрыть материал</option><option value="sanction_upheld">Подтвердить существующее ограничение</option>'}</select>${namedField('Основание решения','reason','textarea')}${cache.case.reporter_private?namedField('Объяснение субъекту без данных заявителя','public_reason','textarea'):''}<button class="primary">${cache.case.status==='appealed'?'Решение по апелляции':'Зафиксировать решение'}</button></form>`}`)}${card('Переписка по делу',`${messages.items.map(m=>`<div class="event"><b>${m.internal?'Внутренняя заметка':m.owner===session.user.id?'Сотрудник':'Участник'}</b><p>${esc(m.text)}</p><time>${esc(m.created_at)}</time></div>`).join('')}<form id="case-reply" class="stack">${namedField('Сообщение участникам','text','textarea')}${namedField('Служебная причина','reason','textarea')}<button class="primary">Отправить сообщение</button></form>`)}</div>`};
       }
       if(key.startsWith('support-live/')) {
         cache.thread=await request('/admin/support-threads/'+encodeURIComponent(key.split('/')[1]));
@@ -111,7 +114,7 @@ async function draw(reload=true) {
   }
   if(error&&!['login','mfa'].includes(key)){const el=document.createElement('div');el.innerHTML=note(esc(error),'danger');el.setAttribute('role','alert');document.querySelector('.workspace')?.prepend(el);}
   bind(key);
-  routes[key]?.bind?.();
+  routes[key]?.bind?.();disposeWorkspace=routes[key]?.dispose;
   if(session)wireLiveShell({api,esc,card,onRefresh:()=>draw()});
 }
 window.addEventListener('hashchange',()=>{error='';draw();});

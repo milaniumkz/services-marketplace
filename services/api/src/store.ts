@@ -68,12 +68,13 @@ export class Store {
     if(options.search){const parameter=bind('%'+options.search+'%');where.push(`(id::text ILIKE ${parameter} OR owner ILIKE ${parameter} OR data->>'event' ILIKE ${parameter} OR data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);}
     const limit=options.limit??101;const r=await this.db.query<{data:RecordData}>('SELECT data FROM records r WHERE '+where.join(' AND ')+' ORDER BY id LIMIT '+bind(limit),args);return r.rows.map(r=>r.data);
   }
+  async read(id:string):Promise<RecordData|undefined>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))return undefined;return (await this.db.query<{data:RecordData}>('SELECT data FROM records WHERE id=$1',[id])).rows[0]?.data;}
   async get(id: string): Promise<RecordData | undefined> {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return undefined;
     return (await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE id=$1 FOR UPDATE', [id])).rows[0]?.data;
   }
-  async put(data: RecordData) {
-    if(this.contentHook)await this.contentHook(data);
+  async put(data: RecordData,options:{skipContentCheck?:boolean}={}) {
+    if(this.contentHook&&!options.skipContentCheck)await this.contentHook(data);
     await this.db.query('INSERT INTO records(id,kind,owner,country,version,data) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data', [data.id,data.kind,data.owner,data.country,data.version,JSON.stringify(data)]);
     return data;
   }

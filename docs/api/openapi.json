@@ -1540,7 +1540,17 @@
           "legal"
         ],
         "security": [],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "required",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Return current document families with published regional fallback when a requested translation is unavailable."
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/Success"
@@ -11101,7 +11111,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "description": "Country-scoped MFA moderation of frozen evidence; appeals require an independent senior moderator. No automatic sanctions.",
         "security": [
           {
             "BearerAuth": []
@@ -11165,7 +11175,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedCommand"
+                "$ref": "#/components/schemas/CaseDecisionCommand"
               }
             }
           }
@@ -11178,7 +11188,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "description": "Country-scoped MFA moderation of frozen evidence; appeals require an independent senior moderator. No automatic sanctions.",
         "security": [
           {
             "BearerAuth": []
@@ -11242,7 +11252,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedCommand"
+                "$ref": "#/components/schemas/CaseDecisionCommand"
               }
             }
           }
@@ -11458,6 +11468,51 @@
                 "$ref": "#/components/schemas/VersionedCommand"
               }
             }
+          }
+        }
+      },
+      "get": {
+        "operationId": "get__admin_brand-icons",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped active MFA staff: content, brand_owner, release or administrator.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
           }
         }
       }
@@ -19300,6 +19355,280 @@
           }
         }
       }
+    },
+    "/admin/brand-icons/{id}": {
+      "get": {
+        "operationId": "get__admin_brand-icons_id",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped active MFA staff: content, brand_owner, release or administrator.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/brand-icons/{id}/source": {
+      "get": {
+        "operationId": "get__admin_brand-icons_id_source",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped active MFA staff: content, brand_owner, release or administrator.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private source, preview or audited generated bundle. A generated bundle does not indicate a native build or store publication.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/brand-icons/{id}/preview": {
+      "get": {
+        "operationId": "get__admin_brand-icons_id_preview",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped active MFA staff: content, brand_owner, release or administrator.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "mask",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ios",
+                "android-round",
+                "android-squircle"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private source, preview or audited generated bundle. A generated bundle does not indicate a native build or store publication.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/brand-icons/{id}/bundle": {
+      "get": {
+        "operationId": "get__admin_brand-icons_id_bundle",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped active MFA staff: content, brand_owner, release or administrator.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private source, preview or audited generated bundle. A generated bundle does not indicate a native build or store publication.",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -19641,6 +19970,46 @@
             }
           }
         }
+      },
+      "CaseDecisionCommand": {
+        "type": "object",
+        "required": [
+          "expected_version",
+          "decision",
+          "reason"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expected_target_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Current material version from the audited case detail; required for content mutations."
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "no_violation",
+              "content_removed",
+              "sanction_upheld",
+              "overturned"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "public_reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000,
+            "description": "Explanation to the subject without private reporter details."
+          }
+        },
+        "additionalProperties": false
       }
     },
     "responses": {

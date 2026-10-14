@@ -67,6 +67,9 @@ test('new business commands require current consent and honor withdrawal without
   await api.store.put(order);
   const publish=()=>command('POST','/orders/'+order.id+'/publish',{expected_version:1});
   await assert.rejects(publish,error=>error.getResponse().error.code==='CONSENT_REQUIRED');
+  const identity=await api.store.get(session.user.id);await api.store.put({...identity,locale:'be'});
+  await assert.rejects(publish,error=>error.getResponse().error.code==='CONSENT_REQUIRED');
+  const fallback=await api.handle('GET','/legal/documents',{},undefined,undefined,{country:'KZ',locale:'be',required:'true'});assert.equal(fallback.items[0].id,document.id);assert.equal(fallback.items[0].locale,'ru');
   const consent=accepted=>command('POST','/me/consents',{document_id:document.id,document_hash:document.hash,accepted});
   await consent(true);await consent(false);
   await assert.rejects(publish,error=>error.getResponse().error.code==='CONSENT_REQUIRED');

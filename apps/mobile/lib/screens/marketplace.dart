@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../core/api.dart';
+import '../core/regions.dart';
 import 'profile_editor.dart';
 import 'invite_editor.dart';
 import '../core/theme.dart';
@@ -68,6 +69,8 @@ const eventTitles = {
   'message.created': 'Новое сообщение',
   'support.message.created': 'Ответ поддержки',
   'case.message.created': 'Сообщение по обращению',
+  'case.updated': 'Статус обращения обновлён',
+  'content.moderated': 'Материал проверен модерацией',
   'privacy.export.ready': 'Архив данных готов',
   'cancel_request.accepted': 'Отмена согласована',
   'cancel_request.rejected': 'Отмена отклонена',
@@ -92,13 +95,23 @@ int minor(String value) {
 class Marketplace extends StatefulWidget {
   final JobaApi? api;
   final ValueChanged<String>? onLocaleChanged;
-  const Marketplace({this.api, this.onLocaleChanged, super.key});
+  final RegionGateway? regions;
+  final DevicePreferences? preferences;
+  const Marketplace(
+      {this.api,
+      this.onLocaleChanged,
+      this.regions,
+      this.preferences,
+      super.key});
   @override
   State<Marketplace> createState() => _MarketplaceState();
 }
 
 class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
-  late JobaApi api;
+  JobaApi? _api;
+  JobaApi get api => _api!;
+  RegionGateway? regions;
+  DevicePreferences? preferences;
   Json? me, recovery;
   String country = 'KZ', route = 'welcome';
   String locale = 'ru';
@@ -131,16 +144,33 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    api = widget.api ??
-        JobaApi(const String.fromEnvironment('JOBA_API_URL',
-            defaultValue: 'http://localhost:3000'));
-    api.addListener(sessionChanged);
+    _api = widget.api;
+    regions = widget.regions ??
+        (widget.api == null ? RegionGateway.environment() : null);
+    preferences = widget.preferences ??
+        (widget.api == null
+            ? DevicePreferences(SecureSessionVault('joba.device.preferences'))
+            : null);
+    _api?.addListener(sessionChanged);
     initialize();
   }
 
   Future<void> initialize() async {
     try {
+      if (preferences != null) {
+        final saved = await preferences!.read();
+        if (!mounted) return;
+        country = saved['country'];
+        locale = saved['locale'];
+        widget.onLocaleChanged?.call(locale);
+      }
+      if (regions != null && widget.api == null)
+        replaceApi(regions!.create(country));
       await api.restore(refreshSession: false);
+      if (!mounted) return;
+      if (regions != null &&
+          api.authenticated &&
+          api.session?['user']?['country'] != country) await api.forget();
       if (api.authenticated) {
         lock = LocalLock('${api.base}:${api.session?['user']?['id']}');
         if (await lock!.configured()) {
@@ -155,6 +185,54 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       startupError = e;
     }
     if (mounted) setState(() => starting = false);
+  }
+
+  void replaceApi(JobaApi next) {
+    closeEvents();
+    final previous = _api;
+    previous?.removeListener(sessionChanged);
+    _api = next;
+    api.addListener(sessionChanged);
+    if (widget.api != previous) previous?.dispose();
+    sequence = 0;
+  }
+
+  Future<void> chooseCountry(String next) async {
+    if (next == country && _api != null) return;
+    final replacement = regions?.create(next);
+    try {
+      if (_api?.authenticated == true) await api.logout();
+      await preferences?.save(next, locale);
+      if (!mounted) {
+        replacement?.dispose();
+        return;
+      }
+      if (replacement != null) replaceApi(replacement);
+      setState(() {
+        country = next;
+        recovery = null;
+        objectId = null;
+        listingFilters = {};
+        serviceCategories = null;
+        draftCategory = null;
+        draftPhotos.clear();
+        draftWindow = null;
+        history.clear();
+        reportUploads.clear();
+        pendingLocale = null;
+        revision++;
+      });
+    } catch (_) {
+      replacement?.dispose();
+      rethrow;
+    }
+  }
+
+  Future<void> chooseGuestLocale(String next) async {
+    await preferences?.save(country, next);
+    if (!mounted) return;
+    setState(() => locale = next);
+    widget.onLocaleChanged?.call(next);
   }
 
   void sessionChanged() {
@@ -190,6 +268,22 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     channel = null;
   }
 
+  Future<void> refreshIdentity() async {
+    final client = api, generation = api.sessionGeneration, id = me?['id'];
+    try {
+      final profile = await client.request('/me') as Json;
+      if (mounted &&
+          identical(_api, client) &&
+          client.sessionGeneration == generation &&
+          profile['id'] == id) {
+        setState(() {
+          me = profile;
+          executor = profile['active_role'] == 'executor';
+        });
+      }
+    } catch (_) {/* Background refresh retains the last confirmed state. */}
+  }
+
   void connectEvents() {
     closeEvents();
     if (!api.authenticated || !mounted || locked) return;
@@ -209,6 +303,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         final next = event['sequence'] as int;
         if (next <= sequence) return;
         sequence = next;
+        if ([
+          'content.moderated',
+          'verification.updated',
+          'entitlement.changed',
+          'case.updated'
+        ].contains(event['type'])) refreshIdentity();
         if (mounted &&
             ![
               'create',
@@ -244,7 +344,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && api.authenticated) {
+    if (state == AppLifecycleState.resumed && _api?.authenticated == true) {
       if (pausedAt != null &&
           DateTime.now().difference(pausedAt!).inSeconds >= 60) {
         if (localProtected) {
@@ -271,8 +371,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     closeEvents();
-    api.removeListener(sessionChanged);
-    if (widget.api == null) api.dispose();
+    _api?.removeListener(sessionChanged);
+    if (widget.api != _api) _api?.dispose();
     super.dispose();
   }
 
@@ -311,7 +411,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         route = previous.$1;
         objectId = previous.$2;
       } else {
-        route = api.authenticated ? 'home' : 'welcome';
+        route = _api?.authenticated == true ? 'home' : 'welcome';
         objectId = null;
       }
       revision++;
@@ -535,7 +635,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 startupError = null;
               });
               initialize();
-            })
+            }),
+            button(
+                'Выбрать страну',
+                () => setState(() {
+                      startupError = null;
+                      route = 'welcome';
+                    }),
+                outline: true)
           ]));
     return screen();
   }
@@ -763,8 +870,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             go('order', r['target_id']);
                           } else if (type == 'privacy.export.ready') {
                             go('privacy');
-                          } else if (type == 'case.message.created') {
+                          } else if (type == 'case.message.created' ||
+                              type == 'case.updated') {
                             go('case', r['target_id']);
+                          } else if (type == 'content.moderated') {
+                            await refreshIdentity();
+                            if (mounted) go('account');
                           } else if (type == 'invite.created') {
                             go('invitations');
                           } else if (type.startsWith('amendment.') ||
@@ -919,7 +1030,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           border: Border.all(color: country == code ? primary : line)),
       child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () => setState(() => country = code),
+          onTap: actionBusy ? null : () => act(() => chooseCountry(code)),
           child: Padding(
               padding: const EdgeInsets.all(14),
               child: Row(children: [
@@ -1008,10 +1119,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 DropdownMenuItem(value: 'sr', child: Text('Srpski')),
                 DropdownMenuItem(value: 'be', child: UiText('Беларуская'))
               ],
-              onChanged: (v) {
-                setState(() => locale = v!);
-                widget.onLocaleChanged?.call(v!);
-              }),
+              onChanged:
+                  actionBusy ? null : (v) => act(() => chooseGuestLocale(v!))),
           const SizedBox(height: 16),
           const UiText(
               'Страна и язык выбираются отдельно. Доступность функций зависит от региона.',
@@ -1021,7 +1130,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             child: FilledButton(
-                onPressed: () => go('login'),
+                onPressed: actionBusy
+                    ? null
+                    : () => act(() async {
+                          if (_api == null) await chooseCountry(country);
+                          go('login');
+                        }),
                 child: const UiText('Продолжить'))),
       ])));
   Widget authScreen() {
@@ -3480,7 +3594,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     () => caseForm(false, data, reload),
                     outline: true),
                 if (data['subject_user_id'] == me!['id'] &&
-                    ['resolved', 'restricted'].contains(data['status']))
+                    (['resolved', 'restricted'].contains(data['status'])) &&
+                    (data['status'] == 'restricted' ||
+                        ['content_removed', 'sanction_upheld']
+                            .contains(data['decision'])))
                   button(
                       'Обжаловать решение', () => caseForm(true, data, reload)),
               ])));
@@ -3871,6 +3988,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                         me = result;
                                         locale = selected;
                                         widget.onLocaleChanged?.call(selected);
+                                        await preferences?.save(
+                                            country, selected);
                                         back();
                                       }),
                               child: const UiText('Сохранить выбор'))))
@@ -3916,8 +4035,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                               child: const UiText('Продолжить'))
                                         ]));
                             if (confirmed != true) return;
-                            await api.logout();
-                            if (mounted) setState(() => country = entry.key);
+                            await chooseCountry(entry.key);
                           }),
                   child: UiText(entry.value)))
       ]));
@@ -4355,7 +4473,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           load: () async => Future.wait([
                 api.request('/legal/documents', query: {
                   'country': country,
-                  'locale': me?['locale'] ?? locale
+                  'locale': me?['locale'] ?? locale,
+                  'required': 'true'
                 }),
                 api.request('/me/consents')
               ]),

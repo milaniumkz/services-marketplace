@@ -14,7 +14,7 @@ test('free safety reports require a visible regional target and freeze its revis
   const report=(session,target,type=target.kind)=>call(session,'POST','/cases',{target_type:type,target_id:target.id,reason_code:'other',description:'Описание конкретной проблемы для проверки.'});
   const order=await put('order',owner.user.id,{status:'draft',revision:4});
   await assert.rejects(()=>report(other,order),e=>e.getStatus()===404);
-  const own=await report(owner,order);assert.equal(own.target_version,1);assert.equal(own.target_revision,4);assert.equal(own.target_hash.length,64);
+  const own=await report(owner,order);assert.equal(own.target_version,1);assert.equal(own.target_revision,4);assert.equal(own.target_snapshot,undefined);assert.equal((await api.store.get(own.id)).target_content_hash.length,64);
   await assert.rejects(()=>report(owner,order),e=>e.getResponse().error.code==='STATE_CONFLICT');
   await assert.rejects(()=>report(owner,order,'contractor'),e=>e.getStatus()===404);
   const foreign=await put('order',owner.user.id,{status:'open'},'RU');await assert.rejects(()=>report(owner,foreign),e=>e.getStatus()===404);

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { RecordData, Store } from './store';
+import {freezeTarget} from './case-evidence';
 import { readSettings } from './settings';
 
 export const TEXT_SURFACES: Record<string,string[]> = {
@@ -39,12 +40,12 @@ export class Moderation {
     const episode=(await this.store.all('moderation_episode',data.country)).find(e=>e.content_id===data.id&&e.content_version===data.version);
     if(episode)return;
     const caseId=randomUUID();
-    await this.store.put({...common,id:caseId,kind:'case',target_id:data.id,target_type:data.kind,status:'new',reason_code:'dictionary_match',subject_user_id:data.owner});
+    await this.store.put({...common,id:caseId,kind:'case',target_id:data.id,target_type:data.kind,status:'new',reason_code:'dictionary_match',subject_user_id:data.owner,...freezeTarget(data,data.draft?'draft':'public')});
     await this.store.put({...common,id:randomUUID(),kind:'moderation_episode',content_id:data.id,content_version:data.version,case_id:caseId,matches:hits});
     await this.store.put({...common,id:randomUUID(),kind:'auto_hold',user_id:data.owner,case_id:caseId,status:'active',expires_at:new Date(Date.now()+settings.auto_hold_minutes*60000).toISOString()});
-    if(data.kind==='user')data.status='restricted';else {const owner=await this.store.get(data.owner);if(owner)await this.store.put({...owner,status:'restricted',version:owner.version+1});}
+    if(data.kind==='user')data.status='restricted';else {const owner=await this.store.get(data.owner);if(owner?.country===data.country)await this.store.put({...owner,status:'restricted',version:owner.version+1});}
     effective.moderation_status='quarantined';effective.case_id=caseId;
-    if(['order','contractor','portfolio'].includes(data.kind))effective.status='pending_moderation';
+    if(['order','contractor','portfolio'].includes(data.kind)&&!(data.kind==='order'&&['assigned','in_progress','completion_requested','completed','cancelled'].includes(effective.status)))effective.status='pending_moderation';
     if(data.kind==='message')data.delivery_state='quarantined';
   }
 }
