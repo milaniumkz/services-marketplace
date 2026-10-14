@@ -23,9 +23,9 @@ void main() {
       (tester) async {
     final output = Platform.environment['JOBA_ALL_SCREENS_DIR'];
     if (output == null) return;
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    tester.view.padding = const FakeViewPadding(top: 43, bottom: 22);
+    tester.view.physicalSize = const Size(780, 1688);
+    tester.view.devicePixelRatio = 2;
+    tester.view.padding = const FakeViewPadding(top: 86, bottom: 44);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPadding);
@@ -442,6 +442,7 @@ void main() {
         'route': frame['design_route'],
         'capture': filename,
         'reference_png': frame['reference_png'],
+        'actual_route': frame['native_route'] ?? aliases[route] ?? route,
         'errors': errors,
         'visual_acceptance': 'pending'
       });

@@ -6,7 +6,7 @@
     "expected": 187,
     "captured": 132,
     "not_captured": 55,
-    "captures_with_errors": 34,
+    "captures_with_errors": 30,
     "accepted": 0
   },
   "frames": [
@@ -17,6 +17,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S01-welcome.png",
+      "actual_route": "welcome",
       "errors": [],
       "reference_size": [
         780,
@@ -49,6 +50,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S02-login.png",
+      "actual_route": "login",
       "errors": [],
       "reference_size": [
         780,
@@ -81,6 +83,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S02.register-register.png",
+      "actual_route": "register",
       "errors": [],
       "reference_size": [
         780,
@@ -105,6 +108,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S03-terms.png",
+      "actual_route": "terms",
       "errors": [],
       "reference_size": [
         780,
@@ -137,6 +141,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S04-onboarding.png",
+      "actual_route": "onboarding",
       "errors": [],
       "reference_size": [
         780,
@@ -161,6 +166,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S05-access.png",
+      "actual_route": "access",
       "errors": [],
       "reference_size": [
         780,
@@ -193,6 +199,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S06-home.png",
+      "actual_route": "home",
       "errors": [],
       "reference_size": [
         780,
@@ -202,7 +209,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.060004,
+      "different_pixels_ratio": 0.049528,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -217,6 +224,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S07-catalog.png",
+      "actual_route": "catalog",
       "errors": [],
       "reference_size": [
         780,
@@ -265,6 +273,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S07.location-location.png",
+      "actual_route": "location",
       "errors": [],
       "reference_size": [
         780,
@@ -297,6 +306,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S08-contractor.png",
+      "actual_route": "contractor",
       "errors": [],
       "reference_size": [
         780,
@@ -306,7 +316,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.221539,
+      "different_pixels_ratio": 0.222359,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -321,6 +331,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S09-executor-home.png",
+      "actual_route": "home",
       "errors": [],
       "reference_size": [
         780,
@@ -330,7 +341,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.110691,
+      "different_pixels_ratio": 0.108353,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -345,6 +356,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S10-order.png",
+      "actual_route": "order",
       "errors": [],
       "reference_size": [
         780,
@@ -369,6 +381,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S11-account.png",
+      "actual_route": "account",
       "errors": [],
       "reference_size": [
         780,
@@ -393,6 +406,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S11.edit-profile-edit.png",
+      "actual_route": "profile-edit",
       "errors": [],
       "reference_size": [
         780,
@@ -417,6 +431,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S11.roles-roles.png",
+      "actual_route": "roles",
       "errors": [],
       "reference_size": [
         780,
@@ -441,6 +456,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S12-services.png",
+      "actual_route": "services",
       "errors": [],
       "reference_size": [
         780,
@@ -473,6 +489,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S13-verification.png",
+      "actual_route": "verification",
       "errors": [],
       "reference_size": [
         780,
@@ -497,6 +514,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S13.pending-verification-review.png",
+      "actual_route": "verification",
       "errors": [],
       "reference_size": [
         780,
@@ -521,6 +539,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S13.resubmit-verification-resubmit.png",
+      "actual_route": "verification",
       "errors": [],
       "reference_size": [
         780,
@@ -545,6 +564,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S13.status-verification-status.png",
+      "actual_route": "verification",
       "errors": [],
       "reference_size": [
         780,
@@ -569,6 +589,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S14-reviews.png",
+      "actual_route": "reviews",
       "errors": [],
       "reference_size": [
         780,
@@ -593,6 +614,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S15-security.png",
+      "actual_route": "security",
       "errors": [],
       "reference_size": [
         780,
@@ -625,6 +647,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S15.password-password.png",
+      "actual_route": "password",
       "errors": [],
       "reference_size": [
         780,
@@ -665,6 +688,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S15.sessions-sessions.png",
+      "actual_route": "sessions",
       "errors": [],
       "reference_size": [
         780,
@@ -689,6 +713,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S16-create.png",
+      "actual_route": "create",
       "errors": [],
       "reference_size": [
         780,
@@ -713,6 +738,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S17-publish.png",
+      "actual_route": "publish",
       "errors": [],
       "reference_size": [
         780,
@@ -745,6 +771,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S18-orders.png",
+      "actual_route": "orders",
       "errors": [],
       "reference_size": [
         780,
@@ -777,6 +804,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S19-invite.png",
+      "actual_route": "invite",
       "errors": [],
       "reference_size": [
         780,
@@ -809,6 +837,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S20-invitations.png",
+      "actual_route": "invitations",
       "errors": [],
       "reference_size": [
         780,
@@ -833,6 +862,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S21-offer.png",
+      "actual_route": "offer",
       "errors": [],
       "reference_size": [
         780,
@@ -873,6 +903,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S22-offers.png",
+      "actual_route": "offers",
       "errors": [],
       "reference_size": [
         780,
@@ -897,6 +928,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S23-select-contractor.png",
+      "actual_route": "select-contractor",
       "errors": [],
       "reference_size": [
         780,
@@ -921,6 +953,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S24-work.png",
+      "actual_route": "work",
       "errors": [],
       "reference_size": [
         780,
@@ -953,6 +986,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S25-chat.png",
+      "actual_route": "chat",
       "errors": [],
       "reference_size": [
         780,
@@ -985,6 +1019,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S25.inbox-messages.png",
+      "actual_route": "messages",
       "errors": [],
       "reference_size": [
         780,
@@ -1009,6 +1044,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S26-complete.png",
+      "actual_route": "complete",
       "errors": [],
       "reference_size": [
         780,
@@ -1041,6 +1077,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S27-cancel.png",
+      "actual_route": "cancel",
       "errors": [],
       "reference_size": [
         780,
@@ -1073,6 +1110,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S28-review.png",
+      "actual_route": "review",
       "errors": [],
       "reference_size": [
         780,
@@ -1105,6 +1143,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S29-report.png",
+      "actual_route": "report",
       "errors": [],
       "reference_size": [
         780,
@@ -1129,6 +1168,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S30-cases.png",
+      "actual_route": "cases",
       "errors": [],
       "reference_size": [
         780,
@@ -1177,6 +1217,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S31-notifications.png",
+      "actual_route": "notifications",
       "errors": [],
       "reference_size": [
         780,
@@ -1201,6 +1242,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S32-my-access.png",
+      "actual_route": "my-access",
       "errors": [],
       "reference_size": [
         780,
@@ -1257,6 +1299,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S33-reward.png",
+      "actual_route": "reward",
       "errors": [],
       "reference_size": [
         780,
@@ -1305,6 +1348,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S34-privacy.png",
+      "actual_route": "privacy",
       "errors": [],
       "reference_size": [
         780,
@@ -1377,6 +1421,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S35-settings.png",
+      "actual_route": "settings",
       "errors": [],
       "reference_size": [
         780,
@@ -1401,6 +1446,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S35.languages-languages.png",
+      "actual_route": "languages",
       "errors": [],
       "reference_size": [
         780,
@@ -1433,6 +1479,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S35.notifications-notification-settings.png",
+      "actual_route": "notification-settings",
       "errors": [],
       "reference_size": [
         780,
@@ -1457,6 +1504,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S36-unlock.png",
+      "actual_route": "unlock",
       "errors": [],
       "reference_size": [
         780,
@@ -1489,6 +1537,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S37-referrals.png",
+      "actual_route": "referrals",
       "errors": [],
       "reference_size": [
         780,
@@ -1513,6 +1562,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S37.redeem-redeem.png",
+      "actual_route": "referrals",
       "errors": [],
       "reference_size": [
         780,
@@ -1537,6 +1587,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S37.rules-referral-rules.png",
+      "actual_route": "referral-rules",
       "errors": [],
       "reference_size": [
         780,
@@ -1561,6 +1612,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S38-portfolio.png",
+      "actual_route": "portfolio",
       "errors": [],
       "reference_size": [
         780,
@@ -1585,6 +1637,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S38.edit-portfolio-edit.png",
+      "actual_route": "portfolio-edit",
       "errors": [],
       "reference_size": [
         780,
@@ -1594,7 +1647,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.244735,
+      "different_pixels_ratio": 0.244709,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1625,6 +1678,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S39-portfolio-project.png",
+      "actual_route": "portfolio-project",
       "errors": [],
       "reference_size": [
         780,
@@ -1634,7 +1688,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.197604,
+      "different_pixels_ratio": 0.196662,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1657,6 +1711,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S40-support.png",
+      "actual_route": "support",
       "errors": [],
       "reference_size": [
         780,
@@ -1681,6 +1736,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S40.chat-support-chat.png",
+      "actual_route": "support-chat",
       "errors": [],
       "reference_size": [
         780,
@@ -1713,6 +1769,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S40.prelogin-recovery.png",
+      "actual_route": "recovery",
       "errors": [],
       "reference_size": [
         780,
@@ -1737,6 +1794,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S40.recovery-recovery-chat.png",
+      "actual_route": "recovery-chat",
       "errors": [],
       "reference_size": [
         780,
@@ -1761,6 +1819,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S41-top.png",
+      "actual_route": "top",
       "errors": [],
       "reference_size": [
         780,
@@ -1793,6 +1852,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "S42-promotion.png",
+      "actual_route": "promotion",
       "errors": [],
       "reference_size": [
         780,
@@ -1897,6 +1957,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A01-login.png",
+      "actual_route": "login",
       "errors": [],
       "reference_size": [
         1440,
@@ -1921,6 +1982,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A01.1-mfa.png",
+      "actual_route": "mfa",
       "errors": [],
       "reference_size": [
         1440,
@@ -1945,6 +2007,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A02-dashboard.png",
+      "actual_route": "dashboard",
       "errors": [],
       "reference_size": [
         1440,
@@ -1954,7 +2017,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.088755,
+      "different_pixels_ratio": 0.088752,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -1969,6 +2032,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A02.analytics-analytics.png",
+      "actual_route": "analytics",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -1995,6 +2059,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A02.revenue---FR-033-revenue.png",
+      "actual_route": "revenue",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2021,6 +2086,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03-users.png",
+      "actual_route": "users",
       "errors": [],
       "reference_size": [
         1440,
@@ -2030,7 +2096,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.075045,
+      "different_pixels_ratio": 0.074905,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2045,6 +2111,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.2---A12-user-security.png",
+      "actual_route": "user-security",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2071,6 +2138,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.RBAC-settings.png",
+      "actual_route": "settings",
       "errors": [],
       "reference_size": [
         1440,
@@ -2095,6 +2163,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.blacklist---FR-042-blacklist.png",
+      "actual_route": "blacklist",
       "errors": [],
       "reference_size": [
         1440,
@@ -2119,6 +2188,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.blacklist.detail-blacklist-detail.png",
+      "actual_route": "blacklist-detail",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2145,6 +2215,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.cases-user-cases.png",
+      "actual_route": "user-cases",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2171,6 +2242,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.delete---A11.review-deletion.png",
+      "actual_route": "deletion",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2197,9 +2269,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.detail-user-detail.png",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "record-live/users/3d20b112-0245-455a-afda-9783945ddb76",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -2208,7 +2279,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.09009,
+      "different_pixels_ratio": 0.095034,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2223,6 +2294,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.history-user-decisions.png",
+      "actual_route": "user-decisions",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2249,6 +2321,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.orders-user-orders.png",
+      "actual_route": "user-orders",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2275,9 +2348,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A04-order-detail.png",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "record-live/orders/4fea8f2e-2eb1-4e11-bbe2-ad02ae902765",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -2286,7 +2358,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.08847,
+      "different_pixels_ratio": 0.072531,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2301,6 +2373,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A04.list-orders.png",
+      "actual_route": "orders",
       "errors": [],
       "reference_size": [
         1440,
@@ -2310,7 +2383,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.066314,
+      "different_pixels_ratio": 0.066282,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2325,6 +2398,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A05-moderation.png",
+      "actual_route": "moderation",
       "errors": [],
       "reference_size": [
         1440,
@@ -2334,7 +2408,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069868,
+      "different_pixels_ratio": 0.069826,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2349,6 +2423,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A05.portfolio---FR-040-portfolio.png",
+      "actual_route": "portfolio",
       "errors": [],
       "reference_size": [
         1440,
@@ -2373,9 +2448,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A06-case.png",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "case-live/f15f8a1e-a49c-454a-89b4-5fcc3ddfa689",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -2384,7 +2458,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.148718,
+      "different_pixels_ratio": 0.155849,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2399,6 +2473,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07-verification.png",
+      "actual_route": "verification",
       "errors": [],
       "reference_size": [
         1440,
@@ -2408,7 +2483,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.094012,
+      "different_pixels_ratio": 0.094009,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2423,6 +2498,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.authorization-id-auth.png",
+      "actual_route": "id-auth",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2449,9 +2525,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.guard-verification-detail.png",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "record-live/verification/e3cd6379-fc83-4f5d-ac71-647670030de1",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -2460,7 +2535,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.112364,
+      "different_pixels_ratio": 0.106967,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2475,6 +2550,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.review-verification-review.png",
+      "actual_route": "verification-review",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2501,6 +2577,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A08-categories.png",
+      "actual_route": "categories",
       "errors": [],
       "reference_size": [
         1440,
@@ -2510,7 +2587,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.133941,
+      "different_pixels_ratio": 0.133891,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2525,6 +2602,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A08.languages-languages.png",
+      "actual_route": "languages",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2551,6 +2629,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A09---A22.prices-pricing.png",
+      "actual_route": "pricing",
       "errors": [],
       "reference_size": [
         1440,
@@ -2575,6 +2654,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A09.preview-promo-preview.png",
+      "actual_route": "promo-preview",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2601,6 +2681,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A09.promo-promo.png",
+      "actual_route": "promo",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2627,6 +2708,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A10-campaigns.png",
+      "actual_route": "campaigns",
       "errors": [],
       "reference_size": [
         1440,
@@ -2651,6 +2733,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A10.archive---A17.archive-archive.png",
+      "actual_route": "archive",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2677,6 +2760,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A10.creative-banner-detail.png",
+      "actual_route": "banner-detail",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2703,6 +2787,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A11-privacy.png",
+      "actual_route": "privacy",
       "errors": [],
       "reference_size": [
         1440,
@@ -2712,7 +2797,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.070786,
+      "different_pixels_ratio": 0.0708,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2727,6 +2812,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A12-security.png",
+      "actual_route": "security",
       "errors": [],
       "reference_size": [
         1440,
@@ -2736,7 +2822,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.122094,
+      "different_pixels_ratio": 0.122054,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2751,6 +2837,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A12.full-security-full.png",
+      "actual_route": "security-full",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2777,6 +2864,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A13-audit.png",
+      "actual_route": "audit",
       "errors": [],
       "reference_size": [
         1440,
@@ -2786,7 +2874,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.099007,
+      "different_pixels_ratio": 0.098941,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2801,6 +2889,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A14-countries.png",
+      "actual_route": "countries",
       "errors": [],
       "reference_size": [
         1440,
@@ -2825,6 +2914,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A14.gate-country-detail.png",
+      "actual_route": "country-detail",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2851,6 +2941,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A15-jobs.png",
+      "actual_route": "jobs",
       "errors": [],
       "reference_size": [
         1440,
@@ -2860,7 +2951,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.114723,
+      "different_pixels_ratio": 0.114753,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2875,6 +2966,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A15.retry-job-detail.png",
+      "actual_route": "job-detail",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2901,6 +2993,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A15.schedule-scheduled.png",
+      "actual_route": "scheduled",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2927,6 +3020,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A16-monetization.png",
+      "actual_route": "monetization",
       "errors": [],
       "reference_size": [
         1440,
@@ -2951,6 +3045,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A16.preview-monetization-preview.png",
+      "actual_route": "monetization-preview",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -2977,6 +3072,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A16.rewarded-rewarded.png",
+      "actual_route": "rewarded",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3003,6 +3099,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A17-push.png",
+      "actual_route": "push",
       "errors": [],
       "reference_size": [
         1440,
@@ -3027,6 +3124,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A17.composer-push-compose.png",
+      "actual_route": "push-compose",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3053,6 +3151,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A18-dictionary.png",
+      "actual_route": "dictionary",
       "errors": [],
       "reference_size": [
         1440,
@@ -3077,6 +3176,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A18.dryrun-dictionary-dryrun.png",
+      "actual_route": "dictionary-dryrun",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3103,6 +3203,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A19-branding.png",
+      "actual_route": "branding",
       "errors": [],
       "reference_size": [
         1440,
@@ -3127,6 +3228,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A19.build-branding-build.png",
+      "actual_route": "branding-build",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3153,6 +3255,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A20-referrals.png",
+      "actual_route": "referrals",
       "errors": [],
       "reference_size": [
         1440,
@@ -3177,6 +3280,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A20.preview-referral-preview.png",
+      "actual_route": "referral-preview",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3203,6 +3307,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A21-support.png",
+      "actual_route": "support",
       "errors": [],
       "reference_size": [
         1440,
@@ -3212,7 +3317,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.114217,
+      "different_pixels_ratio": 0.114199,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3227,6 +3332,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A21.thread-support-recovery.png",
+      "actual_route": "support-recovery",
       "errors": [],
       "reference_size": [
         1440,
@@ -3236,7 +3342,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115945,
+      "different_pixels_ratio": 0.115947,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3251,6 +3357,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A22-top100.png",
+      "actual_route": "top100",
       "errors": [],
       "reference_size": [
         1440,
@@ -3275,6 +3382,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A22.boosts-boosts.png",
+      "actual_route": "boosts",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3301,6 +3409,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A22.grant-boost-grant.png",
+      "actual_route": "boost-grant",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3327,6 +3436,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A22.placements-placements.png",
+      "actual_route": "placements",
       "errors": [],
       "reference_size": [
         1440,
@@ -3351,6 +3461,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G01-users--loading.png",
+      "actual_route": "users--loading",
       "errors": [],
       "reference_size": [
         1440,
@@ -3360,7 +3471,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.226265,
+      "different_pixels_ratio": 0.226266,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3375,6 +3486,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G02-users--error.png",
+      "actual_route": "users--error",
       "errors": [],
       "reference_size": [
         1440,
@@ -3384,7 +3496,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.070216,
+      "different_pixels_ratio": 0.070217,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3399,6 +3511,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G03-users--empty.png",
+      "actual_route": "users--empty",
       "errors": [],
       "reference_size": [
         1440,
@@ -3408,7 +3521,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069378,
+      "different_pixels_ratio": 0.069379,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3423,6 +3536,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G04-dashboard--offline.png",
+      "actual_route": "dashboard--offline",
       "errors": [],
       "reference_size": [
         1440,
@@ -3432,7 +3546,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115474,
+      "different_pixels_ratio": 0.115471,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3447,6 +3561,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G05-dashboard--expired.png",
+      "actual_route": "dashboard--expired",
       "errors": [],
       "reference_size": [
         1440,
@@ -3456,7 +3571,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.061914,
+      "different_pixels_ratio": 0.061911,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3471,6 +3586,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G06-verification-detail--forbidden.png",
+      "actual_route": "verification-detail--forbidden",
       "errors": [],
       "reference_size": [
         1440,
@@ -3480,7 +3596,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069748,
+      "different_pixels_ratio": 0.069745,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3495,6 +3611,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G07---A06.conflict-revision-conflict.png",
+      "actual_route": "revision-conflict",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3521,6 +3638,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G08---A03.bulk-bulk-preview.png",
+      "actual_route": "bulk-preview",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3547,6 +3665,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G08.success---A15.progress-bulk-result.png",
+      "actual_route": "bulk-result",
       "errors": [
         "Live scenario not implemented"
       ],
@@ -3573,6 +3692,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "W01-W01.png",
+      "actual_route": "W01",
       "errors": [],
       "reference_size": [
         1440,
@@ -3597,6 +3717,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "W02-W02.png",
+      "actual_route": "W02",
       "errors": [],
       "reference_size": [
         1440,
@@ -3606,7 +3727,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.060355,
+      "different_pixels_ratio": 0.036202,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3621,6 +3742,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "W03-W03.png",
+      "actual_route": "W03",
       "errors": [],
       "reference_size": [
         1440,
@@ -3645,6 +3767,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "W04-W04.png",
+      "actual_route": "W04",
       "errors": [],
       "reference_size": [
         1440,
@@ -3669,6 +3792,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "W05-W05.png",
+      "actual_route": "W05",
       "errors": [],
       "reference_size": [
         1440,

@@ -46,7 +46,7 @@ try:
             results.append(record)
             continue
         actual = Image.open(path).convert('RGB')
-        record.update({'status': 'review_required', 'capture': str(path), 'errors': captured.get('errors', []), 'reference_size': original.size, 'capture_size': actual.size})
+        record.update({'status': 'review_required', 'capture': str(path), 'actual_route': captured.get('actual_route', captured['route']), 'errors': captured.get('errors', []), 'reference_size': original.size, 'capture_size': actual.size})
         if original.size != actual.size:
             record['status'] = 'dimension_mismatch'
             results.append(record)

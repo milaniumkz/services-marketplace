@@ -51,7 +51,8 @@ async function main(){
   assert.equal(await page.locator('.loginbrand').count(),1);
   await page.getByLabel('Рабочий идентификатор').fill('staff-browser-test');await page.getByLabel('Пароль',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Продолжить',exact:true}).click();
-  await page.getByLabel('Код второго фактора').fill(totp(secret));await page.getByRole('button',{name:'Продолжить',exact:true}).click();
+  const firstMfaTime=Date.now();
+  await page.getByLabel('Код второго фактора').fill(totp(secret,firstMfaTime));await page.getByRole('button',{name:'Продолжить',exact:true}).click();
   await page.waitForSelector('#staff-logout');assert.equal(await page.locator('.account b').textContent(),'Изолированный сотрудник');
   await page.locator('#dashboard-period').waitFor();
   await page.getByRole('button',{name:'Поиск по стране',exact:true}).click();
@@ -240,19 +241,38 @@ async function main(){
     const output=process.env.JOBA_BROWSER_INVENTORY_DIR;await mkdir(output,{recursive:true});
     const frames=JSON.parse(await readFile(resolve(__dirname,'../docs/design/screen-audit.json'),'utf8')).frames;
     const inventory=[];
-    const captureFrame=async(frame,address)=>{
+    const captureFrame=async(frame,address,actualRoute=frame.design_route)=>{
       await page.setViewportSize(frame.viewport);await page.goto(address);await page.waitForLoadState('networkidle');
       await page.waitForFunction(()=>!document.querySelector('[aria-busy=true]'));
       const filename=(frame.id+'-'+frame.design_route).replace(/[^A-Za-z0-9._-]/g,'-')+'.png';
       await page.screenshot({path:join(output,filename),fullPage:false});
       const text=await page.locator('body').innerText();
-      inventory.push({id:frame.id,route:frame.design_route,surface:frame.surface,capture:filename,reference_png:frame.reference_png,errors:text.includes('Сценарий этого раздела ещё не подключён к API.')?['Live scenario not implemented']:[],visual_acceptance:'pending'});
+      inventory.push({id:frame.id,route:frame.design_route,surface:frame.surface,capture:filename,reference_png:frame.reference_png,actual_route:actualRoute,errors:text.includes('Сценарий этого раздела ещё не подключён к API.')?['Live scenario not implemented']:[],visual_acceptance:'pending'});
     };
     const login=frames.find(frame=>frame.surface==='admin'&&frame.design_route==='login');
     await captureFrame(login,frontend+'/#login');
     await page.getByLabel('Рабочий идентификатор').fill('staff-browser-test');await page.getByLabel('Пароль',{exact:true}).fill(password);
-    await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByLabel('Код второго фактора').fill(totp(secret));await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.waitForSelector('#staff-logout');
-    for(const frame of frames.filter(frame=>frame.surface==='admin'&&frame.design_route!=='login'))await captureFrame(frame,frontend+'/#'+frame.design_route);
+    await page.getByRole('button',{name:'Продолжить',exact:true}).click();
+    // Re-login must not reuse the first login's one-time code when this fast
+    // isolated run happens to complete within the same 30-second TOTP window.
+    const nextMfaWindow=(Math.floor(firstMfaTime/30000)+1)*30000;
+    if(Date.now()<nextMfaWindow)await new Promise(resolve=>setTimeout(resolve,nextMfaWindow-Date.now()+50));
+    await page.getByLabel('Код второго фактора').fill(totp(secret));await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.waitForSelector('#staff-logout');
+    // Detail screens require a real object identifier. Bind only equivalent
+    // detail views; never alias review/dialog states to a generic parent page.
+    const details={
+      'user-detail':'record-live/users/'+applicant.user.id,
+      'order-detail':'record-live/orders/'+caseOrder.id,
+      'case':'case-live/'+caseReport.id,
+      'verification-detail':'record-live/verification/'+verificationId
+    };
+    for(const frame of frames.filter(frame=>frame.surface==='admin'&&frame.design_route!=='login')){
+      const actualRoute=details[frame.design_route]??frame.design_route;
+      await captureFrame(frame,frontend+'/#'+actualRoute,actualRoute);
+    }
+    // Functional recovery persistence was already checked above. Baseline W02
+    // is the initial support form, not the conversation from that prior test.
+    await page.goto(web+'/W02.html');await page.evaluate(()=>sessionStorage.removeItem('joba.recovery'));
     for(const frame of frames.filter(frame=>frame.surface==='public'))await captureFrame(frame,web+'/'+frame.design_route+'.html');
     await writeFile(join(output,'inventory.json'),JSON.stringify({scenario:'isolated real HTTP API; unsupported routes remain pending',frames:inventory},null,2)+'\n');
   }

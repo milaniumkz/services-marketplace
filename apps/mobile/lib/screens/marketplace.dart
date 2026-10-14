@@ -1867,12 +1867,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             const UiText('Расскажите о задаче',
                                 style: TextStyle(
                                     fontSize: 20,
-                                    height: 1.3,
+                                    letterSpacing: -.4,
+                                    height: 1.35,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white)),
                             const SizedBox(height: 6),
                             const SizedBox(
-                                width: 248,
+                                width: 214,
                                 child: UiText(
                                     'Специалисты сами предложат цену и удобное время',
                                     style: TextStyle(

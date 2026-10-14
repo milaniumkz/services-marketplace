@@ -252,7 +252,7 @@ class JobaSection extends StatelessWidget {
   const JobaSection(this.title, this.onTap, {this.action = 'Все', super.key});
   @override
   Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.only(top: 14, bottom: 6),
+      padding: const EdgeInsets.only(top: 22, bottom: 12),
       child: Row(children: [
         Expanded(
             child: UiText(title,
@@ -262,6 +262,10 @@ class JobaSection extends StatelessWidget {
                     letterSpacing: -.4,
                     fontWeight: FontWeight.w700))),
         TextButton(
+            style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(44, 44),
+                alignment: Alignment.centerRight),
             onPressed: onTap,
             child: UiText(action,
                 style:
