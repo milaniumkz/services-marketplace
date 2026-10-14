@@ -506,7 +506,14 @@ class DataCard extends StatelessWidget {
 class PrivatePhoto extends StatelessWidget {
   final JobaApi api;
   final String id;
-  const PrivatePhoto({required this.api, required this.id, super.key});
+  final double height;
+  final VoidCallback? onOpen;
+  const PrivatePhoto(
+      {required this.api,
+      required this.id,
+      this.height = 180,
+      this.onOpen,
+      super.key});
   void open(BuildContext context) {
     final generation = api.sessionGeneration;
     showDialog<void>(
@@ -545,11 +552,11 @@ class PrivatePhoto extends StatelessWidget {
       key: ValueKey('${api.sessionGeneration}:$id'),
       load: () => api.download(id, variant: 'preview'),
       builder: (c, bytes, reload) => InkWell(
-          onTap: () => open(context),
+          onTap: onOpen ?? () => open(context),
           child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: Image.memory(bytes,
-                  height: 180,
+                  height: height,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   cacheWidth: (MediaQuery.sizeOf(context).width *

@@ -35,6 +35,9 @@ void main() {
       ..addFont(rootBundle.load('assets/NotoSans-Regular.ttf'))
       ..addFont(rootBundle.load('assets/NotoSans-Bold.ttf'));
     await font.load();
+    final material = FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await material.load();
     var pending = false, fail = true, picks = 0, terms = 0;
     final submissions = <Json>[];
     final api = JobaApi('https://isolated.example', vault: Vault(),

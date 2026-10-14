@@ -115,7 +115,7 @@ export class Marketplace {
       for(const document of current) {
         const type=['privacy','privacy_policy'].includes(document.type)?'privacy':'terms';if(checked.has(type))continue;checked.add(type);
         const consent=(await this.store.db.query<any>("SELECT data FROM records WHERE kind='consent' AND country=$1 AND owner=$2 AND data->>'document_id'=$3 ORDER BY (data->>'sequence')::integer DESC LIMIT 1",[a.country,a.id,document.id])).rows[0]?.data;
-        if(!consent?.accepted||consent.document_hash!==document.hash)fail(403,'CONSENT_REQUIRED','Примите текущую версию условий и политики конфиденциальности',{document_id:document.id});
+        if(!consent?.accepted||consent.document_hash!==document.hash||document.minimum_age===18&&consent.age_confirmed!==true)fail(403,'CONSENT_REQUIRED','Примите текущую версию условий и политики конфиденциальности',{document_id:document.id});
       }
     }
     if(capability==='send_offer'){const profile=(await this.store.all('contractor',a.country)).find(r=>r.owner===a.id);if(profile?.status==='paused'||profile?.availability==='paused')fail(403,'FORBIDDEN','Приём новых предложений приостановлен');}
@@ -194,7 +194,7 @@ export class Marketplace {
       if(!countries[q.country??'KZ']||q.locale&&!['ru','kk','sr','be'].includes(q.locale))fail(400,'VALIDATION_ERROR','Проверьте страну и язык');
       const versions=(await this.store.all('legal_document',q.country??'KZ')).filter(x=>x.status==='published'&&(!q.locale||x.locale===q.locale)).sort((a,b)=>String(b.published_at??b.created_at).localeCompare(String(a.published_at??a.created_at))||b.id.localeCompare(a.id));
       const seen=new Set<string>(),visible=q.required==='true'?currentLegalDocuments(await this.store.all('legal_document',q.country??'KZ'),q.country??'KZ',q.locale??'ru'):q.all_versions==='true'?versions:versions.filter(d=>{const key=d.type+':'+d.locale;if(seen.has(key))return false;seen.add(key);return true;});
-      return {items:visible.map(({id,country,type,locale,content,hash,version,created_at,published_at})=>({id,country,type,locale,content,hash,version,created_at,published_at}))};
+      return {items:visible.map(({id,country,type,locale,content,hash,version,created_at,published_at,minimum_age})=>({id,country,type,locale,content,hash,version,created_at,published_at,minimum_age}))};
     }
     const webhook=path.match(/^\/webhooks\/(billing|ads)\/([^/]+)$/);
     if(webhook&&method==='POST') {
@@ -352,8 +352,11 @@ export class Marketplace {
       const d=await this.object(String(b.document_id),a,'legal_document');
       if(d.status!=='published'||b.document_hash!==d.hash)fail(409,'LEGAL_VERSION_CHANGED','Версия документа изменилась');
       if(typeof b.accepted!=='boolean')fail(400,'VALIDATION_ERROR','Требуется явное согласие');
+      if(b.age_confirmed!==undefined&&typeof b.age_confirmed!=='boolean')fail(400,'VALIDATION_ERROR','Проверьте возрастное подтверждение');
+      if(b.accepted===true&&d.minimum_age===18&&b.age_confirmed!==true)fail(422,'AGE_CONFIRMATION_REQUIRED','Подтвердите возрастной допуск');
+      if(b.age_confirmed===true&&!['terms','terms_of_use'].includes(d.type))fail(400,'VALIDATION_ERROR','Возрастное подтверждение связано с пользовательским соглашением');
       const count=(await db.query<any>("SELECT COALESCE(MAX((data->>'sequence')::integer),0) AS max FROM records WHERE kind='consent' AND owner=$1 AND country=$2",[a.id,a.country])).rows[0].max;
-      return this.store.put(this.record('consent',a,{document_id:d.id,document_version:d.version,document_hash:d.hash,accepted:b.accepted,sequence:Number(count)+1}));
+      return this.store.put(this.record('consent',a,{document_id:d.id,document_version:d.version,document_hash:d.hash,accepted:b.accepted,...(b.age_confirmed!==undefined?{age_confirmed:b.age_confirmed,age_declaration:'18_or_older'}:{}),sequence:Number(count)+1}));
     }
     if(path==='/me/consents'&&method==='GET')return {items:(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id).sort((x,y)=>(y.sequence??0)-(x.sequence??0))};
     if(path==='/me/contractor-profile'&&method==='GET'){const profile=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);return {profile:profile?editableContent(profile):null};}
@@ -399,7 +402,7 @@ export class Marketplace {
     }
     const portfolio=path.match(/^\/me\/portfolio-projects\/([^/]+)(?:\/(submit))?$/);
     if(portfolio) {
-      const stored=await this.object(portfolio[1],a,'portfolio',true),p=editableContent(stored);if(method==='GET')return p;this.version(stored,b);
+      const stored=await this.object(portfolio[1],a,'portfolio',true),p=editableContent(stored);if(method==='GET'){const order=p.order_id?await this.store.get(p.order_id):undefined;const category=p.category_id?await this.store.get(p.category_id):undefined;return {...p,category_name:category?.kind==='category'&&category.country===a.country?category.name:undefined,linked_completed_order:order?.kind==='order'&&order.country===a.country&&order.status==='completed'&&order.executor_id===a.id};}this.version(stored,b);
       if(method==='DELETE')return this.store.put({...stored,draft:undefined,status:'archived',version:stored.version+1});
       if(method==='PATCH') {
         const photos=b.upload_ids?await this.safeUploads(a,b.upload_ids,'portfolio'):p.photos;
@@ -414,17 +417,21 @@ export class Marketplace {
       if(portfolio[2]==='submit'){await this.entitlement(a,'publish_profile',true);if(!p.photos.length||p.rights_confirmed!==true)fail(422,'POLICY_REJECTED','Нужна проверенная фотография и подтверждение прав на материалы');if(!['draft','rejected'].includes(p.status))fail(409,'STATE_CONFLICT','Нет черновика для проверки');return this.store.put(submitContent(stored)).then(editableContent);}
     }
     if(path==='/contractors'&&method==='GET'){await this.entitlement(a,'search_full');return this.page('contractor',a,q,{statuses:['published'],publicActor:a.id});}
-    const contractor=path.match(/^\/contractors\/([^/]+)(?:\/(portfolio))?$/);
+    const contractor=path.match(/^\/contractors\/([^/]+)(?:\/(portfolio)(?:\/([^/]+))?)?$/);
     if(contractor&&method==='GET'){
       await this.entitlement(a,'search_full');const p=await this.object(contractor[1],a,'contractor'),owner=await this.store.get(p.owner);
-      if(owner?.status!=='active'||owner.verification!=='passed'||p.status!=='published'||['quarantined','hidden','rejected'].includes(p.moderation_status)||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');
+      if(owner?.country!==a.country||owner.status!=='active'||owner.verification!=='passed'||p.status!=='published'||['quarantined','hidden','rejected'].includes(p.moderation_status)||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');
       if(!contractor[2])return (await contractorPresentation(this.store,a.country,[p]))[0];
-      const projects=(await this.store.all('portfolio',a.country)).filter(x=>x.owner===p.owner&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status));
-      const visible=await Promise.all(projects.map(async project=>{
+      const candidate=contractor[3]?await this.store.get(contractor[3]):undefined;
+      if(contractor[3]&&(!candidate||candidate.kind!=='portfolio'||candidate.country!==a.country||candidate.owner!==p.owner||candidate.status!=='published'||['quarantined','hidden','rejected'].includes(candidate.moderation_status)))fail(404,'NOT_FOUND','Проект недоступен');
+      const projects=contractor[3]?[candidate!]:(await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='portfolio' AND country=$1 AND owner=$2 AND data->>'status'='published' AND COALESCE(data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')",[a.country,p.owner])).rows.map(row=>row.data);
+
+      const page=contractor[3]?undefined:await this.portfolioPage(projects,q);
+      const visible:RecordData[]=await Promise.all((page?.items??projects).map(async project=>{
         const order=project.order_id?await this.store.get(project.order_id):undefined;
         const linked=order?.kind==='order'&&order.country===a.country&&order.status==='completed'&&order.executor_id===project.owner;
         return {...publicContent(project),order_id:undefined,linked_completed_order:linked,source:linked?'joba_completed':'self_reported'};
-      }));return this.portfolioPage(visible,q);
+      }));if(contractor[3]){const category=visible[0].category_id?await this.store.get(visible[0].category_id):undefined;return {...visible[0],category_name:category?.kind==='category'&&category.country===a.country?category.name:undefined,contractor_id:p.id,contractor_name:owner!.display_name,contractor_avatar_id:owner!.avatar_id};}return {...page!,items:visible};
     }
     const publicCustomer=path.match(/^\/customers\/([^/]+)$/);
     if(publicCustomer&&method==='GET') {
@@ -914,7 +921,7 @@ export class Marketplace {
       }
       if(path==='/admin/legal/documents'&&method==='GET')return {items:await this.store.all('legal_document',a.country)};
       if(path==='/admin/legal/documents'&&method==='POST') {
-        const content=text(b,'content',50,100000);const r=this.record('legal_document',a,{type:text(b,'type',2,50),locale:text(b,'locale',2,5),content,hash:digest(content),status:'draft'});await this.store.put(r);await this.audit(a,'legal.draft',r.id,text(b,'reason',5,1000));return r;
+        const content=text(b,'content',50,100000);const documentType=text(b,'type',2,50);const r=this.record('legal_document',a,{type:documentType,locale:text(b,'locale',2,5),content,hash:digest(content),status:'draft',...(['terms','terms_of_use'].includes(documentType)?{minimum_age:18}:{})});await this.store.put(r);await this.audit(a,'legal.draft',r.id,text(b,'reason',5,1000));return r;
       }
       const legalPublish=path.match(/^\/admin\/legal\/documents\/([^/]+)\/publish$/);
       if(legalPublish&&method==='POST'){const r=await this.object(legalPublish[1],a,'legal_document');this.version(r,b);if(r.owner===a.id)fail(403,'SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого уполномоченного сотрудника');const result=await this.store.put({...r,status:'published',published_at:new Date().toISOString(),version:r.version+1});await this.audit(a,'legal.published',r.id,text(b,'reason',5,1000));return result;}

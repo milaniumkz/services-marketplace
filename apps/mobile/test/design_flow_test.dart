@@ -38,6 +38,9 @@ void main() {
       ..addFont(rootBundle.load('assets/NotoSans-Regular.ttf'))
       ..addFont(rootBundle.load('assets/NotoSans-Bold.ttf'));
     await loader.load();
+    final material = FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await material.load();
     final requests = <http.Request>[];
     var user = <String, dynamic>{
       'id': 'design-owner',
@@ -92,6 +95,13 @@ void main() {
         }
         return _ok(user);
       }
+      if (path.endsWith('/geo/cities'))
+        return _ok({
+          'items': [
+            {'id': 'almaty', 'name': 'Алматы', 'country': 'KZ'},
+            {'id': 'astana', 'name': 'Астана', 'country': 'KZ'}
+          ]
+        });
       if (path.endsWith('/me/overview'))
         return _ok({
           'orders': {'active': 3, 'open': 1},
@@ -271,6 +281,19 @@ void main() {
     }
 
     await capture('S06-home');
+    await tester.tap(find.text('Алматы, Казахстан'));
+    await tester.pumpAndSettle();
+    expect(find.text('Где искать?'), findsOneWidget);
+    await tester.tap(find.text('Астана'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Выбрать Астана'));
+    await tester.pumpAndSettle();
+    expect(user['city'], 'Астана');
+    state.me = {...user, 'city': 'Алматы'};
+    user = {...user, 'city': 'Алматы'};
+    state.go('home');
+    await tester.pumpAndSettle();
+
     expect(find.text('Какая услуга нужна?'), findsOneWidget);
     await tester.tap(find.text('Ремонт'));
     await tester.pumpAndSettle();
@@ -279,6 +302,10 @@ void main() {
     state.go('home');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Заказчик'));
+    await tester.pumpAndSettle();
+    expect(find.text('Моя роль'), findsOneWidget);
+    await capture('S11-roles');
+    await tester.tap(find.text('Исполнитель'));
     await tester.pumpAndSettle();
     expect(user['active_role'], 'executor');
     expect(find.text('Найдём ваш\nследующий заказ'), findsOneWidget);

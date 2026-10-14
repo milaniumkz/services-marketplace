@@ -177,34 +177,83 @@ class _ProfileEditorState extends State<ProfileEditor> {
       child: Column(children: [
         Expanded(
             child: ListView(padding: const EdgeInsets.all(20), children: [
-          Row(children: [
-            JobaAvatar(
-                api: widget.api,
-                name: name.text,
-                id: record['avatar_id'],
-                size: 56),
-            const SizedBox(width: 12),
-            Expanded(
-                child: TextButton(
-                    onPressed: busy ? null : () => avatar(),
-                    child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          UiText('Добавить фото',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: primary)),
-                          SizedBox(height: 4),
-                          UiText('Необязательно',
-                              style: TextStyle(fontSize: 11, color: muted))
-                        ]))),
-            if (record['avatar_id'] != null)
-              IconButton(
-                  tooltip: localize(context, 'Удалить фото профиля'),
-                  onPressed: busy ? null : () => avatar(remove: true),
-                  icon: const JobaIcon('trash', size: 20))
-          ]),
+          if (widget.onboarding) ...[
+            Row(
+                children: List.generate(
+                    3,
+                    (i) => Expanded(
+                        child: Container(
+                            height: 4,
+                            margin: EdgeInsets.only(
+                                right: i == 2 ? 0 : 5, bottom: 22),
+                            decoration: BoxDecoration(
+                                color: i == 0 ? primary : line,
+                                borderRadius: BorderRadius.circular(4)))))),
+            Center(
+                child: Column(children: [
+              record['avatar_id'] == null
+                  ? Material(
+                      color: const Color(0xFFEAF0FC),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side:
+                              const BorderSide(color: Colors.white, width: 2)),
+                      child: InkWell(
+                          onTap: busy ? null : () => avatar(),
+                          borderRadius: BorderRadius.circular(16),
+                          child: const SizedBox(
+                              width: 56,
+                              height: 56,
+                              child:
+                                  Center(child: JobaIcon('camera', size: 22)))))
+                  : JobaAvatar(
+                      api: widget.api,
+                      name: name.text,
+                      id: record['avatar_id'],
+                      size: 56,
+                      onTap: busy ? null : () => avatar()),
+              TextButton(
+                  onPressed: busy ? null : () => avatar(),
+                  child: const Column(children: [
+                    UiText('Добавить фото',
+                        style: TextStyle(fontSize: 11, color: primary)),
+                    UiText('Необязательно',
+                        style: TextStyle(fontSize: 10, color: muted))
+                  ])),
+              if (record['avatar_id'] != null)
+                TextButton(
+                    onPressed: busy ? null : () => avatar(remove: true),
+                    child: const UiText('Удалить фото профиля'))
+            ]))
+          ] else
+            Row(children: [
+              JobaAvatar(
+                  api: widget.api,
+                  name: name.text,
+                  id: record['avatar_id'],
+                  size: 56),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: TextButton(
+                      onPressed: busy ? null : () => avatar(),
+                      child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            UiText('Добавить фото',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: primary)),
+                            SizedBox(height: 4),
+                            UiText('Необязательно',
+                                style: TextStyle(fontSize: 11, color: muted))
+                          ]))),
+              if (record['avatar_id'] != null)
+                IconButton(
+                    tooltip: localize(context, 'Удалить фото профиля'),
+                    onPressed: busy ? null : () => avatar(remove: true),
+                    icon: const JobaIcon('trash', size: 20))
+            ]),
           if (error != null) Notice(errorText(context, error!), error: true),
           field('Как к вам обращаться', name),
           if (!widget.onboarding) ...[
@@ -219,9 +268,14 @@ class _ProfileEditorState extends State<ProfileEditor> {
               'Разместить заказ или выбрать мастера', 'search'),
           roleChoice('executor', 'Найти заказы',
               'Предлагать услуги и откликаться', 'brief'),
-          const Notice(
-              'Роль можно переключить позже. Для работы исполнителем потребуется проверка документа.',
-              icon: 'info')
+          if (widget.onboarding)
+            const UiText(
+                'Роль можно переключить позже. Для работы исполнителем потребуется проверка документа.',
+                style: TextStyle(fontSize: 11, height: 1.55, color: muted))
+          else
+            const Notice(
+                'Роль можно переключить позже. Для работы исполнителем потребуется проверка документа.',
+                icon: 'info')
         ])),
         SafeArea(
             top: false,

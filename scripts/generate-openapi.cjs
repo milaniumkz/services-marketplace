@@ -4,6 +4,7 @@ const root=resolve(__dirname,'..');
 const routes=[];
 
 const add=(method,path,access='user',schema)=>routes.push({method,path,access,schema});
+add('GET','/contractors/{id}/portfolio/{project_id}');
 add('GET','/admin/country-capabilities','staff');add('GET','/admin/search','staff');add('POST','/admin/jobs/{id}/retry','staff');add('GET','/admin/security-events','staff');add('GET','/admin/jobs','staff');add('GET','/offers/{id}');add('GET','/admin/cases/{id}','staff');add('GET','/admin/cases/{id}/messages','staff');add('POST','/admin/cases/{id}/messages','staff');add('GET','/cases/{id}/messages');add('GET','/me/completed-orders');add('GET','/me/blocks');add('GET','/uploads/{id}/metadata');add('POST','/me/portfolio-projects/reorder');add('GET','/cases/{id}');add('POST','/me/privacy-requests/{id}/cancel');
 for(const name of ['register','login','staff-login','refresh'])add('POST','/auth/'+name,'public',name==='register'?'Registration':undefined);
 for(const name of ['logout','logout-all'])add('POST','/auth/'+name);
@@ -83,6 +84,8 @@ schemas.VerificationSubmission={type:'object',required:['expected_version','uplo
 paths['/me/verification-sessions'].post.requestBody.content['application/json'].schema={$ref:'#/components/schemas/VerificationSessionCreate'};
 paths['/me/verification-sessions/{id}/submit'].post.requestBody.content['application/json'].schema={$ref:'#/components/schemas/VerificationSubmission'};
 paths['/me/verification-sessions/{id}/submit'].post.description='Requires every page in the session policy snapshot, clean identity uploads tied to this session, and current explicit consent. Changed regional policy requires a new session.';
+schemas.ConsentWrite={type:'object',required:['document_id','document_hash','accepted'],properties:{document_id:uuid,document_hash:{type:'string',minLength:1},accepted:{type:'boolean'},age_confirmed:{type:'boolean',description:'Explicit declaration of being 18 or older, attached to the terms agreement. This is not identity or age verification.'}},additionalProperties:false};
+paths['/me/consents'].post.requestBody.content['application/json'].schema={$ref:'#/components/schemas/ConsentWrite'};
 const document={openapi:'3.1.0',info:{title:'JOBA backend API',version:'0.1.0',description:'Development backend for JOBA specification 1.1. Provider integrations and production launch gates are intentionally closed until configured. Some command DTOs remain permissive during implementation; see docs/backend-status.md.'},servers:[{url:'/api/v1'}],paths,components:{schemas,responses:{Success:{description:'Successful command or query',content:{'application/json':{schema:{$ref:'#/components/schemas/Envelope'}}}},Failure:{description:'Structured error',content:{'application/json':{schema:{$ref:'#/components/schemas/Error'}}}}},securitySchemes:{BearerAuth:{type:'http',scheme:'bearer',description:'Opaque access token. Staff sessions additionally require verified MFA.'},ProviderSignature:{type:'apiKey',in:'header',name:'X-Provider-Signature',description:'Actual signature header and verification are provider-specific.'}}}};
 mkdirSync(resolve(root,'docs/api'),{recursive:true});writeFileSync(resolve(root,'docs/api/openapi.json'),JSON.stringify(document,null,2)+'\n');
 console.log('OpenAPI 3.1 inventory generated:',Object.values(paths).reduce((count,path)=>count+Object.keys(path).length,0),'operations');

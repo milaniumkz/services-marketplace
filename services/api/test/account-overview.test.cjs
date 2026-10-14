@@ -31,8 +31,14 @@ test('account overview counts before pagination without exposing other accounts 
   assert.deepEqual(result.assigned_orders,{active:1,completed:0});assert.equal(result.invitations.pending,1);
   assert.deepEqual(result.rating,{count:1,average:4});assert.deepEqual(result.portfolio,{published:1,pending:1});
   assert.equal(result.subscription_until,until);assert.deepEqual(result.contractor,{status:'published',availability:'busy'});
+  await put('order',{status:'completed',executor_id:owner},'KZ',other);
+  await put('order',{status:'completed',executor_id:owner},'RS',other);
+  await put('portfolio',{status:'published',moderation_status:'hidden'});
+  const checkedAt=new Date().toISOString();await put('verification',{status:'passed',decided_at:checkedAt,expires_at:until});
+  const account=await api.store.get(owner);await api.store.put({...account,verification:'passed'});
   const presented=(await contractorPresentation(api.store,'KZ',[profile]))[0];
   assert.equal(presented.display_name,'Владелец');assert.deepEqual(presented.rating,{count:1,average:4});
+  assert.equal(presented.completed_orders,1);assert.equal(presented.portfolio_count,1);assert.deepEqual(presented.verification,{status:'passed',checked_at:checkedAt});
   assert.equal(presented.phone,undefined);assert.equal(presented.draft,undefined);
   const sessions=await get('/me/sessions');assert.equal(sessions.items.length,1);assert.equal(sessions.items[0].current,true);
  }finally{await api.store.close();}

@@ -207,49 +207,43 @@ class JobaNavigation extends StatelessWidget {
           color: Colors.white, border: Border(top: BorderSide(color: line))),
       child: SafeArea(
           top: false,
-          child: Row(children: [
-            for (final item in [
-              ('home', 'Главная', 'home'),
-              (executor ? 'jobs' : 'catalog', 'Поиск', 'search'),
-              ('messages', 'Сообщения', 'chat'),
-              ('notifications', 'События', 'bell'),
-              ('account', 'Профиль', 'user')
-            ])
-              Expanded(
-                  child: Semantics(
-                      selected: route == item.$1,
-                      button: true,
-                      child: InkWell(
-                          onTap: () => onSelect(item.$1),
-                          child: Padding(
-                              padding: const EdgeInsets.only(bottom: 7),
-                              child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                        width: 22,
-                                        height: 3,
-                                        decoration: BoxDecoration(
-                                            color: route == item.$1
-                                                ? primary
-                                                : Colors.transparent,
-                                            borderRadius:
-                                                BorderRadius.circular(4))),
-                                    const SizedBox(height: 7),
-                                    JobaIcon(item.$3, size: 22, color: navy),
-                                    const SizedBox(height: 4),
-                                    UiText(item.$2,
-                                        style: TextStyle(
-                                            fontSize: 9,
-                                            height: 1.45,
-                                            color: route == item.$1
-                                                ? primary
-                                                : const Color(0xFF68758A),
-                                            fontWeight: route == item.$1
-                                                ? FontWeight.w700
-                                                : FontWeight.w400))
-                                  ])))))
-          ])));
+          child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(children: [
+                for (final item in [
+                  ('home', 'Главная', 'home'),
+                  (executor ? 'jobs' : 'catalog', 'Поиск', 'search'),
+                  ('messages', 'Сообщения', 'chat'),
+                  ('notifications', 'События', 'bell'),
+                  ('account', 'Профиль', 'user')
+                ])
+                  Expanded(
+                      child: Semantics(
+                          selected: route == item.$1,
+                          button: true,
+                          child: InkWell(
+                              onTap: () => onSelect(item.$1),
+                              child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 11),
+                                  child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const SizedBox(height: 10),
+                                        JobaIcon(item.$3,
+                                            size: 22, color: navy),
+                                        const SizedBox(height: 4),
+                                        UiText(item.$2,
+                                            style: TextStyle(
+                                                fontSize: 9,
+                                                height: 1.45,
+                                                color: route == item.$1
+                                                    ? primary
+                                                    : const Color(0xFF68758A),
+                                                fontWeight: route == item.$1
+                                                    ? FontWeight.w700
+                                                    : FontWeight.w400))
+                                      ])))))
+              ]))));
 }
 
 class JobaSection extends StatelessWidget {

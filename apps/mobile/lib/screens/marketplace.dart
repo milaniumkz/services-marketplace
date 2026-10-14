@@ -1,3 +1,7 @@
+import 'portfolio_detail.dart';
+import 'contractor_profile.dart';
+import 'onboarding_consent.dart';
+import 'city_selector.dart';
 import '../core/share_invitation.dart';
 import 'verification_editor.dart';
 import 'dart:async';
@@ -792,6 +796,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                 }),
                             outline: true)
                     ]))));
+      case 'roles':
+        return rolesScreen();
+      case 'location':
+        return locationScreen();
       case 'catalog':
         return page(
             'Специалисты',
@@ -803,12 +811,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             nav: true);
       case 'contractor':
         return contractorScreen();
+      case 'public-project':
+        return publicProjectScreen();
       case 'public-portfolio':
         return page(
             'Портфолио исполнителя',
             paged(
                 '/contractors/$objectId/portfolio',
                 (project) => DataCard('${project['title']}',
+                    onTap: () =>
+                        go('public-project', '$objectId/${project['id']}'),
                     subtitle: '${project['description']}',
                     footer: Column(children: [
                       UiText(project['linked_completed_order'] == true
@@ -980,8 +992,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return referralsScreen();
       case 'portfolio':
         return portfolioScreen();
-      case 'portfolio-project':
+      case 'portfolio-edit':
         return projectScreen();
+      case 'portfolio-project':
+        return objectId == null ? projectScreen() : ownProjectDetailScreen();
       case 'verification':
         return verificationScreen();
       case 'content-history':
@@ -1388,8 +1402,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     return date == null ? '' : DateFormat.yMMMMd(locale).format(date.toLocal());
   }
 
-  Future<void> switchRole() async {
-    final target = executor ? 'customer' : 'executor';
+  Future<void> switchRole([String? requested]) async {
+    final target = requested ?? (executor ? 'customer' : 'executor');
+    if ((me?['active_role'] ?? 'customer') == target) return;
     if (!(me?['roles'] as List? ?? []).contains(target)) {
       go('services');
       return;
@@ -1408,19 +1423,114 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     });
   }
 
-  Widget roleButton() => OutlinedButton(
-      style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 9),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-      onPressed: actionBusy ? null : () => act(switchRole),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        UiText(executor ? 'Исполнитель' : 'Заказчик',
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400)),
-        const SizedBox(width: 4),
-        const JobaIcon('down', size: 14)
-      ]));
+  Widget rolesScreen() => page(
+      'Моя роль',
+      loaded(
+          '/me/contractor-profile',
+          (data, reload) => Column(children: [
+                Expanded(
+                    child: listBody([
+                  const UiHeading('Сегодня вы…',
+                      'Роли используют один аккаунт и общую подписку.'),
+                  JobaMenu([
+                    JobaMenuEntry(
+                        'Заказчик',
+                        'search',
+                        () => act(() async {
+                              await switchRole('customer');
+                              go('home');
+                            }),
+                        subtitle: 'Найти мастера и опубликовать задачу'),
+                    JobaMenuEntry(
+                        'Исполнитель',
+                        'brief',
+                        () => act(() async {
+                              await switchRole('executor');
+                              if (executor) go('home');
+                            }),
+                        subtitle: 'Находить заказы и предлагать услуги')
+                  ]),
+                  const SizedBox(height: 20),
+                  const UiText('Для исполнителя',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    JobaIcon(
+                        data['profile'] != null &&
+                                '${data['profile']['title'] ?? ''}'.isNotEmpty
+                            ? 'check'
+                            : 'clock',
+                        color: primary),
+                    const SizedBox(width: 8),
+                    UiText(data['profile'] != null &&
+                            '${data['profile']['title'] ?? ''}'.isNotEmpty
+                        ? 'Профиль услуг заполнен'
+                        : 'Заполните профиль услуг')
+                  ]),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    JobaIcon(
+                        me?['verification'] == 'passed' ? 'check' : 'clock',
+                        color: primary),
+                    const SizedBox(width: 8),
+                    UiText(me?['verification'] == 'passed'
+                        ? 'Документ проверен'
+                        : 'Требуется проверка документа')
+                  ])
+                ])),
+                SafeArea(
+                    top: false,
+                    child: Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.all(20),
+                        child:
+                            Column(mainAxisSize: MainAxisSize.min, children: [
+                          button(
+                              'Остаться заказчиком',
+                              () => act(() async {
+                                    await switchRole('customer');
+                                    go('home');
+                                  }),
+                              outline: true),
+                          button(
+                              'Перейти к заказам',
+                              () => act(() async {
+                                    await switchRole('executor');
+                                    if (executor)
+                                      go(me?['verification'] == 'passed'
+                                          ? 'jobs'
+                                          : 'verification');
+                                  }))
+                        ])))
+              ])));
+
+  Widget roleButton() => Semantics(
+      button: true,
+      child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+              onTap: actionBusy ? null : () => go('roles'),
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                  height: 44,
+                  child: Align(
+                      alignment: Alignment.topRight,
+                      widthFactor: 1,
+                      child: Container(
+                          height: 36,
+                          padding: const EdgeInsets.symmetric(horizontal: 9),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: line),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            UiText(executor ? 'Исполнитель' : 'Заказчик',
+                                style: const TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w400)),
+                            const SizedBox(width: 4),
+                            const JobaIcon('down', size: 14)
+                          ])))))));
   Widget contractorCard(Json record) => Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -1534,7 +1644,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             },
             borderRadius: BorderRadius.circular(14),
             child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: EdgeInsets.zero,
                 child: Column(children: [
                   Container(
                       width: 52,
@@ -1543,8 +1653,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           color: colors[index],
                           borderRadius: BorderRadius.circular(15)),
                       child: Center(
-                          child: JobaIcon(icons[index],
-                              size: 25, color: primary))),
+                          child:
+                              JobaIcon(icons[index], size: 25, color: navy))),
                   const SizedBox(height: 8),
                   Text(category?['name'] ?? localize(context, 'Все услуги'),
                       textAlign: TextAlign.center,
@@ -1554,6 +1664,22 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 ]))));
   }
 
+  Widget locationScreen() => page(
+      'Где искать?',
+      loaded(
+          '/geo/cities',
+          (data, reload) => CitySelector(
+              cities: items(data),
+              initial: me?['city'] ?? '',
+              onSave: (city) async {
+                final user = await api.request('/me', method: 'PATCH', body: {
+                  'city': city['name'],
+                  'expected_version': me!['version']
+                }) as Json;
+                if (!mounted) return;
+                setState(() => me = user);
+                back();
+              })));
   Widget homeScreen() => page(
       'JOBA',
       ListView(children: [
@@ -1561,29 +1687,39 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
             child: Column(children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text.rich(
-                    TextSpan(children: [
-                      TextSpan(text: 'JOBA'),
-                      TextSpan(text: '•', style: TextStyle(color: yellow))
-                    ]),
-                    style: TextStyle(
-                        fontSize: 25,
-                        letterSpacing: -1.8,
-                        fontWeight: FontWeight.w700,
-                        color: primary)),
-                roleButton()
-              ]),
-              const SizedBox(height: 12),
-              Row(children: [
-                const JobaIcon('pin', size: 14, color: muted),
-                const SizedBox(width: 5),
-                Expanded(
-                    child: Text(
-                        '${me?['city'] ?? ''}${(me?['city'] ?? '').isEmpty ? '' : ', '}${countryName(country)}',
-                        style: const TextStyle(fontSize: 12, color: muted))),
-                const JobaIcon('down', size: 14)
-              ])
+              Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Text.rich(
+                            TextSpan(children: [
+                              TextSpan(text: 'JOBA'),
+                              TextSpan(
+                                  text: '•', style: TextStyle(color: yellow))
+                            ]),
+                            style: TextStyle(
+                                fontSize: 25,
+                                height: 1.28,
+                                letterSpacing: -1.8,
+                                fontWeight: FontWeight.w700,
+                                color: primary))),
+                    roleButton()
+                  ]),
+              const SizedBox(height: 6),
+              InkWell(
+                  onTap: () => go('location'),
+                  child: Row(children: [
+                    const JobaIcon('pin', size: 14, color: navy),
+                    const SizedBox(width: 5),
+                    Expanded(
+                        child: Text(
+                            '${me?['city'] ?? ''}${(me?['city'] ?? '').isEmpty ? '' : ', '}${countryName(country)}',
+                            style:
+                                const TextStyle(fontSize: 12, color: muted))),
+                    const JobaIcon('down', size: 14)
+                  ]))
             ])),
         if (!executor)
           Container(
@@ -1615,7 +1751,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                           style: TextStyle(
                                               fontSize: 14, color: muted)))
                                 ])))),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 20),
                     ApiView(
                         key: ValueKey('home-categories:$locale'),
                         load: () => api.request('/catalog/categories',
@@ -1626,21 +1762,32 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             for (var start = 0;
                                 start < categories.length;
                                 start += 3)
-                              Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    for (var i = start; i < start + 3; i++)
-                                      if (i < categories.length)
-                                        homeCategory(categories[i], i)
-                                      else if (i == categories.length)
-                                        homeCategory(null, 5)
-                                      else
-                                        const Spacer()
-                                  ]),
+                              Padding(
+                                  padding:
+                                      EdgeInsets.only(top: start == 0 ? 0 : 19),
+                                  child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        for (var i = start;
+                                            i < start + 3;
+                                            i++) ...[
+                                          if (i > start)
+                                            const SizedBox(width: 10),
+                                          if (i < categories.length)
+                                            homeCategory(categories[i], i)
+                                          else if (i == categories.length)
+                                            homeCategory(null, 5)
+                                          else
+                                            const Spacer()
+                                        ]
+                                      ])),
                             if (categories.length == 3 || categories.isEmpty)
                               Row(children: [
                                 homeCategory(null, 5),
+                                const SizedBox(width: 10),
                                 const Spacer(),
+                                const SizedBox(width: 10),
                                 const Spacer()
                               ])
                           ]);
@@ -1694,11 +1841,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (!executor)
                 Container(
+                    margin: const EdgeInsets.only(top: 16),
+                    clipBehavior: Clip.antiAlias,
                     width: double.infinity,
                     padding: const EdgeInsets.all(19),
                     decoration: BoxDecoration(
                         color: navy, borderRadius: BorderRadius.circular(18)),
-                    child: Stack(children: [
+                    child: Stack(clipBehavior: Clip.none, children: [
                       Positioned(
                           right: -25,
                           bottom: 5,
@@ -1723,12 +1872,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     color: Colors.white)),
                             const SizedBox(height: 6),
                             const SizedBox(
-                                width: 280,
+                                width: 248,
                                 child: UiText(
                                     'Специалисты сами предложат цену и удобное время',
                                     style: TextStyle(
                                         fontSize: 12,
-                                        height: 1.55,
+                                        height: 1.5,
                                         color: Color(0xFFDAE3F5)))),
                             const SizedBox(height: 12),
                             FilledButton(
@@ -2774,50 +2923,48 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           ])),
                   ]))));
   Widget contractorScreen() => page(
-      'Карточка исполнителя',
+      'Профиль мастера',
       loaded(
           '/contractors/$objectId',
-          (r, reload) => listBody([
-                Heading('${r['title']}', '${r['city']}'),
-                Text('${r['description']}'),
-                if (r['price'] != null)
-                  DataCard('Ориентировочная стоимость',
-                      translateTitle: true,
-                      subtitle: r['price']['mode'] == 'negotiable'
-                          ? 'По договорённости'
-                          : '${localize(context, 'От')} ${price(r['price']['amount_min'], r['price']['currency'])}'),
-                if (r['experience_years'] != null)
-                  Text(
-                      '${localize(context, 'Опыт')}: ${r['experience_years']} ${localize(context, 'лет · со слов исполнителя')}'),
-                if (r['service_cities'] != null)
-                  Text(
-                      '${localize(context, 'Обслуживание')}: ${(r['service_cities'] as List).join(', ')}'),
-                if (r['languages'] != null)
-                  Text(
-                      '${localize(context, 'Языки')}: ${(r['languages'] as List).join(', ')}'),
-                if (r['travel_radius_km'] != null)
-                  Text(
-                      '${localize(context, 'Радиус выезда')}: ${r['travel_radius_km']} ${localize(context, 'км')}'),
-                button('Пригласить в заказ', () => go('invite', r['id'])),
-                for (final photo in (r['gallery_ids'] as List? ?? []))
-                  PrivatePhoto(api: api, id: photo),
-                button('Портфолио', () => go('public-portfolio', r['id']),
-                    outline: true),
-                button('Отзывы', () => go('reviews', r['owner']),
-                    outline: true),
-                button(
-                    'Пожаловаться', () => reportObject(r['id'], 'contractor'),
-                    outline: true),
-                button(
-                    'Заблокировать контакт',
-                    () => act(() async {
-                          await api.request('/me/blocks',
-                              method: 'POST',
-                              body: {'target_user_id': r['owner']});
-                          success('Контакт заблокирован');
-                        }),
-                    outline: true)
-              ])));
+          (record, reload) => ContractorProfile(
+              api: api,
+              profile: record,
+              locale: locale,
+              onOverview: reload,
+              onProject: (project) =>
+                  go('public-project', '${record['id']}/${project['id']}'),
+              onInvite: () => go('invite', record['id']),
+              onPortfolio: () => go('public-portfolio', record['id']),
+              onReviews: () => go('reviews', record['owner']),
+              onReport: () => reportObject(record['id'], 'contractor'),
+              onBlock: () => act(() async {
+                    await api.request('/me/blocks',
+                        method: 'POST',
+                        body: {'target_user_id': record['owner']});
+                    success('Контакт заблокирован');
+                  }))));
+  Widget publicProjectScreen() {
+    final ids = (objectId ?? '').split('/');
+    if (ids.length != 2)
+      return page('Проект портфолио', const Notice('Проект недоступен'));
+    return page(
+        'Проект портфолио',
+        loaded(
+            '/contractors/${ids[0]}/portfolio/${ids[1]}',
+            (project, reload) => PortfolioDetail(
+                api: api,
+                project: project,
+                author: project['contractor_name'] ?? '',
+                avatarId: project['contractor_avatar_id'],
+                onAuthor: () => go('contractor', project['contractor_id']))),
+        actions: [
+          IconButton(
+              tooltip: localize(context, 'Пожаловаться'),
+              onPressed: () => reportObject(ids[1], 'portfolio'),
+              icon: const JobaIcon('shield'))
+        ]);
+  }
+
   Widget servicesScreen() => page(
       'Мои услуги',
       loaded('/me/contractor-profile', (result, reload) {
@@ -4341,6 +4488,45 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         });
         reload();
       });
+  Widget ownProjectDetailScreen() => page(
+      'Проект портфолио',
+      loaded(
+          '/me/portfolio-projects/$objectId',
+          (project, reload) => PortfolioDetail(
+              api: api,
+              project: project,
+              author: me?['display_name'] ?? '',
+              avatarId: me?['avatar_id'],
+              onAuthor: () => go('services'),
+              onEdit: () => go('portfolio-edit', project['id']),
+              onSubmit: ['draft', 'rejected'].contains(project['status'])
+                  ? () => act(() async {
+                        await api.request(
+                            '/me/portfolio-projects/${project['id']}/submit',
+                            method: 'POST',
+                            body: {'expected_version': project['version']});
+                        reload();
+                      })
+                  : null,
+              onDelete: () => act(() async {
+                    final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                                title: const UiText('Удалить проект?'),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(c, false),
+                                      child: const UiText('Отмена')),
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(c, true),
+                                      child: const UiText('Удалить'))
+                                ]));
+                    if (confirmed != true) return;
+                    await api.request('/me/portfolio-projects/${project['id']}',
+                        method: 'DELETE',
+                        body: {'expected_version': project['version']});
+                    if (mounted) go('portfolio');
+                  }))));
   Widget projectScreen() => page(
       objectId == null ? 'Новый проект' : 'Проект и фото',
       ApiView(
@@ -4523,7 +4709,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           onProfile: () => go('services'),
           onSupport: () => go('support')));
   Widget termsScreen() => page(
-      'Документы и согласия',
+      registrationInProgress ? 'Перед началом' : 'Документы и согласия',
       ApiView(
           load: () async => Future.wait([
                 api.request('/legal/documents', query: {
@@ -4546,6 +4732,32 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   relevant.first['document_hash'] == document['hash'];
             }
 
+            final needsAge = documents.any((d) {
+              if (d['minimum_age'] != 18) return false;
+              final relevant = consents
+                  .where((c) => c['document_id'] == d['id'])
+                  .toList()
+                ..sort((a, b) =>
+                    (b['sequence'] as num).compareTo(a['sequence'] as num));
+              return relevant.isEmpty ||
+                  relevant.first['accepted'] != true ||
+                  relevant.first['document_hash'] != d['hash'] ||
+                  relevant.first['age_confirmed'] != true;
+            });
+            if (registrationInProgress || needsAge)
+              return OnboardingConsent(
+                  api: api,
+                  documents: documents,
+                  countryLabel: countryName(country),
+                  localeLabel: {
+                        'ru': 'Русский',
+                        'kk': 'Қазақша',
+                        'sr': 'Srpski',
+                        'be': 'Беларуская'
+                      }[locale] ??
+                      locale,
+                  onAccepted: () =>
+                      go(registrationInProgress ? 'onboarding' : 'home'));
             final requiredDocuments = documents.where((d) => [
                   'privacy',
                   'privacy_policy',

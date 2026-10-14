@@ -82,3 +82,18 @@ test('new business commands require current consent and honor withdrawal without
   await consent(true);assert.equal((await publish()).status,'open');
  }finally{await api.store.close();}
 });
+
+test('published age requirements require a declaration attached to the current agreement',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ try{
+  const session=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000462',password:'Isolated adult consent password'},undefined,undefined,{},'age-fixture');
+  const call=(path,body)=>api.handle('POST',path,body,'Bearer '+session.access_token,randomUUID());
+  const document={id:randomUUID(),kind:'legal_document',owner:'system',country:'KZ',version:1,created_at:new Date().toISOString(),status:'published',type:'terms',locale:'ru',hash:'age-terms-hash',content:'Isolated published agreement',minimum_age:18};await api.store.put(document);
+  const consent={document_id:document.id,document_hash:document.hash,accepted:true};
+  await assert.rejects(()=>call('/me/consents',consent),e=>e.getResponse().error.code==='AGE_CONFIRMATION_REQUIRED');
+  await assert.rejects(()=>call('/me/consents',{...consent,age_confirmed:'true'}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
+  const result=await call('/me/consents',{...consent,age_confirmed:true});assert.equal(result.age_confirmed,true);assert.equal(result.age_declaration,'18_or_older');
+  const publicDocs=await api.handle('GET','/legal/documents',{},undefined,undefined,{country:'KZ',locale:'ru'});assert.equal(publicDocs.items[0].minimum_age,18);
+  const withdrawn=await call('/me/consents',{...consent,accepted:false,age_confirmed:false});assert.equal(withdrawn.accepted,false);assert.equal(withdrawn.age_confirmed,false);
+ }finally{await api.store.close();}
+});

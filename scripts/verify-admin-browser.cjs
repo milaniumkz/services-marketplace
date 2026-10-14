@@ -1,4 +1,4 @@
-const {mkdtemp,rm,readFile,mkdir}=require('node:fs/promises');
+const {mkdtemp,rm,readFile,mkdir,writeFile}=require('node:fs/promises');
 const {tmpdir}=require('node:os');
 const {join,resolve}=require('node:path');
 const {randomUUID,randomBytes}=require('node:crypto');
@@ -236,6 +236,26 @@ async function main(){
   await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
   await page.reload();await page.locator('#recovery-history').filter({hasText:'Проверка обращения'}).waitFor();
   assert.equal((await marketplace.store.all('recovery','KZ')).length,1);
+  if(process.env.JOBA_BROWSER_INVENTORY_DIR){
+    const output=process.env.JOBA_BROWSER_INVENTORY_DIR;await mkdir(output,{recursive:true});
+    const frames=JSON.parse(await readFile(resolve(__dirname,'../docs/design/screen-audit.json'),'utf8')).frames;
+    const inventory=[];
+    const captureFrame=async(frame,address)=>{
+      await page.setViewportSize(frame.viewport);await page.goto(address);await page.waitForLoadState('networkidle');
+      await page.waitForFunction(()=>!document.querySelector('[aria-busy=true]'));
+      const filename=(frame.id+'-'+frame.design_route).replace(/[^A-Za-z0-9._-]/g,'-')+'.png';
+      await page.screenshot({path:join(output,filename),fullPage:false});
+      const text=await page.locator('body').innerText();
+      inventory.push({id:frame.id,route:frame.design_route,surface:frame.surface,capture:filename,reference_png:frame.reference_png,errors:text.includes('Сценарий этого раздела ещё не подключён к API.')?['Live scenario not implemented']:[],visual_acceptance:'pending'});
+    };
+    const login=frames.find(frame=>frame.surface==='admin'&&frame.design_route==='login');
+    await captureFrame(login,frontend+'/#login');
+    await page.getByLabel('Рабочий идентификатор').fill('staff-browser-test');await page.getByLabel('Пароль',{exact:true}).fill(password);
+    await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByLabel('Код второго фактора').fill(totp(secret));await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.waitForSelector('#staff-logout');
+    for(const frame of frames.filter(frame=>frame.surface==='admin'&&frame.design_route!=='login'))await captureFrame(frame,frontend+'/#'+frame.design_route);
+    for(const frame of frames.filter(frame=>frame.surface==='public'))await captureFrame(frame,web+'/'+frame.design_route+'.html');
+    await writeFile(join(output,'inventory.json'),JSON.stringify({scenario:'isolated real HTTP API; unsupported routes remain pending',frames:inventory},null,2)+'\n');
+  }
   console.log('Admin browser: real MFA login, live dashboard, UTC period selection, report export, masked security events, audited job retry, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence, live branding upload/crop/preview/independent approval/iconset download, frozen case evidence and actual content hiding passed.');
  }catch(error){if(page){await page.screenshot({path:'/tmp/joba-admin-browser-failure.png',fullPage:true});console.error('Page diagnostics:',await page.locator('[role=alert], .note.danger').allTextContents());}throw error;}finally{await browser?.close();await vite?.close();await webVite?.close();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
 }
