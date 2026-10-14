@@ -13,6 +13,16 @@ import LocalAuthentication
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       fileExporter = JobaFileExporter(controller: controller)
+      let sharing = FlutterMethodChannel(name: "joba.share", binaryMessenger: controller.binaryMessenger)
+      sharing.setMethodCallHandler { [weak controller] call, result in
+        guard call.method == "text" else { result(FlutterMethodNotImplemented); return }
+        guard let controller = controller, let args = call.arguments as? [String: String], let text = args["text"], !text.isEmpty, text.count <= 2000 else { result(FlutterError(code: "SHARE_INVALID", message: "Invalid invitation", details: nil)); return }
+        guard controller.presentedViewController == nil else { result(FlutterError(code: "SHARE_BUSY", message: "Close the current dialog", details: nil)); return }
+        let sheet = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        if let popover = sheet.popoverPresentationController { popover.sourceView = controller.view; popover.sourceRect = CGRect(x: controller.view.bounds.midX, y: controller.view.bounds.midY, width: 1, height: 1) }
+        controller.present(sheet, animated: true) { result(nil) }
+      }
+
       let channel = FlutterMethodChannel(name: "joba.device_security", binaryMessenger: controller.binaryMessenger)
       channel.setMethodCallHandler { call, result in
         guard call.method == "hardwareBacked" else {

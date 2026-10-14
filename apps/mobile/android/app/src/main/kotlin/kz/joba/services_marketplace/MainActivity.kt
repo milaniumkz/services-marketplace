@@ -61,6 +61,20 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
+        MethodChannel(engine.dartExecutor.binaryMessenger, "joba.share").setMethodCallHandler { call, result ->
+            if (call.method != "text") { result.notImplemented() }
+            else {
+                val text = call.argument<String>("text")
+                if (text.isNullOrBlank() || text.length > 2000) { result.error("SHARE_INVALID", "Invalid invitation", null) }
+                else try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"; putExtra(android.content.Intent.EXTRA_TEXT, text)
+                    }
+                    startActivity(android.content.Intent.createChooser(intent, null)); result.success(null)
+                } catch (error: Exception) { result.error("SHARE_UNAVAILABLE", "Sharing is unavailable", null) }
+            }
+        }
+
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.file_export").setMethodCallHandler { call, result -> saveExport(call, result) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.device_security")
             .setMethodCallHandler { call, result ->

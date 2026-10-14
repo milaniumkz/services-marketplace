@@ -7,12 +7,14 @@ import '../core/theme.dart';
 class VerificationEditor extends StatefulWidget {
   final JobaApi api;
   final String country;
+  final int revision;
   final Future<Json?> Function(String) pick;
   final VoidCallback onTerms, onProfile, onSupport;
   final ValueChanged<String>? onTitle;
   final Map<String, List<String>> uploads;
   const VerificationEditor(
       {required this.api,
+      this.revision = 0,
       required this.country,
       required this.pick,
       required this.onTerms,
@@ -31,11 +33,24 @@ class _VerificationEditorState extends State<VerificationEditor> {
   bool consent = false, busy = false;
   Object? error;
   int epoch = 0;
+  bool refreshQueued = false;
   @override
   void initState() {
     super.initState();
     widget.api.addListener(authChanged);
     load();
+  }
+
+  @override
+  void didUpdateWidget(covariant VerificationEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revision != widget.revision) {
+      if (busy) {
+        refreshQueued = true;
+      } else {
+        load();
+      }
+    }
   }
 
   @override
@@ -65,11 +80,13 @@ class _VerificationEditorState extends State<VerificationEditor> {
         error = null;
         session = records.isEmpty ? null : records.first;
         final types = (result['policy']?['document_types'] as List?) ?? [];
-        type = types.contains(session?['document_type'])
-            ? session!['document_type']
-            : types.isEmpty
-                ? null
-                : types.first;
+        type = types.contains(type)
+            ? type
+            : types.contains(session?['document_type'])
+                ? session!['document_type']
+                : types.isEmpty
+                    ? null
+                    : types.first;
         consent = result['policy']?['consent_accepted'] == true;
       });
       widget.onTitle?.call(
@@ -108,7 +125,13 @@ class _VerificationEditorState extends State<VerificationEditor> {
     } catch (e) {
       if (mounted && current == epoch) setState(() => error = e);
     } finally {
-      if (mounted && current == epoch) setState(() => busy = false);
+      if (mounted && current == epoch) {
+        setState(() => busy = false);
+        if (refreshQueued) {
+          refreshQueued = false;
+          await load();
+        }
+      }
     }
   }
 
@@ -142,6 +165,35 @@ class _VerificationEditorState extends State<VerificationEditor> {
           method: 'POST', body: {'document_type': type}) as Json;
       if (valid(current)) setState(() => session = created);
     }
+  }
+
+  Future<void> changeConsent(bool value) async {
+    final policy = data?['policy'] as Json?;
+    final previous = consent;
+    if (value || policy?['consent_accepted'] != true) {
+      setState(() => consent = value);
+      return;
+    }
+    setState(() => consent = false);
+    await execute((current) async {
+      try {
+        final documents = await widget.api.request('/legal/documents',
+            query: {'country': widget.country, 'all_versions': 'true'}) as Json;
+        if (!valid(current)) return;
+        final document = (documents['items'] as List)
+            .cast<Json>()
+            .firstWhere((d) => d['id'] == policy!['document_id']);
+        await widget.api.request('/me/consents', method: 'POST', body: {
+          'document_id': document['id'],
+          'document_hash': document['hash'],
+          'accepted': false
+        });
+        if (valid(current)) policy!['consent_accepted'] = false;
+      } catch (e) {
+        if (valid(current)) setState(() => consent = previous);
+        rethrow;
+      }
+    });
   }
 
   Future<void> addPhoto(int index) => execute((current) async {
@@ -406,9 +458,8 @@ class _VerificationEditorState extends State<VerificationEditor> {
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
             value: consent,
-            onChanged: busy || policy == null
-                ? null
-                : (v) => setState(() => consent = v == true),
+            onChanged:
+                busy || policy == null ? null : (v) => changeConsent(v == true),
             title: const UiText(
                 'Согласен на обработку документа для проверки личности.',
                 style: TextStyle(fontSize: 12, height: 1.55))),

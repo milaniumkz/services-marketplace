@@ -56,6 +56,24 @@ void main() {
         transport: MockClient((request) async {
       requests.add(request);
       final path = request.url.path;
+      if (path.endsWith('/referrals/attribute'))
+        return _ok({'status': 'pending'});
+      if (path.endsWith('/me/referrals'))
+        return _ok({
+          'code': 'isolated-code-37',
+          'campaigns': [
+            {
+              'threshold': 2,
+              'reward_duration_seconds': 3600,
+              'qualifying_event': 'completed_order'
+            }
+          ],
+          'attributions': [
+            {'status': 'pending'},
+            {'status': 'qualified'}
+          ],
+          'rewards': []
+        });
       if (path.endsWith('/auth/logout')) return _ok({'logged_out': true});
       if (path.endsWith('/me')) {
         if (request.method == 'PATCH') {
@@ -381,6 +399,30 @@ void main() {
     };
     state.me = user;
     state.country = 'KZ';
+    state.go('referrals');
+    await tester.pumpAndSettle();
+    expect(find.text('isolated-code-37'), findsOneWidget);
+    await capture('S37-referrals');
+    await tester.scrollUntilVisible(find.text('Как начисляются бонусы'), 150,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Как начисляются бонусы'));
+    await tester.pumpAndSettle();
+    expect(find.text('Как получить бонус'), findsOneWidget);
+    expect(find.textContaining('60'), findsWidgets);
+    await capture('S37-rules');
+    state.go('referrals');
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('У меня есть код'), 150,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('У меня есть код'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'other-isolated-code');
+    await tester.tap(find.text('Проверить код'));
+    await tester.pumpAndSettle();
+    final attributed = requests.lastWhere(
+        (request) => request.url.path.endsWith('/referrals/attribute'));
+    expect(jsonDecode(attributed.body)['code'], 'other-isolated-code');
+
     state.go('security');
     await tester.pumpAndSettle();
     await capture('S15-security');

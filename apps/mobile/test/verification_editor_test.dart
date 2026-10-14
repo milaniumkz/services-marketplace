@@ -173,4 +173,164 @@ void main() {
     expect(uploads, isEmpty);
     expect(find.text('Проверяем документ'), findsOneWidget);
   });
+  testWidgets(
+      'verification refreshes an open pending screen after a result event',
+      (tester) async {
+    var passed = false;
+    final revision = ValueNotifier(0);
+    addTearDown(revision.dispose);
+    final api = JobaApi('https://isolated.example',
+        vault: Vault(),
+        transport: MockClient((request) async => ok({
+              'status': passed ? 'passed' : 'pending_review',
+              'policy': null,
+              'items': [
+                {
+                  'id': 'check',
+                  'status': passed ? 'passed' : 'pending_review',
+                  'document_type': 'passport',
+                  'created_at': '2026-01-01',
+                  'decided_at': passed ? '2026-10-14T10:00:00Z' : null,
+                  'expires_at': passed ? '2027-10-14T10:00:00Z' : null
+                }
+              ]
+            })));
+    api.session = {
+      'access_token': 'isolated-token',
+      'user': {'id': 'owner', 'country': 'KZ'}
+    };
+    addTearDown(api.dispose);
+    await tester.pumpWidget(MaterialApp(
+        theme: jobaTheme(),
+        home: Scaffold(
+            body: ValueListenableBuilder<int>(
+                valueListenable: revision,
+                builder: (context, value, child) => VerificationEditor(
+                    api: api,
+                    country: 'KZ',
+                    revision: value,
+                    uploads: {},
+                    pick: (id) async => null,
+                    onTerms: () {},
+                    onProfile: () {},
+                    onSupport: () {})))));
+    await tester.pumpAndSettle();
+    expect(find.text('Проверяем документ'), findsOneWidget);
+    passed = true;
+    revision.value++;
+    await tester.pumpAndSettle();
+    expect(find.text('Документ проверен'), findsOneWidget);
+    expect(find.text('Проверяем документ'), findsNothing);
+    expect(find.text('Следующая проверка'), findsOneWidget);
+  });
+
+  testWidgets(
+      'changing document type isolates uploads and withdrawing consent reaches the API',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final consents = <bool>[], submissions = <Json>[];
+    final api = JobaApi('https://isolated.example', vault: Vault(),
+        transport: MockClient((request) async {
+      final path = request.url.path;
+      if (path.endsWith('/me/verification'))
+        return ok({
+          'status': 'not_started',
+          'policy': {
+            'id': 'policy',
+            'version': 1,
+            'document_id': 'legal',
+            'document_types': ['id_card', 'passport'],
+            'required_pages': {
+              'id_card': ['Лицевая сторона', 'Оборотная сторона'],
+              'passport': ['Страница с данными']
+            },
+            'consent_accepted': true
+          },
+          'items': [
+            {
+              'id': 'old-id-card',
+              'version': 1,
+              'policy_id': 'policy',
+              'policy_version': 1,
+              'status': 'draft',
+              'document_type': 'id_card',
+              'required_pages': ['Лицевая сторона', 'Оборотная сторона'],
+              'created_at': '2026-01-01'
+            }
+          ]
+        });
+      if (path.endsWith('/legal/documents'))
+        return ok({
+          'items': [
+            {'id': 'legal', 'hash': 'legal-hash'}
+          ]
+        });
+      if (path.endsWith('/me/consents')) {
+        consents.add(jsonDecode(request.body)['accepted']);
+        return ok({'accepted': consents.last});
+      }
+      if (path.endsWith('/me/verification-sessions')) {
+        expect(jsonDecode(request.body)['document_type'], 'passport');
+        return ok({
+          'id': 'new-passport',
+          'version': 1,
+          'policy_id': 'policy',
+          'policy_version': 1,
+          'status': 'draft',
+          'document_type': 'passport',
+          'required_pages': ['Страница с данными']
+        });
+      }
+      if (path.endsWith('/new-passport/submit')) {
+        submissions.add(jsonDecode(request.body) as Json);
+        return ok({'status': 'pending_review'});
+      }
+      throw StateError('Unexpected $path');
+    }));
+    api.session = {
+      'access_token': 'isolated-token',
+      'user': {'id': 'owner', 'country': 'KZ'}
+    };
+    addTearDown(api.dispose);
+    final uploads = <String, List<String>>{
+      'old-id-card': ['old-front', 'old-back']
+    };
+    await tester.pumpWidget(MaterialApp(
+        theme: jobaTheme(),
+        home: Scaffold(
+            body: VerificationEditor(
+                api: api,
+                country: 'KZ',
+                uploads: uploads,
+                pick: (id) async {
+                  expect(id, 'new-passport');
+                  return {'id': 'passport-photo'};
+                },
+                onTerms: () {},
+                onProfile: () {},
+                onSupport: () {}))));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byType(CheckboxListTile), 200);
+    await tester.drag(find.byType(ListView), const Offset(0, -180));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    expect(consents, [false]);
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Паспорт'), -150);
+    await tester.tap(find.text('Паспорт'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Добавить фотографии'), 100);
+    await tester.tap(find.text('Добавить фотографии'));
+    await tester.pumpAndSettle();
+    expect(consents, [false, true]);
+    expect(uploads['old-id-card'], ['old-front', 'old-back']);
+    await tester.tap(find.text('Отправить на проверку'));
+    await tester.pumpAndSettle();
+    expect(submissions.single['upload_ids'], ['passport-photo']);
+  });
 }

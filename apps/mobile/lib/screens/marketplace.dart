@@ -1,3 +1,4 @@
+import '../core/share_invitation.dart';
 import 'verification_editor.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -973,6 +974,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return sessionsScreen();
       case 'notification-settings':
         return notificationSettings();
+      case 'referral-rules':
+        return referralRulesScreen();
       case 'referrals':
         return referralsScreen();
       case 'portfolio':
@@ -4127,57 +4130,167 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     success('Настройки сохранены');
                     back();
                   })));
-  Widget referralsScreen() => page(
-      'Приглашения и бонусы',
+  void enterReferralCode() => Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+          builder: (c) => Scaffold(
+              appBar: AppBar(title: const UiText('Код приглашения')),
+              body: ActionForm(
+                  fields: const [
+                    InputSpec('code', 'Код')
+                  ],
+                  before: const [
+                    UiHeading('Вас пригласил друг?',
+                        'Введите его код, чтобы проверить условия бонуса.'),
+                    Notice(
+                        'Бонус появится после выполнения правил программы. Нельзя использовать собственный код или активировать приглашение повторно.')
+                  ],
+                  button: 'Проверить код',
+                  submit: (values) async {
+                    await api.request('/referrals/attribute',
+                        method: 'POST', body: {'code': values['code']?.trim()});
+                    if (c.mounted) Navigator.pop(c);
+                    if (mounted) setState(() => revision++);
+                  }))));
+  Widget referralRulesScreen() => page(
+      'Условия бонусов',
       loaded(
           '/me/referrals',
           (data, reload) => listBody([
-                const UiHeading('Пригласите друзей'),
-                DataCard('Ваш код',
-                    translateTitle: true,
-                    subtitle: '${data['code']}',
-                    footer: button(
-                        'Скопировать код',
-                        () => act(() async {
-                              await Clipboard.setData(
-                                  ClipboardData(text: data['code']));
-                              success('Код скопирован');
-                            }),
-                        outline: true)),
+                const UiHeading('Как получить бонус'),
                 if ((data['campaigns'] as List).isEmpty)
                   const Notice('Активных программ приглашений пока нет.'),
-                for (final r in (data['rewards'] as List).cast<Json>())
-                  DataCard('Награда',
+                for (final campaign in (data['campaigns'] as List).cast<Json>())
+                  DataCard('Условия программы',
                       translateTitle: true,
-                      status: status(r),
-                      footer: r['status'] == 'available'
-                          ? button(
-                              'Активировать',
-                              () => act(() async {
-                                    await api.request(
-                                        '/me/referral-rewards/${r['id']}/redeem',
-                                        method: 'POST');
-                                    reload();
-                                  }))
-                          : null),
-                button(
-                    'Ввести код приглашения',
-                    () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (c) => Scaffold(
-                                appBar: AppBar(
-                                    title: const UiText('Код приглашения')),
-                                body: ActionForm(
-                                    fields: const [InputSpec('code', 'Код')],
-                                    submit: (v) async {
-                                      await api.request('/referrals/attribute',
-                                          method: 'POST', body: v);
-                                      if (c.mounted) Navigator.pop(c);
-                                      reload();
-                                    })))),
-                    outline: true),
+                      subtitle:
+                          '${localize(context, 'Приглашений для награды')}: ${campaign['threshold']}\n${localize(context, 'Условие')}: ${localize(context, campaign['qualifying_event'] == 'executor_verified' ? 'Проверка исполнителя' : 'Завершённый заказ')}\n${localize(context, 'Срок доступа, мин')}: ${(campaign['reward_duration_seconds'] as num).toInt() ~/ 60}'),
+                const Notice(
+                    'Самоприглашение недопустимо. Бонус не превращается в деньги и не меняет рейтинг.')
               ])));
+  Widget referralsScreen() => page(
+      'Приглашения и бонусы',
+      loaded('/me/referrals', (data, reload) {
+        final attributions = (data['attributions'] as List).cast<Json>(),
+            rewards = (data['rewards'] as List).cast<Json>();
+        final qualified =
+            attributions.where((r) => r['status'] == 'qualified').length;
+        return listBody([
+          Container(
+              constraints: const BoxConstraints(minHeight: 165),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                  color: navy, borderRadius: BorderRadius.circular(18)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const UiText('Вместе удобнее',
+                        style: TextStyle(
+                            color: Color(0xFFC5D3EB),
+                            fontSize: 12,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 16),
+                    const UiText('Пригласите друга',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            height: 1.27,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 10),
+                    UiText(
+                        (data['campaigns'] as List).isEmpty
+                            ? 'Активных программ приглашений пока нет.'
+                            : 'Бонус доступа после выполнения условий программы.',
+                        style: const TextStyle(
+                            color: Color(0xFFC5D3EB),
+                            fontSize: 12,
+                            height: 1.5))
+                  ])),
+          const SizedBox(height: 20),
+          Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: line),
+                  borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const UiText('Ваш код',
+                        style: TextStyle(color: muted, fontSize: 12)),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(
+                          child: SelectableText('${data['code']}',
+                              style: const TextStyle(
+                                  fontSize: 20,
+                                  letterSpacing: 1,
+                                  fontWeight: FontWeight.w700))),
+                      IconButton(
+                          tooltip: localize(context, 'Скопировать код'),
+                          onPressed: () => act(() async {
+                                await Clipboard.setData(
+                                    ClipboardData(text: data['code']));
+                                success('Код скопирован');
+                              }),
+                          icon: const JobaIcon('file'))
+                    ]),
+                    const SizedBox(height: 12),
+                    button(
+                        'Поделиться приглашением',
+                        () => act(() async {
+                              final shown = await shareInvitation(
+                                  '${localize(context, 'Код приглашения')} JOBA: ${data['code']}');
+                              if (!shown && mounted) success('Код скопирован');
+                            }))
+                  ])),
+          const SizedBox(height: 24),
+          const UiText('Ваш прогресс',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 14),
+          Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: line),
+                  borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        '${localize(context, 'Приглашения')}: ${attributions.length}',
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 12),
+                    Text(
+                        '${localize(context, 'Выполнены условия')}: $qualified · ${localize(context, 'Ожидает условия')}: ${attributions.length - qualified}',
+                        style: const TextStyle(color: muted, fontSize: 12))
+                  ])),
+          const SizedBox(height: 16),
+          for (final reward in rewards)
+            DataCard('Награда',
+                translateTitle: true,
+                status: status(reward),
+                footer: reward['status'] == 'available'
+                    ? button(
+                        'Активировать',
+                        () => act(() async {
+                              await api.request(
+                                  '/me/referral-rewards/${reward['id']}/redeem',
+                                  method: 'POST');
+                              reload();
+                            }))
+                    : null),
+          JobaMenu([
+            JobaMenuEntry(
+                'Как начисляются бонусы', 'info', () => go('referral-rules'),
+                subtitle: 'Условия, сроки и ограничения'),
+            JobaMenuEntry('У меня есть код', 'gift', enterReferralCode,
+                subtitle: 'Ввести приглашение друга')
+          ])
+        ]);
+      }));
   Widget portfolioScreen() => page(
           'Моё портфолио',
           loaded('/me/portfolio-projects', (data, reload) {
@@ -4400,6 +4513,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           api: api,
           country: country,
           uploads: verificationUploads,
+          revision: revision,
           onTitle: (value) {
             if (mounted && value != verificationTitle)
               setState(() => verificationTitle = value);
