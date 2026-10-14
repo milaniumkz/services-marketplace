@@ -35,6 +35,7 @@ test('staff review protects document references, regional data and sensitive rea
   await rejected(()=>call(staff,'POST',path+'/decision',{expected_version:1,document_revision:1,decision:'rejected',reason:'Документ не соответствует правилам'}),'STATE_CONFLICT');
   await call(staff,'POST',path+'/decision',{expected_version:1,document_revision:2,decision:'rejected',reason:'Документ не соответствует правилам'});
   assert.equal((await api.store.get(owner.user.id)).verification,'rejected');
+  const notice=(await call(owner,'GET','/me/notifications')).items.find(x=>x.type==='verification.updated');assert.equal(notice.target_id,id);assert.equal((await call(owner,'GET','/me/verification')).items[0].reviewer_id,undefined);
   const otherId=randomUUID();await api.store.put({...base,id:otherId,country:'KZ',status:'draft',document_refs:[]});
   const upload=await call(owner,'POST','/uploads/initiate',{purpose:'identity',verification_id:otherId,mime:'image/png',size:100});
   assert.equal(upload.verification_id,otherId);

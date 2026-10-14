@@ -1,3 +1,4 @@
+import 'verification_editor.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:intl/intl.dart';
@@ -63,6 +64,7 @@ const states = {
   'limited_retention': 'Аккаунт закрыт; часть записей сохраняется по правилам'
 };
 const eventTitles = {
+  'verification.updated': 'Результат проверки документа',
   'offer.created': 'Новый отклик на заказ',
   'order.selected': 'Вы выбраны исполнителем',
   'invite.created': 'Приглашение в заказ',
@@ -221,7 +223,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         draftWindow = null;
         history.clear();
         reportUploads.clear();
-        verificationUploads.clear();
         pendingLocale = null;
         revision++;
       });
@@ -878,6 +879,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           } else if (type == 'case.message.created' ||
                               type == 'case.updated') {
                             go('case', r['target_id']);
+                          } else if (type == 'verification.updated') {
+                            await refreshIdentity();
+                            if (mounted) go('verification');
                           } else if (type == 'content.moderated') {
                             await refreshIdentity();
                             if (mounted) go('account');
@@ -4389,130 +4393,21 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         verificationId: verificationId);
   }
 
+  String verificationTitle = 'Проверка исполнителя';
   Widget verificationScreen() => page(
-      'Документ исполнителя',
-      loaded(
-          '/me/verification',
-          (data, reload) => listBody([
-                const UiHeading('Проверка исполнителя',
-                    'Документы доступны только уполномоченным сотрудникам.'),
-                Notice(states[data['status']] ?? '${data['status']}'),
-                for (final r in items(data))
-                  DataCard(
-                      r['document_type'] == 'passport'
-                          ? 'Паспорт'
-                          : r['document_type'] == 'id_card'
-                              ? 'ID-карта'
-                              : '${r['document_type']}',
-                      status: status(r),
-                      footer: ['draft', 'rejected'].contains(r['status'])
-                          ? button(
-                              'Загрузить и отправить документ',
-                              () => act(() async {
-                                    final client = api;
-                                    final account = me?['id'];
-                                    final pages =
-                                        (r['required_pages'] as List?) ??
-                                            ['Документ'];
-                                    final selected = verificationUploads
-                                        .putIfAbsent(r['id'], () => []);
-                                    while (selected.length < pages.length) {
-                                      final proceed = await showDialog<bool>(
-                                          context: context,
-                                          builder: (c) => AlertDialog(
-                                                  title: const UiText(
-                                                      'Загрузка документа'),
-                                                  content: Text(
-                                                      '${pages[selected.length]} · ${selected.length + 1} / ${pages.length}'),
-                                                  actions: [
-                                                    TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.pop(
-                                                                c, false),
-                                                        child: const UiText(
-                                                            'Отмена')),
-                                                    TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.pop(
-                                                                c, true),
-                                                        child: const UiText(
-                                                            'Продолжить'))
-                                                  ]));
-                                      if (proceed != true ||
-                                          !mounted ||
-                                          api != client ||
-                                          me?['id'] != account ||
-                                          !client.authenticated) return;
-                                      final file = await pickUpload('identity',
-                                          verificationId: r['id']);
-                                      if (file == null ||
-                                          !mounted ||
-                                          api != client ||
-                                          me?['id'] != account ||
-                                          !client.authenticated) return;
-                                      selected.add(file['id']);
-                                    }
-                                    await api.request(
-                                        '/me/verification-sessions/${r['id']}/submit',
-                                        method: 'POST',
-                                        body: {
-                                          'expected_version': r['version'],
-                                          'upload_ids': selected
-                                        });
-                                    verificationUploads.remove(r['id']);
-                                    reload();
-                                  }))
-                          : null),
-                if (data['policy'] != null &&
-                    data['policy']['consent_accepted'] == true)
-                  button(
-                      'Начать проверку',
-                      () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                              builder: (c) => Scaffold(
-                                  appBar: AppBar(
-                                      title: const UiText('Тип документа')),
-                                  body: ActionForm(
-                                      fields: [
-                                        InputSpec(
-                                            'document_type', 'Тип документа',
-                                            initial: (data['policy']
-                                                    ['document_types'] as List)
-                                                .first
-                                                .toString(),
-                                            options: {
-                                              for (final type in data['policy']
-                                                  ['document_types'] as List)
-                                                type.toString():
-                                                    type == 'passport'
-                                                        ? 'Паспорт'
-                                                        : 'ID-карта'
-                                            })
-                                      ],
-                                      before: const [
-                                        Notice(
-                                            'Разрешённые типы и основание проверки определяются утверждённой политикой страны.')
-                                      ],
-                                      submit: (v) async {
-                                        await api.request(
-                                            '/me/verification-sessions',
-                                            method: 'POST',
-                                            body: v);
-                                        if (c.mounted) Navigator.pop(c);
-                                        reload();
-                                      })))),
-                      outline: true),
-                if (data['policy'] == null)
-                  const Notice(
-                      'Разрешённые типы и основание проверки определяются утверждённой политикой страны.'),
-                if (data['policy'] != null &&
-                    data['policy']['consent_accepted'] != true)
-                  const Notice(
-                      'Для начала проверки примите согласие на обработку документа.'),
-                button('Документы и согласие', () => go('terms'),
-                    outline: true),
-              ])));
+      verificationTitle,
+      VerificationEditor(
+          api: api,
+          country: country,
+          uploads: verificationUploads,
+          onTitle: (value) {
+            if (mounted && value != verificationTitle)
+              setState(() => verificationTitle = value);
+          },
+          pick: (id) => pickUpload('identity', verificationId: id),
+          onTerms: () => go('terms'),
+          onProfile: () => go('services'),
+          onSupport: () => go('support')));
   Widget termsScreen() => page(
       'Документы и согласия',
       ApiView(
