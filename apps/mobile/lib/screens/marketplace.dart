@@ -5,6 +5,7 @@ import 'legal_documents.dart';
 import 'account_restrictions.dart';
 import 'appeal_editor.dart';
 import 'action_receipt.dart';
+import 'content_review_receipt.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -823,6 +824,20 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'order':
       case 'work':
         return orderScreen();
+      case 'profile-pending':
+      case 'portfolio-pending':
+        return page(
+            route == 'profile-pending'
+                ? 'Изменения на проверке'
+                : 'Проект на проверке',
+            ContentReviewReceipt(
+                key: ValueKey('$route:$objectId:$revision'),
+                api: api,
+                profile: route == 'profile-pending',
+                id: objectId,
+                onContinue: () =>
+                    go(route == 'profile-pending' ? 'services' : 'portfolio')),
+            titleOffset: -12);
       case 'published':
       case 'offer-sent':
       case 'review-sent':
@@ -3387,7 +3402,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   '/me/contractor-profile/publish',
                                   method: 'POST',
                                   body: {'expected_version': p['version']});
-                              reload();
+                              go('profile-pending');
                             }))
                 ]));
       }));
@@ -4703,7 +4718,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             '/me/portfolio-projects/${project['id']}/submit',
                             method: 'POST',
                             body: {'expected_version': project['version']});
-                        reload();
+                        go('portfolio-pending', project['id']);
                       })
                   : null,
               onDelete: () => act(() async {
@@ -4850,7 +4865,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   '/me/portfolio-projects/${p['id']}/submit',
                                   method: 'POST',
                                   body: {'expected_version': p['version']});
-                              reload();
+                              go('portfolio-pending', p['id']);
                             })),
                     button('История опубликованных версий',
                         () => go('content-history', p['id']),

@@ -3076,6 +3076,7 @@
         "tags": [
           "me"
         ],
+        "description": "Own editable profile plus public_visible. Visibility requires the stored approved version to be published and unhidden, and the account active and verified; a pending draft alone does not establish visibility.",
         "security": [
           {
             "BearerAuth": []
@@ -5683,6 +5684,7 @@
         "tags": [
           "me"
         ],
+        "description": "Own editable project with public_visible computed from the approved project and contractor profile, moderation status, active account and verification. Draft status and approved visibility remain separate.",
         "security": [
           {
             "BearerAuth": []

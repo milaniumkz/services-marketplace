@@ -318,7 +318,15 @@ void main() {
         };
       else if (path == '/me/contractor-profile')
         data = {
-          'profile': {...profile, 'owner': user['id']}
+          'profile': {
+            ...profile,
+            'owner': user['id'],
+            if (route == 'profile-pending') ...{
+              'status': 'pending_review',
+              'public_status': 'published',
+              'public_visible': true
+            }
+          }
         };
       else if (path == '/contractors')
         data = {
@@ -403,7 +411,10 @@ void main() {
         data = {
           'id': 'visual-object',
           'version': 1,
-          'status': 'published',
+          'status':
+              route == 'portfolio-pending' ? 'pending_review' : 'published',
+          'public_status': 'published',
+          'public_visible': true,
           'title': 'Ремонт комнаты',
           'description': 'Покраска стен и отделка',
           'category_name': 'Ремонт',
@@ -540,6 +551,10 @@ void main() {
       final errors = <String>[];
       try {
         await tester.pumpAndSettle();
+        if (route == 'profile-pending')
+          expect(find.text('Получили изменения'), findsOneWidget);
+        if (route == 'portfolio-pending')
+          expect(find.text('Проверяем ваш проект'), findsOneWidget);
         if (route == 'published')
           expect(find.text('Заказ на виду'), findsOneWidget);
         if (route == 'offer-sent')

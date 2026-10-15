@@ -374,7 +374,7 @@ export class Marketplace {
       return this.store.put(this.record('consent',a,{document_id:d.id,document_version:d.version,document_hash:d.hash,accepted:b.accepted,...(b.age_confirmed!==undefined?{age_confirmed:b.age_confirmed,age_declaration:'18_or_older'}:{}),sequence:Number(count)+1}));
     }
     if(path==='/me/consents'&&method==='GET')return {items:(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id).sort((x,y)=>(y.sequence??0)-(x.sequence??0))};
-    if(path==='/me/contractor-profile'&&method==='GET'){const profile=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);return {profile:profile?editableContent(profile):null};}
+    if(path==='/me/contractor-profile'&&method==='GET'){const profile=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='contractor' AND country=$1 AND owner=$2 LIMIT 1",[a.country,a.id])).rows[0]?.data;return {profile:profile?{...editableContent(profile),public_visible:profile.status==='published'&&!['hidden','quarantined','rejected'].includes(profile.moderation_status)&&a.user.status==='active'&&a.user.verification==='passed'}:null};}
     if(path==='/me/contractor-profile'&&method==='PUT') {
       const old=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(old)this.version(old,b);
       const title=text(b,'title',5,100),description=text(b,'description',20,3000),city=text(b,'city',2,100);
@@ -417,7 +417,7 @@ export class Marketplace {
     }
     const portfolio=path.match(/^\/me\/portfolio-projects\/([^/]+)(?:\/(submit))?$/);
     if(portfolio) {
-      const stored=await this.object(portfolio[1],a,'portfolio',true),p=editableContent(stored);if(method==='GET'){const order=p.order_id?await this.store.get(p.order_id):undefined;const category=p.category_id?await this.store.get(p.category_id):undefined;return {...p,category_name:category?.kind==='category'&&category.country===a.country?category.name:undefined,linked_completed_order:order?.kind==='order'&&order.country===a.country&&order.status==='completed'&&order.executor_id===a.id};}this.version(stored,b);
+      const stored=await this.object(portfolio[1],a,'portfolio',true),p=editableContent(stored);if(method==='GET'){const order=p.order_id?await this.store.get(p.order_id):undefined;const category=p.category_id?await this.store.get(p.category_id):undefined;const profile=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='contractor' AND country=$1 AND owner=$2 LIMIT 1",[a.country,a.id])).rows[0]?.data;const publicVisible=stored.status==='published'&&!['hidden','quarantined','rejected'].includes(stored.moderation_status)&&profile?.status==='published'&&!['hidden','quarantined','rejected'].includes(profile.moderation_status)&&a.user.status==='active'&&a.user.verification==='passed';return {...p,public_visible:publicVisible,category_name:category?.kind==='category'&&category.country===a.country?category.name:undefined,linked_completed_order:order?.kind==='order'&&order.country===a.country&&order.status==='completed'&&order.executor_id===a.id};}this.version(stored,b);
       if(method==='DELETE')return this.store.put({...stored,draft:undefined,status:'archived',version:stored.version+1});
       if(method==='PATCH') {
         const photos=b.upload_ids?await this.safeUploads(a,b.upload_ids,'portfolio'):p.photos;

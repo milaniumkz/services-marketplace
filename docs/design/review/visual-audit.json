@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 150,
-    "not_captured": 37,
+    "captured": 152,
+    "not_captured": 35,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -547,7 +547,24 @@
       "route": "profile-pending",
       "reference": "mobile/screens/S12.pending-profile-pending.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S12.pending-profile-pending.png",
+      "actual_route": "profile-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.011227,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1864,7 +1881,24 @@
       "route": "portfolio-pending",
       "reference": "mobile/screens/S38.pending-portfolio-pending.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S38.pending-portfolio-pending.png",
+      "actual_route": "portfolio-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.013838,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
