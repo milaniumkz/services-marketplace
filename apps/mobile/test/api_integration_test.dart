@@ -56,10 +56,15 @@ void main() {
         items(await api.request('/me/orders'))
             .any((o) => o['id'] == draft['id']),
         true);
-    await expectLater(
-        api.request('/orders/${draft['id']}/publish',
-            method: 'POST', body: {'expected_version': draft['version']}),
-        throwsA(isA<ApiException>()));
+    final published = await api.request('/orders/${draft['id']}/publish',
+        method: 'POST', body: {'expected_version': draft['version']}) as Json;
+    expect(published['status'], 'open');
+    expect(items(await api.request('/me/entitlements')), isEmpty);
+    expect((await api.request('/me/monetization-config'))['subscription_enabled'], false);
+    await api.request('/orders/${draft['id']}/cancel', method: 'POST', body: {
+      'expected_version': published['version'],
+      'reason': 'Завершение изолированной проверки бесплатной публикации'
+    });
     final updated = await api.request('/me', method: 'PATCH', body: {
       'expected_version': user['version'],
       'display_name': 'Новое имя',

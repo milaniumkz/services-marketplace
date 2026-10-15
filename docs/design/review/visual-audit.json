@@ -233,7 +233,8 @@
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile"
+      "surface": "mobile",
+      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
     },
     {
       "id": "S05.checkout",
@@ -277,7 +278,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.049528,
+      "different_pixels_ratio": 0.049257,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -477,7 +478,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.108353,
+      "different_pixels_ratio": 0.108286,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -527,13 +528,14 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.107996,
+      "different_pixels_ratio": 0.077826,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile"
+      "surface": "mobile",
+      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
     },
     {
       "id": "S11.edit",
@@ -577,13 +579,14 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.098181,
+      "different_pixels_ratio": 0.099857,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile"
+      "surface": "mobile",
+      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
     },
     {
       "id": "S12",
@@ -1683,7 +1686,8 @@
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile"
+      "surface": "mobile",
+      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
     },
     {
       "id": "S32.canceled",
@@ -4685,5 +4689,6 @@
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "public"
     }
-  ]
+  ],
+  "customer_subscription_policy": "executor_only; customer free; owner instruction 2026-10-15"
 }
