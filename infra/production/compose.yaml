@@ -23,6 +23,7 @@ services:
     environment:
       NODE_ENV: production
       JOBA_REGION: KZ
+      JOBA_TRUST_PROXY: '1'
       API_HOST: 0.0.0.0
       API_PORT: 3000
       DATABASE_URL: postgres://joba:${JOBA_DATABASE_PASSWORD:?Set database password}@database:5432/joba

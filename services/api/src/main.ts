@@ -6,6 +6,8 @@ async function bootstrap() {
   const port = Number(process.env.API_PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid API_PORT');
   const app = await NestFactory.create(AppModule, { rawBody: true });
+  if(process.env.JOBA_TRUST_PROXY!==undefined&&!['0','1'].includes(process.env.JOBA_TRUST_PROXY))throw new Error('JOBA_TRUST_PROXY must be 0 or 1');
+  if(process.env.JOBA_TRUST_PROXY==='1')app.getHttpAdapter().getInstance().set('trust proxy',1);
   const marketplace=await getMarketplace();
   await app.listen(port, process.env.API_HOST ?? '127.0.0.1');
   const stopRealtime=startRealtime(app.getHttpServer(),marketplace);
