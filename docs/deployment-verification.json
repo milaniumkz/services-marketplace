@@ -1,0 +1,16 @@
+{
+  "url": "https://188-241-217-228.sslip.io",
+  "https_certificate_verified": true,
+  "production_database_ready": true,
+  "welcome_continue_opens_login": true,
+  "admin_login_available": true,
+  "public_site_available": true,
+  "first_render_ms": 5436,
+  "errors": [],
+  "verified_at": "2026-10-15T12:30:20Z",
+  "server_source_commit": "6111d6f41c7eb23b5a623e601844304409fd7509",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/38733605220",
+  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/38735055449",
+  "visual_acceptance": "pending",
+  "external_payment_ads_firebase": "not_connected"
+}
