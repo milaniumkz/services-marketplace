@@ -616,7 +616,19 @@ export class Marketplace {
     const cm=path.match(/^\/conversations\/([^/]+)\/messages$/);
     if(cm){const c=await this.object(cm[1],a,'conversation');if(!c.members.includes(a.id))fail(404,'NOT_FOUND','Чат не найден');return this.messages(c,a,method,b,q,'message');}
     if(path==='/me/support-threads'&&method==='GET')return this.list((await this.store.all('support',a.country)).filter(x=>x.owner===a.id),q);
-    if(path==='/support/threads'&&method==='POST')return this.store.put(this.record('support',a,{subject:text(b,'subject',5,120),status:'new',members:[a.id]}));
+    if(path==='/support/threads'&&method==='POST'){
+      const subject=text(b,'subject',5,120);
+      const topics=['orders','account','payment','technical','other'];
+      if(b.topic!==undefined&&!topics.includes(b.topic))fail(400,'VALIDATION_ERROR','Выберите тему обращения');
+      let orderId:string|undefined;
+      if(b.order_id){const order=await this.object(String(b.order_id),a,'order');if(![order.owner,order.executor_id].includes(a.id))fail(404,'NOT_FOUND','Заказ не найден');orderId=order.id;}
+      const uploads=b.upload_ids===undefined?[]:await this.safeUploads(a,b.upload_ids,'chat');
+      const initial=b.text===undefined?undefined:text(b,'text',1,3000);
+      if(uploads.length&&!initial)fail(400,'VALIDATION_ERROR','Опишите вопрос для поддержки');
+      const thread=await this.store.put(this.record('support',a,{subject,status:'new',members:[a.id],...(b.topic?{topic:b.topic}:{}),...(orderId?{order_id:orderId}:{})}));
+      if(initial!==undefined)await this.messages(thread,a,'POST',{text:initial,upload_ids:uploads,client_message_id:randomUUID()},{},'support_message');
+      return thread;
+    }
     const sm=path.match(/^\/support\/threads\/([^/]+)\/messages$/);
     if(sm){const t=await this.object(sm[1],a,'support',true);return this.messages(t,a,method,b,q,'support_message');}
     if(path==='/reviews'&&method==='POST') {

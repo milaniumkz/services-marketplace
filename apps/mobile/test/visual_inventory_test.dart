@@ -57,7 +57,8 @@ void main() {
       'error': 'catalog',
       'offline': 'catalog',
       'loading': 'catalog',
-      'session-expired': 'catalog'
+      'session-expired': 'catalog',
+      'photo-view': 'portfolio-project'
     };
     final roots = (audit['frames'] as List).cast<Json>().where((f) =>
         f['surface'] == 'mobile' &&
@@ -493,6 +494,20 @@ void main() {
       final errors = <String>[];
       try {
         await tester.pumpAndSettle();
+        if (route == 'photo-view') {
+          await tester.tap(find.text('Увеличить'));
+          await tester.pumpAndSettle();
+        }
+        if (route == 'support-new') {
+          await tester.tap(find.text('Без связи с заказом'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Нужно покрасить комнату'));
+          await tester.pumpAndSettle();
+          await tester.enterText(find.byType(TextFormField),
+              'Здравствуйте! Хочу уточнить, как запросить доработку результата.');
+          FocusManager.instance.primaryFocus?.unfocus();
+          await tester.pumpAndSettle();
+        }
         // Image decoding runs outside the widget test's fake clock. Wait for
         // the actual image providers before exporting a supposedly ready frame.
         for (final photo in tester.widgetList<Image>(find.byType(Image))) {

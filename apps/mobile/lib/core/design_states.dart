@@ -9,7 +9,7 @@ class JobaStatePanel extends StatelessWidget {
   final VoidCallback onPrimary;
   final String? secondaryLabel;
   final VoidCallback? onSecondary;
-  final bool brand;
+  final bool brand, destructive;
   const JobaStatePanel(
       {required this.title,
       required this.message,
@@ -19,6 +19,7 @@ class JobaStatePanel extends StatelessWidget {
       this.secondaryLabel,
       this.onSecondary,
       this.brand = false,
+      this.destructive = false,
       super.key});
   @override
   Widget build(BuildContext context) => Padding(
@@ -37,8 +38,8 @@ class JobaStatePanel extends StatelessWidget {
                   color: const Color(0xFFE9EFFB),
                   borderRadius: BorderRadius.circular(30)),
               child: Center(
-                  child: JobaIcon(icon,
-                      size: 42, color: primary, strokeWidth: 1.3))),
+                  child:
+                      JobaIcon(icon, size: 42, color: navy, strokeWidth: 1.3))),
         SizedBox(height: brand ? 24 : 23),
         Semantics(
             header: true,
@@ -58,7 +59,13 @@ class JobaStatePanel extends StatelessWidget {
         SizedBox(
             width: double.infinity,
             child: FilledButton(
-                onPressed: onPrimary, child: UiText(primaryLabel))),
+                onPressed: onPrimary,
+                style: destructive
+                    ? FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFFBECEC),
+                        foregroundColor: const Color(0xFFB83232))
+                    : null,
+                child: UiText(primaryLabel))),
         if (secondaryLabel != null && onSecondary != null) ...[
           const SizedBox(height: 20),
           SizedBox(

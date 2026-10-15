@@ -498,16 +498,59 @@ void main() {
         'user': {'id': 'photo-owner'}
       };
     await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: PrivatePhoto(api: api, id: 'private-photo'))));
+        home: Scaffold(
+            body: PrivatePhoto(
+                api: api,
+                id: 'private-photo',
+                gallery: const ['private-photo', 'second-photo'],
+                caption: 'Настоящее название проекта'))));
     await tester.pumpAndSettle();
     expect(variants, ['preview']);
     await tester.tap(find.byType(Image));
     await tester.pumpAndSettle();
     expect(variants, ['preview', 'original']);
     expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.text('1 из 2'), findsOneWidget);
+    expect(
+        tester
+            .widget<IconButton>(find.byWidgetPredicate(
+                (w) => w is IconButton && w.tooltip == 'Предыдущее фото'))
+            .onPressed,
+        isNull);
+    await tester.scrollUntilVisible(find.text('Увеличить'), 200,
+        scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.text('Увеличить'));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+            .transformationController!
+            .value
+            .getMaxScaleOnAxis(),
+        2);
+    await tester.tap(find.byWidgetPredicate(
+        (w) => w is IconButton && w.tooltip == 'Следующее фото'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 из 2'), findsOneWidget);
+    expect(variants, ['preview', 'original', 'original']);
+    expect(
+        tester
+            .widget<IconButton>(find.byWidgetPredicate(
+                (w) => w is IconButton && w.tooltip == 'Следующее фото'))
+            .onPressed,
+        isNull);
+    expect(
+        tester
+            .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+            .transformationController!
+            .value
+            .getMaxScaleOnAxis(),
+        1);
     await api.forget();
     await tester.pumpAndSettle();
     expect(find.byType(InteractiveViewer), findsNothing);
+    expect(find.text('Настоящее название проекта'), findsNothing);
+    expect(find.text('2 из 2'), findsNothing);
     await tester.tap(find.byTooltip('Закрыть'));
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox());

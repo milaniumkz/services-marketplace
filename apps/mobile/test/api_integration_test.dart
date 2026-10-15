@@ -64,8 +64,16 @@ void main() {
     expect((await api.request('/me/contractor-profile'))['profile'], isNull);
     expect(items(await api.request('/me/assigned-orders')), isEmpty);
     expect(items(await api.request('/me/offers')), isEmpty);
-    final thread = await api.request('/support/threads',
-        method: 'POST', body: {'subject': 'Проверка поддержки'}) as Json;
+    final thread = await api.request('/support/threads', method: 'POST', body: {
+      'subject': 'Проверка поддержки',
+      'topic': 'orders',
+      'order_id': draft['id'],
+      'text': 'Первый вопрос из формы обращения'
+    }) as Json;
+    expect(thread['order_id'], draft['id']);
+    final firstMessages =
+        items(await api.request('/support/threads/${thread['id']}/messages'));
+    expect(firstMessages.single['text'], 'Первый вопрос из формы обращения');
     final key = uuid.v4();
     final message = await api.request(
             '/support/threads/${thread['id']}/messages',

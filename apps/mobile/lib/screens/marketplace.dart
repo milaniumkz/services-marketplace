@@ -1,5 +1,6 @@
 import '../core/design_states.dart';
 import 'search_filters.dart';
+import 'support_new.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -697,6 +698,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return lockSetup();
       case 'unlock':
         return unlockScreen();
+      case 'support-new':
+        return page(
+            'Новое обращение',
+            SupportNew(
+                api: api,
+                executor: executor,
+                pickUpload: () => pickUpload('chat'),
+                onCreated: (id) => go('support-chat', id)));
+      case 'logout-confirm':
+        return logoutConfirmation();
       case 'session-expired':
         return page(
             'Сессия завершена',
@@ -3464,24 +3475,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       Column(children: [
         Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: button('Начать обращение', () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                      builder: (c) => Scaffold(
-                          appBar:
-                              AppBar(title: const UiText('Новое обращение')),
-                          body: ActionForm(
-                              fields: const [
-                                InputSpec('subject', 'Тема обращения')
-                              ],
-                              submit: (v) async {
-                                final t = await api.request('/support/threads',
-                                    method: 'POST', body: v) as Json;
-                                if (c.mounted) Navigator.pop(c);
-                                go('support-chat', t['id']);
-                              }))));
-            })),
+            child: button('Начать обращение', () => go('support-new'))),
         Expanded(
             child: paged(
                 '/me/support-threads',
@@ -4120,23 +4114,22 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             onPressed: actionBusy ? null : confirmLogout,
             child: const UiText('Выйти из аккаунта'))
       ]));
-  Future<void> confirmLogout() async {
-    final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-                title: const UiText('Завершить сеанс на этом устройстве?'),
-                content: const UiText(
-                    'Локальный PIN и приватный кэш будут удалены. Для следующего входа понадобится номер и пароль.'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(c, false),
-                      child: const UiText('Остаться')),
-                  TextButton(
-                      onPressed: () => Navigator.pop(c, true),
-                      child: const UiText('Выйти'))
-                ]));
-    if (confirmed == true && mounted) await act(() => api.logout());
-  }
+  void confirmLogout() => go('logout-confirm');
+
+  Widget logoutConfirmation() => page(
+      'Выйти из аккаунта?',
+      listBody([
+        JobaStatePanel(
+            title: 'Завершить сеанс\nна этом устройстве?',
+            message:
+                'Локальный PIN и приватный кэш будут удалены. Для следующего входа понадобится номер и пароль.',
+            icon: 'logout',
+            primaryLabel: 'Выйти',
+            destructive: true,
+            onPrimary: () => act(() => api.logout()),
+            secondaryLabel: 'Остаться',
+            onSecondary: back)
+      ]));
 
   Widget languageScreen() {
     var selected = pendingLocale ?? locale;

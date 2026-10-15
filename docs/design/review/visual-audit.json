@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 139,
-    "not_captured": 48,
+    "captured": 142,
+    "not_captured": 45,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -259,7 +259,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.11694,
+      "different_pixels_ratio": 0.116319,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -500,7 +500,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.157952,
+      "different_pixels_ratio": 0.157993,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -757,7 +757,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.090694,
+      "different_pixels_ratio": 0.090616,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1520,7 +1520,24 @@
       "route": "logout-confirm",
       "reference": "mobile/screens/S35.logout-logout-confirm.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S35.logout-logout-confirm.png",
+      "actual_route": "logout-confirm",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.022788,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1540,7 +1557,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.101159,
+      "different_pixels_ratio": 0.100193,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1698,7 +1715,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.244548,
+      "different_pixels_ratio": 0.244171,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1752,7 +1769,24 @@
       "route": "photo-view",
       "reference": "mobile/screens/S39.lightbox-photo-view.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S39.lightbox-photo-view.png",
+      "actual_route": "portfolio-project",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.05725,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1810,7 +1844,24 @@
       "route": "support-new",
       "reference": "mobile/screens/S40.new-support-new.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S40.new-support-new.png",
+      "actual_route": "support-new",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.088214,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1986,7 +2037,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.016877,
+      "different_pixels_ratio": 0.016088,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2011,7 +2062,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.093509,
+      "different_pixels_ratio": 0.092981,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2036,7 +2087,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.063305,
+      "different_pixels_ratio": 0.062652,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44

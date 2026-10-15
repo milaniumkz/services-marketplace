@@ -381,6 +381,9 @@ class _ActionFormState extends State<ActionForm> {
                                   ]))))
                     else if (field.options != null)
                       DropdownButtonFormField<String>(
+                          style: const TextStyle(
+                              fontSize: 14, color: navy, fontFamily: 'Noto'),
+                          icon: const JobaIcon('down', size: 18),
                           isExpanded: true,
                           initialValue:
                               field.options!.containsKey(field.initial)
@@ -560,43 +563,26 @@ class PrivatePhoto extends StatelessWidget {
   final String id;
   final double height;
   final VoidCallback? onOpen;
+  final List<String> gallery;
+  final String? caption;
   const PrivatePhoto(
       {required this.api,
       required this.id,
       this.height = 180,
       this.onOpen,
+      this.gallery = const [],
+      this.caption,
       super.key});
   void open(BuildContext context) {
-    final generation = api.sessionGeneration;
+    final photos = gallery.contains(id) ? gallery : [id];
     showDialog<void>(
         context: context,
-        builder: (dialogContext) => Dialog.fullscreen(
-            backgroundColor: Colors.black,
-            child: AnimatedBuilder(
-                animation: api,
-                builder: (_, __) => SafeArea(
-                        child: Column(children: [
-                      Align(
-                          alignment: Alignment.centerRight,
-                          child: IconButton(
-                              tooltip: localize(dialogContext, 'Закрыть'),
-                              onPressed: () => Navigator.pop(dialogContext),
-                              icon: const JobaIcon('close',
-                                  color: Colors.white))),
-                      Expanded(
-                          child: !api.authenticated ||
-                                  api.sessionGeneration != generation
-                              ? const Center(child: Notice('Файл недоступен'))
-                              : ApiView(
-                                  load: () => api.download(id),
-                                  builder: (_, full, retry) =>
-                                      InteractiveViewer(
-                                          minScale: .5,
-                                          maxScale: 5,
-                                          child: Center(
-                                              child: Image.memory(full,
-                                                  fit: BoxFit.contain)))))
-                    ])))));
+        useSafeArea: false,
+        builder: (_) => _PrivatePhotoViewer(
+            api: api,
+            photos: photos,
+            initialIndex: photos.indexOf(id),
+            caption: caption));
   }
 
   @override
@@ -617,6 +603,152 @@ class PrivatePhoto extends StatelessWidget {
                       .clamp(1, 1920),
                   errorBuilder: (c, error, stack) =>
                       const Notice('Не удалось показать фотографию')))));
+}
+
+class _PrivatePhotoViewer extends StatefulWidget {
+  final JobaApi api;
+  final List<String> photos;
+  final int initialIndex;
+  final String? caption;
+  const _PrivatePhotoViewer(
+      {required this.api,
+      required this.photos,
+      required this.initialIndex,
+      this.caption});
+  @override
+  State<_PrivatePhotoViewer> createState() => _PrivatePhotoViewerState();
+}
+
+class _PrivatePhotoViewerState extends State<_PrivatePhotoViewer> {
+  late int index = widget.initialIndex;
+  late final int generation = widget.api.sessionGeneration;
+  final transform = TransformationController();
+  bool enlarged = false;
+  @override
+  void dispose() {
+    transform.dispose();
+    super.dispose();
+  }
+
+  void select(int next) {
+    if (next < 0 || next >= widget.photos.length) return;
+    setState(() {
+      index = next;
+      enlarged = false;
+      transform.value = Matrix4.identity();
+    });
+  }
+
+  void zoom() => setState(() {
+        enlarged = !enlarged;
+        transform.value = enlarged
+            ? (Matrix4.identity()..scaleByDouble(2.0, 2.0, 1.0, 1.0))
+            : Matrix4.identity();
+      });
+  @override
+  Widget build(BuildContext context) => Dialog.fullscreen(
+      backgroundColor: Colors.white,
+      child: SafeArea(
+          child: ColoredBox(
+              color: navy,
+              child: AnimatedBuilder(
+                  animation: widget.api,
+                  builder: (context, _) {
+                    final valid = widget.api.authenticated &&
+                        widget.api.sessionGeneration == generation;
+                    return ListView(
+                        padding: const EdgeInsets.all(20),
+                        children: [
+                          Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                if (valid)
+                                  Text(
+                                      '${index + 1} ${localize(context, 'из')} ${widget.photos.length}',
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12)),
+                                IconButton(
+                                    tooltip: localize(context, 'Закрыть'),
+                                    onPressed: () => Navigator.pop(context),
+                                    icon: const JobaIcon('close',
+                                        color: Colors.white))
+                              ]),
+                          if (!valid)
+                            const Notice('Файл недоступен')
+                          else ...[
+                            const SizedBox(height: 70),
+                            SizedBox(
+                                height: 330,
+                                child: ApiView(
+                                    key: ValueKey(
+                                        'gallery:$generation:${widget.photos[index]}'),
+                                    load: () => widget.api.download(
+                                        widget.photos[index]),
+                                    builder: (_, bytes, retry) =>
+                                        InteractiveViewer(
+                                            transformationController: transform,
+                                            minScale: 1,
+                                            maxScale: 5,
+                                            child: Center(
+                                                child: Image.memory(
+                                                    bytes,
+                                                    fit: BoxFit.contain,
+                                                    semanticLabel:
+                                                        widget.caption))))),
+                            const SizedBox(height: 20),
+                            Container(
+                                constraints:
+                                    const BoxConstraints(minHeight: 52),
+                                decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(color: line),
+                                    borderRadius: BorderRadius.circular(14)),
+                                child: Row(children: [
+                                  IconButton(
+                                      tooltip:
+                                          localize(context, 'Предыдущее фото'),
+                                      onPressed: index > 0
+                                          ? () => select(index - 1)
+                                          : null,
+                                      icon: JobaIcon('back',
+                                          color: index > 0
+                                              ? navy
+                                              : const Color(0xFF627187))),
+                                  Expanded(
+                                      child: TextButton(
+                                          onPressed: zoom,
+                                          child: UiText(
+                                              enlarged
+                                                  ? 'Уменьшить'
+                                                  : 'Увеличить',
+                                              style: const TextStyle(
+                                                  color: navy,
+                                                  fontWeight:
+                                                      FontWeight.w700)))),
+                                  IconButton(
+                                      tooltip:
+                                          localize(context, 'Следующее фото'),
+                                      onPressed:
+                                          index + 1 < widget.photos.length
+                                              ? () => select(index + 1)
+                                              : null,
+                                      icon: JobaIcon('right',
+                                          color:
+                                              index + 1 < widget.photos.length
+                                                  ? navy
+                                                  : const Color(0xFF627187)))
+                                ])),
+                            if (widget.caption?.isNotEmpty == true)
+                              Padding(
+                                  padding: const EdgeInsets.only(top: 20),
+                                  child: Text(widget.caption!,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          height: 1.55)))
+                          ]
+                        ]);
+                  }))));
 }
 
 class SearchListings extends StatefulWidget {

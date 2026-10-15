@@ -41,7 +41,12 @@ class _PortfolioDetailState extends State<PortfolioDetail> {
     final linked = widget.project['linked_completed_order'] == true;
     return ListView(padding: const EdgeInsets.all(20), children: [
       if (photos.isNotEmpty) ...[
-        PrivatePhoto(api: widget.api, id: photos[index], height: 256),
+        PrivatePhoto(
+            api: widget.api,
+            id: photos[index],
+            height: 256,
+            gallery: photos,
+            caption: widget.project['title']),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           for (var i = 0; i < photos.length; i++)
             Semantics(
@@ -71,7 +76,11 @@ class _PortfolioDetailState extends State<PortfolioDetail> {
                     fontSize: 11, fontWeight: FontWeight.w700, color: muted))),
         if (photos.isNotEmpty)
           TextButton(
-              onPressed: () => PrivatePhoto(api: widget.api, id: photos[index])
+              onPressed: () => PrivatePhoto(
+                      api: widget.api,
+                      id: photos[index],
+                      gallery: photos,
+                      caption: widget.project['title'])
                   .open(context),
               child: const UiText('Увеличить'))
       ]),

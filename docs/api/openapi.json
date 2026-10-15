@@ -4336,8 +4336,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/SupportCreate"
               }
             }
           }
@@ -20249,6 +20248,47 @@
           }
         },
         "additionalProperties": true
+      },
+      "SupportCreate": {
+        "type": "object",
+        "required": [
+          "subject"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 120
+          },
+          "topic": {
+            "enum": [
+              "orders",
+              "account",
+              "payment",
+              "technical",
+              "other"
+            ]
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "upload_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 10,
+            "uniqueItems": true
+          }
+        },
+        "description": "Optional first message is committed atomically with the thread. Linked order must belong to the customer or assigned executor in the same country. Attachments must be clean chat uploads; text is required with attachments."
       },
       "MessageCreate": {
         "type": "object",
