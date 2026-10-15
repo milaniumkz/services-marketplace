@@ -107,7 +107,7 @@
 | S40.prelogin | recovery | [PNG](mobile/S40.prelogin-recovery.png) | Нужна сверка |
 | S40.recovery | recovery-chat | [PNG](mobile/S40.recovery-recovery-chat.png) | Нужна сверка |
 | S41 | top | [PNG](mobile/S41-top.png) | Нужна сверка |
-| S41.orders | top-orders | — | Нет снимка |
+| S41.orders | top-orders | [PNG](mobile/S41.orders-top-orders.png) | Нужна сверка |
 | S42 | promotion | [PNG](mobile/S42-promotion.png) | Нужна сверка |
 | S42.checkout | promotion-checkout | — | Нет снимка |
 | S42.history | promotion-history | — | Нет снимка |

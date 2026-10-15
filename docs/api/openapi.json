@@ -3968,12 +3968,62 @@
         "tags": [
           "top-listings"
         ],
+        "description": "Up to 100 eligible public records, filtered and ranked before LIMIT. Active session-country accounts only, verified contractors, unexpired open orders, no hidden content or pair blocks. Order access requires verified executor role. Popular uses the effective ranking_config (window_days, dislike_weight, age_days) or runtime defaults, excluding self-votes and votes outside the window; ties use likes, publication timestamp and ID. New sorts by publication timestamp then ID. Returns own my_vote, counts, organic_score, and actual calculation/config metadata. Promotions are currently empty; persisted ranking snapshots and promoted placement delivery remain pending.",
         "security": [
           {
             "BearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "target_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "services",
+                "orders"
+              ],
+              "default": "services"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "popular",
+                "new"
+              ],
+              "default": "popular"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/Success"

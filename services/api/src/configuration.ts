@@ -1,3 +1,4 @@
+import {rankingParameters} from './ranking';
 import { Temporal } from '@js-temporal/polyfill';
 import { HttpException } from '@nestjs/common';
 import { RecordData, Store } from './store';
@@ -56,6 +57,7 @@ export class Configuration {
       if(!['completed_order','executor_verified'].includes(p.qualifying_event))fail('VALIDATION_ERROR','Укажите подтверждаемое событие');
       if(p.multilevel||p.cash_payout)fail('POLICY_REJECTED','В первом релизе только одноуровневые неденежные привилегии');
     }
+    if(r.kind==='ranking_config')rankingParameters(p);
     if(r.kind==='placement_policy'&&(!Number.isInteger(p.capacity)||p.capacity<1||p.capacity>100))fail('VALIDATION_ERROR','Проверьте ёмкость размещения');
     if(['verification_policy','retention_policy'].includes(r.kind)) {
       const document=await this.store.get(p.document_id);if(!document||document.kind!=='legal_document'||document.country!==r.country||document.status!=='published')fail('LEGAL_VERSION_UNAPPROVED','Нужно опубликованное правовое основание');

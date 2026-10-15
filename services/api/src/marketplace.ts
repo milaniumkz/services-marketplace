@@ -1,3 +1,4 @@
+import {rankingParameters} from './ranking';
 import {accountDecisions,securityEventSummary} from './staff-account';
 import {currentLegalDocuments} from './legal-documents';
 import {freezeTarget,visibleCase,resolveEffects,contentHash,targetSnapshot} from './case-evidence';
@@ -683,7 +684,9 @@ export class Marketplace {
     const pushToken=path.match(/^\/me\/push-tokens\/([^/]+)$/);if(pushToken&&method==='DELETE'){const r=await this.object(pushToken[1],a,'push_token',true);return this.store.put({...r,status:'revoked',token:'',version:r.version+1}).then(({token,...r})=>r);}
     const votes=path.match(/^\/listing-votes\/(orders|services)\/([^/]+)$/);
     if(votes&&['PUT','DELETE'].includes(method)) {
-      await this.entitlement(a,'search_full');const target=await this.object(votes[2],a,votes[1]==='orders'?'order':'contractor');
+      await this.entitlement(a,'search_full',votes[1]==='orders');const target=await this.object(votes[2],a,votes[1]==='orders'?'order':'contractor');
+      const owner=await this.store.get(target.owner);
+      if(['quarantined','hidden','rejected'].includes(target.moderation_status)||owner?.kind!=='user'||owner.country!==a.country||owner.status!=='active'||target.kind==='contractor'&&owner.verification!=='passed'||target.kind==='order'&&!(target.expires_at>new Date().toISOString())||await this.blocked(a,target.owner))fail(404,'NOT_FOUND','Карточка недоступна');
       if(target.owner===a.id)fail(403,'FORBIDDEN','Нельзя голосовать за свою карточку');
       if(!['open','published'].includes(target.status))fail(409,'STATE_CONFLICT','Карточка недоступна');
       if(method==='DELETE'){await db.query('DELETE FROM votes WHERE voter=$1 AND target=$2',[a.id,target.id]);return {removed:true};}
@@ -691,11 +694,13 @@ export class Marketplace {
       await db.query('INSERT INTO votes(voter,target,value) VALUES($1,$2,$3) ON CONFLICT(voter,target) DO UPDATE SET value=excluded.value,created_at=now()',[a.id,target.id,b.value]);return {target_id:target.id,value:b.value};
     }
     if(path==='/top-listings'&&method==='GET') {
+      if(q.target_type!==undefined&&!['orders','services'].includes(q.target_type)||q.sort!==undefined&&!['popular','new'].includes(q.sort)||q.country!==undefined&&q.country!==a.country||['city','category_id'].some(key=>q[key]!==undefined&&(typeof q[key]!=='string'||q[key].length>100)))fail(400,'VALIDATION_ERROR','Проверьте тип, страну и фильтры Топа');
       const kind=q.target_type==='orders'?'order':'contractor';await this.entitlement(a,'search_full',kind==='order');
-      const candidates=(await this.store.all(kind,a.country)).filter(x=>x.status===(kind==='order'?'open':'published'));
-      const counts=(await db.query<any>('SELECT target,COUNT(*) FILTER(WHERE value=1) AS likes,COUNT(*) FILTER(WHERE value=-1) AS dislikes FROM votes WHERE created_at>now()-interval \'30 days\' GROUP BY target')).rows;
-      const ranked=candidates.map(c=>{const v=counts.find(v=>v.target===c.id);const likes=Number(v?.likes??0),dislikes=Number(v?.dislikes??0);const age=(Date.now()-new Date(c.published_at??c.created_at).getTime())/86400000;return {...publicContent(c),likes,dislikes,organic_score:Math.max(0,Math.log1p(likes)-.5*Math.log1p(dislikes))*Math.exp(-age/30)};}).sort((a,b)=>b.organic_score-a.organic_score||b.likes-a.likes||b.created_at.localeCompare(a.created_at)||a.id.localeCompare(b.id));
-      return {items:ranked.slice(0,100),promotions:[],meta:{algorithm_version:1,calculated_at:new Date().toISOString()}};
+      const config=(await this.store.all('ranking_config',a.country)).find(r=>r.status==='effective');
+      const parameters=rankingParameters(config?.payload??{window_days:settings.ranking_window_days,dislike_weight:settings.ranking_dislike_weight,age_days:settings.ranking_age_days});
+      const candidates=await this.store.select(kind,a.country,{statuses:[kind==='order'?'open':'published'],publicActor:a.id,city:q.city,category:q.category_id,limit:100,ranking:{...parameters,sort:q.sort??'popular'}});
+      const items=kind==='contractor'?await contractorPresentation(this.store,a.country,candidates):candidates.map(row=>({...publicContent(row),exact_address:undefined}));
+      return {items,promotions:[],meta:{algorithm_version:config?.version??1,algorithm_id:config?.id??null,parameters,sort:q.sort??'popular',calculated_at:new Date().toISOString()}};
     }
     const reviews=path.match(/^\/(customers|contractors)\/([^/]+)\/reviews$/);
     if(reviews&&method==='GET'){await this.entitlement(a,'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status)),q);}
@@ -1177,7 +1182,7 @@ export class Marketplace {
     }
     const selected=await this.store.select(kind,a.country,{...options,...filters,limit:limit+1,after,city:filters.workMode==='remote'?undefined:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
     const batch=selected.slice(0,limit);
-    const items:RecordData[]=options.publicActor&&kind==='contractor'?await contractorPresentation(this.store,a.country,batch):batch.map(x=>options.publicActor&&kind==='order'?{...x,exact_address:undefined}:x);
+    const items:RecordData[]=options.publicActor&&kind==='contractor'?await contractorPresentation(this.store,a.country,batch):batch.map(x=>options.publicActor&&kind==='order'?{...publicContent(x),exact_address:undefined}:x);
     return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};
   }
   private async portfolioPage(records:RecordData[],q:any) {

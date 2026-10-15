@@ -61,7 +61,8 @@ void main() {
       'photo-view': 'portfolio-project',
       'login-error': 'login',
       'appeal': 'case',
-      'appeal-sent': 'case'
+      'appeal-sent': 'case',
+      'top-orders': 'top'
     };
     final roots = (audit['frames'] as List).cast<Json>().where((f) =>
         f['surface'] == 'mobile' &&
@@ -428,6 +429,13 @@ void main() {
           'linked_completed_order': true,
           'photos': ['visual-interior', 'visual-kitchen']
         };
+      else if (path == '/top-listings')
+        data = {'items': [
+          for (final entry in ['Алексей К.', 'Николай С.'].indexed)
+            {'id':'visual-top-${entry.$1}', 'title': request.url.queryParameters['target_type'] == 'orders' ? 'Нужно покрасить комнату' : entry.$1 == 0 ? 'Ремонт и отделка' : 'Сантехника и электрика',
+             'display_name':entry.$2, 'city':'Алматы', 'likes':entry.$1 == 0 ? 128 : 96, 'dislikes':entry.$1 == 0 ? 4 : 2,
+             'my_vote':null, 'rating':{'average':4.9,'count':32}}
+        ], 'promotions': [], 'meta':{'calculated_at':'2026-10-15T09:40:00Z'}};
       else if (path == '/me/referrals')
         data = {
           'code': 'JOBA-VISUAL',
@@ -558,6 +566,10 @@ void main() {
       final errors = <String>[];
       try {
         await tester.pumpAndSettle();
+        if (route == 'top-orders') {
+          await tester.tap(find.text('Заказы'));
+          await tester.pumpAndSettle();
+        }
         if (route == 'profile-pending')
           expect(find.text('Получили изменения'), findsOneWidget);
         if (route == 'portfolio-pending')

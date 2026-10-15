@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 154,
-    "not_captured": 33,
+    "captured": 155,
+    "not_captured": 32,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -384,7 +384,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.205303,
+      "different_pixels_ratio": 0.205301,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1902,7 +1902,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.244171,
+      "different_pixels_ratio": 0.244161,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1960,7 +1960,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.196501,
+      "different_pixels_ratio": 0.196821,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1985,7 +1985,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.05725,
+      "different_pixels_ratio": 0.062192,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2135,7 +2135,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.178847,
+      "different_pixels_ratio": 0.198287,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2148,7 +2148,24 @@
       "route": "top-orders",
       "reference": "mobile/screens/S41.orders-top-orders.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S41.orders-top-orders.png",
+      "actual_route": "top",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.109736,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {

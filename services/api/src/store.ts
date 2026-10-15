@@ -32,12 +32,13 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0003_rate_limits.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0004_account_views.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0005_invite_queries.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0006_ranking_votes.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number}={}) {
+  async select(kind:string,country:string,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
@@ -73,6 +74,20 @@ export class Store {
       if(kind==='order')where.push("(data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP");
     }
     if(options.search){const parameter=bind('%'+options.search+'%');where.push(`(id::text ILIKE ${parameter} OR owner ILIKE ${parameter} OR data->>'event' ILIKE ${parameter} OR data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);}
+    if(options.ranking){
+      const ranking=options.ranking,cutoff=bind(new Date(Date.now()-ranking.windowDays*86400000).toISOString());
+      const alpha=bind(ranking.dislikeWeight),decay=bind(ranking.ageDays),viewer=options.publicActor?bind(options.publicActor):undefined;
+      const published="COALESCE(NULLIF(data->>'published_at','')::timestamptz,(data->>'created_at')::timestamptz)";
+      const likes='COALESCE(vcounts.likes,0)',dislikes='COALESCE(vcounts.dislikes,0)';
+      const score=`GREATEST(0,LN(1+${likes})-${alpha}::numeric*LN(1+${dislikes}))*EXP(-GREATEST(0,EXTRACT(EPOCH FROM(CURRENT_TIMESTAMP-${published}))/86400)/${decay}::numeric)`;
+      const mine=viewer?`(SELECT value FROM votes mine WHERE mine.voter=${viewer}::uuid AND mine.target=r.id)`:'NULL';
+      const order=ranking.sort==='new'?`${published} DESC,r.id ASC`:`${score} DESC,${likes} DESC,${published} DESC,r.id ASC`;
+      const result=await this.db.query<{data:RecordData}>(`SELECT r.data || jsonb_build_object('likes',${likes},'dislikes',${dislikes},'organic_score',${score},'my_vote',${mine}) AS data FROM records r
+        LEFT JOIN(SELECT v.target,count(*) FILTER(WHERE v.value=1) AS likes,count(*) FILTER(WHERE v.value=-1) AS dislikes FROM votes v JOIN records target ON target.id=v.target
+          WHERE target.kind=$1 AND target.country=$2 AND v.created_at>${cutoff}::timestamptz AND v.voter::text<>target.owner GROUP BY v.target)vcounts ON vcounts.target=r.id
+        WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ${bind(options.limit??100)}`,args);
+      return result.rows.map(row=>row.data);
+    }
     const limit=options.limit??101;const r=await this.db.query<{data:RecordData}>('SELECT data FROM records r WHERE '+where.join(' AND ')+' ORDER BY id LIMIT '+bind(limit),args);return r.rows.map(r=>r.data);
   }
   async read(id:string):Promise<RecordData|undefined>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))return undefined;return (await this.db.query<{data:RecordData}>('SELECT data FROM records WHERE id=$1',[id])).rows[0]?.data;}

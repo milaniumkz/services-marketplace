@@ -7,6 +7,7 @@ import 'appeal_editor.dart';
 import 'action_receipt.dart';
 import 'content_review_receipt.dart';
 import 'privacy_export.dart';
+import 'top_listings.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -1212,24 +1213,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'terms':
         return termsScreen();
       case 'top':
-        return page(
-            'Топ-100',
-            paged(
-                '/top-listings',
-                (r) => DataCard('${r['title']}',
-                    subtitle: '${r['likes']} 👍 · ${r['dislikes']} 👎',
-                    onTap: () => go(executor ? 'order' : 'contractor', r['id']),
-                    footer: Row(children: [
-                      IconButton(
-                          tooltip: localize(context, 'Нравится'),
-                          icon: const Icon(Icons.thumb_up_outlined),
-                          onPressed: () => vote(r, 1)),
-                      IconButton(
-                          tooltip: localize(context, 'Не нравится'),
-                          icon: const Icon(Icons.thumb_down_outlined),
-                          onPressed: () => vote(r, -1))
-                    ])),
-                query: {'target_type': executor ? 'orders' : 'services'}));
+        return page('Топ-100', TopListings(api: api, initialCity: me?['city'] ?? '',
+          onOpen: (type, id) => go(type == 'orders' ? 'order' : 'contractor', id)));
       case 'promotion':
         return promotionScreen();
       default:
@@ -5062,13 +5047,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   child: const UiText('Поддержка'))
             ]);
           }));
-  void vote(Json r, int value) => act(() async {
-        await api.request(
-            '/listing-votes/${executor ? 'orders' : 'services'}/${r['id']}',
-            method: 'PUT',
-            body: {'value': value});
-        setState(() => revision++);
-      });
   Widget promotionScreen() => page(
       'Продвинуть объявление',
       loaded(
