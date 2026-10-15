@@ -9,6 +9,14 @@ import 'content_review_receipt.dart';
 import 'privacy_export.dart';
 import 'top_listings.dart';
 import 'revoke_session.dart';
+import 'device_setup.dart';
+import 'commerce_states.dart';
+import 'promotion_purchase.dart';
+import 'privacy_states.dart';
+import 'geo_states.dart';
+import '../core/commerce_gateway.dart';
+import 'work_states.dart';
+import 'portfolio_photos.dart';
 import 'promotions_history.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
@@ -112,12 +120,13 @@ int minor(String value) {
 }
 
 class Marketplace extends StatefulWidget {
+  final CommerceGateway commerceGateway;
   final JobaApi? api;
   final ValueChanged<String>? onLocaleChanged;
   final RegionGateway? regions;
   final DevicePreferences? preferences;
   const Marketplace(
-      {this.api,
+      {this.api, this.commerceGateway=const DisconnectedCommerceGateway(),
       this.onLocaleChanged,
       this.regions,
       this.preferences,
@@ -708,8 +717,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   Widget screen() {
     switch (route) {
+      case 'pin-setup':
       case 'lock-setup':
         return lockSetup();
+      case 'biometric':
+        return page('Биометрия',BiometrySetup(onPin:()=>go(locked?'unlock':'pin-setup'),onEnable:()async{
+          await lock!.enableBiometry();await api.setPersistence(true);localProtected=true;finishLocalSetup();
+        }),titleOffset:-12);
+      case 'pin-limit':
+        return page('Нужен полный вход',ListView(padding:const EdgeInsets.all(20),children:[JobaStatePanel(icon:'lock',title:'Войдите снова',message:'После 5 неверных попыток PIN локальная разблокировка отключена для безопасности.',primaryLabel:'Войти номером и паролем',onPrimary:()=>go('login'),secondaryLabel:'Помощь со входом',onSecondary:()=>go('recovery'))]),titleOffset:-12);
       case 'unlock':
         return unlockScreen();
       case 'banned':
@@ -879,6 +895,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return offerScreen();
       case 'offers':
         return offersScreen();
+      case 'invited':
+      case 'offer-revision':
+      case 'amendment':
+      case 'frozen-chat':
+      case 'rework':
+      case 'cancel-pending':
+        return page({'invited':'Приглашение отправлено','offer-revision':'Условия изменились','amendment':'Новые условия','frozen-chat':'Чат временно закрыт','rework':'Нужна доработка','cancel-pending':'Отмена на согласовании'}[route]!,WorkStateScreen(key:ValueKey('work-state:$route:$objectId'),api:api,mode:route,id:objectId!,onGo:(r,id)=>go(r,id),pickPhoto:()=>pickUpload('order')),titleOffset:-12);
       case 'my-offers':
         return page(
             'Мои отклики',
@@ -897,39 +920,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             outline: true),
                         button(
                             'Подтвердить актуальные условия',
-                            () => act(() async {
-                                  final order = await api.request(
-                                      '/orders/${r['order_id']}') as Json;
-                                  if (!mounted) return;
-                                  final confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder: (c) => AlertDialog(
-                                              title: const UiText(
-                                                  'Условия заказа'),
-                                              content: Text(
-                                                  '${order['title']}\n${order['description']}'),
-                                              actions: [
-                                                TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(c, false),
-                                                    child:
-                                                        const UiText('Отмена')),
-                                                TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(c, true),
-                                                    child: const UiText(
-                                                        'Подтвердить'))
-                                              ]));
-                                  if (confirmed != true) return;
-                                  await api.request(
-                                      '/offers/${r['id']}/acknowledge',
-                                      method: 'POST',
-                                      body: {
-                                        'expected_version': r['version'],
-                                        'order_revision': order['revision']
-                                      });
-                                  if (mounted) setState(() => revision++);
-                                }),
+                            () => go('offer-revision', r['id']),
                             outline: true),
                       ],
                       if (r['status'] == 'active')
@@ -946,6 +937,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     ]))));
       case 'roles':
         return rolesScreen();
+      case 'country-unavailable':
+      case 'gps-denied':
+      case 'map':
+        return page({'country-unavailable':'Доступность региона','gps-denied':'Геолокация выключена','map':'Специалисты на карте'}[route]!,GeoStates(key:ValueKey('geo-state:$route:$revision'),api:api,mode:route,country:country,filters:listingFilters,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'location':
         return locationScreen();
       case 'filters':
@@ -977,6 +972,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 onCreate: () => go('create'),
                 initialFilters: listingFilters,
                 tile: contractorCard),
+            actions:[IconButton(tooltip:localize(context,'На карте'),onPressed:()=>go('map'),icon:const JobaIcon('pin'))],
             nav: !['empty', 'error', 'offline'].contains(catalogPresentation));
       case 'contractor':
         return contractorScreen();
@@ -1092,19 +1088,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'access':
       case 'my-access':
         return accessScreen();
+      case 'checkout':
+      case 'manage-subscription':
+      case 'subscription-canceled':
+      case 'payment-pending':
+      case 'restore':
+      case 'reward-granted':
+      case 'reward-nofill':
+      case 'reward-pending':
       case 'reward':
-        return page(
-            'Рекламная награда',
-            loaded(
-                '/me/monetization-config',
-                (data, reload) => listBody([
-                      const UiHeading('Больше возможностей',
-                          'Доступ выдаётся только после подтверждения рекламной сети.'),
-                      Notice(data['rewarded_access_enabled'] == true
-                          ? 'Рекламная сеть ещё не подключена.'
-                          : 'Рекламные награды сейчас отключены.'),
-                      button('Мой доступ', () => go('my-access'), outline: true)
-                    ])));
+        return page({'checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Рекламная награда'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'export':
         return page('Экспорт моих данных',
             ExportIntro(onRequest: () => privacyRequest('export', () {})),
@@ -1134,6 +1127,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         success('Загрузка передана браузеру');
                     })),
             titleOffset: -12);
+      case 'consents':
+      case 'delete-account':
+      case 'delete-confirm':
+      case 'delete-scheduled':
+        return page({'consents':'Мои согласия','delete-account':'Удалить аккаунт','delete-confirm':'Подтвердить удаление','delete-scheduled':'Запрос на удаление'}[route]!,PrivacyStates(key:ValueKey('privacy-state:$route:$objectId'),api:api,mode:route,id:objectId,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'privacy':
         return privacyScreen();
       case 'security':
@@ -1198,6 +1196,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return portfolioScreen();
       case 'portfolio-edit':
         return projectScreen();
+      case 'portfolio-photos':
+        return page('Фото проекта',PortfolioPhotos(key:ValueKey('photos:$objectId:$revision'),api:api,id:objectId!,onDone:()=>go('portfolio-project',objectId)),titleOffset:-12);
       case 'portfolio-project':
         return objectId == null ? projectScreen() : ownProjectDetailScreen();
       case 'verification':
@@ -1225,13 +1225,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           onOpen: (type, id) => go(type == 'orders' ? 'order' : 'contractor', id)));
       case 'promotion-history':
         return page('Мои продвижения', PromotionsHistory(api: api, dateLabel: dateLabel,
-          onNew: () => go('promotion'), onOpen: (r) => go(r['status'] == 'resolution_required' ? 'promotion-resolution' : 'promotion-pending', r['id'])), titleOffset: -12);
+          onNew: () => go('promotion'), onTerms: () => go('promotion-terms'), onOpen: (r) => go(r['status'] == 'resolution_required' ? 'promotion-resolution' : 'promotion-pending', r['id'])), titleOffset: -12);
       case 'promotion-pending':
       case 'promotion-resolution':
         return page(route == 'promotion-resolution' ? 'Нужно решение по оплате' : 'Проверка продвижения', PromotionStatus(api: api, id: objectId ?? '',
           onHistory: () => go('promotion-history'), onSupport: () => go('support')), titleOffset: -12);
+      case 'promotion-checkout':
+      case 'promotion-no-slots':
+      case 'promotion-terms':
       case 'promotion':
-        return promotionScreen();
+        return page({'promotion':'Продвинуть объявление','promotion-checkout':'Проверить продвижение','promotion-no-slots':'Нет доступных мест','promotion-terms':'Условия размещения'}[route]!,PromotionPurchase(key:ValueKey('promotion:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       default:
         return page(
             'JOBA',
@@ -1506,46 +1509,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       go('terms');
   }
 
-  Widget lockSetup() => page(
-      'Защитите вход',
-      ActionForm(
-          fields: const [
-            InputSpec('pin', 'PIN · 6–8 цифр',
-                secret: true, keyboard: TextInputType.number),
-            InputSpec('repeat', 'Повторите PIN',
-                secret: true, keyboard: TextInputType.number)
-          ],
-          before: const [
-            UiHeading('Быстрый вход', 'PIN хранится только на этом устройстве.')
-          ],
-          button: 'Сохранить PIN',
-          submit: (v) async {
-            if (v['pin'] != v['repeat'])
-              throw ApiException('PIN_INVALID', 'PIN не совпадает');
-            await lock!.configure(v['pin']!);
-            await api.setPersistence(true);
-            localProtected = true;
-            finishLocalSetup();
-          },
-          after: [
-            button(
-                'Использовать биометрию',
-                () => act(() async {
-                      await lock!.enableBiometry();
-                      await api.setPersistence(true);
-                      localProtected = true;
-                      finishLocalSetup();
-                    }),
-                outline: true),
-            button(
-                'Входить с паролем',
-                () => act(() async {
-                      await api.setPersistence(false);
-                      localProtected = false;
-                      finishLocalSetup();
-                    }),
-                outline: true)
-          ]));
+  Widget lockSetup() => page('Защитите приложение',PinSetup(onSave:(pin,bio)async{
+    await lock!.configure(pin);
+    if(bio){try{await lock!.enableBiometry();}catch(_){success('PIN сохранён. Биометрия недоступна.');}}
+    await api.setPersistence(true);localProtected=true;finishLocalSetup();
+  },onPassword:()async{await api.setPersistence(false);localProtected=false;finishLocalSetup();}),titleOffset:-12);
   Widget unlockScreen() => Scaffold(
       appBar: AppBar(title: const UiText('Разблокировка JOBA')),
       body: ActionForm(
@@ -1576,7 +1544,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 });
               connectEvents();
             } on ApiException catch (e) {
-              if (e.code == 'PIN_EXHAUSTED') await api.forget();
+              if (e.code == 'PIN_EXHAUSTED') { await api.forget(); if(mounted)go('pin-limit'); }
               rethrow;
             }
           },
@@ -1606,7 +1574,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           });
                         connectEvents();
                       } on ApiException catch (e) {
-                        if (e.code == 'PIN_EXHAUSTED') await api.forget();
+                        if (e.code == 'PIN_EXHAUSTED') { await api.forget(); if(mounted)go('pin-limit'); }
                         rethrow;
                       }
                     }),
@@ -1890,11 +1858,19 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 ]))));
   }
 
+  Future<void> nearMe() async {
+    final scope=route;
+    try {final value=await const MethodChannel('joba.location').invokeMapMethod<String,dynamic>('current');
+      if(!mounted||route!=scope)return;
+      if(value==null)throw ApiException('GPS_DENIED','Выберите город вручную');
+      listingFilters={...listingFilters,'near_lat':((value['latitude'] as num)*100).round()/100,'near_lon':((value['longitude'] as num)*100).round()/100,'radius_km':50};go('map');
+    } catch(_){if(mounted)go('gps-denied');}
+  }
   Widget locationScreen() => page(
       'Где искать?',
       loaded(
           '/geo/cities',
-          (data, reload) => CitySelector(
+          (data, reload) => Column(children:[Padding(padding:const EdgeInsets.all(12),child:OutlinedButton(onPressed:()=>act(nearMe),child:const UiText('Рядом со мной'))),Expanded(child:CitySelector(
               cities: items(data),
               countryLabel: countryName(country),
               initial: me?['city'] ?? '',
@@ -1906,7 +1882,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 if (!mounted) return;
                 setState(() => me = user);
                 back();
-              })));
+              }))])));
   Widget homeScreen() => page(
       'JOBA',
       ListView(children: [
@@ -2852,15 +2828,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               final command = ['draft', 'open'].contains(order['status'])
                   ? 'cancel'
                   : 'cancel-requests';
-              await api.request('/orders/${order['id']}/$command',
+              final result = await api.request('/orders/${order['id']}/$command',
                   method: 'POST',
                   body: {
                     'expected_version': order['version'],
                     'reason':
                         '${localize(context, reasons[cancellationReason]!)}. ${fields['comment'] ?? ''}'
                   });
-              go(command == 'cancel' ? 'order' : 'change-requests',
-                  order['id']);
+              go(command == 'cancel' ? 'order' : 'cancel-pending',
+                  command == 'cancel' ? order['id'] : result['id']);
             });
       }));
   Widget orderScreen() => page(
@@ -2875,6 +2851,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               subtitle:
                   '${o['city']} · ${price(o['budget_amount'], o['currency'])}'),
           Text('${o['description']}', style: const TextStyle(height: 1.6)),
+          if ((owner || assigned) && o['revision_reason'] != null) ...[
+            const Heading('Комментарий исполнителю'),
+            Text('${o['revision_reason']}'),
+            for (final id in o['revision_upload_ids'] as List? ?? []) PrivatePhoto(api:api,id:id),
+          ],
           if (owner && o['status'] == 'draft')
             button(
                 'Опубликовать заказ', () => orderCommand(o, 'publish', reload)),
@@ -2904,7 +2885,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           if (owner && o['status'] == 'completion_requested') ...[
             button('Проверить результат', () => go('complete', o['id'])),
             button('Запросить доработку',
-                () => reasonCommand(o, 'request-revision', reload),
+                () => go('rework',o['id']),
                 outline: true)
           ],
           if ((owner || assigned) &&
@@ -2915,7 +2896,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           if ((owner || assigned) &&
               ['assigned', 'in_progress', 'completion_requested']
                   .contains(o['status'])) ...[
-            button('Согласовать новые условия', () => amendmentForm(o, reload),
+            button('Согласовать новые условия', () => go('amendment',o['id']),
                 outline: true),
             button('Запросы изменения и отмены',
                 () => go('change-requests', o['id']),
@@ -3460,10 +3441,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           locale: locale,
           period: windowLabel,
           onCreateOrder: () => go('create'),
-          onSent: () {
-            success('Приглашение отправлено');
-            back();
-          }));
+          onSent: (id) => go('invited',id)));
 
   Widget invitationsScreen() => page(
       'Приглашения',
@@ -3603,7 +3581,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           }));
   Widget chatScreen(bool support) => page(
       support ? 'Поддержка JOBA' : 'Чат заказа',
-      MessageThread(
+      support ? messageThread(true) : ApiView(key:ValueKey('conversation:$objectId'),load:()=>api.request('/conversations/$objectId'),builder:(context,r,reload)=>r['blocked']==true?WorkStateScreen(api:api,mode:'frozen-chat',id:objectId!,onGo:(r,id)=>go(r,id),pickPhoto:()=>pickUpload('order')):messageThread(false)));
+  Widget messageThread(bool support) => MessageThread(
           key: ValueKey('thread:$objectId'),
           api: api,
           path: support
@@ -3611,7 +3590,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               : '/conversations/$objectId/messages',
           owner: me!['id'],
           conversationId: support ? null : objectId,
-          revision: revision));
+          revision: revision);
   Widget recoveryChat() {
     if (recovery == null)
       return page(
@@ -4056,6 +4035,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       subtitle: '${r['ends_at'] ?? ''}'),
                 const Notice(
                     'Оплата и восстановление покупок станут доступны после подключения платёжной системы.'),
+                button('Подписка JOBA', () => go('checkout')),
+                button('Управление подпиской', () => go('manage-subscription'),outline:true),
+                button('Восстановить покупку', () => go('restore'),outline:true),
                 button('Рекламная награда', () => go('reward'), outline: true),
                 button('Поддержка', () => go('support'), outline: true),
               ])));
@@ -4074,7 +4056,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       status: status(r),
                       onTap: r['type'] == 'export'
                           ? () => go('export-pending', r['id'])
-                          : null,
+                          : () => go('delete-scheduled',r['id']),
                       footer: Column(children: [
                         if (r['type'] == 'export' &&
                             r['status'] == 'completed' &&
@@ -4089,7 +4071,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     if (result == ExportResult.started)
                                       success('Загрузка передана браузеру');
                                   })),
-                        if (['requested', 'awaiting_retention_policy']
+                        if (['requested', 'awaiting_retention_policy','scheduled','awaiting_resolution']
                             .contains(r['status']))
                           button(
                               'Отменить запрос',
@@ -4107,10 +4089,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 button('Обновить статус', reload, outline: true),
                 button('Экспортировать данные', () => go('export')),
                 button(
-                    'Удалить аккаунт', () => privacyRequest('delete', reload),
+                    'Удалить аккаунт', () => go('delete-account'),
                     outline: true),
                 button('Правовые документы', () => go('legal'), outline: true),
-                button('Согласия и документы', () => go('terms'),
+                button('Согласия и документы', () => go('consents'),
                     outline: true),
               ])));
   void privacyRequest(String type, VoidCallback reload) => Navigator.push(
@@ -4159,7 +4141,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   JobaMenuEntry(
                       'PIN приложения', 'lock', () => go('lock-setup'),
                       subtitle: result[1] == true ? 'Настроен' : 'Не настроен'),
-                  JobaMenuEntry('Биометрия', 'face', () => go('lock-setup'),
+                  JobaMenuEntry('Биометрия', 'face', () => go('biometric'),
                       subtitle: result[2] == true
                           ? 'Включена на этом устройстве'
                           : 'Не настроена'),
@@ -4837,6 +4819,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   if (p != null) ...[
                     Notice(
                         '${localize(context, status(p))} · ${(p['photos'] as List).length} ${localize(context, 'фото')}'),
+                    button('Фото проекта',()=>go('portfolio-photos',p['id']),outline:true),
                     for (final photo in p['photos'] as List) ...[
                       PrivatePhoto(api: api, id: photo),
                       Row(children: [
@@ -5073,12 +5056,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 }
 
 class MessageThread extends StatefulWidget {
+  final CommerceGateway commerceGateway;
   final JobaApi api;
   final String path, owner;
   final String? capability, conversationId;
   final int revision;
   const MessageThread(
-      {required this.api,
+      {this.commerceGateway=const DisconnectedCommerceGateway(), required this.api,
       required this.path,
       required this.owner,
       this.capability,

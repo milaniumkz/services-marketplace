@@ -3,7 +3,7 @@ export interface VerifiedPurchase {
   provider: string; transaction_id: string; original_transaction_id: string;
   user_id: string; country: string; product_id: string; environment: 'sandbox' | 'production';
   amount_minor: number; currency: string; valid_until: string;
-  state: 'active' | 'grace' | 'billing_retry' | 'paused' | 'expired' | 'revoked' | 'canceled_at_period_end';
+  state: 'pending' | 'active' | 'grace' | 'billing_retry' | 'paused' | 'expired' | 'revoked' | 'canceled_at_period_end';
   revision: number;
 }
 export interface BillingProvider {

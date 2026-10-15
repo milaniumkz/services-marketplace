@@ -193,6 +193,8 @@ void main() {
             503,
             headers: {'content-type': 'application/json; charset=utf-8'});
       }
+      if(path.endsWith('/orders/working-order/invites'))return _ok({'id':'sent-invite','order_id':'working-order','status':'pending'});
+      if(path.endsWith('/order-invites/sent-invite'))return _ok({'id':'sent-invite','order_id':'working-order','status':'pending'});
       if (path.endsWith('/me/order-invites'))
         return _ok({
           'items': [
@@ -328,8 +330,8 @@ void main() {
     expect(sentInvites.length, 2);
     expect(
         jsonDecode(sentInvites.last.body)['message'], 'Подойдут ли вам сроки?');
-    expect(state.route, 'home');
-    expect(find.text('Найдём ваш\nследующий заказ'), findsOneWidget);
+    expect(state.route, 'invited');
+    expect(find.text('Приглашение\nотправлено'), findsOneWidget);
 
     state.reportObject('contractor', 'contractor');
     await tester.pumpAndSettle();

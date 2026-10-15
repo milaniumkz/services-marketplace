@@ -2,9 +2,11 @@ import Flutter
 import UIKit
 import Security
 import LocalAuthentication
+import CoreLocation
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private var locationService: JobaLocationService?
   private var fileExporter: JobaFileExporter?
   override func application(
     _ application: UIApplication,
@@ -13,6 +15,11 @@ import LocalAuthentication
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       fileExporter = JobaFileExporter(controller: controller)
+      locationService = JobaLocationService()
+      let locationChannel = FlutterMethodChannel(name: "joba.location", binaryMessenger: controller.binaryMessenger)
+      locationChannel.setMethodCallHandler { [weak self] call, result in
+        if call.method == "current" { self?.locationService?.request(result) } else { result(FlutterMethodNotImplemented) }
+      }
       let sharing = FlutterMethodChannel(name: "joba.share", binaryMessenger: controller.binaryMessenger)
       sharing.setMethodCallHandler { [weak controller] call, result in
         guard call.method == "text" else { result(FlutterMethodNotImplemented); return }
@@ -121,5 +128,37 @@ private final class JobaFileExporter: NSObject, UIDocumentPickerDelegate, UIAdap
   func presentationControllerDidDismiss(_ presentationController: UIPresentationController) { let result = pending; pending = nil; result?(false) }
   func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
     let result = pending; pending = nil; result?(false)
+  }
+}
+
+private final class JobaLocationService: NSObject, CLLocationManagerDelegate {
+  private let manager = CLLocationManager()
+  private var completion: FlutterResult?
+  private var generation = 0
+  override init() { super.init(); manager.delegate=self;manager.desiredAccuracy=kCLLocationAccuracyKilometer }
+  func request(_ result: @escaping FlutterResult) {
+    guard completion == nil else { result(FlutterError(code:"LOCATION_BUSY",message:"Location request is active",details:nil));return }
+    completion=result
+    generation += 1
+    let requestGeneration = generation
+    switch CLLocationManager.authorizationStatus() {
+    case .notDetermined: manager.requestWhenInUseAuthorization()
+    case .authorizedAlways, .authorizedWhenInUse: manager.requestLocation()
+    default: finish(nil)
+    }
+    DispatchQueue.main.asyncAfter(deadline:.now()+15) { [weak self] in guard let self = self, self.generation == requestGeneration else { return }; self.finish(nil) }
+  }
+  func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+    guard completion != nil else { return }
+    if status == .authorizedWhenInUse || status == .authorizedAlways { manager.requestLocation() }
+    else if status != .notDetermined { finish(nil) }
+  }
+  func locationManager(_ manager: CLLocationManager, didUpdateLocations locations:[CLLocation]) { finish(locations.last) }
+  func locationManager(_ manager: CLLocationManager, didFailWithError error:Error) { finish(nil) }
+  private func finish(_ location:CLLocation?) {
+    guard let result=completion else { return };completion=nil
+    if let location=location,location.horizontalAccuracy>=0,abs(location.timestamp.timeIntervalSinceNow)<300 {
+      result(["latitude":location.coordinate.latitude,"longitude":location.coordinate.longitude])
+    } else { result(FlutterError(code:"GPS_DENIED",message:"Choose a city manually",details:nil)) }
   }
 }

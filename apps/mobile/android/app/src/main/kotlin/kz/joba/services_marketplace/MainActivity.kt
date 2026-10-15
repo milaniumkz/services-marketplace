@@ -19,6 +19,38 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKeyFactory
 
 class MainActivity : FlutterFragmentActivity() {
+    private var locationResult: MethodChannel.Result? = null
+    private val locationRequest = 18035
+    private fun locate(result: MethodChannel.Result) {
+        if (locationResult != null) { result.error("LOCATION_BUSY", "Location request is active", null); return }
+        locationResult=result
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            androidx.core.app.ActivityCompat.requestPermissions(this,arrayOf(android.Manifest.permission.ACCESS_COARSE_LOCATION),locationRequest)
+        } else readLocation()
+    }
+    override fun onRequestPermissionsResult(requestCode:Int, permissions:Array<out String>, grants:IntArray) {
+        super.onRequestPermissionsResult(requestCode,permissions,grants)
+        if(requestCode==locationRequest) {
+            if(grants.isNotEmpty()&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED) readLocation()
+            else { locationResult?.error("GPS_DENIED","Choose a city manually",null);locationResult=null }
+        }
+    }
+    private fun readLocation() {
+        val result=locationResult?:return
+        val manager=getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+        fun finish(location:android.location.Location?) {
+            if(locationResult!==result)return
+            locationResult=null
+            if(location==null)result.error("LOCATION_UNAVAILABLE","Choose a city manually",null)
+            else result.success(mapOf("latitude" to location.latitude,"longitude" to location.longitude))
+        }
+        try {
+            if(!manager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) { finish(null);return }
+            if(android.os.Build.VERSION.SDK_INT>=30) manager.getCurrentLocation(android.location.LocationManager.NETWORK_PROVIDER,null,mainExecutor){location->finish(location)}
+            else {val location=manager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER);finish(if(location!=null&&System.currentTimeMillis()-location.time<300000)location else null)}
+            android.os.Handler(mainLooper).postDelayed({finish(null)},15000)
+        } catch (_:Exception) { finish(null) }
+    }
     private var exportResult: MethodChannel.Result? = null
     private var exportSource: java.io.File? = null
     private val exportRequest = 18034
@@ -61,6 +93,9 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
+        MethodChannel(engine.dartExecutor.binaryMessenger,"joba.location").setMethodCallHandler {call,result->
+            if(call.method=="current")locate(result) else result.notImplemented()
+        }
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.share").setMethodCallHandler { call, result ->
             if (call.method != "text") { result.notImplemented() }
             else {

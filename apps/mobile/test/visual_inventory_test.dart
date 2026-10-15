@@ -226,6 +226,16 @@ void main() {
           return http.Response.bytes(pictures[id]!, 200,
               headers: {'content-type': 'image/png'});
       }
+      if(path=='/order-invites/visual-object'||path=='/cancel-requests/visual-object')return response({'id':'visual-object','order_id':'visual-object','status':'pending','owner':user['id'],'version':1});
+      if(path=='/conversations/visual-object')return response({'id':'visual-object','order_id':'visual-object','order_title':'Сборка кухни','status':'frozen','blocked':true});
+      if(path=='/me/subscriptions/visual-object')return response({'id':'visual-object','status':route=='subscription-canceled'?'canceled_at_period_end':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}});
+      if(path=='/me/purchase-checks/visual-object')return response({'id':'visual-object','status':'pending'});
+      if(path=='/billing/offers')return response({'items':[{'id':'visual-offer','title':'Полный доступ','amount_minor':249000,'currency':'KZT','period':'month','provider':'isolated','product_id':'monthly','product_type':'subscription'}]});
+      if(path=='/ads/reward-sessions/visual-object')return response({'id':'visual-object','status':route=='reward-granted'?'granted':'pending','grant':route=='reward-granted'?{'valid_until':'2026-12-13T09:41:00Z','capabilities':['search_full']}:null});
+      if(path=='/me/processing-consents')return response({'version':1,'marketing':false,'ad_personalization':false,'optional_analytics':false});
+      if(path=='/me/deletion-preview')return response({'active_orders':2,'policy_ready':true,'grace_hours':24});
+      if(path=='/boost-offers')return response({'items':[{'id':'visual-price','amount_minor':199000,'currency':'KZT','period':'week','provider':'isolated','product_id':'boost'}],'placements':[{'id':'visual-placement','title':'Каталог услуг','payload':{'placement_id':'search.services.promoted','capacity':1}}]});
+      if(path=='/contractors/map')return response({'items':[{...profile,'id':'visual-profile','display_name':'Алексей К.','public_location':{'latitude':43.24,'longitude':76.91,'approximate':true}}],'meta':{'map_provider_configured':false}});
       dynamic data = {'items': []};
       if (path == '/me')
         data = user;
@@ -245,8 +255,9 @@ void main() {
       else if (path == '/me/privacy-requests/visual-object')
         data = {
           'id': 'visual-object',
-          'type': 'export',
-          'status': 'processing',
+          'type': route=='delete-scheduled'?'delete':'export',
+          'status': route=='delete-scheduled'?'scheduled':'processing',
+          'execute_after':'2026-10-17T09:41:00Z',
           'download_available': false
         };
       else if (path == '/me/restrictions')
@@ -267,7 +278,7 @@ void main() {
       else if (path == '/public/config')
         data = {
           'countries': [
-            {'code': 'KZ', 'name': 'Казахстан'}
+            {'code': 'KZ', 'name': 'Казахстан','stop_new_business':route=='country-unavailable'}
           ]
         };
       else if (path == '/legal/documents')
@@ -375,9 +386,9 @@ void main() {
           'amount': 25000,
           'currency': 'KZT',
           'text': 'Готов выполнить в удобное время',
-          'order_revision': 1,
+          'acknowledged_revision': 1,
           'order_id': 'visual-object',
-          'order': order(),
+          'order': {...order(), if(route=='offer-revision') 'revision':2},
           'executor': profile
         };
       else if (path.endsWith('/offers'))
@@ -430,7 +441,7 @@ void main() {
           'photos': ['visual-interior', 'visual-kitchen']
         };
       else if (path == '/me/boosts/visual-object')
-        data={'id':'visual-object','status':route=='promotion-resolution'?'resolution_required':'payment_pending','payment_confirmed':route=='promotion-resolution'};
+        data={'id':'visual-object','title':'Ремонт и отделка','city':'Алматы','price':{'amount_minor':199000,'currency':'KZT'},'reservation_expires_at':'2026-12-13T09:41:00Z','starts_at':'2026-10-12T09:41:00Z','ends_at':'2026-10-19T09:41:00Z','status':route=='promotion-checkout'?'reserved':route=='promotion-resolution'?'resolution_required':'payment_pending','payment_confirmed':route=='promotion-resolution'};
       else if (path == '/me/boosts')
         data={'items':[{'id':'visual-object','status':'active','title':'Ремонт и отделка','city':'Алматы','placement_id':'search.services.promoted','provenance':'paid','payment_confirmed':true,'starts_at':'2026-10-12T10:00:00Z','ends_at':'2026-10-19T10:00:00Z','price':{'amount_minor':199000,'currency':'KZT'}}]};
       else if (path == '/me/sessions')
@@ -572,6 +583,8 @@ void main() {
       final errors = <String>[];
       try {
         await tester.pumpAndSettle();
+        if(route=='pin-setup'){await tester.enterText(find.byKey(const ValueKey('secure-pin-input')),'123456');FocusManager.instance.primaryFocus?.unfocus();await tester.pumpAndSettle();}
+        if(route=='biometric'){await tester.tap(find.text('Включить биометрию'));await tester.pumpAndSettle();}
         if (route == 'top-orders') {
           await tester.tap(find.text('Заказы'));
           await tester.pumpAndSettle();

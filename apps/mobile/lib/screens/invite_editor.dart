@@ -10,7 +10,8 @@ import '../core/widgets.dart';
 class InviteEditor extends StatefulWidget {
   final JobaApi api;
   final String contractorId, locale;
-  final VoidCallback onCreateOrder, onSent;
+  final VoidCallback onCreateOrder;
+  final ValueChanged<String> onSent;
   final String Function(Json) period;
   const InviteEditor(
       {required this.api,
@@ -42,13 +43,13 @@ class _InviteEditorState extends State<InviteEditor> {
       error = null;
     });
     try {
-      await widget.api.request('/orders/$selected/invites',
+      final result = await widget.api.request('/orders/$selected/invites',
           method: 'POST',
           body: {
             'contractor_id': widget.contractorId,
             'message': message.text
           });
-      if (mounted) widget.onSent();
+      if (mounted) widget.onSent(result['id']);
     } catch (e) {
       if (mounted) setState(() => error = e);
     } finally {

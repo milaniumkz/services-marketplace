@@ -44,6 +44,9 @@ for(const route of routes){
  if(route.method==='POST'&&route.path==='/orders/{id}/invites')route.schema='InviteCreate';
  if(route.method==='POST'&&route.path==='/order-invites/{id}/respond')route.schema='InviteRespond';
 }
+// Owned mobile lifecycle reads and commands; receipts are verified by provider adapters.
+for(const path of ['/order-invites/{id}','/cancel-requests/{id}','/amendments/{id}','/conversations/{id}','/me/subscriptions/{id}','/me/purchase-checks/{id}','/me/processing-consents','/me/deletion-preview','/contractors/map'])add('GET',path);
+for(const path of ['/uploads/{id}/crop','/ads/reward-sessions/{id}/outcome','/me/processing-consents'])add('POST',path);
 const uuid={type:'string',format:'uuid'};
 const schemas={
   InviteCreate:{type:'object',required:['contractor_id'],properties:{contractor_id:uuid,message:{type:'string',maxLength:2000}}},

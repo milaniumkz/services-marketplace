@@ -3125,7 +3125,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "filters",
       "controls": [
         {
           "tag": "a",
@@ -3221,7 +3221,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "map",
       "controls": [
         {
           "tag": "a",
@@ -3311,7 +3311,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "location",
       "controls": [
         {
           "tag": "a",
@@ -3372,7 +3372,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "roles",
       "controls": [
         {
           "tag": "a",
@@ -3426,7 +3426,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "pin-setup",
       "controls": [
         {
           "tag": "a",
@@ -3571,7 +3571,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "biometric",
       "controls": [
         {
           "tag": "a",
@@ -3717,7 +3717,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "portfolio-edit",
       "controls": [
         {
           "tag": "a",
@@ -3785,7 +3785,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "portfolio-photos",
       "controls": [
         {
           "tag": "a",
@@ -3901,7 +3901,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "support-new",
       "controls": [
         {
           "tag": "a",
@@ -4092,7 +4092,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "consents",
       "controls": [
         {
           "tag": "a",
@@ -4156,7 +4156,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "export",
       "controls": [
         {
           "tag": "a",
@@ -4189,7 +4189,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "delete-account",
       "controls": [
         {
           "tag": "a",
@@ -4257,7 +4257,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "delete-confirm",
       "controls": [
         {
           "tag": "a",
@@ -4298,7 +4298,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "checkout",
       "controls": [
         {
           "tag": "a",
@@ -4345,7 +4345,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "promotion-checkout",
       "controls": [
         {
           "tag": "a",
@@ -4385,7 +4385,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "promotion-history",
       "controls": [
         {
           "tag": "a",
@@ -4542,7 +4542,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "banned",
       "controls": [
         {
           "tag": "a",
@@ -4636,7 +4636,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "published",
       "controls": [
         {
           "tag": "a",
@@ -4676,7 +4676,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "pin-limit",
       "controls": [
         {
           "tag": "a",
@@ -4716,7 +4716,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "session-expired",
       "controls": [
         {
           "tag": "a",
@@ -4822,7 +4822,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "gps-denied",
       "controls": [
         {
           "tag": "a",
@@ -4888,7 +4888,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "reward-pending",
       "controls": [
         {
           "tag": "a",
@@ -4921,7 +4921,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "reward-granted",
       "controls": [
         {
           "tag": "a",
@@ -4954,7 +4954,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "reward-nofill",
       "controls": [
         {
           "tag": "a",
@@ -4987,7 +4987,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "payment-pending",
       "controls": [
         {
           "tag": "a",
@@ -5020,7 +5020,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "restore",
       "controls": [
         {
           "tag": "a",
@@ -5053,7 +5053,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "promotion-pending",
       "controls": [
         {
           "tag": "a",
@@ -5086,7 +5086,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "promotion-no-slots",
       "controls": [
         {
           "tag": "a",
@@ -5119,7 +5119,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "promotion-resolution",
       "controls": [
         {
           "tag": "a",
@@ -5185,7 +5185,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "export-pending",
       "controls": [
         {
           "tag": "a",
@@ -5218,7 +5218,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "delete-scheduled",
       "controls": [
         {
           "tag": "a",
@@ -5251,7 +5251,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "offer-sent",
       "controls": [
         {
           "tag": "a",
@@ -5284,7 +5284,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "invited",
       "controls": [
         {
           "tag": "a",
@@ -5317,7 +5317,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "review-sent",
       "controls": [
         {
           "tag": "a",
@@ -5350,7 +5350,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "cancel-pending",
       "controls": [
         {
           "tag": "a",
@@ -5383,7 +5383,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "portfolio-pending",
       "controls": [
         {
           "tag": "a",
@@ -5416,7 +5416,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "profile-pending",
       "controls": [
         {
           "tag": "a",
@@ -5449,7 +5449,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "country-unavailable",
       "controls": [
         {
           "tag": "a",
@@ -5612,7 +5612,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "rework",
       "controls": [
         {
           "tag": "a",
@@ -5659,7 +5659,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "amendment",
       "controls": [
         {
           "tag": "a",
@@ -5699,7 +5699,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "manage-subscription",
       "controls": [
         {
           "tag": "a",
@@ -5732,7 +5732,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "subscription-canceled",
       "controls": [
         {
           "tag": "a",
@@ -5765,7 +5765,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "legal",
       "controls": [
         {
           "tag": "a",
@@ -5826,7 +5826,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "promotion-terms",
       "controls": [
         {
           "tag": "a",
@@ -5859,7 +5859,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "referral-rules",
       "controls": [
         {
           "tag": "a",
@@ -6044,7 +6044,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "logout-confirm",
       "controls": [
         {
           "tag": "a",
@@ -6084,7 +6084,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "revoke-session",
       "controls": [
         {
           "tag": "a",
@@ -6157,7 +6157,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "frozen-chat",
       "controls": [
         {
           "tag": "a",
@@ -6223,7 +6223,7 @@
         "width": 390,
         "height": 844
       },
-      "native_route": null,
+      "native_route": "offer-revision",
       "controls": [
         {
           "tag": "a",

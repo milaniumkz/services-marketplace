@@ -457,8 +457,8 @@ void main() {
         find.byType(TextFormField).at(1), 'Consenting account password');
     await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Входить с паролем'));
-    await tester.tap(find.text('Входить с паролем'));
+    await tester.scrollUntilVisible(find.text('Вводить номер и пароль'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Вводить номер и пароль'));
     await tester.pumpAndSettle();
     FilledButton next() => tester
         .widget<FilledButton>(find.widgetWithText(FilledButton, 'Продолжить'));

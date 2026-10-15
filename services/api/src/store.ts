@@ -39,7 +39,7 @@ export class Store {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
+  async select(kind:string,country:string,options:{owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
@@ -71,6 +71,10 @@ export class Store {
       if(options.ratingMin!==undefined)where.push(`COALESCE((SELECT avg((review.data->>'rating')::numeric) FROM records review WHERE review.kind='review' AND review.country=r.country AND review.data->>'target_id'=r.owner AND review.data->>'status'='published' AND COALESCE(review.data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')),0) >= ${bind(options.ratingMin)}`);
     }
     if(options.category){const category=bind(options.category);where.push(`(data->>'category_id'=${category} OR COALESCE(data->'category_ids','[]'::jsonb) ? ${category})`);}
+    if(options.near){
+      const lat=bind(options.near.latitude),lon=bind(options.near.longitude),radius=bind(options.near.radius);
+      where.push(`data->'public_location' IS NOT NULL AND 6371*ACOS(LEAST(1,GREATEST(-1,SIN(RADIANS(${lat}::numeric))*SIN(RADIANS((data->'public_location'->>'latitude')::numeric))+COS(RADIANS(${lat}::numeric))*COS(RADIANS((data->'public_location'->>'latitude')::numeric))*COS(RADIANS((data->'public_location'->>'longitude')::numeric-${lon}::numeric)))))<=${radius}::numeric`);
+    }
     if(options.publicActor){
       const viewer=bind(options.publicActor);
       where.push("COALESCE(data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')");

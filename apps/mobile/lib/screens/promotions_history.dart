@@ -22,11 +22,13 @@ const boostStates = {
 class PromotionsHistory extends StatefulWidget {
   final JobaApi api;
   final VoidCallback onNew;
+  final VoidCallback? onTerms;
   final ValueChanged<Json> onOpen;
   final String Function(dynamic) dateLabel;
   const PromotionsHistory(
       {required this.api,
       required this.onNew,
+      this.onTerms,
       required this.onOpen,
       required this.dateLabel,
       super.key});
@@ -176,8 +178,13 @@ class _PromotionsHistoryState extends State<PromotionsHistory> {
                               style: TextStyle(fontSize: 11, color: muted)),
                           const SizedBox(height: 16),
                           OutlinedButton(
-                              onPressed: () => widget.onOpen(r),
-                              child: const UiText('Условия и помощь'))
+                              onPressed:
+                                  widget.onTerms ?? () => widget.onOpen(r),
+                              child: const UiText('Условия и помощь')),
+                          if (widget.onTerms != null)
+                            TextButton(
+                                onPressed: () => widget.onOpen(r),
+                                child: const UiText('Проверить размещение'))
                         ])))),
         Container(
             decoration: const BoxDecoration(
