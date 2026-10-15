@@ -26,12 +26,14 @@ void main() {
     api.session={'access_token':'isolated-customer-token','user':user};state.me=user;state.executor=false;
     state.go('account');await tester.pumpAndSettle();
     expect(find.text('Подписка активна'),findsNothing);expect(find.text('Мой доступ'),findsNothing);
+    await tester.tap(find.ancestor(of:find.text('Заказчик'),matching:find.byType(InkWell)));await tester.pumpAndSettle();expect(state.route,'roles');
     for (final route in ['my-access','checkout','restore','manage-subscription']) {
       state.go(route);await tester.pumpAndSettle();
       expect(find.text('Для заказчика бесплатно'),findsOneWidget);
       expect(find.text('Подписка JOBA'),findsNothing);
     }
     await tester.tap(find.text('Найти исполнителя'));await tester.pumpAndSettle();expect(state.route,'catalog');
+    state.go('my-access');await tester.pumpAndSettle();await tester.tap(find.text('Мои заказы'));await tester.pumpAndSettle();expect(state.route,'orders');
     expect(requests.any((p)=>p.startsWith('/billing/')||p=='/me/subscriptions'||p=='/me/entitlements'),false);
     state.executor=true;state.go('my-access');await tester.pumpAndSettle();
     expect(find.text('Подписка JOBA'),findsOneWidget);expect(requests.contains('/me/subscriptions'),true);
