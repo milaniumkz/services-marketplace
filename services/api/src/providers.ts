@@ -22,7 +22,7 @@ export interface BannerProvider {
   validatePlacement(placementId:string,country:string):Promise<{allowed:boolean}>;
 }
 export interface PushProvider {
-  send(token:string,event:{event_id:string;title:string;body:string}):Promise<{provider_message_id:string}>;
+  send(token:string,event:{event_id:string;title:string;body:string;campaign_id?:string;deep_link?:{route:string;id?:string}}):Promise<{provider_message_id:string}>;
 }
 export interface FileScanner { scan(file:Buffer,mime:string):Promise<'clean'|'infected'>; }
 export interface PdfSanitizer { sanitize(file:Buffer):Promise<Buffer>; }

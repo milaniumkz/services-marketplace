@@ -1,3 +1,4 @@
+import {validatePushCampaign} from './push-campaigns';
 import {rankingParameters} from './ranking';
 import { Temporal } from '@js-temporal/polyfill';
 import { HttpException } from '@nestjs/common';
@@ -12,6 +13,7 @@ export class Configuration {
   constructor(private store:Store,private providers:Providers){}
   async validate(r:RecordData) {
     const p=r.payload??{};
+    if(r.kind==='push_campaign')return validatePushCampaign(r);
     if(r.kind==='country_control') {
       if(typeof p.registration_enabled!=='boolean'||typeof p.stop_new_business!=='boolean')fail('VALIDATION_ERROR','Укажите состояние регистрации и новых действий');
     }

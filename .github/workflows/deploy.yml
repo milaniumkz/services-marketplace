@@ -1,0 +1,106 @@
+name: JOBA HTTPS deployment
+on:
+  push:
+    branches: [deploy/joba]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: joba-production
+  cancel-in-progress: false
+env:
+  JOBA_DOMAIN: jobs.app.kz
+  JOBA_SSH_HOST: 188.241.217.228
+  JOBA_SSH_PORT: '22'
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: python3 scripts/inspect-deployment-target.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: server-public-host-keys
+          path: server-known-hosts.txt
+          retention-days: 7
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      FLUTTER_ROOT: ${{ github.workspace }}/.flutter-sdk
+      PUB_CACHE: ${{ runner.temp }}/pub-cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/joba-config
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: sudo apt-get update -q && sudo apt-get install -y poppler-utils
+      - run: npm ci
+      - run: npm run verify
+      - name: Install pinned Flutter
+        run: |
+          git clone --depth 1 --branch 3.35.7 https://github.com/flutter/flutter.git "$FLUTTER_ROOT"
+          test "$(git -C "$FLUTTER_ROOT" rev-parse HEAD)" = adc901062556672b4138e18a4dc62a4be8f4b3c2
+          "$FLUTTER_ROOT/bin/flutter" precache --web --linux
+      - name: Verify Flutter
+        working-directory: apps/mobile
+        run: |
+          "$FLUTTER_ROOT/bin/flutter" pub get --enforce-lockfile
+          "$FLUTTER_ROOT/bin/flutter" analyze --no-pub
+          "$FLUTTER_ROOT/bin/flutter" test --reporter expanded
+      - run: bash scripts/build-web-release.sh
+      - run: tar -czf release-web.tgz -C release web
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-web
+          path: release-web.tgz
+          retention-days: 7
+  deploy:
+    needs: [inspect, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: release-web
+      - name: Check protected deployment credentials
+        env:
+          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
+          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.JOBA_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$SSH_KNOWN_HOSTS" || { echo 'Configure JOBA_SSH_KNOWN_HOSTS in repository Actions Secrets'; exit 1; }
+          test -n "$SSHPASS$SSH_PRIVATE_KEY" || { echo 'Configure JOBA_SSH_PASSWORD or JOBA_SSH_PRIVATE_KEY in repository Actions Secrets'; exit 1; }
+      - name: Deploy exact Git revision and verify HTTPS
+        env:
+          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
+          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.JOBA_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          joba_ssh=(ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -p "$JOBA_SSH_PORT")
+          joba_scp=(scp -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -P "$JOBA_SSH_PORT")
+          if test -n "$SSH_PRIVATE_KEY"; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/joba_deploy"
+            joba_ssh+=(-i "$HOME/.ssh/joba_deploy" -o IdentitiesOnly=yes)
+            joba_scp+=(-i "$HOME/.ssh/joba_deploy" -o IdentitiesOnly=yes)
+          else
+            sudo apt-get update -q
+            sudo apt-get install -y sshpass
+            joba_ssh=(sshpass -e "${joba_ssh[@]}")
+            joba_scp=(sshpass -e "${joba_scp[@]}")
+          fi
+          joba_remote_archive="/tmp/joba-release-$GITHUB_SHA.tgz"
+          "${joba_scp[@]}" release-web.tgz "root@$JOBA_SSH_HOST:$joba_remote_archive"
+          joba_digest="$(sha256sum release-web.tgz | cut -d' ' -f1)"
+          "${joba_ssh[@]}" "root@$JOBA_SSH_HOST" "echo '$joba_digest  $joba_remote_archive' | sha256sum -c -"
+          "${joba_ssh[@]}" "root@$JOBA_SSH_HOST" "bash -s -- '$GITHUB_SHA' '$joba_remote_archive' '$JOBA_DOMAIN' '$JOBA_SSH_HOST'" < scripts/deploy-server.sh
+          curl --fail --silent --show-error "https://$JOBA_DOMAIN/health"
+          printf '### Verified URL\nhttps://%s/\n' "$JOBA_DOMAIN" >> "$GITHUB_STEP_SUMMARY"

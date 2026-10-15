@@ -1041,12 +1041,21 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             'Уведомления',
             paged(
                 '/me/notifications',
-                (r) => DataCard(eventTitles[r['type']] ?? 'Новое событие JOBA',
+                (r) => DataCard(
+                    r['title'] ??
+                        eventTitles[r['type']] ??
+                        'Новое событие JOBA',
+                    subtitle: r['body'],
                     status: r['read'] == true ? 'Прочитано' : 'Новое',
                     onTap: () => act(() async {
                           await api.request('/me/notifications/${r['id']}/read',
                               method: 'POST');
                           if (!mounted) return;
+                          if (r['deep_link'] is Map) {
+                            await openCampaignLink(
+                                Map<String, dynamic>.from(r['deep_link']));
+                            return;
+                          }
                           final type = '${r['type']}';
                           if (type == 'message.created') {
                             go('chat', r['target_id']);
@@ -4454,6 +4463,43 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           JobaMenuEntry('Поддержка', 'help', () => go('support'))
         ])
       ]));
+  Future<void> openCampaignLink(Json link) async {
+    final target = link['id'];
+    if (target != null &&
+        (target is! String ||
+            !RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+                .hasMatch(target)))
+      throw ApiException('NOT_FOUND', 'Объект недоступен');
+    switch (link['route']) {
+      case 'order':
+        if (target == null) break;
+        go('order', target);
+        return;
+      case 'offer':
+        if (target == null) break;
+        final offer = await api.request('/offers/$target');
+        if (mounted) go('order', offer['order_id']);
+        return;
+      case 'conversation':
+        if (target == null) break;
+        go('chat', target);
+        return;
+      case 'profile':
+        go(target == null ? 'account' : 'contractor', target);
+        return;
+      case 'notification':
+        go('notifications');
+        return;
+      case 'subscription':
+        go(target == null ? 'my-access' : 'manage-subscription', target);
+        return;
+      case 'help':
+        go('support');
+        return;
+    }
+    throw ApiException('NOT_FOUND', 'Объект недоступен');
+  }
+
   Widget notificationSettings() => page(
       'Уведомления',
       ApiView(

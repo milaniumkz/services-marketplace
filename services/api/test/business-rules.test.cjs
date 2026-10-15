@@ -68,7 +68,7 @@ test('outbox requires a provider and only records send success after accepted de
   try {
     const u=await create(api,'+77000000201');const outbox=record('outbox',u.user.id,{recipient_id:u.user.id,event_id:randomUUID(),type:'order.updated',status:'pending',attempts:0});await api.store.put(outbox);
     assert.equal((await api.deliverOutbox()).blocked,'push_provider_unavailable');assert.equal((await api.store.get(outbox.id)).status,'pending');
-    await api.store.put(record('push_token',u.user.id,{token:'isolated-test-token',status:'active'}));
+    await command(api,u,'POST','/me/push-tokens',{token:'isolated-test-token',platform:'android'});
     let calls=0;api.providers.push={send:async(token,event)=>{calls++;assert.equal(event.event_id,outbox.event_id);assert.equal('phone' in event,false);return {provider_message_id:'contract-test-message'};}};
     assert.equal((await api.deliverOutbox()).sent,1);assert.equal((await api.store.get(outbox.id)).status,'sent');
     await api.deliverOutbox();assert.equal(calls,1);

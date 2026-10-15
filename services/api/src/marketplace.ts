@@ -1,3 +1,5 @@
+import {accountRestrictionJobs} from './account-restriction-jobs';
+import {normalizePushPayload,validatePushCampaign,pushPreview,queuePushCampaigns,cancelPushCampaign,claimCampaignMessage,testCampaign,refreshPushCampaign} from './push-campaigns';
 import {promotedListings,promotedPlacements} from './promoted-listings';
 import {planFileRetention,purgedUpload} from './retention';
 import {adminReports} from './admin-reports';
@@ -136,7 +138,7 @@ export class Marketplace {
     }
   }
   private async staff(a: Actor, permission: string) {
-    const has=a.user.staff_permissions?.includes(permission)||(!['identity_view','verification_reviewer'].includes(permission)&&a.user.staff_permissions?.includes('administrator'));
+    const has=a.user.staff_permissions?.includes(permission)||(!['identity_view','verification_reviewer','bulk_restrict'].includes(permission)&&a.user.staff_permissions?.includes('administrator'));
     if(!has||!a.mfa||a.user.status!=='active')fail(403,'FORBIDDEN','Недостаточно служебных прав или MFA');
   }
   async handle(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local') {
@@ -713,7 +715,16 @@ export class Marketplace {
       if(p.quiet_hours){if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.quiet_hours.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.quiet_hours.end)||p.quiet_hours.start===p.quiet_hours.end)fail(400,'VALIDATION_ERROR','Проверьте часы тишины');try{new Intl.DateTimeFormat('ru',{timeZone:p.quiet_hours.time_zone}).format(new Date());}catch{fail(400,'VALIDATION_ERROR','Проверьте часовой пояс');}}
       await this.store.put({...a.user,notification_preferences:{marketing:p.marketing,chat:p.chat,service:p.service,quiet_hours:p.quiet_hours},version:a.user.version+1});return p;
     }
-    if(path==='/me/push-tokens'&&method==='POST'){if(!['ios','android','web'].includes(b.platform))fail(400,'VALIDATION_ERROR','Проверьте платформу');return this.store.put(this.record('push_token',a,{token:text(b,'token',10,4096),platform:b.platform,session_family:a.family,environment:b.environment==='production'?'production':'sandbox',status:'active'})).then(({token,...r})=>r);}
+    if(path==='/me/push-tokens'&&method==='POST'){
+      if(!['ios','android','web'].includes(b.platform))fail(400,'VALIDATION_ERROR','Проверьте платформу');const value=text(b,'token',10,4096);
+      await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['push-token:'+createHash('sha256').update(value).digest('hex')]);
+      const previous=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='push_token' AND data->>'token'=$1 AND data->>'status'='active'",[value])).rows.map(r=>r.data);
+      const own=previous.find(p=>p.owner===a.id&&p.country===a.country);
+      for(const p of previous)if(p.id!==own?.id)await this.store.put({...p,status:'revoked',token:'',version:p.version+1});
+      const result=await this.store.put({...own??this.record('push_token',a),token:value,platform:b.platform,session_family:a.family,environment:b.environment==='production'?'production':'sandbox',status:'active',version:own?own.version+1:1});
+      for(const {data:r} of (await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='outbox' AND country=$1 AND data->>'recipient_id'=$2 AND data->>'status'='waiting_token'",[a.country,a.id])).rows)await this.store.put({...r,status:'pending',version:r.version+1});
+      const {token,...safe}=result;return safe;
+    }
     const pushToken=path.match(/^\/me\/push-tokens\/([^/]+)$/);if(pushToken&&method==='DELETE'){const r=await this.object(pushToken[1],a,'push_token',true);return this.store.put({...r,status:'revoked',token:'',version:r.version+1}).then(({token,...r})=>r);}
     const votes=path.match(/^\/listing-votes\/(orders|services)\/([^/]+)$/);
     if(votes&&['PUT','DELETE'].includes(method)) {
@@ -921,8 +932,9 @@ export class Marketplace {
         await this.audit(a,'brand.bundle_read',record.id,text(q,'reason',10,1000));
         return {download_stream:await this.files.readStream(record.bundle_file_id),download_size:record.bundle_size,download_filename:'joba-icons.zip',mime:'application/zip'};
       }
-      const permission=({'security-events':'security','legal-holds':'privacy',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({'account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
+      if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,id)=>this.notify(user,a,'case.updated',id)});if(result!==undefined)return result;}
       const report=await adminReports(this.store,a.country,method,path,q);if(report!==undefined)return report;
       if(path==='/admin/bulk/preview'&&method==='POST'){
         if(!['pause_contractors','resume_contractors'].includes(b.action)||!Array.isArray(b.ids)||b.ids.length<1||b.ids.length>100||new Set(b.ids).size!==b.ids.length||b.ids.some((id:any)=>typeof id!=='string'||!/^[0-9a-f-]{36}$/i.test(id)))fail(400,'VALIDATION_ERROR','Выберите от 1 до 100 уникальных профилей и действие');
@@ -1183,10 +1195,39 @@ export class Marketplace {
         const r=this.record('blacklist',a,{user_id:u.id,case_id:c.id,scope:'new_business',reason:text(b,'reason',10,1000),status:'active',ends_at:new Date(ends).toISOString()});
         await this.store.put(r);await this.store.put({...u,status:'restricted',version:u.version+1});await this.audit(a,'blacklist.created',u.id,r.reason);await this.notify(u.id,a,'sanction.created',r.id);return r;
       }
+      const pushTestAccess=path.match(/^\/admin\/users\/([^/]+)\/push-test-access$/);
+      if(pushTestAccess&&method==='POST'){
+        const u=await this.object(pushTestAccess[1],a,'user');this.version(u,b);const reason=text(b,'reason',10,1000);if(typeof b.enabled!=='boolean')fail(400,'VALIDATION_ERROR','Подтвердите разрешение теста');
+        const until=Date.parse(String(b.until));if(b.enabled&&(!Number.isFinite(until)||until<=Date.now()||until>Date.now()+30*86400000))fail(400,'VALIDATION_ERROR','Задайте конечный срок в пределах 30 дней');
+        await this.store.put({...u,push_test_allowed:b.enabled,push_test_until:b.enabled?new Date(until).toISOString():null,version:u.version+1});await this.audit(a,'push.test_access_changed',u.id,reason);return {id:u.id,enabled:b.enabled,until:b.enabled?new Date(until).toISOString():null};
+      }
+      if(path==='/admin/push-test-accounts'&&method==='GET')return {can_manage:a.user.staff_permissions?.includes('administrator')===true,items:(await this.store.all('user',a.country)).filter(u=>u.push_test_allowed===true&&u.push_test_until>new Date().toISOString()&&u.status==='active').map(u=>({id:u.id,display_name:u.display_name,locale:u.locale??'ru'}))};
+      const pushCommand=path.match(/^\/admin\/push-campaigns\/([^/]+)(?:\/(validate|preview|test|schedule|publish|cancel|stop))?$/);
+      if(pushCommand){
+        const c=await this.object(pushCommand[1],a,'push_campaign'),command=pushCommand[2];
+        if(method==='GET'&&!command){const counts=(await db.query<{status:string,count:string}>("SELECT data->>'status' AS status,count(*)::text FROM records WHERE kind='outbox' AND country=$1 AND data->>'campaign_id'=$2 GROUP BY 1",[a.country,c.id])).rows;return {...c,delivery_counts:Object.fromEntries(counts.map(r=>[r.status,Number(r.count)])),provider_configured:!!this.providers.push};}
+        if(method==='PATCH'&&!command){this.version(c,b);if(c.status!=='draft')fail(409,'STATE_CONFLICT','Редактируется только черновик');const updated=await this.store.put({...c,title:text(b,'title',3,120),payload:normalizePushPayload(b.payload??{}),version:c.version+1});await this.audit(a,'push.draft_updated',c.id,text(b,'reason',10,1000));return updated;}
+        if(method==='POST'&&command){
+          this.version(c,b);const reason=text(b,'reason',10,1000);
+          if(['cancel','stop'].includes(command)){if(!['draft','scheduled','sending'].includes(c.status))fail(409,'STATE_CONFLICT','Кампания уже завершена');const result=await cancelPushCampaign(this.store,c);await this.audit(a,'push.canceled',c.id,reason);return result;}
+          if(c.status!=='draft')fail(409,'STATE_CONFLICT','Кампания уже запланирована или завершена');
+          validatePushCampaign(c);if(command==='validate')return {valid:true};
+          if(command==='preview'){const preview=await pushPreview(this.store,c);const receipt=this.record('push_preview',a,{campaign_id:c.id,campaign_version:c.version,expires_at:new Date(Date.now()+600000).toISOString(),audience_count:preview.audience_count});await this.store.put(receipt);await this.audit(a,'push.preview',c.id,reason);return {...preview,preview_id:receipt.id,provider_configured:!!this.providers.push};}
+          if(command==='test'){
+            if(!Array.isArray(b.recipient_ids)||!b.recipient_ids.length||b.recipient_ids.length>5||new Set(b.recipient_ids).size!==b.recipient_ids.length)fail(400,'VALIDATION_ERROR','Выберите до 5 разрешённых тестовых аккаунтов');
+            for(const id of b.recipient_ids){const u=await this.object(String(id),a,'user');if(u.push_test_allowed!==true||!u.push_test_until||u.push_test_until<=new Date().toISOString()||u.status!=='active')fail(403,'FORBIDDEN','Аккаунт не разрешён для тестовой отправки');}
+            const test=testCampaign(c,a.id,b.recipient_ids);await this.store.put(test);await this.audit(a,'push.test_queued',test.id,reason);return {id:test.id,status:test.status,provider_configured:!!this.providers.push};
+          }
+          const preview=await this.object(String(b.preview_id),a,'push_preview');if(preview.campaign_id!==c.id||preview.campaign_version!==c.version||preview.expires_at<=new Date().toISOString())fail(409,'STATE_CONFLICT','Предпросмотр устарел');
+          if(c.owner===a.id)fail(403,'SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника');
+          if(Date.parse(c.payload.deadline_at)<=Date.now())fail(409,'STATE_CONFLICT','Дедлайн кампании истёк');
+          const scheduled=await this.store.put({...c,status:'scheduled',scheduled_by:a.id,scheduled_at:new Date().toISOString(),preview_id:preview.id,version:c.version+1});await this.audit(a,'push.scheduled',c.id,reason);return scheduled;
+        }
+      }
       const configKinds=['monetization-configs','price-versions','categories','push-campaigns','referral-campaigns','moderation-dictionaries','ranking-configs','promotions','placement-policies','verification-policies','retention-policies','country-controls'];
       if(configKinds.includes(section)&&method==='POST'&&path.split('/').length===3) {
         if(section==='moderation-dictionaries'){try{validateRules(b.payload?.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}}
-        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:b.payload??{}});
+        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='push-campaigns'?normalizePushPayload(b.payload??{}):b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
       }
       const dictionaryDryRun=path.match(/^\/admin\/moderation-dictionaries\/([^/]+)\/dry-run$/);
@@ -1357,35 +1398,49 @@ export class Marketplace {
     return this.store.put(this.record('audit',a,{actor_id:a.id,action,target_id:target,reason,occurred_at:new Date().toISOString()}));
   }
   private async exclusive<T>(run:()=>Promise<T>) {const pending=this.queue.then(run,run);this.queue=pending.catch(()=>{});return pending;}
-  async deliverOutbox() {
+  async deliverOutbox(now=new Date()) {
     if(!this.providers.push)return {sent:0,blocked:'push_provider_unavailable'};
     const pending=await this.exclusive(async()=>{
-      const result=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='outbox' AND data->>'status' IN('pending','retry') AND (data->>'next_attempt_at' IS NULL OR data->>'next_attempt_at'<=$1) ORDER BY id LIMIT 20",[new Date().toISOString()]);
-      return result.rows.map(r=>r.data);
+      const result=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='outbox' AND ((data->>'status' IN('pending','retry') AND (data->>'next_attempt_at' IS NULL OR data->>'next_attempt_at'<=$1)) OR (data->>'status'='processing' AND data->>'lease_expires_at'<=$1)) ORDER BY data->>'created_at',id LIMIT 20",[now.toISOString()]);return result.rows.map(r=>r.data);
     });
     let sent=0;
-    for(const entry of pending) {
+    for(const entry of pending){
       const delivery=await this.exclusive(async()=>{
-        const current=await this.store.get(entry.id);if(!current||!['pending','retry'].includes(current.status))return;
-        const user=await this.store.get(entry.recipient_id);
-        if(!user||user.status==='deleted'){await this.store.put({...current,status:'suppressed',version:current.version+1});return;}
-        const preference=entry.type.startsWith('message.')?'chat':entry.type.startsWith('marketing.')?'marketing':'service';
-        if(user.notification_preferences?.[preference]===false||preference==='marketing'&&user.notification_preferences?.marketing!==true){await this.store.put({...current,status:'suppressed',version:current.version+1});return;}
-        const quiet=user.notification_preferences?.quiet_hours;
-        if(quiet){const clock=new Intl.DateTimeFormat('en-GB',{timeZone:quiet.time_zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date());const within=quiet.start<quiet.end?clock>=quiet.start&&clock<quiet.end:clock>=quiet.start||clock<quiet.end;if(within){await this.store.put({...current,status:'retry',next_attempt_at:new Date(Date.now()+60000).toISOString(),version:current.version+1});return;}}
-        const tokens=(await this.store.all('push_token',entry.country)).filter(t=>t.owner===user.id&&t.status==='active');
-        if(!tokens.length){await this.store.put({...current,status:'waiting_token',version:current.version+1});return;}
-        await this.store.put({...current,status:'processing',version:current.version+1});return {current,tokens};
+        await this.store.db.exec('BEGIN');try{
+          await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['push-recipient:'+entry.recipient_id]);
+          const claim=async()=>{
+            const current=await this.store.get(entry.id);if(!current||!(['pending','retry'].includes(current.status)||current.status==='processing'&&current.lease_expires_at<=now.toISOString()))return;
+            const update=async(status:string,extra:any={})=>this.store.put({...current,status,...extra,version:current.version+1});
+            const user=await this.store.get(current.recipient_id);
+            if(!user||user.country!==entry.country||user.status==='deleted'){await update('suppressed');return;}
+            const preference=current.type.startsWith('message.')?'chat':current.type.startsWith('marketing.')?'marketing':'service';
+            if(user.notification_preferences?.[preference]===false||preference==='marketing'&&user.notification_preferences?.marketing!==true){await update('suppressed');return;}
+            let message:any={event_id:current.event_id,title:'JOBA',body:'Новое событие в приложении'};
+            if(current.campaign_id){const result=await claimCampaignMessage(this.store,current,user,now);if(result.stop){await update(result.stop);return;}if(result.retry){await update('retry',{next_attempt_at:result.retry});return;}message=result.message;}
+            const quiet=user.notification_preferences?.quiet_hours;
+            if(quiet){const clock=new Intl.DateTimeFormat('en-GB',{timeZone:quiet.time_zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(now);const within=quiet.start<quiet.end?clock>=quiet.start&&clock<quiet.end:clock>=quiet.start||clock<quiet.end;if(within){await update('retry',{next_attempt_at:new Date(now.getTime()+60000).toISOString()});return;}}
+            const tokens=(await this.store.db.query<{data:RecordData}>(`SELECT p.data FROM records p WHERE p.kind='push_token' AND p.country=$1 AND p.owner=$2 AND p.data->>'status'='active' AND EXISTS(SELECT 1 FROM tokens t WHERE t.family::text=p.data->>'session_family' AND t.user_id::text=p.owner AND t.country=p.country AND t.kind='refresh' AND t.revoked=false AND t.used=false AND t.expires_at>$3::timestamptz)`,[entry.country,user.id,now.toISOString()])).rows.map(r=>r.data);
+            if(!tokens.length){await update('waiting_token');return;}
+            const lease=randomUUID();await update('processing',{lease_id:lease,lease_expires_at:new Date(now.getTime()+60000).toISOString(),claimed_at:now.toISOString()});return {current,tokens,message,lease};
+          };
+          const result=await claim();await this.store.db.exec('COMMIT');return result;
+        }catch(e){await this.store.db.exec('ROLLBACK');throw e;}
       });
       if(!delivery)continue;
-      try {
-        const ids:string[]=[];
-        for(const token of delivery.tokens){const result=await Promise.race([this.providers.push.send(token.token,{event_id:entry.event_id,title:'JOBA',body:'Новое событие в приложении'}),new Promise<never>((_,reject)=>{const timer=setTimeout(()=>reject(Error('Push timeout')),10000);timer.unref();})]);ids.push(result.provider_message_id);}
-        await this.exclusive(async()=>{const r=(await this.store.get(entry.id))!;await this.store.put({...r,status:'sent',provider_message_ids:ids,sent_at:new Date().toISOString(),version:r.version+1});});sent++;
-      }catch {
-        await this.exclusive(async()=>{const r=(await this.store.get(entry.id))!,attempts=(r.attempts??0)+1;await this.store.put({...r,status:attempts>=5?'dead_letter':'retry',attempts,next_attempt_at:new Date(Date.now()+Math.min(3600000,2**attempts*1000)).toISOString(),failure_code:'PUSH_PROVIDER_ERROR',version:r.version+1});});
+      try{
+        for(const token of delivery.tokens){
+          if((delivery.current.accepted_tokens??[]).includes(token.id))continue;
+          const live=await this.exclusive(async()=>{const r=await this.store.get(entry.id);if(r?.status!=='processing'||r.lease_id!==delivery.lease)return false;const checkedAt=new Date(Math.max(Date.now(),now.getTime()));const user=await this.store.get(r.recipient_id);const decision=r.campaign_id&&user?await claimCampaignMessage(this.store,r,user,checkedAt):undefined;const stop=!user||user.status==='deleted'?'suppressed':decision?.stop;if(stop){await this.store.put({...r,status:stop,lease_expires_at:null,version:r.version+1});return false;}await this.store.put({...r,lease_expires_at:new Date(checkedAt.getTime()+60000).toISOString(),version:r.version+1});return true;});
+          if(!live)break;
+          const result=await Promise.race([this.providers.push.send(token.token,delivery.message),new Promise<never>((_,reject)=>{const timer=setTimeout(()=>reject(Error('Push timeout')),10000);timer.unref();})]);
+          await this.exclusive(async()=>{const r=await this.store.get(entry.id);if(r?.status!=='processing'||r.lease_id!==delivery.lease)return;await this.store.put({...r,accepted_tokens:[...new Set([...(r.accepted_tokens??[]),token.id])],provider_message_ids:[...(r.provider_message_ids??[]),result.provider_message_id],version:r.version+1});});
+        }
+        const completed=await this.exclusive(async()=>{const r=await this.store.get(entry.id);if(r?.status!=='processing'||r.lease_id!==delivery.lease)return false;await this.store.put({...r,status:'sent',sent_at:now.toISOString(),lease_expires_at:null,version:r.version+1});return true;});if(completed)sent++;
+      }catch{
+        await this.exclusive(async()=>{const r=await this.store.get(entry.id);if(r?.status!=='processing'||r.lease_id!==delivery.lease)return;const attempts=(r.attempts??0)+1;await this.store.put({...r,status:attempts>=5?'dead_letter':'retry',attempts,next_attempt_at:new Date(now.getTime()+Math.min(3600000,2**attempts*1000)).toISOString(),failure_code:'PUSH_PROVIDER_ERROR',lease_expires_at:null,version:r.version+1});});
       }
     }
+    await this.exclusive(async()=>{for(const id of new Set(pending.map(e=>e.campaign_id).filter(Boolean))){const c=await this.store.get(id);if(c)await refreshPushCampaign(this.store,c,now);}});
     return {sent};
   }
   private async safeUploads(a:Actor,ids:any,purpose:string,max=10) {
@@ -1514,7 +1569,7 @@ export class Marketplace {
     }
   }
   async maintenance(now=new Date()) {
-    const exportJobs:RecordData[]=[];let purgeFiles:string[]=[];
+    const exportJobs:RecordData[]=[];let purgeFiles:string[]=[],pushRecipients:string[]=[];
     const run=async()=>{
       await this.store.db.exec('BEGIN');
       try {
@@ -1558,12 +1613,14 @@ export class Marketplace {
           for(const kind of ['contractor','portfolio'])for(const x of await this.store.all(kind,r.country))if(x.owner===r.owner)await this.store.put({...x,status:'archived',description:'',title:'',version:x.version+1});
           await this.store.put({...r,status:'limited_retention',reason:'История заказов и обязательные записи сохраняются по опубликованной политике',policy_id:policy.id,retention_review_at:new Date(now.getTime()+policy.payload.document_days*86400000).toISOString(),completed_at:now.toISOString(),version:r.version+2});
         }
+        pushRecipients=await queuePushCampaigns(this.store,now);
         purgeFiles=await planFileRetention(this.store,now,async verification=>{await this.notify(verification.owner,{id:verification.owner,country:verification.country},'verification.expired',verification.id);});
         await this.store.db.query("DELETE FROM rate_limits WHERE window_start<CURRENT_TIMESTAMP-INTERVAL '1 day'");
         await this.store.db.exec('COMMIT');
       }catch(e){await this.store.db.exec('ROLLBACK');throw e;}
     };
     const promise=this.queue.then(run,run);this.queue=promise.catch(()=>{});await promise;
+    for(const id of pushRecipients)this.events.emit(id);
     for(const id of purgeFiles){try{await this.files.remove(id);await this.exclusive(async()=>{const file=await this.store.get(id);if(file?.status==='purge_pending')await this.store.put(purgedUpload(file,now));});}catch{/* The pending marker is retried on the next maintenance run. */}}
     for(const job of exportJobs)await this.processExport(job,now);
   }

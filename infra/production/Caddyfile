@@ -1,0 +1,40 @@
+{$JOBA_DOMAIN} {
+  encode zstd gzip
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    X-Frame-Options DENY
+    -Server
+  }
+  handle /api/v1/* {
+    reverse_proxy api:3000
+  }
+  handle /health {
+    reverse_proxy api:3000
+  }
+  redir /admin /admin/ 308
+  redir /site /site/ 308
+  handle_path /admin/* {
+    root * /srv/admin
+    try_files {path} /index.html
+    file_server
+  }
+  handle_path /site/* {
+    root * /srv/site
+    file_server
+  }
+  # Shared design assets have distinct names from Flutter's assets/assets tree.
+  @shared path /assets/fonts/* /assets/joba-logo-original.jpeg
+  handle @shared {
+    root * /srv/admin
+    file_server
+  }
+  handle {
+    root * /srv/mobile
+    header /flutter_bootstrap.js Cache-Control "no-cache"
+    header /index.html Cache-Control "no-cache"
+    header /flutter_service_worker.js Cache-Control "no-cache"
+    try_files {path} /index.html
+    file_server
+  }
+}

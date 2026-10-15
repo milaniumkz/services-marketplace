@@ -21461,6 +21461,696 @@
         }
       }
     },
+    "/admin/push-test-accounts": {
+      "get": {
+        "operationId": "get__admin_push_test_accounts",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/push-test-access": {
+      "post": {
+        "operationId": "post__admin_users_id_push_test_access",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/push-campaigns/{id}": {
+      "get": {
+        "operationId": "get__admin_push_campaigns_id_",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch__admin_push_campaigns_id_",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/push-campaigns/{id}/test": {
+      "post": {
+        "operationId": "post__admin_push_campaigns_id_test",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/push-campaigns/{id}/schedule": {
+      "post": {
+        "operationId": "post__admin_push_campaigns_id_schedule",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/account-restriction-jobs/preview": {
+      "post": {
+        "operationId": "post__admin_account_restriction_jobs_preview",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/account-restriction-jobs/{id}": {
+      "get": {
+        "operationId": "get__admin_account_restriction_jobs_id_",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/account-restriction-jobs/{id}/execute": {
+      "post": {
+        "operationId": "post__admin_account_restriction_jobs_id_execute",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/account-restriction-jobs/{id}/cancel": {
+      "post": {
+        "operationId": "post__admin_account_restriction_jobs_id_cancel",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/brand-icons/{id}": {
       "get": {
         "operationId": "get__admin_brand-icons_id",
