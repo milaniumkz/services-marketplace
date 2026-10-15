@@ -15,10 +15,10 @@ except urllib.error.HTTPError as response:
     with urllib.request.urlopen(location,timeout=30) as archive:log=archive.read().decode('utf-8',errors='replace')
     parts.append('Deployment log tail (GitHub-masked):\n```\n'+'\n'.join(log.splitlines()[-100:])[-20000:]+'\n```')
 url='https://188-241-217-228.sslip.io'
-for path in ['/health','/']:
+for path in ['/health','/','/api/v1/legal/documents?country=KZ&locale=ru&required=true']:
     try:
         with urllib.request.urlopen(url+path,timeout=15,context=ssl.create_default_context()) as response:
-            data=response.read(1024).decode('utf-8',errors='replace') if path=='/health' else 'HTML served'
+            data=response.read(50000).decode('utf-8',errors='replace') if path!='/' else 'HTML served'
             parts.append(url+path+' verified TLS / HTTP '+str(response.status)+': '+data)
     except Exception as error:parts.append(url+path+' unavailable: '+str(error))
 payload={'name':'server-deployment-diagnostics','head_sha':os.environ['GITHUB_SHA'],'status':'completed','conclusion':'neutral','output':{'title':'Server deployment diagnostics','summary':'\n\n'.join(parts)}}
