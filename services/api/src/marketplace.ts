@@ -32,6 +32,7 @@ import { Branding } from './branding';
 import { DEFAULT_SETTINGS,validateSettings,readSettings } from './settings';
 import { seedReferenceData,referenceId } from './reference-data';
 import { attributes,timeWindow } from './validation';
+import {offerTerms,offerPolicy,offerExpired,presentOffer,offerPeople} from './offer-terms';
 import { exportSnapshot,writeExport } from './privacy-export';
 import { profileFields } from './contractor-profile';
 import { EventEmitter } from 'node:events';
@@ -504,7 +505,7 @@ export class Marketplace {
     }
     if(path==='/me/completed-orders'&&method==='GET'){if(q.role&&!['customer','executor'].includes(q.role))fail(400,'VALIDATION_ERROR','Проверьте роль');return this.page('order',a,q,{...(q.role==='executor'?{executor:a.id}:q.role==='customer'?{owner:a.id}:{participant:a.id}),statuses:['completed']});}
     if(path==='/me/assigned-orders'&&method==='GET')return this.page('order',a,q,{executor:a.id,statuses:orderBucket(q.bucket)});
-    if(path==='/me/offers'&&method==='GET')return this.list((await this.store.all('offer',a.country)).filter(x=>x.owner===a.id),q);
+    if(path==='/me/offers'&&method==='GET')return this.list((await this.store.all('offer',a.country)).filter(x=>x.owner===a.id).map(x=>presentOffer(x,settings.offer_expiry_hours)),q);
     if(path==='/me/order-change-requests'&&method==='GET')return this.list([...(await this.store.all('cancel_request',a.country)),...(await this.store.all('amendment',a.country))].filter(x=>x.owner===a.id||x.recipient_id===a.id),q);
     if(path==='/orders'&&method==='GET'){await this.entitlement(a,'search_full',true);return this.page('order',a,q,{statuses:['open'],publicActor:a.id});}
     const om=path.match(/^\/orders\/([^/]+)(?:\/(publish|cancel|complete|offers|select|start|extend|clone|invites|cancel-requests|amendments|request-revision|confirm-completion))?$/);
@@ -518,16 +519,19 @@ export class Marketplace {
         const assignment=participant&&o.assignment_id?await this.store.get(o.assignment_id):undefined;
         const review=participant?(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='review' AND country=$1 AND owner=$2 AND data->>'order_id'=$3 LIMIT 1",[a.country,a.id,o.id])).rows[0]?.data:undefined;
         const person=(user:RecordData|undefined)=>user?{id:user.id,display_name:user.display_name,avatar_id:user.avatar_id,city:user.city}:null;
-        return {...(participant?o:publicContent(o)),exact_address:participant?o.exact_address:undefined,customer:person(customer),executor:participant?person(executor):undefined,conversation_id:assignment?.conversation_id,my_review:review};
+        return {...(participant?o:publicContent(o)),exact_address:participant?o.exact_address:undefined,customer:person(customer),executor:participant?person(executor):undefined,conversation_id:assignment?.conversation_id,my_review:review,offer_policy:offerPolicy(o,settings.offer_expiry_hours)};
       }
-      if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id)};}
+      if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:await offerPeople(this.store,a.country,(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id).map(x=>presentOffer(x,settings.offer_expiry_hours)))};}
       if(action==='offers'&&method==='POST') {
         await this.entitlement(a,'send_offer',true);if(o.owner===a.id||o.status!=='open')fail(409,'STATE_CONFLICT','Нельзя откликнуться на заказ');
         if(await this.blocked(a,o.owner))fail(404,'NOT_FOUND','Заказ недоступен');
         if(b.acknowledged_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия заказа изменились');
         if(!Number.isSafeInteger(b.amount)||b.amount<0)fail(400,'VALIDATION_ERROR','Проверьте цену');
-        if((await this.store.all('offer',a.country)).some(x=>x.order_id===o.id&&x.owner===a.id&&x.status==='active'))fail(409,'STATE_CONFLICT','Отклик уже отправлен');
-        const offer=this.record('offer',a,{order_id:o.id,text:text(b,'text',1,3000),amount:b.amount,currency:o.currency,acknowledged_revision:o.revision,status:'active'});
+        const previous=(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id&&x.owner===a.id&&x.status==='active');
+        if(previous.some(x=>!offerExpired(x,settings.offer_expiry_hours)))fail(409,'STATE_CONFLICT','Отклик уже отправлен');
+        for(const old of previous){await this.store.put({...old,status:'expired',version:old.version+1});const chat=await this.store.get(old.conversation_id);if(chat?.status==='open')await this.store.put({...chat,status:'closed',version:chat.version+1});}
+
+        const offer=this.record('offer',a,{order_id:o.id,text:text(b,'text',1,3000),amount:b.amount,currency:o.currency,acknowledged_revision:o.revision,status:'active',...offerTerms(o,b,settings.offer_expiry_hours)});
         const chat=this.record('conversation',a,{order_id:o.id,offer_id:offer.id,members:[o.owner,a.id],status:'open'});offer.conversation_id=chat.id;
         await this.store.put(chat);await this.store.put(offer);await this.notify(o.owner,a,'offer.created',o.id);return offer;
       }
@@ -573,13 +577,14 @@ export class Marketplace {
       if(action==='select'&&method==='POST') {
         await this.entitlement(a,'select_offer');if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ уже назначен');
         const offer=await this.object(String(b.offer_id),a,'offer');if(offer.order_id!==o.id||offer.status!=='active'||offer.acknowledged_revision!==o.revision||b.offer_version!==offer.version)fail(409,'OFFER_CHANGED','Отклик или условия изменились');
+        if(offerExpired(offer,settings.offer_expiry_hours))fail(409,'OFFER_EXPIRED','Срок отклика истёк. Попросите исполнителя отправить новый.');
         const executor=await this.store.get(offer.owner);if(!executor||executor.verification!=='passed'||executor.status!=='active')fail(409,'STATE_CONFLICT','Исполнитель больше недоступен');
-        for(const x of (await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id)) {
-          await this.store.put({...x,status:x.id===offer.id?'selected':'not_selected',version:x.version+1});
+        for(const x of (await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id&&x.status==='active')) {
+          await this.store.put({...x,status:x.id===offer.id?'selected':offerExpired(x,settings.offer_expiry_hours)?'expired':'not_selected',version:x.version+1});
           const c=await this.store.get(x.conversation_id);if(c)await this.store.put({...c,status:x.id===offer.id?'working':'closed',version:c.version+1});
         }
         const assignment=this.record('assignment',a,{order_id:o.id,customer_id:a.id,executor_id:offer.owner,conversation_id:offer.conversation_id,order_snapshot:o,offer_snapshot:offer,status:'active'});await this.store.put(assignment);
-        const updated={...o,status:'assigned',assignment_id:assignment.id,executor_id:offer.owner,selected_offer_id:offer.id,agreed_amount:offer.amount,version:o.version+1};await this.store.put(updated);await this.notify(offer.owner,a,'order.selected',o.id);return updated;
+        const updated={...o,status:'assigned',assignment_id:assignment.id,executor_id:offer.owner,selected_offer_id:offer.id,agreed_amount:offer.amount,agreed_start_at:offer.proposed_start_at,agreed_start_local:offer.proposed_start_local,agreed_duration_minutes:offer.duration_minutes,agreed_time_zone:offer.time_zone,version:o.version+1};await this.store.put(updated);await this.notify(offer.owner,a,'order.selected',o.id);return updated;
       }
       if(action==='start'&&method==='POST'){if(o.executor_id!==a.id||o.status!=='assigned')fail(409,'STATE_CONFLICT','Начало работы недоступно');return this.store.put({...o,status:'in_progress',started_at:new Date().toISOString(),version:o.version+1});}
       if(action==='complete'&&method==='POST'){
@@ -608,16 +613,16 @@ export class Marketplace {
       if(method==='GET'&&!offerCommand[2]) {
         const offer=await this.object(offerCommand[1],a,'offer'),order=await this.object(offer.order_id,a,'order');
         if(offer.owner!==a.id&&order.owner!==a.id)fail(404,'NOT_FOUND','Отклик не найден');
-        const executor=await this.store.get(offer.owner);
-        return {...offer,order:{...order,exact_address:order.owner===a.id||order.executor_id===a.id?order.exact_address:undefined},executor:executor?{id:executor.id,display_name:executor.display_name,avatar_id:executor.avatar_id}:null};
+        return {...presentOffer(offer,settings.offer_expiry_hours),order:{...order,offer_policy:offerPolicy(order,settings.offer_expiry_hours),exact_address:order.owner===a.id||order.executor_id===a.id?order.exact_address:undefined},executor:(await offerPeople(this.store,a.country,[offer]))[0].executor};
       }
       const f=await this.object(offerCommand[1],a,'offer',true);this.version(f,b);
       if(f.status!=='active')fail(409,'STATE_CONFLICT','Отклик больше не активен');
+      if(offerCommand[2]!=='withdraw'&&offerExpired(f,settings.offer_expiry_hours))fail(409,'OFFER_EXPIRED','Срок отклика истёк. Отправьте новый отклик.');
       const o=await this.object(f.order_id,a,'order');if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ закрыт');
       if(offerCommand[2]==='withdraw'&&method==='POST'){const c=await this.store.get(f.conversation_id);if(c)await this.store.put({...c,status:'closed',version:c.version+1});return this.store.put({...f,status:'withdrawn',version:f.version+1});}
       await this.entitlement(a,'send_offer',true);
       if(offerCommand[2]==='acknowledge'&&method==='POST'){if(b.order_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия изменились');return this.store.put({...f,acknowledged_revision:o.revision,version:f.version+1});}
-      if(method==='PATCH'){if(!Number.isSafeInteger(b.amount)||b.amount<0)fail(400,'VALIDATION_ERROR','Проверьте цену');if(b.acknowledged_revision!==undefined&&b.acknowledged_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия изменились');return this.store.put({...f,text:text(b,'text',1,3000),amount:b.amount,...(b.acknowledged_revision!==undefined?{acknowledged_revision:o.revision}:{}),version:f.version+1});}
+      if(method==='PATCH'){if(!Number.isSafeInteger(b.amount)||b.amount<0)fail(400,'VALIDATION_ERROR','Проверьте цену');if(b.acknowledged_revision!==undefined&&b.acknowledged_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия изменились');return this.store.put({...f,text:text(b,'text',1,3000),amount:b.amount,...offerTerms(o,b,settings.offer_expiry_hours,new Date(),f),...(b.acknowledged_revision!==undefined?{acknowledged_revision:o.revision}:{}),version:f.version+1});}
     }
     if(path==='/me/order-invites'&&method==='GET'){
       if(q.status&&!['pending','accepted','declined','expired','revoked'].includes(q.status))fail(400,'VALIDATION_ERROR','Неизвестный статус приглашения');
@@ -649,13 +654,14 @@ export class Marketplace {
       if(r.owner!==a.id&&r.recipient_id!==a.id&&!r.members?.includes(a.id))fail(404,'NOT_FOUND','Запись не найдена');
       if(kind==='conversation'){
         const order=r.order_id?await this.store.get(r.order_id):null;
-        let blocked=['closed','frozen','restricted'].includes(r.status);
-        for(const member of r.members)if(member!==a.id&&await this.blocked(a,member))blocked=true;
+        let blocked=['closed','frozen','restricted'].includes(r.status),blocked_reason=blocked?(r.status==='closed'?'conversation_closed':'safety_restriction'):null;
+        if(['open','closed'].includes(r.status)&&r.offer_id){const offer=await this.store.get(r.offer_id);if(offer&&offerExpired(offer,settings.offer_expiry_hours)){blocked=true;blocked_reason='offer_expired';}}
+        for(const member of r.members)if(member!==a.id&&await this.blocked(a,member)){blocked=true;blocked_reason='pair_blocked';}
         const peerId=r.members.find((id:string)=>id!==a.id),peer=peerId?await this.store.get(peerId):null;
         const visiblePeer=peer?.kind==='user'&&peer.country===a.country;
         return {id:r.id,status:r.status,order_id:r.order_id,order_title:order?.title??'',
           order_status:order?.status,order_amount:order?.agreed_amount??order?.budget_amount,currency:order?.currency,
-          peer:visiblePeer?{id:peer.id,display_name:peer.display_name,avatar_id:peer.avatar_id}:null,blocked};
+          peer:visiblePeer?{id:peer.id,display_name:peer.display_name,avatar_id:peer.avatar_id}:null,blocked,blocked_reason};
       }
       return r;
     }
@@ -1412,7 +1418,7 @@ export class Marketplace {
     if(c.kind==='support'&&c.status==='resolved'&&(!c.reopen_until||c.reopen_until<=new Date().toISOString()))fail(409,'STATE_CONFLICT','Обращение закрыто. Можно создать новое.');
     if(c.kind==='conversation') {
       for(const other of c.members)if(other!==a.id&&await this.blocked(a,other))fail(403,'PAIR_BLOCKED','Прямой контакт ограничен. Поддержка доступна.');
-      if(c.status==='open'){const o=await this.object(c.order_id,a,'order');if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ закрыт');await this.entitlement(a,'search_full');}
+      if(c.status==='open'){const offer=c.offer_id?await this.store.get(c.offer_id):undefined;if(offer&&offerExpired(offer,(await readSettings(this.store,a.country)).offer_expiry_hours))fail(409,'OFFER_EXPIRED','Срок отклика истёк');const o=await this.object(c.order_id,a,'order');if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ закрыт');await this.entitlement(a,'search_full');}
     }
     const uploadIds=b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[];
     const clientId=text(b,'client_message_id',36,36),message=text(b,'text',uploadIds.length?0:1,3000);
@@ -1609,6 +1615,11 @@ export class Marketplace {
     const run=async()=>{
       await this.store.db.exec('BEGIN');
       try {
+        for(const r of await this.store.all('offer'))if(r.status==='active'&&offerExpired(r,(await readSettings(this.store,r.country)).offer_expiry_hours,now)){
+          await this.store.put({...r,status:'expired',version:r.version+1});
+          const chat=r.conversation_id?await this.store.get(r.conversation_id):undefined;
+          if(chat?.status==='open')await this.store.put({...chat,status:'closed',version:chat.version+1});
+        }
         for(const r of await this.store.all('order'))if(r.status==='open'&&r.expires_at<=now.toISOString())await this.store.put({...r,status:'expired',version:r.version+1});
         for(const r of await this.store.all('verification'))if(r.status==='passed'&&r.expires_at&&r.expires_at<=now.toISOString()) {
           await this.store.put({...r,status:'expired',version:r.version+1});const u=await this.store.get(r.owner);if(u)await this.store.put({...u,verification:'expired',version:u.version+1});

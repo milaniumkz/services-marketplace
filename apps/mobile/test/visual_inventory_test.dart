@@ -125,11 +125,14 @@ void main() {
           'currency': 'KZT',
           'budget_amount': 25000,
           'upload_ids': [],
+          if(const ['offer','offers'].contains(route)) ...{'title':'Собрать кухню и подключить мойку','budget_amount':4500000},
           if(route == 'order') ...{'title':'Собрать кухню и подключить мойку','description':'Собрать прямую кухню длиной 2,8 м, установить столешницу и подключить мойку. Мебель уже доставлена. Нужны свои инструменты.','budget_amount':4500000,'upload_ids':['visual-kitchen'],'time_window':{'start_date':'2026-10-14','end_date':'2026-10-16','time_zone':'Asia/Almaty'}},
           if(route == 'complete') ...{ 'completion_upload_ids': ['visual-kitchen'], 'completion_note':'Всё собрано и подключено, проверил соединения. Фото результата приложил.', 'completion_requested_at':'2026-10-12T15:12:00Z', 'title':'Кухня готова'},
           'expires_at': '2027-01-01T12:00:00Z',
           'created_at': '2026-10-14T10:00:00Z',
           'work_mode': 'onsite',
+          'country':'KZ',
+          'offer_policy':{'time_zone':'Asia/Almaty','latest_expires_local':'2026-10-18T18:00'},
           'attributes': {},
           'customer': {'id': user['id'], 'display_name': 'Дарья А.'},
           'executor': {'id': 'visual-executor', 'display_name': 'Алексей К.'},
@@ -396,7 +399,8 @@ void main() {
           'text': 'Готов выполнить в удобное время',
           'acknowledged_revision': 1,
           'order_id': 'visual-object',
-          'order': {...order(), if(route=='offer-revision') 'revision':2},
+          'order': {...order(), if(route=='offer-revision') 'revision':2, if(route=='select-contractor') 'title':'Сборка кухни'},
+          if(route=='select-contractor') ...{'amount':4500000,'proposed_start_local':'2026-10-16T10:00','duration_minutes':300,'time_zone':'Asia/Almaty'},
           'executor': profile
         };
       else if (path.endsWith('/offers'))
@@ -412,7 +416,9 @@ void main() {
               'amount': 25000,
               'currency': 'KZT',
               'text': 'Готов выполнить в удобное время',
-              'contractor': profile
+              'contractor': profile,
+              'executor': {...profile,'available':true,'verified':true,'rating':{'count':32,'average':4.9}},
+              if(route=='offers') ...{'amount':4500000,'proposed_start_local':'2026-10-16T10:00','duration_minutes':300,'conversation_id':'visual-object'},
             }
           ]
         };
@@ -596,6 +602,16 @@ void main() {
       final errors = <String>[];
       try {
         await tester.pumpAndSettle();
+        if(route=='offer') {
+          await tester.enterText(find.byKey(const ValueKey('offer-note')),'Здравствуйте! Соберу кухню и подключу мойку. Все инструменты привезу с собой.');
+          await tester.enterText(find.byKey(const ValueKey('offer-price')),'45000');
+          await tester.tap(find.text('Выберите дату'));await tester.pumpAndSettle();
+          Navigator.of(tester.element(find.byType(DatePickerDialog))).pop(DateTime(2026,10,16));await tester.pumpAndSettle();
+          await tester.ensureVisible(find.byKey(const ValueKey('offer-duration')));await tester.enterText(find.byKey(const ValueKey('offer-duration')),'5');
+          FocusManager.instance.primaryFocus?.unfocus();await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(find.byType(CheckboxListTile),150,scrollable:find.byType(Scrollable).first);await tester.tap(find.byType(CheckboxListTile));await tester.pumpAndSettle();
+          await tester.drag(find.byType(Scrollable).first,const Offset(0,1600));await tester.pumpAndSettle();
+        }
         if(route=='pin-setup'){await tester.enterText(find.byKey(const ValueKey('secure-pin-input')),'123456');FocusManager.instance.primaryFocus?.unfocus();await tester.pumpAndSettle();}
         if(route=='biometric'){await tester.tap(find.text('Включить биометрию'));await tester.pumpAndSettle();}
         if (route == 'top-orders') {

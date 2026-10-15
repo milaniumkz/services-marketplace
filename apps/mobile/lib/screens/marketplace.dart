@@ -15,6 +15,8 @@ import 'commerce_states.dart';
 import 'executor_access.dart';
 import 'order_overview.dart';
 import 'conversation_inbox.dart';
+import 'offer_editor.dart';
+import 'offer_list.dart';
 import 'promotion_purchase.dart';
 import 'privacy_states.dart';
 import 'geo_states.dart';
@@ -161,8 +163,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   final List<String> draftPhotos = [];
   final Map<String, List<String>> verificationUploads = {};
   Json? draftWindow;
-  bool offerAcknowledged = false, selectionAcknowledged = false;
-  int? acknowledgedOrderRevision;
+  bool selectionAcknowledged = false;
   String? acknowledgedSelection;
   String cancellationReason = 'plans';
   int reviewRating = 0;
@@ -425,10 +426,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       route = next;
       if (next == 'catalog') catalogPresentation = 'loading';
       if (next == 'export-pending') exportTitle = 'Экспорт готовится';
-      if (next == 'offer') {
-        offerAcknowledged = false;
-        acknowledgedOrderRevision = null;
-      }
       if (next == 'select-contractor') {
         selectionAcknowledged = false;
         acknowledgedSelection = null;
@@ -2734,9 +2731,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       fontSize: 16, fontWeight: FontWeight.w700)),
               fact('Стоимость работы',
                   price(offer['amount'], offer['currency'])),
-              fact('Когда', windowLabel(order)),
+              if(offer['proposed_start_local'] != null)
+                fact('Начало', DateFormat('d MMMM, HH:mm', Localizations.localeOf(context).languageCode).format(DateTime.parse(offer['proposed_start_local'])))
+              else fact('Когда', windowLabel(order)),
+              if(offer['duration_minutes'] != null)
+                fact('Длительность', '${offer['duration_minutes']} ${localize(context,'мин')}'),
               Text(
-                  '${localize(context, 'Версия')} ${order['revision']} · ${offer['version']}',
+                  '${offer['time_zone'] ?? order['time_window']?['time_zone'] ?? ''} · ${localize(context, 'Версия')} ${order['revision']} · ${offer['version']}',
                   style: const TextStyle(fontSize: 10, color: muted)),
               ])),
               const SizedBox(height: 8),
@@ -3142,97 +3143,21 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     }))));
   }
 
-  void editOffer(Json offer) => Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-          builder: (c) => Scaffold(
-              appBar: AppBar(title: const UiText('Редактировать отклик')),
-              body: ActionForm(
-                  fields: [
-                    InputSpec('amount', 'Ваша цена',
-                        initial:
-                            ((offer['amount'] as num) / 100).toStringAsFixed(2),
-                        keyboard: TextInputType.number),
-                    InputSpec('text', 'Комментарий',
-                        initial: '${offer['text']}', multiline: true)
-                  ],
-                  button: 'Сохранить',
-                  submit: (v) async {
-                    await api.request('/offers/${offer['id']}',
-                        method: 'PATCH',
-                        body: {
-                          'expected_version': offer['version'],
-                          'amount': minor(v['amount']!),
-                          'text': v['text']
-                        });
-                    if (c.mounted) Navigator.pop(c);
-                    if (mounted) setState(() => revision++);
-                  }))));
+  void editOffer(Json offer) => Navigator.push(context,MaterialPageRoute<void>(builder:(screenContext)=>Scaffold(
+      backgroundColor:canvas,appBar:AppBar(title:const UiText('Редактировать отклик')),
+      body:ApiView(load:()=>api.request('/offers/${offer['id']}'),builder:(context,current,reload)=>OfferEditor(
+          api:api,order:Json.from(current['order']),offer:Json.from(current),onSaved:(saved){
+            if(screenContext.mounted)Navigator.pop(screenContext);
+            if(mounted)setState(()=>revision++);
+          })))));
 
-  Widget offerScreen() => page(
-      'Отклик на заказ',
-      loaded(
-          '/orders/$objectId',
-          (o, reload) => ActionForm(
-              stickySubmit: true,
-              submitEnabled: offerAcknowledged &&
-                  acknowledgedOrderRevision == o['revision'],
-              afterFields: [
-                CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    value: offerAcknowledged &&
-                        acknowledgedOrderRevision == o['revision'],
-                    onChanged: (value) => setState(() {
-                          offerAcknowledged = value == true;
-                          acknowledgedOrderRevision = o['revision'];
-                        }),
-                    title: const UiText(
-                        'Подтверждаю текущую версию условий заказа.',
-                        style: TextStyle(fontSize: 12, height: 1.58)))
-              ],
-              before: [
-                Heading('${o['title']}'),
-                const Notice(
-                    'Отправляя отклик, вы подтверждаете актуальные условия заказа.')
-              ],
-              fields: const [
-                InputSpec('amount', 'Ваша цена',
-                    keyboard: TextInputType.number),
-                InputSpec('text', 'Комментарий', multiline: true)
-              ],
-              button: 'Отправить отклик',
-              submit: (v) async {
-                final offer = await api
-                    .request('/orders/$objectId/offers', method: 'POST', body: {
-                  'amount': minor(v['amount']!),
-                  'text': v['text'],
-                  'acknowledged_revision': o['revision']
-                }) as Json;
-                go('offer-sent', offer['id']);
-              })));
-  Widget offersScreen() => page(
-      'Список откликов',
-      loaded(
-          '/orders/$objectId',
-          (order, reload) => loaded(
-              '/orders/$objectId/offers',
-              (data, refresh) => listBody([
-                    if (items(data).isEmpty) const Notice('Откликов пока нет'),
-                    for (final offer in items(data))
-                      DataCard('${offer['text']}',
-                          subtitle: price(offer['amount'], offer['currency']),
-                          status: status(offer),
-                          footer: Column(children: [
-                            button('Открыть чат',
-                                () => go('chat', offer['conversation_id']),
-                                outline: true),
-                            if (offer['status'] == 'active' &&
-                                order['status'] == 'open')
-                              button('Выбрать исполнителя',
-                                  () => go('select-contractor', offer['id']))
-                          ])),
-                  ]))));
+  Widget offerScreen() => page('Откликнуться',loaded('/orders/$objectId',(order,reload)=>OfferEditor(
+      api:api,order:Json.from(order),onSaved:(offer)=>go('offer-sent',offer['id']))));
+  Widget offersScreen() => ApiView(
+      key:ValueKey('offers:$objectId:$revision'),
+      load:()=>Future.wait([api.request('/orders/$objectId'),api.request('/orders/$objectId/offers')]),
+      builder:(context,data,reload)=>page('${localize(context,'Отклики')} · ${items(data[1]).length}',
+          OfferList(api:api,order:Json.from(data[0]),offers:items(data[1]),onGo:(route,id)=>go(route,id))));
   Widget contractorScreen() => page(
       'Профиль мастера',
       loaded(

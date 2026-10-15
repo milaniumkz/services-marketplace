@@ -68,24 +68,26 @@ class _WorkStateScreenState extends State<WorkStateScreen> {
                     mode == 'invited' ? 'orders' : 'order', orderId))
           ]);
         }
-        if (mode == 'frozen-chat')
+        if (mode == 'frozen-chat') {
+          final expired=r['blocked_reason']=='offer_expired',closed=r['blocked_reason']=='conversation_closed';
           return ListView(padding: const EdgeInsets.all(20), children: [
-            Notice(r['blocked'] == true
+            Notice(expired ? 'Срок отклика истёк. Новые сообщения в этой переписке недоступны.' : closed ? 'Переписка закрыта для новых сообщений. История заказа сохранена.' : r['blocked'] == true
                 ? 'Для безопасности новые сообщения в этой переписке временно недоступны.'
                 : 'Эта переписка доступна по текущим правилам.'),
             DataCard('${r['order_title'] ?? ''}',
                 subtitle: localize(context, 'История заказа сохранена.')),
             JobaStatePanel(
                 icon: 'shield',
-                title: r['blocked'] == true
+                title: expired ? 'Срок отклика\nистёк' : closed ? 'Переписка\nзакрыта' : r['blocked'] == true
                     ? 'Обратитесь\nв поддержку'
                     : 'Чат доступен',
-                message: 'Подписка не снимает ограничения безопасности.',
+                message: expired || closed ? 'Откройте заказ, чтобы проверить его текущее состояние. История переписки сохранена.' : 'Подписка не снимает ограничения безопасности.',
                 primaryLabel:
-                    r['blocked'] == true ? 'Открыть обращение' : 'Открыть чат',
+                    expired || closed ? 'Открыть заказ' : r['blocked'] == true ? 'Открыть обращение' : 'Открыть чат',
                 onPrimary: () => widget.onGo(
-                    r['blocked'] == true ? 'support' : 'chat', widget.id))
+                    expired || closed ? 'order' : r['blocked'] == true ? 'support' : 'chat', expired || closed ? r['order_id'] ?? widget.id : widget.id))
           ]);
+        }
         if (mode == 'offer-revision') {
           final order = r['order'];
           return ActionForm(

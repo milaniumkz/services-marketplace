@@ -5,7 +5,7 @@ export function editableContent(record:RecordData):RecordData {
   return {...record,...record.draft,version:record.version,draft:undefined,public_status:record.status};
 }
 export function publicContent(record:RecordData):RecordData {
-  const {draft,reason,reviewer_id,rejection_reason,case_id,public_status,revision_reason,revision_upload_ids,revision_time_window,completion_note,completion_upload_ids,completion_requested_at,...visible}=record;
+  const {draft,reason,reviewer_id,rejection_reason,case_id,public_status,revision_reason,revision_upload_ids,revision_time_window,completion_note,completion_upload_ids,completion_requested_at,agreed_start_at,agreed_start_local,agreed_duration_minutes,agreed_time_zone,...visible}=record;
   return visible as RecordData;
 }
 export function editContent(record:RecordData,changes:Record<string,any>):RecordData {
