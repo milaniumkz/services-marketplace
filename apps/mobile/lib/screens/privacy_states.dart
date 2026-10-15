@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/design_states.dart';
+import '../core/design_widgets.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../core/widgets.dart';
@@ -31,7 +32,10 @@ class _PrivacyStatesState extends State<PrivacyStates> {
           top: false,
           child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: FilledButton(onPressed: action, child: UiText(label)))));
+              child: SizedBox(
+                  width: double.infinity,
+                  child:
+                      FilledButton(onPressed: action, child: UiText(label))))));
   @override
   Widget build(BuildContext context) {
     if (widget.mode == 'consents')
@@ -110,36 +114,46 @@ class _PrivacyStatesState extends State<PrivacyStates> {
                 Expanded(
                     child:
                         ListView(padding: const EdgeInsets.all(20), children: [
-                  const UiHeading('Проверьте последствия',
-                      'Удаление затронет обе роли: заказчика и исполнителя.'),
+                  const UiHeading('Проверьте последствия'),
                   const Notice(
-                      'Профиль исчезнет из поиска. Сессии завершатся. Данные будут удалены или обезличены по установленным срокам.'),
-                  DataCard('Активные заказы',
-                      translateTitle: true,
-                      subtitle: '${r['active_orders']}',
-                      onTap: () => widget.onGo('orders', null)),
-                  DataCard('Подписка',
-                      translateTitle: true,
-                      subtitle: localize(
-                          context, 'Удаление аккаунта не отменяет подписку.'),
-                      onTap: () => widget.onGo('manage-subscription', null)),
-                  DataCard('Сохранить свои данные',
-                      translateTitle: true,
-                      subtitle:
-                          localize(context, 'Запросить копию до удаления'),
-                      onTap: () => widget.onGo('export', null)),
-                  const Notice(
-                      'Часть записей может сохраняться по законному основанию. Мы объясним, какие данные и почему.'),
+                      'Профиль исчезнет из поиска. Сессии завершатся. Данные будут удалены или обезличены по установленным срокам.',
+                      warning: true,
+                      icon: 'info',
+                      margin: EdgeInsets.zero),
+                  const SizedBox(height: 20),
+                  JobaMenu([
+                    JobaMenuEntry('Активные заказы', 'brief',
+                        () => widget.onGo('orders', null),
+                        subtitle: r['active_orders'] == 0
+                            ? 'Активных заказов нет'
+                            : '${localize(context, 'Сначала завершите или разрешите заказы')}: ${r['active_orders']}'),
+                    if (r['subscription_relevant'] == true)
+                      JobaMenuEntry('Подписка исполнителя', 'card',
+                          () => widget.onGo('manage-subscription', null),
+                          subtitle: 'Удаление аккаунта не отменяет её'),
+                    JobaMenuEntry('Сохранить свои данные', 'download',
+                        () => widget.onGo('export', null),
+                        subtitle: 'Запросить копию до удаления'),
+                  ]),
+                  const SizedBox(height: 20),
+                  const UiText(
+                      'Часть записей может сохраняться по законному основанию. Мы объясним, какие данные и почему.',
+                      style:
+                          TextStyle(fontSize: 12, height: 1.5, color: muted)),
                   if (r['policy_ready'] != true)
                     const Notice(
                         'Сроки хранения ещё не утверждены. Запрос можно подать, но очистка не начнётся до проверки политики.'),
                   CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
                       value: acknowledged,
                       onChanged: (v) =>
                           setState(() => acknowledged = v == true),
                       title: const UiText(
-                          'Понимаю последствия и хочу продолжить.')),
-                  TextButton(
+                          'Понимаю последствия и хочу продолжить.',
+                          style: TextStyle(fontSize: 12, height: 1.58))),
+                  const SizedBox(height: 20),
+                  OutlinedButton(
                       onPressed: () => widget.onGo('account', null),
                       child: const UiText('Вернуться в профиль'))
                 ])),

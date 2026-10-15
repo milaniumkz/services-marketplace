@@ -18,6 +18,7 @@ test('offer terms retain local time and exact UTC, cap expiry, reject invalid du
  for(const proposed_start_local of ['2026-10-25T02:30','2027-03-28T02:30'])assert.throws(()=>offerTerms(serbia,{proposed_start_local},10000,now),e=>e.getStatus()===400);
  assert.equal(offerExpired({created_at:'2026-10-12T09:00:00Z'},72,now),true);
  const legacy=offerTerms(order,{},72,now,{country:'KZ',created_at:'2026-10-13T12:00:00Z'});assert.equal(legacy.expires_at,'2026-10-16T12:00:00.000Z');
+ const capped=offerTerms({...order,expires_at:'2026-10-16T00:00:00Z'},{},72,now,{country:'KZ',created_at:'2026-10-13T12:00:00Z'});assert.equal(capped.expires_at,'2026-10-16T00:00:00.000Z');
 });
 test('expired offers cannot be selected or reused; complete terms are kept in the assignment snapshot',async()=>{
  const api=new Marketplace(new Store('memory://'));await api.initialize();
@@ -29,6 +30,7 @@ test('expired offers cannot be selected or reused; complete terms are kept in th
   const draft=await call(customer,'POST','/orders',{title:'Собрать новую кухню',description:'Нужна аккуратная сборка новой кухни и подключение мойки.',category_id:'1',city:'Алматы'});
   const open=await call(customer,'POST',`/orders/${draft.id}/publish`,{expected_version:draft.version});
   const offer=await call(executor,'POST',`/orders/${open.id}/offers`,{amount:4500000,text:'Привезу инструменты',acknowledged_revision:open.revision,duration_minutes:300});
+  assert.equal(offer.acknowledged_order.title,open.title);assert.equal(offer.acknowledged_order.revision,open.revision);
   assert.ok(Date.parse(offer.expires_at)>Date.now());assert.equal(offer.duration_minutes,300);
   const expired={...offer,expires_at:new Date(Date.now()-1000).toISOString()};await api.store.put(expired);
   await assert.rejects(()=>call(customer,'POST',`/orders/${open.id}/select`,{expected_version:open.version,offer_id:offer.id,offer_version:offer.version}),e=>e.getResponse().error.code==='OFFER_EXPIRED');

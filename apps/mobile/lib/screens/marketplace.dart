@@ -1108,7 +1108,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'reward-pending':
       case 'reward':
         if (!executor) return customerAccessScreen();
-        return page({'checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Рекламная награда'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
+        return page({'checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Доступ за рекламу'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'export':
         return page('Экспорт моих данных',
             ExportIntro(onRequest: () => privacyRequest('export', () {})),
@@ -1210,7 +1210,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'portfolio-edit':
         return projectScreen();
       case 'portfolio-photos':
-        return page('Фото проекта',PortfolioPhotos(key:ValueKey('photos:$objectId:$revision'),api:api,id:objectId!,onDone:()=>go('portfolio-project',objectId)),titleOffset:-12);
+        return page('Фото проекта',PortfolioPhotos(key:ValueKey('photos:$objectId:$revision'),api:api,id:objectId!,onDone:()=>go('portfolio-edit',objectId)),titleOffset:-12);
       case 'portfolio-project':
         return objectId == null ? projectScreen() : ownProjectDetailScreen();
       case 'verification':

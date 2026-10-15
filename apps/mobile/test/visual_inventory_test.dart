@@ -401,7 +401,8 @@ void main() {
           'order_id': 'visual-object',
           'order': {...order(), if(route=='offer-revision') 'revision':2, if(route=='select-contractor') 'title':'Сборка кухни'},
           if(route=='select-contractor') ...{'amount':4500000,'proposed_start_local':'2026-10-16T10:00','duration_minutes':300,'time_zone':'Asia/Almaty'},
-          'executor': profile
+          'executor': profile,
+          if(route=='offer-revision') ...{'acknowledged_revision':3,'acknowledged_order':{'revision':3,'budget_amount':4500000,'currency':'KZT'},'order':{...order(),'revision':4,'title':'Сборка кухни','description':'Установить две настенные полки.','budget_amount':5000000}},
         };
       else if (path.endsWith('/offers'))
         data = {
@@ -529,6 +530,9 @@ void main() {
         data = {
           'subscription_enabled': true,
           'rewarded_access_enabled': false,
+          'reward_provider_ready':false,
+          'reward_policy':{'kind':'duration','duration_seconds':86400},
+          'reward_usage':{'used_today':2,'daily_cap':3,'remaining_today':1},
           'checkout_enabled': false,
           'offers': [{'id':'visual-offer','product_type':'subscription','amount_minor':249000,'currency':'KZT','period':'month'}]
         };

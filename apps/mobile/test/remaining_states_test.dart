@@ -90,11 +90,17 @@ void main() {
       }
       return ok({
         'id': 'offer',
+        'status': 'active',
+        'currency': 'KZT',
         'version': 3,
         'amount': 12000,
         'text': 'Мой комментарий',
         'acknowledged_revision': 1,
         'order': {
+          'id': 'order',
+          'status': 'open',
+          'country': 'KZ',
+          'currency': 'KZT',
           'revision': 2,
           'title': 'Задача',
           'description': 'Новые условия'
@@ -114,6 +120,13 @@ void main() {
     await t.tap(find.byType(CheckboxListTile));
     await t.pump();
     await t.tap(find.text('Изменить мой отклик'));
+    await t.pumpAndSettle();
+    expect(body, isNull);
+    await t.scrollUntilVisible(find.byType(CheckboxListTile), 200,
+        scrollable: find.byType(Scrollable).first);
+    await t.tap(find.byType(CheckboxListTile));
+    await t.pumpAndSettle();
+    await t.tap(find.widgetWithText(FilledButton, 'Сохранить'));
     await t.pumpAndSettle();
     expect(body, containsPair('acknowledged_revision', 2));
     expect(body, containsPair('expected_version', 3));

@@ -32,7 +32,7 @@ import { Branding } from './branding';
 import { DEFAULT_SETTINGS,validateSettings,readSettings } from './settings';
 import { seedReferenceData,referenceId } from './reference-data';
 import { attributes,timeWindow } from './validation';
-import {offerTerms,offerPolicy,offerExpired,presentOffer,offerPeople} from './offer-terms';
+import {offerTerms,offerPolicy,offerExpired,presentOffer,offerPeople,offerOrderSnapshot} from './offer-terms';
 import { exportSnapshot,writeExport } from './privacy-export';
 import { profileFields } from './contractor-profile';
 import { EventEmitter } from 'node:events';
@@ -351,7 +351,11 @@ export class Marketplace {
     if(path==='/geo/cities'&&method==='GET')return {items:countries[a.country].cities.filter(c=>!q.q||c.toLowerCase().includes(String(q.q).toLowerCase())).map(name=>({id:referenceId(`joba:city:${a.country}:${name}`),name,country:a.country}))};
     if(path==='/me/monetization-config'&&method==='GET') {
       const config=(await this.store.all('monetization_config',a.country)).find(x=>x.status==='effective');
-      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:false,subscription_enabled:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false,subscription_scope:'executor',country_gate:'unverified',offers:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false?(await this.commerce.offers(a.country)).items:[]};
+      const usage=(await db.query<{used:string;last:string|null}>("SELECT count(*) AS used,max(data->>'created_at') AS last FROM records WHERE kind='ad_session' AND country=$1 AND owner=$2 AND left(data->>'created_at',10)=$3",[a.country,a.id,new Date().toISOString().slice(0,10)])).rows[0];
+      const usedToday=Number(usage.used),dailyCap=config?.payload.daily_cap??5;
+      const last=usage.last?Date.parse(usage.last):0;
+      const cooldownUntil=last?new Date(last+(config?.payload.cooldown_seconds??300)*1000).toISOString():null;
+      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:false,subscription_enabled:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false,subscription_scope:'executor',country_gate:'unverified',offers:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false?(await this.commerce.offers(a.country)).items:[]};
     }
     if(path==='/me/entitlements'&&method==='GET')return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};
     if(path==='/me/verification'&&method==='GET') {
@@ -521,7 +525,7 @@ export class Marketplace {
         const person=(user:RecordData|undefined)=>user?{id:user.id,display_name:user.display_name,avatar_id:user.avatar_id,city:user.city}:null;
         return {...(participant?o:publicContent(o)),exact_address:participant?o.exact_address:undefined,customer:person(customer),executor:participant?person(executor):undefined,conversation_id:assignment?.conversation_id,my_review:review,offer_policy:offerPolicy(o,settings.offer_expiry_hours)};
       }
-      if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:await offerPeople(this.store,a.country,(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id).map(x=>presentOffer(x,settings.offer_expiry_hours)))};}
+      if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:await offerPeople(this.store,a.country,(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id).map(x=>presentOffer(x,settings.offer_expiry_hours,new Date(),o)))};}
       if(action==='offers'&&method==='POST') {
         await this.entitlement(a,'send_offer',true);if(o.owner===a.id||o.status!=='open')fail(409,'STATE_CONFLICT','Нельзя откликнуться на заказ');
         if(await this.blocked(a,o.owner))fail(404,'NOT_FOUND','Заказ недоступен');
@@ -531,7 +535,7 @@ export class Marketplace {
         if(previous.some(x=>!offerExpired(x,settings.offer_expiry_hours)))fail(409,'STATE_CONFLICT','Отклик уже отправлен');
         for(const old of previous){await this.store.put({...old,status:'expired',version:old.version+1});const chat=await this.store.get(old.conversation_id);if(chat?.status==='open')await this.store.put({...chat,status:'closed',version:chat.version+1});}
 
-        const offer=this.record('offer',a,{order_id:o.id,text:text(b,'text',1,3000),amount:b.amount,currency:o.currency,acknowledged_revision:o.revision,status:'active',...offerTerms(o,b,settings.offer_expiry_hours)});
+        const offer=this.record('offer',a,{order_id:o.id,text:text(b,'text',1,3000),amount:b.amount,currency:o.currency,acknowledged_revision:o.revision,acknowledged_order:offerOrderSnapshot(o),status:'active',...offerTerms(o,b,settings.offer_expiry_hours)});
         const chat=this.record('conversation',a,{order_id:o.id,offer_id:offer.id,members:[o.owner,a.id],status:'open'});offer.conversation_id=chat.id;
         await this.store.put(chat);await this.store.put(offer);await this.notify(o.owner,a,'offer.created',o.id);return offer;
       }
@@ -613,7 +617,7 @@ export class Marketplace {
       if(method==='GET'&&!offerCommand[2]) {
         const offer=await this.object(offerCommand[1],a,'offer'),order=await this.object(offer.order_id,a,'order');
         if(offer.owner!==a.id&&order.owner!==a.id)fail(404,'NOT_FOUND','Отклик не найден');
-        return {...presentOffer(offer,settings.offer_expiry_hours),order:{...order,offer_policy:offerPolicy(order,settings.offer_expiry_hours),exact_address:order.owner===a.id||order.executor_id===a.id?order.exact_address:undefined},executor:(await offerPeople(this.store,a.country,[offer]))[0].executor};
+        return {...presentOffer(offer,settings.offer_expiry_hours,new Date(),order),order:{...order,offer_policy:offerPolicy(order,settings.offer_expiry_hours),exact_address:order.owner===a.id||order.executor_id===a.id?order.exact_address:undefined},executor:(await offerPeople(this.store,a.country,[offer]))[0].executor};
       }
       const f=await this.object(offerCommand[1],a,'offer',true);this.version(f,b);
       if(f.status!=='active')fail(409,'STATE_CONFLICT','Отклик больше не активен');
@@ -621,8 +625,8 @@ export class Marketplace {
       const o=await this.object(f.order_id,a,'order');if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ закрыт');
       if(offerCommand[2]==='withdraw'&&method==='POST'){const c=await this.store.get(f.conversation_id);if(c)await this.store.put({...c,status:'closed',version:c.version+1});return this.store.put({...f,status:'withdrawn',version:f.version+1});}
       await this.entitlement(a,'send_offer',true);
-      if(offerCommand[2]==='acknowledge'&&method==='POST'){if(b.order_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия изменились');return this.store.put({...f,acknowledged_revision:o.revision,version:f.version+1});}
-      if(method==='PATCH'){if(!Number.isSafeInteger(b.amount)||b.amount<0)fail(400,'VALIDATION_ERROR','Проверьте цену');if(b.acknowledged_revision!==undefined&&b.acknowledged_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия изменились');return this.store.put({...f,text:text(b,'text',1,3000),amount:b.amount,...offerTerms(o,b,settings.offer_expiry_hours,new Date(),f),...(b.acknowledged_revision!==undefined?{acknowledged_revision:o.revision}:{}),version:f.version+1});}
+      if(offerCommand[2]==='acknowledge'&&method==='POST'){if(b.order_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия изменились');return this.store.put({...f,acknowledged_revision:o.revision,acknowledged_order:offerOrderSnapshot(o),version:f.version+1});}
+      if(method==='PATCH'){if(!Number.isSafeInteger(b.amount)||b.amount<0)fail(400,'VALIDATION_ERROR','Проверьте цену');if(b.acknowledged_revision!==undefined&&b.acknowledged_revision!==o.revision)fail(409,'REVISION_NOT_ACKNOWLEDGED','Условия изменились');return this.store.put({...f,text:text(b,'text',1,3000),amount:b.amount,...offerTerms(o,b,settings.offer_expiry_hours,new Date(),f),...(b.acknowledged_revision!==undefined?{acknowledged_revision:o.revision,acknowledged_order:offerOrderSnapshot(o)}:{}),version:f.version+1});}
     }
     if(path==='/me/order-invites'&&method==='GET'){
       if(q.status&&!['pending','accepted','declined','expired','revoked'].includes(q.status))fail(400,'VALIDATION_ERROR','Неизвестный статус приглашения');
@@ -792,7 +796,7 @@ export class Marketplace {
     if(reviews&&method==='GET'){await this.entitlement(a,'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status)),q);}
     if(path==='/me/deletion-preview'&&method==='GET'){
       const active=(await this.store.select('order',a.country,{participant:a.id,statuses:['assigned','in_progress','completion_requested'],limit:1000})).length;
-      return {active_orders:active,policy_ready:(await this.store.all('retention_policy',a.country)).some(p=>p.status==='effective'),grace_hours:settings.deletion_grace_hours};
+      return {active_orders:active,subscription_relevant:a.user.active_role==='executor'&&(await this.store.select('subscription',a.country,{owner:a.id,limit:1000})).some(s=>['active','grace','canceled_at_period_end'].includes(s.status)),policy_ready:(await this.store.all('retention_policy',a.country)).some(p=>p.status==='effective'),grace_hours:settings.deletion_grace_hours};
     }
     if(path==='/me/processing-consents'&&method==='GET')return (await this.store.select('processing_consent',a.country,{owner:a.id,limit:1}))[0]??{version:0,marketing:false,ad_personalization:false,optional_analytics:false};
     if(path==='/me/processing-consents'&&method==='POST'){

@@ -11,6 +11,7 @@ const _paths = <String, String>{
   "user":
       "M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M3 21v-2a7 7 0 0 1 7-7h4a7 7 0 0 1 7 7v2",
   "back": "m14 5-7 7 7 7",
+  "arrow-right": "M4 12h16m-6-6 6 6-6 6",
   "right": "m9 5 7 7-7 7",
   "down": "m6 9 6 6 6-6",
   "plus": "M12 4v16M4 12h16",

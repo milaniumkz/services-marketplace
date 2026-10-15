@@ -48,6 +48,13 @@ test('provider pending evidence creates no entitlement; client reward completion
   proof.state='active';proof.revision=2;await call(a,u,'POST','/billing/verify-purchase',{provider:'isolated',transaction_reference:'isolated-receipt'});assert.equal((await call(a,u,'GET','/me/purchase-checks/'+result.check.id)).status,'confirmed');assert.equal((await a.store.all('grant','KZ')).length,1);
   const reward=record('ad_session',owner,{status:'pending'});await a.store.put(reward);
   await call(a,u,'POST','/ads/reward-sessions/'+reward.id+'/outcome',{outcome:'completed'});assert.equal((await call(a,u,'GET','/ads/reward-sessions/'+reward.id)).grant,null);
+  await a.store.put(record('monetization_config',owner,{status:'effective',payload:{rewarded_access_enabled:false,daily_cap:3,cooldown_seconds:300}}));
+  await a.store.put(record('ad_session',randomUUID(),{status:'pending'}));
+  await a.store.put(record('ad_session',owner,{country:'BY',status:'pending'}));
+  const config=await call(a,u,'GET','/me/monetization-config');
+  assert.equal(config.reward_usage.used_today,1);assert.equal(config.reward_usage.remaining_today,2);assert.equal(config.reward_provider_ready,false);assert.ok(Date.parse(config.reward_usage.cooldown_until)>Date.now());
+  await assert.rejects(()=>call(a,u,'POST','/ads/reward-sessions',{placement:'access'}),e=>e.getResponse().error.code==='REWARDED_DISABLED');
+
  }finally{await a.store.close();}
 });
 test('map exposes only eligible rounded public service areas and applies distance before limit',async()=>{

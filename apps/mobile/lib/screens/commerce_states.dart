@@ -3,6 +3,7 @@ import '../core/api.dart';
 import '../core/commerce_gateway.dart';
 import '../core/currency.dart';
 import '../core/design_states.dart';
+import '../core/design_icons.dart';
 import '../core/design_widgets.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
@@ -59,6 +60,151 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
             onSecondary: onSecondary),
         if (error != null) Notice(errorText(context, error!), error: true)
       ]);
+  Future<void> playReward() => run(() async {
+        try {
+          final session = await widget.api.request('/ads/reward-sessions',
+              method: 'POST', body: {'placement': 'access'});
+          final completed = await widget.gateway.playReward(session);
+          await widget.api.request(
+              '/ads/reward-sessions/${session['id']}/outcome',
+              method: 'POST',
+              body: {'outcome': completed ? 'completed' : 'no_fill'});
+          if (mounted)
+            widget.onGo(
+                completed ? 'reward-pending' : 'reward-nofill', session['id']);
+        } on ApiException catch (e) {
+          if (['REWARDED_DISABLED', 'PROVIDER_UNAVAILABLE'].contains(e.code)) {
+            if (mounted) widget.onGo('reward-nofill', null);
+            return;
+          }
+          rethrow;
+        }
+      });
+  Widget rewardOffer(Json config, VoidCallback reload) {
+    final policy = config['reward_policy'] as Json?;
+    final usage = config['reward_usage'] as Json?;
+    final seconds = policy?['duration_seconds'] as num?;
+    final credits = policy?['credits'] as num?;
+    final cooldown = DateTime.tryParse('${usage?['cooldown_until']}');
+    final remaining = usage?['remaining_today'] as num?;
+    final enabled = config['rewarded_access_enabled'] == true &&
+        config['reward_provider_ready'] == true &&
+        policy != null &&
+        ((policy['kind'] == 'duration' && seconds != null && seconds > 0) ||
+            (policy['kind'] == 'action_credits' &&
+                credits != null &&
+                credits > 0)) &&
+        (remaining == null || remaining > 0) &&
+        (cooldown == null || !cooldown.isAfter(DateTime.now()));
+    final hours = seconds == null ? 0 : seconds ~/ 3600;
+    final hourWord = hours % 10 == 1 && hours % 100 != 11
+        ? 'час'
+        : hours % 10 >= 2 &&
+                hours % 10 <= 4 &&
+                (hours % 100 < 12 || hours % 100 > 14)
+            ? 'часа'
+            : 'часов';
+    final duration = seconds == null
+        ? 'Не задан'
+        : seconds % 3600 == 0
+            ? '$hours ${localize(context, hourWord)}'
+            : '${(seconds / 60).ceil()} мин';
+    return Column(children: [
+      Expanded(
+          child: ListView(padding: const EdgeInsets.all(20), children: [
+        Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 22),
+            child: Column(children: [
+              Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4D5),
+                      borderRadius: BorderRadius.circular(24)),
+                  child: const Center(
+                      child: JobaIcon('play',
+                          size: 34, color: Color(0xFF8D6510)))),
+              const SizedBox(height: 20),
+              UiText(
+                  policy == null
+                      ? 'Один просмотр.\nБольше возможностей.'
+                      : policy['kind'] == 'duration'
+                          ? 'Один просмотр.\n$duration доступа.'
+                          : 'Один просмотр.\n${credits ?? '—'} действий.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 28,
+                      height: 1.25,
+                      letterSpacing: -.9,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              const UiText(
+                  'Доступ исполнителю начнётся после подтверждения просмотра рекламной сетью.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, height: 1.55, color: muted)),
+            ])),
+        Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: line),
+                borderRadius: BorderRadius.circular(16)),
+            child: Column(children: [
+              checkoutFact(
+                  'Награда',
+                  policy?['kind'] == 'action_credits'
+                      ? '${credits ?? '—'} ${localize(context, 'действий')}'
+                      : localize(context, 'Доступ исполнителя')),
+              checkoutFact('Срок', localize(context, duration)),
+              checkoutFact(
+                  'Доступно сегодня',
+                  usage == null
+                      ? '—'
+                      : '${usage['remaining_today']} / ${usage['daily_cap']}',
+                  last: true),
+            ])),
+        const SizedBox(height: 8),
+        Notice(
+            config['rewarded_access_enabled'] != true
+                ? 'Рекламный доступ сейчас отключён. Награда не начислялась.'
+                : config['reward_provider_ready'] != true
+                    ? 'Рекламная сеть ещё не подключена.'
+                    : remaining != null && remaining <= 0
+                        ? 'Дневной лимит просмотров достигнут.'
+                        : cooldown != null && cooldown.isAfter(DateTime.now())
+                            ? 'Перед следующим просмотром нужна пауза. Обновите условия позже.'
+                            : 'Доступ выдаётся только после подтверждения рекламной сети.',
+            warning: true,
+            icon: 'info'),
+        const UiText(
+            'Можно отказаться. Просмотр не означает согласие на персонализацию рекламы.',
+            style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
+        const SizedBox(height: 16),
+        TextButton(
+            onPressed: () => widget.onGo('access', null),
+            child: const UiText('Выбрать подписку')),
+        if (!enabled)
+          TextButton(
+              onPressed: busy ? null : reload,
+              child: const UiText('Обновить условия')),
+        if (error != null) Notice(errorText(context, error!), error: true),
+      ])),
+      Container(
+          decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: line))),
+          child: SafeArea(
+              top: false,
+              child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                          onPressed: enabled && !busy ? playReward : null,
+                          child: const UiText('Посмотреть ролик')))))),
+    ]);
+  }
+
   String periodLabel(dynamic period) => switch (period) {
         'month' || 'P1M' => '1 месяц',
         'year' || 'P1Y' => '1 год',
@@ -74,9 +220,14 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
               border:
                   last ? null : const Border(bottom: BorderSide(color: line))),
           child: Row(children: [
-            Expanded(child: UiText(label, style: const TextStyle(fontSize: 12, color: navy))),
+            Expanded(
+                child: UiText(label,
+                    style: const TextStyle(fontSize: 12, color: navy))),
             const SizedBox(width: 12),
-            Flexible(child: UiText(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+            Flexible(
+                child: UiText(value,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700))),
           ]));
 
   String money(Json? r) => r?['amount_minor'] is int
@@ -146,12 +297,12 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                             ? 'Просмотр не начался, награда не начислена.'
                             : 'Награда ещё не подтверждена. Повторно смотреть рекламу не нужно.',
                 valid
-                    ? 'Найти специалиста'
+                    ? 'Найти заказ'
                     : expired
                         ? 'Мой доступ'
                         : 'Проверить статус',
                 valid
-                    ? () => widget.onGo('catalog', null)
+                    ? () => widget.onGo('jobs', null)
                     : expired
                         ? () => widget.onGo('my-access', null)
                         : reload);
@@ -170,40 +321,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
     if (mode == 'reward')
       return ApiView(
           load: () => widget.api.request('/me/monetization-config'),
-          builder: (context, r, reload) => panel(
-              'play',
-              'Больше возможностей',
-              'Доступ выдаётся только после подтверждения рекламной сети.',
-              'Посмотреть ролик',
-              () => run(() async {
-                    try {
-                      final session = await widget.api.request(
-                          '/ads/reward-sessions',
-                          method: 'POST',
-                          body: {'placement': 'access'});
-                      final completed =
-                          await widget.gateway.playReward(session);
-                      await widget.api.request(
-                          '/ads/reward-sessions/${session['id']}/outcome',
-                          method: 'POST',
-                          body: {
-                            'outcome': completed ? 'completed' : 'no_fill'
-                          });
-                      if (mounted)
-                        widget.onGo(
-                            completed ? 'reward-pending' : 'reward-nofill',
-                            session['id']);
-                    } on ApiException catch (e) {
-                      if (['REWARDED_DISABLED', 'PROVIDER_UNAVAILABLE']
-                          .contains(e.code)) {
-                        if (mounted) widget.onGo('reward-nofill', null);
-                        return;
-                      }
-                      rethrow;
-                    }
-                  }),
-              secondary: 'Мой доступ',
-              onSecondary: () => widget.onGo('my-access', null)));
+          builder: (context, r, reload) => rewardOffer(r, reload));
     if (mode == 'manage-subscription' || mode == 'subscription-canceled')
       return ApiView(
           load: () => widget.id == null
@@ -302,7 +420,9 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                 const SizedBox(height: 16),
               ],
               const Notice(
-                  'Доступ активируется после подтверждения оплаты. Если платёж обрабатывается, повторная покупка не требуется.', warning: true, icon: 'info'),
+                  'Доступ активируется после подтверждения оплаты. Если платёж обрабатывается, повторная покупка не требуется.',
+                  warning: true,
+                  icon: 'info'),
               JobaMenu([
                 JobaMenuEntry('Условия подписки', 'file',
                     () => widget.onGo('legal', null)),
