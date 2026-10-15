@@ -1,3 +1,4 @@
+import {promotionWorkspace} from './promotion-workspace.js';
 import {pushRoutes,pushWorkspace} from './push-workspace.js';
 import {scenarioRoutes,scenarioWorkspace} from './scenario-workspace.js';
 import {brandingBuildWorkspace} from './branding-build-workspace.js';
@@ -99,7 +100,7 @@ async function draw(reload=true) {
     if(reload&&session){
       const workspace=document.querySelector('.workspace');if(workspace){workspace.innerHTML=note('Загрузка данных…');workspace.setAttribute('aria-busy','true');}
       if(pushRoutes.has(key))routes[key]=await pushWorkspace({key,country:session.user.country,canManageTests:session.user.staff_permissions?.includes('administrator'),api:request,esc,card,tablecard,note,badge,namedField,onRefresh:()=>draw()});
-      if(scenarioRoutes.has(key))routes[key]=await scenarioWorkspace({key,api:request,esc,card,tablecard,note,namedField,onRefresh:()=>draw()});
+      if(scenarioRoutes.has(key)&&!['promo','promo-preview'].includes(key))routes[key]=await scenarioWorkspace({key,api:request,esc,card,tablecard,note,namedField,onRefresh:()=>draw()});
       if(['boosts','boost-grant'].includes(key))routes[key]=await boostWorkspace({key,api:request,esc,card,tablecard,note,badge,onRefresh:()=>draw()});
       if(key==='branding-build')routes[key]=await brandingBuildWorkspace({key,api:request,download:api.download,esc,card,tablecard,note,badge,onRefresh:()=>draw()});
       if(key==='branding')routes[key]=await brandingWorkspace({key,api:request,files:{upload:async file=>{if(g!==generation)throw Error('Экран изменился');const result=await api.upload(file);if(g!==generation)throw Error('Экран изменился');return result;},download:async path=>{if(g!==generation)throw Error('Экран изменился');const result=await api.download(path);if(g!==generation)throw Error('Экран изменился');return result;}},esc,card,note,badge,namedField,onRefresh:()=>draw()});
@@ -107,6 +108,8 @@ async function draw(reload=true) {
       if(['analytics','dashboard','security','jobs','scheduled','job-detail'].includes(key))routes[key]=await systemWorkspace({key,api:request,esc,card,tablecard,note,metric,badge,onRefresh:()=>draw()});
       if(key==='security')routes[key].actions+='<a class="btn" href="#security-full">Защищённый просмотр</a>';
       if(sections[key]&&!pushRoutes.has(key))cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
+      if(['promo','promo-preview'].includes(key))routes[key]=await promotionWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
+      if(['pricing','prices'].includes(key))routes[key].actions='<a class="btn primary" href="#promo">Промо-период исполнителя</a>';
       if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
       if(userRoutes.has(key)||key.startsWith('record-live/users/'))routes[key]=await userWorkspace({key,api:request,esc,card,tablecard,note,badge,namedField,sections,onRefresh:()=>draw()});

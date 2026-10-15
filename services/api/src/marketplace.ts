@@ -26,7 +26,7 @@ import { PopplerPdfSanitizer } from './pdf-sanitizer';
 import { PrivateFiles, ClamAvScanner } from './private-files';
 import sharp from 'sharp';
 import { Moderation, validateRules, TEXT_SURFACES, matchesRule } from './moderation';
-import { Configuration } from './configuration';
+import { Configuration,normalizePromotionPayload } from './configuration';
 import { Growth } from './growth';
 import { Branding } from './branding';
 import { DEFAULT_SETTINGS,validateSettings,readSettings } from './settings';
@@ -357,7 +357,7 @@ export class Marketplace {
       const cooldownUntil=last?new Date(last+(config?.payload.cooldown_seconds??300)*1000).toISOString():null;
       return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:false,subscription_enabled:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false,subscription_scope:'executor',country_gate:'unverified',offers:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false?(await this.commerce.offers(a.country)).items:[]};
     }
-    if(path==='/me/entitlements'&&method==='GET')return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};
+    if(path==='/me/entitlements'&&method==='GET'){await this.promotionGrant(a);return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};}
     if(path==='/me/verification'&&method==='GET') {
       const policy=(await this.store.all('verification_policy',a.country)).filter(x=>x.status==='effective').sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id))[0];
       const consent=policy?(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id&&x.document_id===policy!.payload.document_id).sort((x,y)=>(y.sequence??0)-(x.sequence??0)||y.created_at.localeCompare(x.created_at))[0]:null;
@@ -1273,8 +1273,16 @@ export class Marketplace {
       const configKinds=['monetization-configs','price-versions','categories','push-campaigns','referral-campaigns','moderation-dictionaries','ranking-configs','promotions','placement-policies','verification-policies','retention-policies','country-controls'];
       if(configKinds.includes(section)&&method==='POST'&&path.split('/').length===3) {
         if(section==='moderation-dictionaries'){try{validateRules(b.payload?.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}}
-        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='push-campaigns'?normalizePushPayload(b.payload??{}):b.payload??{}});
+        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
+      }
+      const editPromotion=path.match(/^\/admin\/promotions\/([^/]+)$/);
+      if(editPromotion&&method==='GET')return this.object(editPromotion[1],a,'promotion');
+      if(editPromotion&&method==='PATCH'){
+        const r=await this.object(editPromotion[1],a,'promotion');this.version(r,b);
+        if(r.status!=='draft'||r.owner!==a.id)fail(409,'STATE_CONFLICT','Создайте новую версию этого промо');
+        const result=await this.store.put({...r,title:text(b,'title',3,120),payload:normalizePromotionPayload(b.payload??{}),preview:undefined,version:r.version+1});
+        await this.audit(a,'promotions.edited',r.id,text(b,'reason',5,1000));return result;
       }
       const dictionaryDryRun=path.match(/^\/admin\/moderation-dictionaries\/([^/]+)\/dry-run$/);
       if(dictionaryDryRun&&method==='POST'){
@@ -1542,11 +1550,17 @@ export class Marketplace {
     return readSettings(this.store,country);
   }
   private async promotionGrant(a:Actor) {
+    if(a.user.status!=='active'||a.user.active_role!=='executor'||!a.user.roles?.includes('executor'))return;
     const now=new Date().toISOString();
-    const promotion=(await this.store.all('promotion',a.country)).find(p=>p.status==='effective'&&p.preview?.promo_end_exclusive>now&&(!p.payload.valid_from||p.payload.valid_from<=now));
+    const promotion=(await this.store.all('promotion',a.country)).filter(p=>{
+      if(p.status!=='effective'||!(p.preview?.promo_end_exclusive>now)||p.payload.valid_from&&p.payload.valid_from>now)return false;
+      const cutoff=p.payload.valid_from??p.published_at??p.created_at;
+      return !p.payload.audience||p.payload.audience==='all'||(p.payload.audience==='new'?a.user.created_at>=cutoff:a.user.created_at<cutoff);
+    }).sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id))[0];
     if(!promotion)return;
     const existing=(await this.store.all('grant',a.country)).find(g=>g.owner===a.id&&g.source_id===promotion.id);if(existing)return;
-    await this.store.put(this.record('grant',a,{source:'subscription_promotion',source_id:promotion.id,valid_until:promotion.preview.promo_end_exclusive,capabilities:['search_full','send_offer','publish_profile'],terms_snapshot:promotion.preview}));
+    const grant=this.record('grant',a,{source:'subscription_promotion',source_id:promotion.id,valid_until:promotion.preview.promo_end_exclusive,capabilities:['search_full','send_offer','publish_profile'],terms_snapshot:promotion.preview});
+    await this.store.db.query('INSERT INTO records(id,kind,owner,country,version,data) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',[grant.id,grant.kind,grant.owner,grant.country,grant.version,JSON.stringify(grant)]);
   }
   private async processUpload(id:string):Promise<any>{
     const running=this.uploadTasks.get(id);if(running)return running;

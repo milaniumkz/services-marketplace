@@ -9,6 +9,11 @@ function fail(code:string,message:string,status=422):never{throw new HttpExcepti
 export function promoEnd(date:string,timeZone:string) {
   return Temporal.PlainDate.from(date).add({days:1}).toZonedDateTime(timeZone).toInstant().toString();
 }
+export function normalizePromotionPayload(value:any) {
+  const p={...value};
+  if(p.start_local!==undefined){try{p.valid_from=new Date(Number(Temporal.PlainDateTime.from(p.start_local).toZonedDateTime(p.time_zone,{disambiguation:'reject'}).toInstant().epochMilliseconds)).toISOString();}catch{fail('VALIDATION_ERROR','Проверьте начало промо и IANA часовой пояс');}delete p.start_local;}
+  return p;
+}
 export class Configuration {
   constructor(private store:Store,private providers:Providers){}
   async validate(r:RecordData) {
@@ -45,9 +50,13 @@ export class Configuration {
     if(r.kind==='promotion') {
       if(typeof p.end_date!=='string'||typeof p.time_zone!=='string')fail('VALIDATION_ERROR','Дата и часовой пояс обязательны');
       let end:string;try{end=promoEnd(p.end_date,p.time_zone);}catch{fail('VALIDATION_ERROR','Некорректная дата или IANA time zone');}
-      const next=await this.store.get(p.next_price_id);if(!next||next.kind!=='price_version'||next.country!==r.country||next.status!=='effective')fail('NEXT_PRICE_UNVERIFIED','Сначала опубликуйте следующий тариф');
+      const next=await this.store.get(p.next_price_id);if(!next||next.kind!=='price_version'||next.country!==r.country||next.status!=='effective'||next.payload.product_type==='boost')fail('NEXT_PRICE_UNVERIFIED','Сначала опубликуйте следующий тариф');
       if(Date.parse(end!)<=Date.now())fail('VALIDATION_ERROR','Дата промо уже прошла');
-      return {promo_end_exclusive:end!,next_price:{id:next.id,...next.payload},amount_minor:0};
+      if(p.valid_from!==undefined&&(!Number.isFinite(Date.parse(p.valid_from))||new Date(p.valid_from).toISOString()!==p.valid_from||Date.parse(p.valid_from)>=Date.parse(end!)))fail('VALIDATION_ERROR','Начало должно предшествовать окончанию промо');
+      if(p.audience!==undefined&&!['all','new','existing'].includes(p.audience))fail('VALIDATION_ERROR','Выберите аудиторию промо');
+      if(p.role!==undefined&&p.role!=='executor')fail('VALIDATION_ERROR','Промо подписки доступно только исполнителям');
+      if(p.user_terms!==undefined&&(typeof p.user_terms!=='string'||p.user_terms.trim().length<10||p.user_terms.length>4000))fail('VALIDATION_ERROR','Укажите условия для пользователя');
+      return {valid_from:p.valid_from??null,audience:p.audience??'all',role:'executor',user_terms:p.user_terms??null,promo_end_exclusive:end!,next_price:{id:next.id,...next.payload},amount_minor:0};
     }
     if(r.kind==='dictionary'){try{validateRules(p.rules);}catch(e:any){fail('VALIDATION_ERROR',e.message);}}
     if(r.kind==='category') {
