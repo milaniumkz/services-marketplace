@@ -1,3 +1,6 @@
+import {promotedListings,promotedPlacements} from './promoted-listings';
+import {planFileRetention,purgedUpload} from './retention';
+import {adminReports} from './admin-reports';
 import {boostPresentation} from './boost-presentation';
 import {productAnalytics} from './product-analytics';
 import {rankingParameters} from './ranking';
@@ -20,7 +23,7 @@ import { Commerce } from './commerce';
 import { PopplerPdfSanitizer } from './pdf-sanitizer';
 import { PrivateFiles, ClamAvScanner } from './private-files';
 import sharp from 'sharp';
-import { Moderation, validateRules } from './moderation';
+import { Moderation, validateRules, TEXT_SURFACES, matchesRule } from './moderation';
 import { Configuration } from './configuration';
 import { Growth } from './growth';
 import { Branding } from './branding';
@@ -386,8 +389,17 @@ export class Marketplace {
       const count=(await db.query<any>("SELECT COALESCE(MAX((data->>'sequence')::integer),0) AS max FROM records WHERE kind='consent' AND owner=$1 AND country=$2",[a.id,a.country])).rows[0].max;
       return this.store.put(this.record('consent',a,{document_id:d.id,document_version:d.version,document_hash:d.hash,accepted:b.accepted,...(b.age_confirmed!==undefined?{age_confirmed:b.age_confirmed,age_declaration:'18_or_older'}:{}),sequence:Number(count)+1}));
     }
+    if(path==='/me/legal-holds'&&method==='GET'){const page=await this.page('legal_hold',a,q,{subjectUser:a.id});return {...page,items:page.items.map(r=>({id:r.id,status:r.status,fields:r.fields,basis:r.basis,review_at:r.review_at,created_at:r.created_at}))};}
     if(path==='/me/consents'&&method==='GET')return {items:(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id).sort((x,y)=>(y.sequence??0)-(x.sequence??0))};
     if(path==='/me/contractor-profile'&&method==='GET'){const profile=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='contractor' AND country=$1 AND owner=$2 LIMIT 1",[a.country,a.id])).rows[0]?.data;return {profile:profile?{...editableContent(profile),public_visible:profile.status==='published'&&!['hidden','quarantined','rejected'].includes(profile.moderation_status)&&a.user.status==='active'&&a.user.verification==='passed'}:null};}
+    if(path==='/me/contractor-profile/public-location'&&method==='PATCH'){
+      const p=(await this.store.select('contractor',a.country,{owner:a.id,limit:1}))[0];if(!p)fail(404,'NOT_FOUND','Профиль не найден');this.version(p,b);
+      if(typeof b.enabled!=='boolean')fail(400,'VALIDATION_ERROR','Подтвердите видимость зоны');
+      if(!b.enabled)return this.store.put({...p,public_location:null,...(p.draft?{draft:{...p.draft,public_location:null}}:{}),version:p.version+1});
+      const lat=b.location?.latitude,lon=b.location?.longitude;
+      if(!Number.isFinite(lat)||Math.abs(lat)>90||!Number.isFinite(lon)||Math.abs(lon)>180)fail(400,'VALIDATION_ERROR','Проверьте зону обслуживания');
+      const staged=editContent(p,{public_location:{latitude:Math.round(lat*100)/100,longitude:Math.round(lon*100)/100,approximate:true}});return this.store.put(staged);
+    }
     if(path==='/me/contractor-profile'&&method==='PUT') {
       const old=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(old)this.version(old,b);
       const title=text(b,'title',5,100),description=text(b,'description',20,3000),city=text(b,'city',2,100);
@@ -817,6 +829,7 @@ export class Marketplace {
     if(path==='/me/referrals'&&method==='GET')return this.growth.referrals(a.id,a.country);
     if(path==='/referrals/attribute'&&method==='POST')return this.growth.attribute(a.id,a.country,text(b,'code',1,50));
     const redeem=path.match(/^\/me\/referral-rewards\/([^/]+)\/redeem$/);if(redeem&&method==='POST')return this.growth.redeem(a.id,a.country,redeem[1]);
+    if(path==='/promoted-listings'&&method==='GET'){const placement=String(q.placement_id??'');if(!promotedPlacements.includes(placement))fail(400,'VALIDATION_ERROR','Неизвестное размещение');await this.entitlement(a,'search_full',placement.includes('.orders.'));return promotedListings(this.store,a.country,a.id,placement,q);}
     if(path==='/boost-offers'&&method==='GET'){await this.entitlement(a,'search_full');return {items:(await this.store.all('price_version',a.country)).filter(x=>x.status==='effective'&&x.payload.product_type==='boost').map(x=>({id:x.id,...x.payload})),placements:(await this.store.all('placement_policy',a.country)).filter(x=>x.status==='effective')};}
     if(path==='/boost-reservations'&&method==='POST'){const target=await this.object(String(b.target_id),a,undefined,true);await this.entitlement(a,'search_full',target.kind==='contractor');return this.growth.reserveBoost(a.id,a.country,b);}
     if(path==='/boost-purchases/verify'&&method==='POST')return this.growth.verifyBoost(a.id,a.country,b);
@@ -908,8 +921,45 @@ export class Marketplace {
         await this.audit(a,'brand.bundle_read',record.id,text(q,'reason',10,1000));
         return {download_stream:await this.files.readStream(record.bundle_file_id),download_size:record.bundle_size,download_filename:'joba-icons.zip',mime:'application/zip'};
       }
-      const permission=({'security-events':'security',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({'security-events':'security','legal-holds':'privacy',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
+      const report=await adminReports(this.store,a.country,method,path,q);if(report!==undefined)return report;
+      if(path==='/admin/bulk/preview'&&method==='POST'){
+        if(!['pause_contractors','resume_contractors'].includes(b.action)||!Array.isArray(b.ids)||b.ids.length<1||b.ids.length>100||new Set(b.ids).size!==b.ids.length||b.ids.some((id:any)=>typeof id!=='string'||!/^[0-9a-f-]{36}$/i.test(id)))fail(400,'VALIDATION_ERROR','Выберите от 1 до 100 уникальных профилей и действие');
+        const reason=text(b,'reason',10,1000),snapshot=[];
+        for(const id of b.ids){const target=await this.object(id,a,'contractor');snapshot.push({id:target.id,version:target.version,status:target.status});}
+        const job=this.record('bulk_job',a,{status:'previewed',action:b.action,reason,snapshot,expires_at:new Date(Date.now()+600000).toISOString(),processed:0,results:[]});await this.store.put(job);await this.audit(a,'bulk.preview',job.id,reason);return job;
+      }
+      const bulk=path.match(/^\/admin\/bulk\/([^/]+)(?:\/(execute))?$/);
+      if(bulk){const job=await this.object(bulk[1],a,'bulk_job',true);if(method==='GET'&&!bulk[2])return job;
+        if(method==='POST'&&bulk[2]==='execute'){
+          this.version(job,b);if(b.confirm!==true||job.status!=='previewed'||job.expires_at<=new Date().toISOString())fail(409,'STATE_CONFLICT','Подтверждение недоступно. Создайте новый предпросмотр');
+          const reason=text(b,'reason',10,1000),results=[];
+          for(const item of job.snapshot){
+            const target=await this.store.get(item.id);let code:string|undefined;
+            if(!target||target.country!==a.country||target.kind!=='contractor')code='NOT_FOUND';
+            else if(target.version!==item.version)code='STATE_CONFLICT';
+            else if(job.action==='pause_contractors'&&target.status!=='published'||job.action==='resume_contractors'&&target.status!=='paused')code='STATE_CONFLICT';
+            else if(job.action==='resume_contractors'){
+              const owner=await this.store.get(target.owner);if(!owner||owner.status!=='active'||owner.verification!=='passed'||['hidden','quarantined','rejected'].includes(target.moderation_status))code='POLICY_REJECTED';
+            }
+            if(code){results.push({id:item.id,status:'skipped',code});continue;}
+            await this.store.put({...target!,status:job.action==='pause_contractors'?'paused':'published',version:target!.version+1});results.push({id:item.id,status:'applied'});
+          }
+          const updated=await this.store.put({...job,status:'completed',processed:results.length,results,completed_at:new Date().toISOString(),version:job.version+1});await this.audit(a,'bulk.executed',job.id,reason);return updated;
+        }
+      }
+      if(path==='/admin/legal-holds'&&method==='GET')return this.page('legal_hold',a,q);
+      if(path==='/admin/legal-holds'&&method==='POST'){
+        const target=await this.object(String(b.target_id),a),allowed:Record<string,string[]>={upload:['file'],verification:['document_refs'],order:['upload_ids','revision_upload_ids'],message:['upload_ids'],portfolio:['photos'],contractor:['gallery_ids']};
+        const fields=allowed[target.kind];if(!fields||!Array.isArray(b.fields)||!b.fields.length||b.fields.some((f:any)=>!fields.includes(f)))fail(400,'VALIDATION_ERROR','Укажите конкретные поля удержания');
+        if(['purge_pending','purged'].includes(target.status))fail(409,'STATE_CONFLICT','Очистка уже началась');
+        for(const field of b.fields)for(const id of Array.isArray(target[field])?target[field]:[]){const file=await this.store.get(id);if(file&&['purge_pending','purged'].includes(file.status))fail(409,'STATE_CONFLICT','Очистка файла уже началась');}
+        const review=Date.parse(String(b.review_at));if(!Number.isFinite(review)||review<=Date.now()||review>Date.now()+366*86400000)fail(400,'VALIDATION_ERROR','Дата пересмотра должна быть в пределах года');
+        const hold=this.record('legal_hold',a,{target_id:target.id,subject_user_id:target.owner,fields:[...new Set(b.fields)],basis:text(b,'basis',10,1000),reason:text(b,'reason',10,1000),review_at:new Date(review).toISOString(),status:'active'});await this.store.put(hold);await this.audit(a,'privacy.hold_created',hold.id,hold.reason);await this.notify(target.owner,a,'privacy.hold.created',hold.id);return hold;
+      }
+      const holdRelease=path.match(/^\/admin\/legal-holds\/([^/]+)\/release$/);
+      if(holdRelease&&method==='POST'){const hold=await this.object(holdRelease[1],a,'legal_hold');this.version(hold,b);if(hold.status!=='active')fail(409,'STATE_CONFLICT','Удержание уже закрыто');const reason=text(b,'reason',10,1000);const result=await this.store.put({...hold,status:'released',released_at:new Date().toISOString(),version:hold.version+1});await this.audit(a,'privacy.hold_released',hold.id,reason);await this.notify(hold.subject_user_id,a,'privacy.hold.released',hold.id);return result;}
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy','country-controls':'country_control',verifications:'verification'};
       if(path==='/admin/analytics'&&method==='GET'){const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');return productAnalytics(this.store,a.country,days);}
       if(path==='/admin/dashboard'&&method==='GET') {
@@ -1139,6 +1189,19 @@ export class Marketplace {
         const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
       }
+      const dictionaryDryRun=path.match(/^\/admin\/moderation-dictionaries\/([^/]+)\/dry-run$/);
+      if(dictionaryDryRun&&method==='POST'){
+        const d=await this.object(dictionaryDryRun[1],a,'dictionary');this.version(d,b);
+        const sample=text(b,'text',1,10000),reason=text(b,'reason',10,1000);
+        try{validateRules(d.payload.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}
+        if(!Object.hasOwn(TEXT_SURFACES,String(b.surface)))fail(400,'VALIDATION_ERROR','Неизвестная поверхность текста');
+        const hits=d.payload.rules.filter((r:any)=>(!r.surfaces||r.surfaces.includes(b.surface))&&matchesRule(sample,r.value,r.type,d.payload.exceptions??[])).map((r:any)=>({rule_id:r.id??r.value,type:r.type,value:r.value}));
+        await this.audit(a,'dictionary.dry_run',d.id,reason);return {dictionary_id:d.id,version:d.version,surface:b.surface,hits,matched:hits.length>0,mutated_content:false};
+      }
+      const securityDetail=path.match(/^\/admin\/security-events\/([^/]+)\/disclose$/);
+      if(securityDetail&&method==='POST'){const r=await this.object(securityDetail[1],a,'security_event');const reason=text(b,'reason',10,1000);await this.audit(a,'security.event_disclosed',r.id,reason);return {...securityEventSummary(r),ip:r.ip??null,user_agent:r.user_agent??null};}
+      const blacklistDetail=path.match(/^\/admin\/blacklist\/([^/]+)$/);
+      if(blacklistDetail&&method==='GET'){const r=await this.object(blacklistDetail[1],a,'blacklist');return {id:r.id,user_id:r.user_id,case_id:r.case_id,status:r.status,scope:r.scope,reason:r.reason,ends_at:r.ends_at,created_at:r.created_at,version:r.version};}
       const dictionaryCommand=path.match(/^\/admin\/moderation-dictionaries\/([^/]+)\/(validate|preview|publish)$/);
       if(dictionaryCommand&&method==='POST') {
         const d=await this.object(dictionaryCommand[1],a,'dictionary');try{validateRules(d.payload.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}
@@ -1189,7 +1252,8 @@ export class Marketplace {
       const configurationCommand=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(validate|preview|publish)$/);
       if(configurationCommand&&configKinds.includes(section)&&method==='POST') {
         const r=await this.object(configurationCommand[2],a,kinds[section]);
-        if(configurationCommand[3]!=='publish')return this.configuration.validate(r);
+        if(configurationCommand[3]==='preview'){this.version(r,b);const reason=text(b,'reason',10,1000);const preview=await this.configuration.preview(r);await this.audit(a,'configuration.preview',r.id,reason);return preview;}
+        if(configurationCommand[3]==='validate')return this.configuration.validate(r);
         const result=await this.configuration.publish(r,a.id,b.expected_version);await this.audit(a,section+'.published',r.id,text(b,'reason',10,1000));return result;
       }
       const configurationStop=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(stop|cancel|rollback)$/);
@@ -1220,7 +1284,7 @@ export class Marketplace {
   private async nextCursor(id:string,q:any) {
     const payload=Buffer.from(JSON.stringify({after:id,filter_hash:this.filterHash(q),expires_at:new Date(Date.now()+86400000).toISOString()})).toString('base64url');return payload+'.'+await this.files.requestDigest(payload);
   }
-  private async page(kind:string,a:Actor,q:any,options:{owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean}={}) {
+  private async page(kind:string,a:Actor,q:any,options:{subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const filters:any={};
     if(kind==='contractor'&&options.publicActor){
@@ -1450,7 +1514,7 @@ export class Marketplace {
     }
   }
   async maintenance(now=new Date()) {
-    const exportJobs:RecordData[]=[];
+    const exportJobs:RecordData[]=[];let purgeFiles:string[]=[];
     const run=async()=>{
       await this.store.db.exec('BEGIN');
       try {
@@ -1488,17 +1552,19 @@ export class Marketplace {
           const work=await this.store.select('order',r.country,{participant:r.owner,statuses:['assigned','in_progress','completion_requested'],limit:1});
           if(work.length){if(r.status!=='awaiting_resolution')await this.store.put({...r,status:'awaiting_resolution',version:r.version+1});continue;}
           await this.store.put({...r,status:'erasing',version:r.version+1});
-          const u=await this.store.get(r.owner);if(u)await this.store.put({...u,phone:null,avatar_id:null,languages:[],display_name:'Удалённый пользователь',city:'',status:'deleted',version:u.version+1});
+          const u=await this.store.get(r.owner);if(u)await this.store.put({id:u.id,kind:u.kind,owner:u.owner,country:u.country,created_at:u.created_at,phone:null,avatar_id:null,languages:[],roles:[],display_name:'Удалённый пользователь',city:'',status:'deleted',version:u.version+1});
           await this.store.db.query('DELETE FROM credentials WHERE user_id=$1',[r.owner]);await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[r.owner]);
           await this.store.db.query('DELETE FROM idempotency WHERE scope LIKE $1',[r.owner+':%']);
           for(const kind of ['contractor','portfolio'])for(const x of await this.store.all(kind,r.country))if(x.owner===r.owner)await this.store.put({...x,status:'archived',description:'',title:'',version:x.version+1});
           await this.store.put({...r,status:'limited_retention',reason:'История заказов и обязательные записи сохраняются по опубликованной политике',policy_id:policy.id,retention_review_at:new Date(now.getTime()+policy.payload.document_days*86400000).toISOString(),completed_at:now.toISOString(),version:r.version+2});
         }
+        purgeFiles=await planFileRetention(this.store,now,async verification=>{await this.notify(verification.owner,{id:verification.owner,country:verification.country},'verification.expired',verification.id);});
         await this.store.db.query("DELETE FROM rate_limits WHERE window_start<CURRENT_TIMESTAMP-INTERVAL '1 day'");
         await this.store.db.exec('COMMIT');
       }catch(e){await this.store.db.exec('ROLLBACK');throw e;}
     };
     const promise=this.queue.then(run,run);this.queue=promise.catch(()=>{});await promise;
+    for(const id of purgeFiles){try{await this.files.remove(id);await this.exclusive(async()=>{const file=await this.store.get(id);if(file?.status==='purge_pending')await this.store.put(purgedUpload(file,now));});}catch{/* The pending marker is retried on the next maintenance run. */}}
     for(const job of exportJobs)await this.processExport(job,now);
   }
 }

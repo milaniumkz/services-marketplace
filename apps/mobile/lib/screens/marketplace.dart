@@ -1,3 +1,4 @@
+import 'service_area.dart';
 import '../core/design_states.dart';
 import 'search_filters.dart';
 import 'support_new.dart';
@@ -937,6 +938,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     ]))));
       case 'roles':
         return rolesScreen();
+      case 'service-area':
+        return page('Зона обслуживания',ServiceArea(api:api,locate:()async=>await const MethodChannel('joba.location').invokeMapMethod<String,dynamic>('current'),onSaved:()=>go('services')));
       case 'country-unavailable':
       case 'gps-denied':
       case 'map':
@@ -1132,6 +1135,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'delete-confirm':
       case 'delete-scheduled':
         return page({'consents':'Мои согласия','delete-account':'Удалить аккаунт','delete-confirm':'Подтвердить удаление','delete-scheduled':'Запрос на удаление'}[route]!,PrivacyStates(key:ValueKey('privacy-state:$route:$objectId'),api:api,mode:route,id:objectId,onGo:(r,id)=>go(r,id)),titleOffset:-12);
+      case 'legal-holds':
+        return page('Хранение данных',paged('/me/legal-holds',(r)=>DataCard('${r['basis']}',subtitle:'${localize(context, 'Дата пересмотра')}: ${dateLabel(r['review_at'])}',status:status(r)),empty:'Нет действующих записей об удержании данных'));
       case 'privacy':
         return privacyScreen();
       case 'security':
@@ -2126,6 +2131,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   'новых приглашений',
                                   () => go('invitations')))
                         ])),
+              if(!executor) PromotedListings(api:api,placement:'home.promoted.services',filters:{'city':me?['city']??''},onOpen:(type,id)=>go('contractor',id)),
               JobaSection(executor ? 'Подходящие заказы' : 'Рядом с вами',
                   () => go(executor ? 'jobs' : 'catalog'),
                   action: executor ? 'Фильтры' : 'Все'),
@@ -3227,6 +3233,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     button('История опубликованных версий',
                         () => go('content-history', p['id']),
                         outline: true),
+                  if(p!=null) button('Зона обслуживания на карте',()=>go('service-area'),outline:true),
                   const UiHeading('Категории услуг',
                       'Выберите дополнительные направления.'),
                   Wrap(spacing: 8, runSpacing: 8, children: [
@@ -4092,6 +4099,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     'Удалить аккаунт', () => go('delete-account'),
                     outline: true),
                 button('Правовые документы', () => go('legal'), outline: true),
+                button('Хранение данных',()=>go('legal-holds'),outline:true),
                 button('Согласия и документы', () => go('consents'),
                     outline: true),
               ])));

@@ -72,15 +72,30 @@ void main() {
     expect(requests.where((r) => r.method == 'DELETE').length, 1);
     await tester.tap(find.text('Заказы'));
     await tester.pumpAndSettle();
-    expect(requests.last.url.queryParameters['target_type'], 'orders');
+    expect(
+        requests
+            .lastWhere((r) => r.url.path.endsWith('/top-listings'))
+            .url
+            .queryParameters['target_type'],
+        'orders');
     await tester.tap(find.text('Популярные'));
     await tester.pumpAndSettle();
-    expect(requests.last.url.queryParameters['sort'], 'new');
+    expect(
+        requests
+            .lastWhere((r) => r.url.path.endsWith('/top-listings'))
+            .url
+            .queryParameters['sort'],
+        'new');
     await tester.tap(find.text('Все города'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Астана'));
     await tester.pumpAndSettle();
-    expect(requests.last.url.queryParameters['city'], 'Астана');
+    expect(
+        requests
+            .lastWhere((r) => r.url.path.endsWith('/top-listings'))
+            .url
+            .queryParameters['city'],
+        'Астана');
     expect(tester.takeException(), isNull);
   });
   testWidgets('an unavailable orders tab keeps services and filters reachable',

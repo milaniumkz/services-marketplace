@@ -1,3 +1,4 @@
+import 'design_widgets.dart' show JobaBadge;
 import 'design_states.dart';
 import '../screens/search_filters.dart';
 import 'dart:async';
@@ -880,6 +881,14 @@ class _SearchListingsState extends State<SearchListings> {
                 api: widget.api,
                 path: widget.path,
                 query: {...filters, if (query.isNotEmpty) 'q': query},
+                header: PromotedListings(
+                    key: ValueKey('promoted:${widget.path}:$filters:$query'),
+                    api: widget.api,
+                    placement: widget.path == '/orders'
+                        ? 'search.orders.promoted'
+                        : 'search.services.promoted',
+                    filters: filters,
+                    tile: widget.tile),
                 tile: widget.tile,
                 onStatus: (status) {
                   if (mounted && presentation != status)
@@ -905,4 +914,67 @@ class _SearchListingsState extends State<SearchListings> {
                     : null,
                 empty: 'По вашему запросу ничего не найдено')),
       ]);
+}
+
+/// Optional promoted inventory is independent of the organic list and its rank.
+class PromotedListings extends StatefulWidget {
+  final JobaApi api;
+  final String placement;
+  final Json filters;
+  final Widget Function(Json)? tile;
+  final void Function(String type, String id)? onOpen;
+  const PromotedListings(
+      {required this.api,
+      required this.placement,
+      this.filters = const {},
+      this.tile,
+      this.onOpen,
+      super.key});
+  @override
+  State<PromotedListings> createState() => _PromotedListingsState();
+}
+
+class _PromotedListingsState extends State<PromotedListings> {
+  late final Future<List<Json>> future = load();
+  Future<List<Json>> load() async {
+    try {
+      final data = await widget.api.request('/promoted-listings',
+          query: {...widget.filters, 'placement_id': widget.placement});
+      return items(data)
+          .where((r) => r['promoted'] == true && r['target'] is Map)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<Json>>(
+      future: future,
+      builder: (context, snapshot) {
+        final rows = snapshot.data ?? [];
+        if (rows.isEmpty) return const SizedBox.shrink();
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const UiHeading('Продвигается'),
+          for (final r in rows)
+            Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const JobaBadge('Продвигается'),
+                      const SizedBox(height: 6),
+                      widget.tile?.call(r['target']) ??
+                          DataCard('${r['target']['title']}',
+                              subtitle: '${r['target']['city'] ?? ''}',
+                              onTap: widget.onOpen == null
+                                  ? null
+                                  : () => widget.onOpen!(
+                                      r['target_type'] == 'order'
+                                          ? 'orders'
+                                          : 'services',
+                                      r['target']['id']))
+                    ]))
+        ]);
+      });
 }

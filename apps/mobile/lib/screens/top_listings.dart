@@ -225,6 +225,7 @@ class _TopListingsState extends State<TopListings> {
         await future;
       },
       child: ListView(padding: const EdgeInsets.all(20), children: [
+        PromotedListings(key:ValueKey('top-promoted:$type:$city:$category'),api:widget.api,placement:type=='orders'?'top.orders.promoted':'top.services.promoted',filters:{'city':city,if(category.isNotEmpty)'category_id':category},onOpen:widget.onOpen),
         const Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(

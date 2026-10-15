@@ -67,6 +67,12 @@ export class Configuration {
     }
     return {valid:true};
   }
+  async preview(r:RecordData) {
+    const validation=await this.validate(r),now=new Date().toISOString();
+    const count=async(kind:string,condition:string)=>Number((await this.store.db.query<{count:string}>(`SELECT count(*)::text FROM records WHERE country=$1 AND kind=$2 AND $3::text IS NOT NULL AND ${condition}`,[r.country,kind,now])).rows[0].count);
+    const [accounts,grants,subscriptions]=await Promise.all([count('user',"data->>'status'='active'"),count('grant',"data->>'valid_until'>$3"),count('subscription',"data->>'valid_until'>$3")]);
+    return {...validation,source_id:r.id,source_version:r.version,country:r.country,country_active_accounts:accounts,country_unexpired_grants:grants,country_unexpired_subscriptions:subscriptions,existing_grants_preserved:true,applied:false,generated_at:now};
+  }
   async publish(r:RecordData,actor:string,version:number) {
     if(r.version!==version)fail('STATE_CONFLICT','Настройка изменилась',409);
     if(r.owner===actor)fail('SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника',403);

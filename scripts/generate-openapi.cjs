@@ -47,6 +47,9 @@ for(const route of routes){
 // Owned mobile lifecycle reads and commands; receipts are verified by provider adapters.
 for(const path of ['/order-invites/{id}','/cancel-requests/{id}','/amendments/{id}','/conversations/{id}','/me/subscriptions/{id}','/me/purchase-checks/{id}','/me/processing-consents','/me/deletion-preview','/contractors/map'])add('GET',path);
 for(const path of ['/uploads/{id}/crop','/ads/reward-sessions/{id}/outcome','/me/processing-consents'])add('POST',path);
+for(const path of ['/promoted-listings','/me/legal-holds','/admin/legal-holds','/admin/languages','/admin/revenue','/admin/blacklist/{id}','/admin/bulk/{id}'])add('GET',path,path.startsWith('/admin/')?'staff':'user');
+add('PATCH','/me/contractor-profile/public-location');
+for(const path of ['/admin/legal-holds','/admin/legal-holds/{id}/release','/admin/moderation-dictionaries/{id}/dry-run','/admin/security-events/{id}/disclose','/admin/bulk/preview','/admin/bulk/{id}/execute'])add('POST',path,'staff');
 const uuid={type:'string',format:'uuid'};
 const schemas={
   InviteCreate:{type:'object',required:['contractor_id'],properties:{contractor_id:uuid,message:{type:'string',maxLength:2000}}},

@@ -1,12 +1,12 @@
 {
   "generated_on": "2026-10-15",
-  "scenario": "Isolated test data; production screens use API data.",
-  "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
+  "scenario": "Isolated fixtures; native and browser clients use real API contracts.",
+  "acceptance_rule": "A capture, route or pixel metric does not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
     "captured": 187,
     "not_captured": 0,
-    "captures_with_errors": 20,
+    "captures_with_errors": 0,
     "accepted": 0
   },
   "frames": [
@@ -602,7 +602,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.157993,
+      "different_pixels_ratio": 0.15834,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1902,7 +1902,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.129799,
+      "different_pixels_ratio": 0.133644,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2952,7 +2952,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.088734,
+      "different_pixels_ratio": 0.08873,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2993,9 +2993,7 @@
       "status": "review_required",
       "capture": "A02.revenue---FR-033-revenue.png",
       "actual_route": "revenue",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3004,7 +3002,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.172876,
+      "different_pixels_ratio": 0.179891,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3029,7 +3027,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.075037,
+      "different_pixels_ratio": 0.074932,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3044,7 +3042,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.2---A12-user-security.png",
-      "actual_route": "user-security?user_id=f9e4b941-bfaf-4d3f-8f9d-8623d02d8770",
+      "actual_route": "user-security?user_id=04a2f7d8-30e7-47de-bc91-3e7f1b68db38",
       "errors": [],
       "reference_size": [
         1440,
@@ -3054,7 +3052,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.105273,
+      "different_pixels_ratio": 0.105283,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3079,7 +3077,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.122852,
+      "different_pixels_ratio": 0.12287,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3120,9 +3118,7 @@
       "status": "review_required",
       "capture": "A03.blacklist.detail-blacklist-detail.png",
       "actual_route": "blacklist-detail",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3131,7 +3127,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.103549,
+      "different_pixels_ratio": 0.093612,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3146,7 +3142,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.cases-user-cases.png",
-      "actual_route": "user-cases?user_id=f9e4b941-bfaf-4d3f-8f9d-8623d02d8770",
+      "actual_route": "user-cases?user_id=04a2f7d8-30e7-47de-bc91-3e7f1b68db38",
       "errors": [],
       "reference_size": [
         1440,
@@ -3156,7 +3152,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.097177,
+      "different_pixels_ratio": 0.097171,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3172,9 +3168,7 @@
       "status": "review_required",
       "capture": "A03.delete---A11.review-deletion.png",
       "actual_route": "deletion",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3183,7 +3177,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.117391,
+      "different_pixels_ratio": 0.087326,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3198,7 +3192,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.detail-user-detail.png",
-      "actual_route": "record-live/users/f9e4b941-bfaf-4d3f-8f9d-8623d02d8770",
+      "actual_route": "record-live/users/04a2f7d8-30e7-47de-bc91-3e7f1b68db38",
       "errors": [],
       "reference_size": [
         1440,
@@ -3208,7 +3202,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.092864,
+      "different_pixels_ratio": 0.092851,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3223,7 +3217,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.history-user-decisions.png",
-      "actual_route": "user-decisions?user_id=e8a53fdd-3889-481d-ad2f-e043cb205d88",
+      "actual_route": "user-decisions?user_id=31f4ce8b-caa3-4a0a-9250-9a3f0d1edfb6",
       "errors": [],
       "reference_size": [
         1440,
@@ -3233,7 +3227,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.097451,
+      "different_pixels_ratio": 0.097322,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3248,7 +3242,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.orders-user-orders.png",
-      "actual_route": "user-orders?user_id=e8a53fdd-3889-481d-ad2f-e043cb205d88",
+      "actual_route": "user-orders?user_id=31f4ce8b-caa3-4a0a-9250-9a3f0d1edfb6",
       "errors": [],
       "reference_size": [
         1440,
@@ -3258,7 +3252,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.065775,
+      "different_pixels_ratio": 0.065647,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3273,7 +3267,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A04-order-detail.png",
-      "actual_route": "record-live/orders/0f52a10d-38ff-482a-b34f-fa2aa3489fb3",
+      "actual_route": "record-live/orders/09eaad70-21e5-4e86-a90b-5b6002a3e79b",
       "errors": [],
       "reference_size": [
         1440,
@@ -3283,7 +3277,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.07258,
+      "different_pixels_ratio": 0.072583,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3308,7 +3302,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.066409,
+      "different_pixels_ratio": 0.066258,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3333,7 +3327,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069813,
+      "different_pixels_ratio": 0.069924,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3373,7 +3367,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A06-case.png",
-      "actual_route": "case-live/4e2f0b24-19dc-453a-8460-dcdab4724c84",
+      "actual_route": "case-live/be7f9269-86fa-4395-b244-723050b92bc6",
       "errors": [],
       "reference_size": [
         1440,
@@ -3383,7 +3377,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.181757,
+      "different_pixels_ratio": 0.181716,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3408,7 +3402,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.094017,
+      "different_pixels_ratio": 0.094029,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3423,10 +3417,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.authorization-id-auth.png",
-      "actual_route": "id-auth",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "id-auth?id=8349ff16-5961-41ba-9340-47bceb01ab6a",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3435,7 +3427,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.098268,
+      "different_pixels_ratio": 0.070831,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3450,7 +3442,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.guard-verification-detail.png",
-      "actual_route": "record-live/verification/9225598e-32d3-490a-9b36-c57db6d24f6b",
+      "actual_route": "record-live/verification/8349ff16-5961-41ba-9340-47bceb01ab6a",
       "errors": [],
       "reference_size": [
         1440,
@@ -3460,7 +3452,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.107067,
+      "different_pixels_ratio": 0.107001,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3475,10 +3467,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.review-verification-review.png",
-      "actual_route": "verification-review",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "verification-review?id=8349ff16-5961-41ba-9340-47bceb01ab6a",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3487,7 +3477,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.06972,
+      "different_pixels_ratio": 0.139994,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3512,7 +3502,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.133866,
+      "different_pixels_ratio": 0.133961,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3528,9 +3518,7 @@
       "status": "review_required",
       "capture": "A08.languages-languages.png",
       "actual_route": "languages",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3539,7 +3527,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.091977,
+      "different_pixels_ratio": 0.105219,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3580,9 +3568,7 @@
       "status": "review_required",
       "capture": "A09.preview-promo-preview.png",
       "actual_route": "promo-preview",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3591,7 +3577,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.075221,
+      "different_pixels_ratio": 0.128448,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3607,9 +3593,7 @@
       "status": "review_required",
       "capture": "A09.promo-promo.png",
       "actual_route": "promo",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3618,7 +3602,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.114145,
+      "different_pixels_ratio": 0.114088,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3659,9 +3643,7 @@
       "status": "review_required",
       "capture": "A10.archive---A17.archive-archive.png",
       "actual_route": "archive",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3670,7 +3652,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.083502,
+      "different_pixels_ratio": 0.056925,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3686,9 +3668,7 @@
       "status": "review_required",
       "capture": "A10.creative-banner-detail.png",
       "actual_route": "banner-detail",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3697,7 +3677,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.089726,
+      "different_pixels_ratio": 0.05741,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3722,7 +3702,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.078918,
+      "different_pixels_ratio": 0.07937,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3747,7 +3727,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.134229,
+      "different_pixels_ratio": 0.134395,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3762,10 +3742,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A12.full-security-full.png",
-      "actual_route": "security-full",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "security-full?id=1b2fdd44-31e7-4507-ae72-3d180352871d",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3774,7 +3752,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.071984,
+      "different_pixels_ratio": 0.159401,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3799,7 +3777,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.099171,
+      "different_pixels_ratio": 0.098791,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3840,9 +3818,7 @@
       "status": "review_required",
       "capture": "A14.gate-country-detail.png",
       "actual_route": "country-detail",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3851,7 +3827,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.090048,
+      "different_pixels_ratio": 0.078206,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3876,7 +3852,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.124087,
+      "different_pixels_ratio": 0.123534,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3891,7 +3867,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A15.retry-job-detail.png",
-      "actual_route": "job-detail?job_id=17f8310e-8ebf-46a5-92ce-5b8cac2e806f",
+      "actual_route": "job-detail?job_id=caf097e4-6a5a-4811-b19d-e1d8f3748a79",
       "errors": [],
       "reference_size": [
         1440,
@@ -3901,7 +3877,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.111028,
+      "different_pixels_ratio": 0.111026,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3926,7 +3902,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.085612,
+      "different_pixels_ratio": 0.085585,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3967,9 +3943,7 @@
       "status": "review_required",
       "capture": "A16.preview-monetization-preview.png",
       "actual_route": "monetization-preview",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3978,7 +3952,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.104957,
+      "different_pixels_ratio": 0.073609,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3994,9 +3968,7 @@
       "status": "review_required",
       "capture": "A16.rewarded-rewarded.png",
       "actual_route": "rewarded",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -4005,7 +3977,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.077106,
+      "different_pixels_ratio": 0.096073,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4030,7 +4002,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.147196,
+      "different_pixels_ratio": 0.147426,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4046,9 +4018,7 @@
       "status": "review_required",
       "capture": "A17.composer-push-compose.png",
       "actual_route": "push-compose",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -4057,7 +4027,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.101499,
+      "different_pixels_ratio": 0.119687,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4082,7 +4052,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.169187,
+      "different_pixels_ratio": 0.176533,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4097,10 +4067,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A18.dryrun-dictionary-dryrun.png",
-      "actual_route": "dictionary-dryrun",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "dictionary-dryrun?id=fa26e4c3-87c0-4f78-a63d-1642f6804c70",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -4109,7 +4077,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.090203,
+      "different_pixels_ratio": 0.133859,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4134,7 +4102,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.152863,
+      "different_pixels_ratio": 0.152913,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4149,7 +4117,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A19.build-branding-build.png",
-      "actual_route": "branding-build?version=67c0fa87-491e-4e40-a542-97ddd32f548a",
+      "actual_route": "branding-build?version=b30e2e76-df4d-4c27-940a-1bded22073dc",
       "errors": [],
       "reference_size": [
         1440,
@@ -4159,7 +4127,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.130452,
+      "different_pixels_ratio": 0.130459,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4200,9 +4168,7 @@
       "status": "review_required",
       "capture": "A20.preview-referral-preview.png",
       "actual_route": "referral-preview",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -4211,7 +4177,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.092307,
+      "different_pixels_ratio": 0.094944,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4236,7 +4202,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.114169,
+      "different_pixels_ratio": 0.114242,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4261,7 +4227,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115944,
+      "different_pixels_ratio": 0.115998,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4286,7 +4252,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.157136,
+      "different_pixels_ratio": 0.157122,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4311,7 +4277,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.121801,
+      "different_pixels_ratio": 0.121737,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4361,7 +4327,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.137854,
+      "different_pixels_ratio": 0.13781,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4386,7 +4352,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.226236,
+      "different_pixels_ratio": 0.22624,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4411,7 +4377,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.070183,
+      "different_pixels_ratio": 0.070186,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4436,7 +4402,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069347,
+      "different_pixels_ratio": 0.069351,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4461,7 +4427,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115453,
+      "different_pixels_ratio": 0.115449,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4486,7 +4452,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.061887,
+      "different_pixels_ratio": 0.061884,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4511,7 +4477,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069717,
+      "different_pixels_ratio": 0.069718,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4526,10 +4492,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G07---A06.conflict-revision-conflict.png",
-      "actual_route": "revision-conflict",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "revision-conflict?id=be7f9269-86fa-4395-b244-723050b92bc6",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -4538,7 +4502,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.149691,
+      "different_pixels_ratio": 0.186603,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4554,9 +4518,7 @@
       "status": "review_required",
       "capture": "G08---A03.bulk-bulk-preview.png",
       "actual_route": "bulk-preview",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -4565,7 +4527,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.094509,
+      "different_pixels_ratio": 0.125979,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4580,10 +4542,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G08.success---A15.progress-bulk-result.png",
-      "actual_route": "bulk-result",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "bulk-result?id=2fa37567-8e51-4eff-8126-35b058632603",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -4592,7 +4552,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.070961,
+      "different_pixels_ratio": 0.100345,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0

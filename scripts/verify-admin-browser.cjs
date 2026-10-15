@@ -288,6 +288,17 @@ async function main(){
   await page.getByRole('button',{name:'Создать черновик',exact:true}).click();
   await page.getByRole('button',{name:'Опубликовать версию',exact:true}).waitFor();
   const legal=(await marketplace.store.all('legal_document','KZ'))[0];assert.equal(legal.status,'draft');
+  // Live supplementary states: no synthetic success or publication during dry-run.
+  const scenarioDictionary=randomUUID();await marketplace.store.put({id:scenarioDictionary,kind:'dictionary',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),title:'Проверка правила интерфейса',status:'draft',payload:{rules:[{value:'обман',type:'exact_word'}],exceptions:[]}});
+  await page.goto(frontend+'/#dictionary-dryrun?id='+scenarioDictionary);await page.locator('#dictionary-dryrun').waitFor();
+  await page.getByLabel('Текст для проверки',{exact:true}).fill('ОБМАН!');await page.getByLabel('Причина проверки',{exact:true}).fill('Изолированная проверка интерфейса словаря');await page.getByRole('button',{name:'Проверить текст',exact:true}).click();await page.locator('#dictionary-dryrun [role=status]').filter({hasText:'"matched": true'}).waitFor();assert.equal((await marketplace.store.get(scenarioDictionary)).status,'draft');
+  await page.goto(frontend+'/#revenue');await page.getByRole('heading',{name:'Доход рекламных сетей',exact:true}).waitFor();await page.getByText('Отсутствие отчётов не означает нулевой доход.',{exact:false}).waitFor();
+  await page.goto(frontend+'/#languages');await page.getByRole('heading',{name:'Языки интерфейса',exact:true}).waitFor();assert.ok((await page.locator('.workspace').innerText()).includes('Қазақша'));
+  await page.goto(frontend+'/#bulk-preview');await page.locator('#bulk-preview').waitFor();await page.getByLabel('Основание операции',{exact:true}).fill('Проверка обязательного выбора записей');await page.getByRole('button',{name:'Рассчитать влияние',exact:true}).click();await page.locator('#bulk-preview [role=alert]').filter({hasText:'Выберите'}).waitFor();
+  let scenarioBulkId;
+  for(const action of ['pause_contractors','resume_contractors']){
+    await page.goto(frontend+'/#bulk-preview');await page.locator('#bulk-preview').waitFor();await page.locator('#bulk-preview select[name=action]').selectOption(action);await page.locator('#bulk-preview input[name=ids][value="'+profile.id+'"]').check();await page.getByLabel('Основание операции',{exact:true}).fill('Изолированная проверка массового изменения профиля');await page.getByRole('button',{name:'Рассчитать влияние',exact:true}).click();await page.locator('#bulk-execute').waitFor();scenarioBulkId=new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('id');assert.equal((await marketplace.store.get(scenarioBulkId)).status,'previewed');await page.locator('#bulk-execute input[name=confirm]').check();await page.getByLabel('Основание подтверждения',{exact:true}).fill('Проверил состав и подтверждаю операцию');await page.getByRole('button',{name:'Выполнить операцию',exact:true}).click();await page.getByRole('heading',{name:'Результат операции',exact:true}).waitFor();assert.equal((await marketplace.store.get(profile.id)).status,action==='pause_contractors'?'paused':'published');
+  }
   await page.getByRole('button',{name:'Выйти',exact:true}).click();await page.waitForSelector('#staff-login');
   const {createServer}=await import('vite');
   webVite=await createServer({root:resolve(__dirname,'../apps/web'),configFile:resolve(__dirname,'../apps/web/vite.config.ts'),server:{port:0,strictPort:false,host:'127.0.0.1'}});await webVite.listen();
@@ -343,7 +354,13 @@ async function main(){
       'user-cases':'user-cases?user_id='+applicant.user.id,
       'user-decisions':'user-decisions?user_id='+professional.user.id,
       'job-detail':'job-detail?job_id='+captureJob,
-      'branding-build':'branding-build?version='+brand.id
+      'branding-build':'branding-build?version='+brand.id,
+      'dictionary-dryrun':'dictionary-dryrun?id='+scenarioDictionary,
+      'security-full':'security-full?id='+(await marketplace.store.all('security_event','KZ'))[0].id,
+      'bulk-result':'bulk-result?id='+scenarioBulkId,
+      'revision-conflict':'revision-conflict?id='+caseReport.id,
+      'verification-review':'verification-review?id='+verificationId,
+      'id-auth':'id-auth?id='+verificationId
     };
     for(const frame of frames.filter(frame=>frame.surface==='admin'&&frame.design_route!=='login')){
       const actualRoute=details[frame.design_route]??frame.design_route;

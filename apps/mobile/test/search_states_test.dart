@@ -89,7 +89,12 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text('Изолированная найденная услуга'), findsOneWidget);
-    expect(requests.last.url.queryParameters['q'], 'ремонт');
+    expect(
+        requests
+            .lastWhere((r) => r.url.path.endsWith('/contractors'))
+            .url
+            .queryParameters['q'],
+        'ремонт');
     await tester.enterText(find.byType(TextField), 'restricted');
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();

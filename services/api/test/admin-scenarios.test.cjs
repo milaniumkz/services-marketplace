@@ -1,0 +1,46 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {randomUUID,randomBytes}=require('node:crypto');
+const {Store}=require('../dist/store');
+const {Marketplace}=require('../dist/marketplace');
+const {totp}=require('../dist/totp');
+const rec=(kind,owner,fields={})=>({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:new Date().toISOString(),...fields});
+test('staff scenario reads are scoped; dry-run matches the actual engine without changing content; sensitive reads require a reason and audit',async()=>{
+ const a=new Marketplace(new Store('memory://'));await a.initialize();try{
+  const password='Isolated scenario staff password';const register=phone=>a.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID(),{},phone);
+  const u=await register('+77000000851'),member=await register('+77000000852');
+  const secret=randomBytes(20).toString('hex');await a.store.put({...await a.store.get(u.user.id),staff_permissions:['administrator'],totp_secret:secret});
+  const staff=await a.handle('POST','/auth/staff-login',{country:'KZ',phone:u.user.phone,password,mfa_code:totp(secret)},undefined,undefined,{},'scenario-staff');
+  const call=(m,p,b={},q={},s=staff)=>a.handle(m,p,b,'Bearer '+s.access_token,randomUUID(),q,'scenario');
+  const d=rec('dictionary',u.user.id,{status:'draft',payload:{rules:[{id:'one',value:'обман',type:'exact_word',surfaces:['order']}],exceptions:['без обмана']}});await a.store.put(d);
+  const before=(await a.store.all('case','KZ')).length;
+  const result=await call('POST','/admin/moderation-dictionaries/'+d.id+'/dry-run',{expected_version:1,text:'ОБМАН!',surface:'order',reason:'Проверка утверждённого правила'});assert.equal(result.matched,true);assert.equal(result.mutated_content,false);
+  assert.equal((await call('POST','/admin/moderation-dictionaries/'+d.id+'/dry-run',{expected_version:1,text:'обманщик',surface:'order',reason:'Проверка границ слова в тексте'})).matched,false);
+  assert.equal((await a.store.all('case','KZ')).length,before);assert.equal((await a.store.get(d.id)).status,'draft');
+  await assert.rejects(()=>call('POST','/admin/moderation-dictionaries/'+d.id+'/dry-run',{expected_version:2,text:'обман',surface:'order',reason:'Проверка версии для отказа'}),e=>e.getStatus()===409);
+  await assert.rejects(()=>call('GET','/admin/languages',{}, {},member),e=>e.getStatus()===403);
+  const event=rec('security_event',member.user.id,{event:'session.credentials_issued',ip:'192.0.2.17',session_family:'never-disclose',refresh_token:'never-disclose'});await a.store.put(event);
+  await assert.rejects(()=>call('POST','/admin/security-events/'+event.id+'/disclose',{}),e=>e.getStatus()===400);
+  const full=await call('POST','/admin/security-events/'+event.id+'/disclose',{reason:'Проверка конкретного события входа'});assert.equal(full.ip,'192.0.2.17');assert.equal(full.refresh_token,undefined);assert.equal(full.session_family,undefined);
+  assert.ok((await a.store.all('audit','KZ')).some(r=>r.action==='security.event_disclosed'&&r.target_id===event.id));
+  const foreign=rec('blacklist',member.user.id,{country:'RS'});await a.store.put(foreign);await assert.rejects(()=>call('GET','/admin/blacklist/'+foreign.id),e=>e.getStatus()===404);
+  await a.store.put({...await a.store.get(member.user.id),verification:'passed'});
+  const zone=rec('contractor',member.user.id,{title:'Профиль с публичной зоной',status:'published',public_location:{latitude:43.2,longitude:76.9,approximate:true},draft:{public_location:{latitude:43.3,longitude:76.8,approximate:true},status:'draft'}});await a.store.put(zone);
+  await call('PATCH','/me/contractor-profile/public-location',{expected_version:1,enabled:false},{},member);const hidden=await a.store.get(zone.id);assert.equal(hidden.public_location,null);assert.equal(hidden.draft.public_location,null);
+  await call('PATCH','/me/contractor-profile/public-location',{expected_version:2,enabled:true,location:{latitude:43.238945,longitude:76.88941}},{},member);const staged=await a.store.get(zone.id);assert.equal(staged.public_location,null);assert.deepEqual(staged.draft.public_location,{latitude:43.24,longitude:76.89,approximate:true});
+  const holdFile=rec('upload',member.user.id,{purpose:'identity',status:'clean'});await a.store.put(holdFile);
+  const h=await call('POST','/admin/legal-holds',{target_id:holdFile.id,fields:['file'],basis:'Материал нужен для разрешения конкретного спора',reason:'Изолированная проверка законного удержания',review_at:new Date(Date.now()+86400000).toISOString()});
+  const ownHolds=await call('GET','/me/legal-holds',{},{},member);assert.equal(ownHolds.items.length,1);assert.equal(ownHolds.items[0].id,h.id);assert.equal(ownHolds.items[0].reason,undefined);assert.equal((await call('GET','/me/legal-holds')).items.length,0);
+  await call('POST','/admin/legal-holds/'+h.id+'/release',{expected_version:1,reason:'Основание удержания больше не действует'});assert.equal((await a.store.get(h.id)).status,'released');
+  const first=rec('contractor',member.user.id,{title:'Первый профиль',status:'published'}),second=rec('contractor',member.user.id,{title:'Второй профиль',status:'published'});await a.store.put(first);await a.store.put(second);
+  const job=await call('POST','/admin/bulk/preview',{action:'pause_contractors',ids:[first.id,second.id],reason:'Проверка массовой паузы профилей'});assert.equal((await a.store.get(first.id)).status,'published');
+  await a.store.put({...second,version:2});
+  await assert.rejects(()=>call('POST','/admin/bulk/'+job.id+'/execute',{expected_version:1,confirm:false,reason:'Без подтверждения нельзя менять'}),e=>e.getStatus()===409);
+  const done=await call('POST','/admin/bulk/'+job.id+'/execute',{expected_version:1,confirm:true,reason:'Подтверждаю состав массовой операции'});assert.equal(done.status,'completed');assert.equal(done.results.filter(r=>r.status==='applied').length,1);assert.equal(done.results.find(r=>r.id===second.id).code,'STATE_CONFLICT');assert.equal((await a.store.get(first.id)).status,'paused');assert.equal((await a.store.get(second.id)).status,'published');
+  await assert.rejects(()=>call('POST','/admin/bulk/'+job.id+'/execute',{expected_version:2,confirm:true,reason:'Повтор не должен менять записи'}),e=>e.getStatus()===409);
+  assert.equal((await call('GET','/admin/revenue')).data_available,false);
+  const now=Date.now();for(const [currency,status,amount] of [['KZT','estimated',1200],['KZT','finalized',1000],['RSD','finalized',700]])await a.store.put(rec('ad_revenue',u.user.id,{provider:'isolated-network',currency,status,amount_minor:amount,period_start:new Date(now-86400000).toISOString(),period_end:new Date(now-1000).toISOString(),received_at:new Date(now).toISOString()}));
+  const revenue=await call('GET','/admin/revenue');assert.equal(revenue.items.length,3);assert.equal(revenue.items.find(r=>r.currency==='KZT'&&r.status==='finalized').amount_minor,1000);
+  await assert.rejects(()=>call('GET','/admin/revenue',{}, {days:'999'}),e=>e.getStatus()===400);
+ }finally{await a.store.close();}
+});

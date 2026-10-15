@@ -1,8 +1,8 @@
 # Текущие снимки всех экранов
 
-Снимки получены на изолированных данных. Наличие кадра не подтверждает совпадение 1:1 и работоспособность всех контролов. Все строки визуальной приёмки остаются `pending`.
+Снимки получены на изолированных данных. Наличие кадра не подтверждает 1:1 или полную работоспособность каждого контрола. Все кадры остаются `pending`. Для части дополнительных состояний снят выбор записи или просмотр версии, а не завершённая форма макета. См. [открытые работы](../../project-readiness.md).
 
-| Кадр | Маршрут макета | Текущий снимок | Состояние |
+| Кадр | Маршрут макета | Снимок | Состояние |
 |---|---|---|---|
 | S01 | welcome | [PNG](mobile/S01-welcome.png) | Нужна сверка |
 | S01.disabled | country-unavailable | [PNG](mobile/S01.disabled-country-unavailable.png) | Нужна сверка |
@@ -123,14 +123,14 @@
 | A01.1 | mfa | [PNG](admin/A01.1-mfa.png) | Нужна сверка |
 | A02 | dashboard | [PNG](admin/A02-dashboard.png) | Нужна сверка |
 | A02.analytics | analytics | [PNG](admin/A02.analytics-analytics.png) | Нужна сверка |
-| A02.revenue / FR-033 | revenue | [PNG](admin/A02.revenue---FR-033-revenue.png) | Есть ошибка сценария |
+| A02.revenue / FR-033 | revenue | [PNG](admin/A02.revenue---FR-033-revenue.png) | Нужна сверка |
 | A03 | users | [PNG](admin/A03-users.png) | Нужна сверка |
 | A03.2 / A12 | user-security | [PNG](admin/A03.2---A12-user-security.png) | Нужна сверка |
 | A03.RBAC | settings | [PNG](admin/A03.RBAC-settings.png) | Нужна сверка |
 | A03.blacklist / FR-042 | blacklist | [PNG](admin/A03.blacklist---FR-042-blacklist.png) | Нужна сверка |
-| A03.blacklist.detail | blacklist-detail | [PNG](admin/A03.blacklist.detail-blacklist-detail.png) | Есть ошибка сценария |
+| A03.blacklist.detail | blacklist-detail | [PNG](admin/A03.blacklist.detail-blacklist-detail.png) | Нужна сверка |
 | A03.cases | user-cases | [PNG](admin/A03.cases-user-cases.png) | Нужна сверка |
-| A03.delete / A11.review | deletion | [PNG](admin/A03.delete---A11.review-deletion.png) | Есть ошибка сценария |
+| A03.delete / A11.review | deletion | [PNG](admin/A03.delete---A11.review-deletion.png) | Нужна сверка |
 | A03.detail | user-detail | [PNG](admin/A03.detail-user-detail.png) | Нужна сверка |
 | A03.history | user-decisions | [PNG](admin/A03.history-user-decisions.png) | Нужна сверка |
 | A03.orders | user-orders | [PNG](admin/A03.orders-user-orders.png) | Нужна сверка |
@@ -140,37 +140,37 @@
 | A05.portfolio / FR-040 | portfolio | [PNG](admin/A05.portfolio---FR-040-portfolio.png) | Нужна сверка |
 | A06 | case | [PNG](admin/A06-case.png) | Нужна сверка |
 | A07 | verification | [PNG](admin/A07-verification.png) | Нужна сверка |
-| A07.authorization | id-auth | [PNG](admin/A07.authorization-id-auth.png) | Есть ошибка сценария |
+| A07.authorization | id-auth | [PNG](admin/A07.authorization-id-auth.png) | Нужна сверка |
 | A07.guard | verification-detail | [PNG](admin/A07.guard-verification-detail.png) | Нужна сверка |
-| A07.review | verification-review | [PNG](admin/A07.review-verification-review.png) | Есть ошибка сценария |
+| A07.review | verification-review | [PNG](admin/A07.review-verification-review.png) | Нужна сверка |
 | A08 | categories | [PNG](admin/A08-categories.png) | Нужна сверка |
-| A08.languages | languages | [PNG](admin/A08.languages-languages.png) | Есть ошибка сценария |
+| A08.languages | languages | [PNG](admin/A08.languages-languages.png) | Нужна сверка |
 | A09 / A22.prices | pricing | [PNG](admin/A09---A22.prices-pricing.png) | Нужна сверка |
-| A09.preview | promo-preview | [PNG](admin/A09.preview-promo-preview.png) | Есть ошибка сценария |
-| A09.promo | promo | [PNG](admin/A09.promo-promo.png) | Есть ошибка сценария |
+| A09.preview | promo-preview | [PNG](admin/A09.preview-promo-preview.png) | Нужна сверка |
+| A09.promo | promo | [PNG](admin/A09.promo-promo.png) | Нужна сверка |
 | A10 | campaigns | [PNG](admin/A10-campaigns.png) | Нужна сверка |
-| A10.archive / A17.archive | archive | [PNG](admin/A10.archive---A17.archive-archive.png) | Есть ошибка сценария |
-| A10.creative | banner-detail | [PNG](admin/A10.creative-banner-detail.png) | Есть ошибка сценария |
+| A10.archive / A17.archive | archive | [PNG](admin/A10.archive---A17.archive-archive.png) | Нужна сверка |
+| A10.creative | banner-detail | [PNG](admin/A10.creative-banner-detail.png) | Нужна сверка |
 | A11 | privacy | [PNG](admin/A11-privacy.png) | Нужна сверка |
 | A12 | security | [PNG](admin/A12-security.png) | Нужна сверка |
-| A12.full | security-full | [PNG](admin/A12.full-security-full.png) | Есть ошибка сценария |
+| A12.full | security-full | [PNG](admin/A12.full-security-full.png) | Нужна сверка |
 | A13 | audit | [PNG](admin/A13-audit.png) | Нужна сверка |
 | A14 | countries | [PNG](admin/A14-countries.png) | Нужна сверка |
-| A14.gate | country-detail | [PNG](admin/A14.gate-country-detail.png) | Есть ошибка сценария |
+| A14.gate | country-detail | [PNG](admin/A14.gate-country-detail.png) | Нужна сверка |
 | A15 | jobs | [PNG](admin/A15-jobs.png) | Нужна сверка |
 | A15.retry | job-detail | [PNG](admin/A15.retry-job-detail.png) | Нужна сверка |
 | A15.schedule | scheduled | [PNG](admin/A15.schedule-scheduled.png) | Нужна сверка |
 | A16 | monetization | [PNG](admin/A16-monetization.png) | Нужна сверка |
-| A16.preview | monetization-preview | [PNG](admin/A16.preview-monetization-preview.png) | Есть ошибка сценария |
-| A16.rewarded | rewarded | [PNG](admin/A16.rewarded-rewarded.png) | Есть ошибка сценария |
+| A16.preview | monetization-preview | [PNG](admin/A16.preview-monetization-preview.png) | Нужна сверка |
+| A16.rewarded | rewarded | [PNG](admin/A16.rewarded-rewarded.png) | Нужна сверка |
 | A17 | push | [PNG](admin/A17-push.png) | Нужна сверка |
-| A17.composer | push-compose | [PNG](admin/A17.composer-push-compose.png) | Есть ошибка сценария |
+| A17.composer | push-compose | [PNG](admin/A17.composer-push-compose.png) | Нужна сверка |
 | A18 | dictionary | [PNG](admin/A18-dictionary.png) | Нужна сверка |
-| A18.dryrun | dictionary-dryrun | [PNG](admin/A18.dryrun-dictionary-dryrun.png) | Есть ошибка сценария |
+| A18.dryrun | dictionary-dryrun | [PNG](admin/A18.dryrun-dictionary-dryrun.png) | Нужна сверка |
 | A19 | branding | [PNG](admin/A19-branding.png) | Нужна сверка |
 | A19.build | branding-build | [PNG](admin/A19.build-branding-build.png) | Нужна сверка |
 | A20 | referrals | [PNG](admin/A20-referrals.png) | Нужна сверка |
-| A20.preview | referral-preview | [PNG](admin/A20.preview-referral-preview.png) | Есть ошибка сценария |
+| A20.preview | referral-preview | [PNG](admin/A20.preview-referral-preview.png) | Нужна сверка |
 | A21 | support | [PNG](admin/A21-support.png) | Нужна сверка |
 | A21.thread | support-recovery | [PNG](admin/A21.thread-support-recovery.png) | Нужна сверка |
 | A22 | top100 | [PNG](admin/A22-top100.png) | Нужна сверка |
@@ -183,9 +183,9 @@
 | G04 | dashboard--offline | [PNG](admin/G04-dashboard--offline.png) | Нужна сверка |
 | G05 | dashboard--expired | [PNG](admin/G05-dashboard--expired.png) | Нужна сверка |
 | G06 | verification-detail--forbidden | [PNG](admin/G06-verification-detail--forbidden.png) | Нужна сверка |
-| G07 / A06.conflict | revision-conflict | [PNG](admin/G07---A06.conflict-revision-conflict.png) | Есть ошибка сценария |
-| G08 / A03.bulk | bulk-preview | [PNG](admin/G08---A03.bulk-bulk-preview.png) | Есть ошибка сценария |
-| G08.success / A15.progress | bulk-result | [PNG](admin/G08.success---A15.progress-bulk-result.png) | Есть ошибка сценария |
+| G07 / A06.conflict | revision-conflict | [PNG](admin/G07---A06.conflict-revision-conflict.png) | Нужна сверка |
+| G08 / A03.bulk | bulk-preview | [PNG](admin/G08---A03.bulk-bulk-preview.png) | Нужна сверка |
+| G08.success / A15.progress | bulk-result | [PNG](admin/G08.success---A15.progress-bulk-result.png) | Нужна сверка |
 | W01 | W01 | [PNG](public/W01-W01.png) | Нужна сверка |
 | W02 | W02 | [PNG](public/W02-W02.png) | Нужна сверка |
 | W03 | W03 | [PNG](public/W03-W03.png) | Нужна сверка |

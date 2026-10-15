@@ -1,3 +1,4 @@
+import {scenarioRoutes,scenarioWorkspace} from './scenario-workspace.js';
 import {brandingBuildWorkspace} from './branding-build-workspace.js';
 import {boostWorkspace} from './boost-workspace.js';
 import {userWorkspace,userRoutes} from './user-workspace.js';
@@ -14,7 +15,7 @@ const {routes,render,card,tablecard,field,note,metric,badge}=window.JOBA_ADMIN;
 const designMode=new URLSearchParams(location.search).has('design');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let session,loginDraft,cache={},error='',generation=0,disposeWorkspace;
-const privateWorkspaces=new Set([...userRoutes,'branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
+const privateWorkspaces=new Set([...scenarioRoutes,...userRoutes,'branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
 const cursors={},filters={},configRoutes=new Set(['prices','pricing','monetization','push','referrals','dictionaries','dictionary','categories','ranking','campaigns','placements','verificationPolicies','retention']);
 const sections={users:['users','Аккаунты'],orders:['orders','Заказы'],support:['support-threads','Поддержка'],'support-recovery':['recovery-threads','Восстановление доступа'],moderation:['cases','Дела'],portfolio:['portfolio','Портфолио'],contractors:['contractors','Профили исполнителей'],privacy:['privacy-requests','Запросы приватности'],blacklist:['blacklist','Черный список'],audit:['audit','Аудит'],prices:['price-versions','Цены'],monetization:['monetization-configs','Монетизация'],push:['push-campaigns','Рассылки'],referrals:['referral-campaigns','Реферальные кампании'],dictionaries:['moderation-dictionaries','Словари'],categories:['categories','Категории'],ranking:['ranking-configs','Рейтинг'],pricing:['price-versions','Каталог цен'],campaigns:['promotions','Кампании'],dictionary:['moderation-dictionaries','Запрещенные слова'],verification:['verifications','Проверка документов'],top100:['boost-reports','Топ и продвижение'],placements:['placement-policies','Размещения'],verificationPolicies:['verification-policies','Правила проверки'],retention:['retention-policies','Сроки хранения']};
 function clearStaffState(){
@@ -30,11 +31,13 @@ if(!designMode) {
   for(const [route,[endpoint,label]] of Object.entries(sections)) {
     if(!routes[route])routes[route]={key:route,id:route,title:label,section:label,actions:''};
     routes[route].subtitle='Данные API · область текущего сотрудника';
-    routes[route].actions='<button id="refresh-data" type="button">Обновить</button>';
+    routes[route].actions='<button id="refresh-data" type="button">Обновить</button>'+(route==='privacy'?'<a class="btn" href="#legal-holds">Законное удержание</a>':'');
+    if(route==='contractors')routes[route].actions+='<a class="btn" href="#bulk-preview">Массовая операция</a>';
+    if(route==='push')routes[route].actions+='<a class="btn" href="#push-compose">Новое сообщение</a>';
     routes[route].body=()=> {
       const data=cache[route];if(!data)return note('Загрузка данных…');
       const configs=configRoutes.has(route);
-      const rows=data.items.map(x=>[esc(x.id),esc(x.display_name??x.title??x.subject??x.action??x.reason??x.type??''),badge(esc(x.status??'')),esc(x.created_at),route==='moderation'?`<a href="#case-live/${x.id}">Открыть →</a>`:route==='support-recovery'?`<a href="#recovery-live/${x.id}">Открыть →</a>`:route==='support'?`<a href="#support-live/${x.id}">Открыть →</a>`:['users','orders','portfolio','contractors','verification','privacy'].includes(route)?`<a href="#record-live/${route}/${x.id}">Открыть →</a>`:configs?`<button type="button" data-record="${esc(x.id)}">Открыть</button>`:'']);
+      const rows=data.items.map(x=>[esc(x.id),esc(x.display_name??x.title??x.subject??x.action??x.reason??x.type??''),badge(esc(x.status??'')),esc(x.created_at),route==='blacklist'?`<a href="#blacklist-detail?id=${esc(x.id)}">Открыть →</a>`:route==='moderation'?`<a href="#case-live/${x.id}">Открыть →</a>`:route==='support-recovery'?`<a href="#recovery-live/${x.id}">Открыть →</a>`:route==='support'?`<a href="#support-live/${x.id}">Открыть →</a>`:['users','orders','portfolio','contractors','verification','privacy'].includes(route)?`<a href="#record-live/${route}/${x.id}">Открыть →</a>`:configs?`<button type="button" data-record="${esc(x.id)}">Открыть</button>`:'']);
       return `<form id="list-filters" class="filters"><input name="q" aria-label="Поиск по ID или названию" placeholder="ID или название" value="${esc(filters[route]?.q)}"><input name="status" aria-label="Статус записи" placeholder="Статус" value="${esc(filters[route]?.status)}"><button type="submit">Найти</button><button id="reset-filters" type="button">Сбросить</button></form>`+tablecard(label,['ID','Описание','Статус','Дата',''],rows,'',`${data.items.length} записей · ${data.meta?.next_cursor?'Есть следующая страница':'Конец списка'}`)+`<div class="actions"><button id="first-page">Первая страница</button>${data.meta?.next_cursor?'<button id="next-page">Следующая страница</button>':''}</div>`+(configs?card('Новый черновик',`<form id="draft-config" class="stack">${namedField('Название','title')}${namedField('Причина','reason')}${namedField('Параметры JSON','payload','textarea')}<button class="primary">Сохранить черновик</button></form>${note('Публикация требует проверки политики и провайдеров. Сохранение черновика не включает платный доступ.','warn')}`):'');
     };
   }
@@ -53,9 +56,10 @@ function bind(key) {
   const first=document.getElementById('first-page');if(first)first.onclick=()=>{delete cursors[key];draw();};
   document.querySelectorAll('[data-record]').forEach(button=>button.onclick=()=>{
     const record=cache[key].items.find(r=>r.id===button.dataset.record);
+    const previewRoute={dictionary:'dictionary-dryrun',dictionaries:'dictionary-dryrun',campaigns:'promo-preview',referrals:'referral-preview',monetization:'monetization-preview'}[key];
     if(!record)return;
     const panel=document.createElement('section');panel.className='card';
-    panel.innerHTML=`<div class="cardbody"><h2>${esc(record.title)}</h2><pre>${esc(JSON.stringify(record.payload,null,2))}</pre><form class="stack">${namedField('Служебная причина','reason','textarea')}<div class="actions">${['validate','preview',...(record.status==='draft'?['publish']:['stop','rollback'])].map(command=>`<button type="submit" value="${command}">${{validate:'Проверить',preview:'Предпросмотр',publish:'Опубликовать',stop:'Остановить',rollback:'Черновик отката'}[command]}</button>`).join('')}</div></form><pre class="result" role="status"></pre></div>`;
+    panel.innerHTML=`<div class="cardbody"><h2>${esc(record.title)}</h2>${previewRoute?`<a class="btn" href="#${previewRoute}?id=${esc(record.id)}">${previewRoute==='dictionary-dryrun'?'Проверить текст':'Предпросмотр'}</a>`:''}<pre>${esc(JSON.stringify(record.payload,null,2))}</pre><form class="stack">${namedField('Служебная причина','reason','textarea')}<div class="actions">${['validate','preview',...(record.status==='draft'?['publish']:['stop','rollback'])].map(command=>`<button type="submit" value="${command}">${{validate:'Проверить',preview:'Предпросмотр',publish:'Опубликовать',stop:'Остановить',rollback:'Черновик отката'}[command]}</button>`).join('')}</div></form><pre class="result" role="status"></pre></div>`;
     document.querySelector('.workspace')?.append(panel);panel.scrollIntoView({behavior:'smooth'});
     panel.querySelector('form').onsubmit=async e=>{e.preventDefault();const command=e.submitter?.value;if(!command)return;
       const form=e.currentTarget;const buttons=[...form.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
@@ -93,11 +97,13 @@ async function draw(reload=true) {
   try {
     if(reload&&session){
       const workspace=document.querySelector('.workspace');if(workspace){workspace.innerHTML=note('Загрузка данных…');workspace.setAttribute('aria-busy','true');}
+      if(scenarioRoutes.has(key))routes[key]=await scenarioWorkspace({key,api:request,esc,card,tablecard,note,namedField,onRefresh:()=>draw()});
       if(['boosts','boost-grant'].includes(key))routes[key]=await boostWorkspace({key,api:request,esc,card,tablecard,note,badge,onRefresh:()=>draw()});
       if(key==='branding-build')routes[key]=await brandingBuildWorkspace({key,api:request,download:api.download,esc,card,tablecard,note,badge,onRefresh:()=>draw()});
       if(key==='branding')routes[key]=await brandingWorkspace({key,api:request,files:{upload:async file=>{if(g!==generation)throw Error('Экран изменился');const result=await api.upload(file);if(g!==generation)throw Error('Экран изменился');return result;},download:async path=>{if(g!==generation)throw Error('Экран изменился');const result=await api.download(path);if(g!==generation)throw Error('Экран изменился');return result;}},esc,card,note,badge,namedField,onRefresh:()=>draw()});
       if(key==='countries')routes[key]=await countryWorkspace({key,api:request,esc,card,note,badge,namedField,onRefresh:()=>draw()});
       if(['analytics','dashboard','security','jobs','scheduled','job-detail'].includes(key))routes[key]=await systemWorkspace({key,api:request,esc,card,tablecard,note,metric,badge,onRefresh:()=>draw()});
+      if(key==='security')routes[key].actions+='<a class="btn" href="#security-full">Защищённый просмотр</a>';
       if(sections[key])cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
       if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
