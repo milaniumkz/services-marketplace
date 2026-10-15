@@ -10,6 +10,8 @@ class JobaStatePanel extends StatelessWidget {
   final String? secondaryLabel;
   final VoidCallback? onSecondary;
   final bool brand, destructive;
+  final Color iconColor;
+  final Color? iconFill;
   const JobaStatePanel(
       {required this.title,
       required this.message,
@@ -19,6 +21,8 @@ class JobaStatePanel extends StatelessWidget {
       this.secondaryLabel,
       this.onSecondary,
       this.brand = false,
+      this.iconColor = navy,
+      this.iconFill,
       this.destructive = false,
       super.key});
   @override
@@ -38,8 +42,11 @@ class JobaStatePanel extends StatelessWidget {
                   color: const Color(0xFFE9EFFB),
                   borderRadius: BorderRadius.circular(30)),
               child: Center(
-                  child:
-                      JobaIcon(icon, size: 42, color: navy, strokeWidth: 1.3))),
+                  child: JobaIcon(icon,
+                      size: 42,
+                      color: iconColor,
+                      fill: iconFill,
+                      strokeWidth: 1.3))),
         SizedBox(height: brand ? 24 : 23),
         Semantics(
             header: true,

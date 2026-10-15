@@ -98,15 +98,24 @@ void main() {
     Json order() => {
           'id': 'visual-object',
           'owner': user['id'],
+          if (route == 'review-sent')
+            'my_review': {
+              'id': 'visual-own-review',
+              'owner': user['id'],
+              'status': 'sealed',
+              'rating': 5
+            },
           'version': 1,
           'revision': 1,
-          'status': route == 'complete'
-              ? 'completion_requested'
-              : route == 'work' || route == 'cancel'
-                  ? 'in_progress'
-                  : route == 'publish'
-                      ? 'draft'
-                      : 'open',
+          'status': route == 'review-sent'
+              ? 'completed'
+              : route == 'complete'
+                  ? 'completion_requested'
+                  : route == 'work' || route == 'cancel'
+                      ? 'in_progress'
+                      : route == 'publish'
+                          ? 'draft'
+                          : 'open',
           'title': 'Нужно покрасить комнату',
           'description':
               'Подготовить стены и покрасить комнату площадью 18 м². Материалы есть.',
@@ -351,6 +360,7 @@ void main() {
           'currency': 'KZT',
           'text': 'Готов выполнить в удобное время',
           'order_revision': 1,
+          'order_id': 'visual-object',
           'order': order(),
           'executor': profile
         };
@@ -530,6 +540,12 @@ void main() {
       final errors = <String>[];
       try {
         await tester.pumpAndSettle();
+        if (route == 'published')
+          expect(find.text('Заказ на виду'), findsOneWidget);
+        if (route == 'offer-sent')
+          expect(find.text('Предложение\nу заказчика'), findsOneWidget);
+        if (route == 'review-sent')
+          expect(find.text('Спасибо за отзыв'), findsOneWidget);
         if (route == 'appeal' || route == 'appeal-sent') {
           await tester.tap(find.text('Обжаловать решение'));
           await tester.pumpAndSettle();

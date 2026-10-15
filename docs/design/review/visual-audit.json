@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 147,
-    "not_captured": 40,
+    "captured": 150,
+    "not_captured": 37,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -829,7 +829,24 @@
       "route": "published",
       "reference": "mobile/screens/S17.success-published.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S17.success-published.png",
+      "actual_route": "published",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.081075,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -978,7 +995,24 @@
       "route": "offer-sent",
       "reference": "mobile/screens/S21.sent-offer-sent.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S21.sent-offer-sent.png",
+      "actual_route": "offer-sent",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.014865,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1218,7 +1252,24 @@
       "route": "review-sent",
       "reference": "mobile/screens/S28.sent-review-sent.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S28.sent-review-sent.png",
+      "actual_route": "review-sent",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.011276,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {

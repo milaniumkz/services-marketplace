@@ -4,6 +4,7 @@ import 'support_new.dart';
 import 'legal_documents.dart';
 import 'account_restrictions.dart';
 import 'appeal_editor.dart';
+import 'action_receipt.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -822,6 +823,29 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'order':
       case 'work':
         return orderScreen();
+      case 'published':
+      case 'offer-sent':
+      case 'review-sent':
+        return page(
+            route == 'published'
+                ? 'Готово'
+                : route == 'offer-sent'
+                    ? 'Отклик отправлен'
+                    : 'Отзыв сохранён',
+            ActionReceipt(
+                key: ValueKey('$route:$objectId:$revision'),
+                api: api,
+                id: objectId!,
+                kind: route == 'published'
+                    ? ReceiptKind.published
+                    : route == 'offer-sent'
+                        ? ReceiptKind.offer
+                        : ReceiptKind.review,
+                onOrders: () => go('orders'),
+                onOffers: () => go('offers', objectId),
+                onJobs: () => go('jobs'),
+                onOrder: (id) => go('order', id)),
+            titleOffset: route == 'published' ? 0 : -12);
       case 'publish':
         return publishScreen();
       case 'select-contractor':
@@ -2588,7 +2612,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           await api.request('/orders/${order['id']}/publish',
                               method: 'POST',
                               body: {'expected_version': order['version']});
-                          go('order', order['id']);
+                          go('published', order['id']);
                         }),
                 child: UiText(order['status'] == 'draft'
                     ? 'Опубликовать заказ'
@@ -2967,6 +2991,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       act(() async {
         await api.request('/orders/${o['id']}/$command',
             method: 'POST', body: {'expected_version': o['version']});
+        if (command == 'publish') {
+          go('published', o['id']);
+          return;
+        }
         success('Изменения сохранены');
         reload();
       });
@@ -3058,8 +3086,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   'text': v['text'],
                   'acknowledged_revision': o['revision']
                 }) as Json;
-                success('Отклик отправлен');
-                go('chat', offer['conversation_id']);
+                go('offer-sent', offer['id']);
               })));
   Widget offersScreen() => page(
       'Список откликов',
@@ -3663,7 +3690,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               await api.request('/orders/${order['id']}/reviews',
                   method: 'POST',
                   body: {'rating': reviewRating, 'text': fields['text']});
-              reload();
+              go('review-sent', order['id']);
             });
       }));
   String reportTargetType = 'order', reportReason = 'agreement';
