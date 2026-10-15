@@ -37,17 +37,30 @@ export async function systemWorkspace({key,api,esc,card,tablecard,note,metric,ba
     document.getElementById('system-reset').onclick=()=>{location.hash='security';};
     const next=document.getElementById('system-next');if(next)next.onclick=()=>{params.set('cursor',data.meta.next_cursor);location.hash='security?'+params;};}};
  }
- if(key==='jobs'){
+ if(key==='job-detail'){
+  const params=new URLSearchParams(location.hash.split('?')[1]||''),id=params.get('job_id');
+  if(!id){const data=await api('/admin/jobs?'+new URLSearchParams({limit:'20',...(params.get('cursor')?{cursor:params.get('cursor')}:{})}));
+   return {key,id:'A15.retry',title:'Карточка задачи',section:'Система',subtitle:'Выберите задачу текущей страны',actions:'<a class="btn" href="#jobs">К списку</a>',body:()=>tablecard('Задачи',['ID','Тип','Состояние',''],data.items.map(job=>[esc(job.id),esc(job.type),badge(esc(states[job.status]||job.status)),`<a href="#job-detail?job_id=${job.id}">Открыть →</a>`]),'',`${data.items.length} записей на странице`)+(data.meta?.next_cursor?`<a class="btn" href="#job-detail?${new URLSearchParams({cursor:data.meta.next_cursor})}">Следующая страница</a>`:'')};}
+  const job=await api('/admin/jobs/'+encodeURIComponent(id));
+  const eligible=job.source_kind==='privacy'&&job.status==='failed'||job.source_kind==='outbox'&&['dead_letter','retry'].includes(job.status)||job.source_kind==='upload'&&['processing','rejected'].includes(job.status)&&['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','FILE_PROCESSING_UNAVAILABLE'].includes(job.failure_code);
+  return {key,id:'A15.retry',title:'Карточка задачи',section:'Система',subtitle:job.id,actions:'<a class="btn" href="#jobs">К списку</a><button id="refresh-system">Обновить</button>',
+   body:()=>`<div class="grid cols4">${metric('Состояние',esc(states[job.status]||job.status),'','Текущее состояние')}${metric('Попытки',job.attempts,'','По данным обработчика')}${metric('Ревизия',job.version,'','Контроль параллельных действий')}${metric('Тип',esc(job.type),'','Серверная задача')}</div><div class="grid split mt">${card('Сведения',`<div class="info-row"><span>Следующая попытка UTC</span><b>${esc(date(job.next_attempt_at))}</b></div><div class="info-row"><span>Захват обработчиком до UTC</span><b>${esc(date(job.lease_until))}</b></div><div class="info-row"><span>Создано UTC</span><b>${esc(date(job.created_at))}</b></div><div class="info-row"><span>Код ошибки</span><b>${esc(job.failure_code||'—')}</b></div>${note('Приватный payload, документы, токены и пользовательские файлы в карточку задачи не включаются.')}`)}${card('Повторная обработка',eligible?'<form id="detail-retry" class="stack"><label for="detail-retry-reason">Служебная причина</label><textarea id="detail-retry-reason" name="reason" minlength="10" maxlength="1000" required></textarea><button class="primary">Поставить повтор в очередь</button><div role="alert"></div></form>':note('Повторная обработка для текущего состояния недоступна.'))}</div>`,
+   bind(){document.getElementById('refresh-system').onclick=onRefresh;const form=document.getElementById('detail-retry');if(form)form.onsubmit=async e=>{e.preventDefault();form.querySelector('button').disabled=true;form.querySelector('[role=alert]').textContent='';
+    try{await api('/admin/jobs/'+encodeURIComponent(job.id)+'/retry','POST',{reason:String(new FormData(form).get('reason')),expected_version:job.version});await onRefresh();}
+    catch(error){form.querySelector('[role=alert]').textContent=error.message;form.querySelector('button').disabled=false;}};}};
+ }
+ if(key==='jobs'||key==='scheduled'){
   const params=new URLSearchParams(location.hash.split('?')[1]||'');
+  if(key==='scheduled')params.set('scheduled','true');
   const data=await api('/admin/jobs?'+params);
-  return {key,id:'A15',title:'Jobs и интеграции',subtitle:'Асинхронная обработка в текущей стране',section:'Система',actions:'<button id="refresh-system">Обновить</button>',
-   body:()=>`<div class="grid cols4">${metric('В очереди',data.counts.queued,'','Сохранены для обработки')}${metric('Выполняется',data.counts.running,'','Активная обработка')}${metric('Требует разбора',data.counts.failed,'','Ошибки и отложенные повторы')}${metric('Платёжных адаптеров',data.providers.billing.length,'','Зарегистрированы на сервере')}</div>
+  return {key,id:'A15',title:key==='scheduled'?'Запланированные задачи':'Jobs и интеграции',subtitle:'Асинхронная обработка в текущей стране',section:'Система',actions:'<button id="refresh-system">Обновить</button>',
+   body:()=>`<div class="tabs"><a href="#jobs" class="${key==='jobs'?'active':''}">Все задачи</a><a href="#scheduled" class="${key==='scheduled'?'active':''}">Запланированные</a></div><div class="grid cols4">${metric(key==='scheduled'?'Запланировано':'В очереди',key==='scheduled'?data.counts.scheduled:data.counts.queued,'','Сохранены для обработки')}${metric('Выполняется',data.counts.running,'','Активная обработка')}${metric('Требует разбора',data.counts.failed,'','Ошибки и отложенные повторы')}${metric('Платёжных адаптеров',data.providers.billing.length,'','Зарегистрированы на сервере')}</div>
     <form id="system-filter" class="filters"><input name="q" aria-label="Поиск задачи" placeholder="ID или тип задачи" value="${esc(params.get('q'))}"><input name="status" aria-label="Статус задачи" placeholder="Статус" value="${esc(params.get('status'))}"><button>Найти</button><button id="system-reset" type="button">Сбросить</button></form>
-    ${tablecard('Задачи и повторная обработка',['Job / тип','Попытки','Следующий запуск UTC','Состояние','Результат'],data.items.map(job=>[`<b>${esc(job.type)}</b><span class="sub">${esc(job.id)}</span>`,esc(job.attempts),esc(date(job.next_attempt_at)),badge(esc(states[job.status]||job.status)),`${esc(job.failure_code||'—')}${['failed','dead_letter','retry'].includes(job.status)||job.failure_code?` <button type="button" data-job="${job.id}">Проверить повтор</button>`:''}`]),'',`${data.items.length} записей`)}
+    ${tablecard('Задачи и повторная обработка',['Job / тип','Попытки','Следующий запуск UTC','Состояние','Результат'],data.items.map(job=>[`<a href="#job-detail?job_id=${job.id}"><b>${esc(job.type)}</b></a><span class="sub">${esc(job.id)}</span>`,esc(job.attempts),esc(date(job.next_attempt_at)),badge(esc(states[job.status]||job.status)),`${esc(job.failure_code||'—')}${['failed','dead_letter','retry'].includes(job.status)||job.failure_code?` <button type="button" data-job="${job.id}">Проверить повтор</button>`:''}`]),'',`${data.items.length} записей`)}
     ${data.meta?.next_cursor?'<button id="system-next">Следующая страница</button>':''}
     <div id="job-review"></div>${card('Подключения',`<div class="info-row"><span>Push</span><b>${data.providers.push_configured?'Адаптер настроен':'Не подключён'}</b></div><div class="info-row"><span>Проверка файлов</span><b>${data.providers.scanner_configured?'Адаптер настроен':'Не подключён'}</b></div><div class="info-row"><span>PDF</span><b>${data.providers.pdf_sanitizer_configured?'Адаптер настроен':'Не подключён'}</b></div>`)}`,
    bind(){document.getElementById('refresh-system').onclick=onRefresh;
-    document.getElementById('system-filter').onsubmit=event=>{event.preventDefault();location.hash='jobs?'+new URLSearchParams(new FormData(event.currentTarget));};
+    document.getElementById('system-filter').onsubmit=event=>{event.preventDefault();location.hash=key+'?'+new URLSearchParams(new FormData(event.currentTarget));};
     document.querySelectorAll('[data-job]').forEach(button=>button.onclick=()=>{
       const job=data.items.find(item=>item.id===button.dataset.job),panel=document.getElementById('job-review');
       panel.innerHTML=card('Повторная обработка',`<form id="retry-job" class="stack"><p>${esc(job.type)} · ${esc(job.id)}</p><label for="retry-reason">Служебная причина</label><textarea id="retry-reason" name="reason" minlength="10" required></textarea><button class="primary">Поставить повтор в очередь</button><div role="alert"></div></form>`);
@@ -56,7 +69,7 @@ export async function systemWorkspace({key,api,esc,card,tablecard,note,metric,ba
         catch(error){form.querySelector('[role=alert]').textContent=error.message;form.querySelector('button').disabled=false;}
       };panel.scrollIntoView({block:'nearest'});
     });
-    document.getElementById('system-reset').onclick=()=>{location.hash='jobs';};const next=document.getElementById('system-next');if(next)next.onclick=()=>{params.set('cursor',data.meta.next_cursor);location.hash='jobs?'+params;};}};
+    document.getElementById('system-reset').onclick=()=>{location.hash=key;};const next=document.getElementById('system-next');if(next)next.onclick=()=>{params.set('cursor',data.meta.next_cursor);location.hash=key+'?'+params;};}};
  }
  throw Error('Неизвестный системный раздел');
 }

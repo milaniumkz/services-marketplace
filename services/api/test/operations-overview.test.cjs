@@ -39,6 +39,14 @@ test('operational retries require staff MFA, current version and an eligible tra
   await api.store.put(job);
   await assert.rejects(()=>call(account,'GET','/admin/jobs'),e=>e.getResponse().error.code==='FORBIDDEN');
   const list=await call(staff,'GET','/admin/jobs');assert.equal(list.items.find(item=>item.id===id).private_note,undefined);
+  assert.equal((await call(staff,'GET','/admin/jobs/'+id)).private_note,undefined);
+  await assert.rejects(()=>call(account,'GET','/admin/jobs/'+id),e=>e.getStatus()===403);
+  const foreign={...job,id:randomUUID(),country:'RS'};await api.store.put(foreign);
+  await assert.rejects(()=>call(staff,'GET','/admin/jobs/'+foreign.id),e=>e.getStatus()===404);
+  const future={...job,id:randomUUID(),status:'retry',next_attempt_at:new Date(Date.now()+3600000).toISOString()};await api.store.put(future);
+  await api.store.put({...future,id:randomUUID(),status:'completed'});
+  const scheduled=await call(staff,'GET','/admin/jobs',{}, {scheduled:'true',limit:1});assert.deepEqual(scheduled.items.map(r=>r.id),[future.id]);assert.equal(scheduled.counts.scheduled,1);assert.equal(scheduled.meta.next_cursor,null);
+  await assert.rejects(()=>call(staff,'GET','/admin/jobs',{}, {scheduled:'invalid'}),e=>e.getStatus()===400);
   await assert.rejects(()=>call(staff,'POST','/admin/jobs/'+id+'/retry',{expected_version:9,reason:'Повтор после исправления причины'}),e=>e.getResponse().error.code==='STATE_CONFLICT');
   const retried=await call(staff,'POST','/admin/jobs/'+id+'/retry',{expected_version:1,reason:'Повтор после исправления причины'});assert.equal(retried.status,'requested');assert.equal(retried.attempts,0);
   await assert.rejects(()=>call(staff,'POST','/admin/jobs/'+id+'/retry',{expected_version:2,reason:'Нельзя повторять выполняемую задачу'}),e=>e.getResponse().error.code==='STATE_CONFLICT');

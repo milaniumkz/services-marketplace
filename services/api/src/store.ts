@@ -37,10 +37,11 @@ export class Store {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number}={}) {
+  async select(kind:string,country:string,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
+    if(options.endUserOnly)where.push("COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0");
     if(options.recipient)where.push("data->>'recipient_id'="+bind(options.recipient));
     if(options.caseActor){const actor=bind(options.caseActor);where.push(`(owner=${actor} OR data->>'subject_user_id'=${actor} AND COALESCE(data->>'reporter_private','false')<>'true')`);}
     if(options.caseBucket)where.push("data->>'status' "+(options.caseBucket==='resolved'?'IN':'NOT IN')+" ('resolved','closed','dismissed')");

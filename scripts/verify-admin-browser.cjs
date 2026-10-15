@@ -123,6 +123,16 @@ async function main(){
   await page.getByRole('button',{name:'Поставить повтор в очередь',exact:true}).click();
   await page.waitForFunction(id=>!document.querySelector('[data-job="'+id+'"]'),operationalJob);
   assert.equal((await marketplace.store.get(operationalJob)).status,'requested');
+  const detailJob=randomUUID();await marketplace.store.put({id:detailJob,kind:'privacy',type:'export',owner:applicant.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'failed',attempts:3,failure_code:'EXPORT_RETRY_REQUIRED',private_note:'isolated hidden job metadata'});
+  await page.goto(frontend+'/#job-detail?job_id='+detailJob);
+  await page.getByLabel('Служебная причина',{exact:true}).fill('Повтор из карточки после проверки причины сбоя');
+  assert.equal((await page.locator('body').innerText()).includes('isolated hidden job metadata'),false);
+  await page.getByRole('button',{name:'Поставить повтор в очередь',exact:true}).click();
+  await page.getByText('Повторная обработка для текущего состояния недоступна.',{exact:true}).waitFor();
+  assert.equal((await marketplace.store.get(detailJob)).status,'requested');
+  const scheduledJob=randomUUID();await marketplace.store.put({id:scheduledJob,kind:'outbox',owner:applicant.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'retry',next_attempt_at:new Date(Date.now()+3600000).toISOString(),attempts:1});
+  await page.goto(frontend+'/#scheduled');await page.locator('a[href="#job-detail?job_id='+scheduledJob+'"]').waitFor();
+
   await page.locator('.nav a[href="#monetization"]').click();
   await page.getByLabel('Название',{exact:true}).fill('Проверка реального черновика');
   await page.getByLabel('Причина',{exact:true}).fill('Изолированная проверка интерфейса');
@@ -187,6 +197,30 @@ async function main(){
   await page.getByRole('button',{name:'Показать телефон',exact:true}).click();
   await page.locator('#sensitive-result').filter({hasText:'+77000000431'}).waitFor();
   assert.ok((await marketplace.store.all('audit','KZ')).some(x=>x.action==='user.phone_read'&&JSON.stringify(x).includes(applicant.user.id)));
+  await page.goto(frontend+'/#user-orders');
+  await page.getByLabel('Найти пользователя').fill('Изолированный исполнитель');
+  await page.getByRole('button',{name:'Найти',exact:true}).click();
+  await page.locator('a[href*="user_id='+professional.user.id+'"]').first().click();
+  await page.getByText(caseOrder.title,{exact:true}).waitFor();
+  await page.getByLabel('Состояние заказа').selectOption('completed');
+  await page.getByRole('button',{name:'Найти',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('[aria-busy=true]'));
+  assert.equal(await page.getByText(caseOrder.title,{exact:true}).count(),0);
+  await page.getByRole('button',{name:'Сбросить',exact:true}).click();
+  await page.getByText(caseOrder.title,{exact:true}).waitFor();
+  await page.locator('.tabs a[href^="#user-cases?"]').click();
+  await page.locator('a[href="#case-live/'+caseReport.id+'"]').waitFor();
+  await page.locator('.tabs a[href^="#user-decisions?"]').click();
+  await page.locator('.timeline .event').first().waitFor();
+  await page.goto(frontend+'/#user-cases?user_id='+applicant.user.id);
+  await page.getByText('Изолированная проверка ответа поддержки',{exact:true}).waitFor();
+  await marketplace.store.put({id:randomUUID(),kind:'security_event',owner:applicant.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),event:'isolated.account-security',ip:'192.0.2.77',session_family:'isolated-private-family'});
+  await page.locator('.tabs a[href^="#user-security?"]').click();
+  await page.getByLabel('Служебная причина просмотра событий').fill('Проверка входов по обращению владельца');
+  await page.getByRole('button',{name:'Загрузить события',exact:true}).click();
+  await page.getByText('192.0.*.*',{exact:true}).waitFor();
+  assert.equal((await page.locator('body').innerText()).includes('192.0.2.77'),false);
+  assert.equal((await page.locator('body').innerText()).includes('isolated-private-family'),false);
   await page.goto(frontend+'/#users');
   await page.getByLabel('Поиск по ID или названию').fill(applicant.user.id);
   await page.getByRole('button',{name:'Найти',exact:true}).click();
@@ -239,6 +273,7 @@ async function main(){
   assert.equal((await marketplace.store.all('recovery','KZ')).length,1);
   if(process.env.JOBA_BROWSER_INVENTORY_DIR){
     const output=process.env.JOBA_BROWSER_INVENTORY_DIR;await mkdir(output,{recursive:true});
+    const captureJob=randomUUID();await marketplace.store.put({...await marketplace.store.get(detailJob),id:captureJob,version:1,status:'failed',attempts:3,failure_code:'EXPORT_RETRY_REQUIRED',fixture:true});
     const frames=JSON.parse(await readFile(resolve(__dirname,'../docs/design/screen-audit.json'),'utf8')).frames;
     const inventory=[];
     const captureFrame=async(frame,address,actualRoute=frame.design_route)=>{
@@ -264,19 +299,27 @@ async function main(){
       'user-detail':'record-live/users/'+applicant.user.id,
       'order-detail':'record-live/orders/'+caseOrder.id,
       'case':'case-live/'+caseReport.id,
-      'verification-detail':'record-live/verification/'+verificationId
+      'verification-detail':'record-live/verification/'+verificationId,
+      'user-security':'user-security?user_id='+applicant.user.id,
+      'user-orders':'user-orders?user_id='+professional.user.id,
+      'user-cases':'user-cases?user_id='+applicant.user.id,
+      'user-decisions':'user-decisions?user_id='+professional.user.id,
+      'job-detail':'job-detail?job_id='+captureJob
     };
     for(const frame of frames.filter(frame=>frame.surface==='admin'&&frame.design_route!=='login')){
       const actualRoute=details[frame.design_route]??frame.design_route;
       await captureFrame(frame,frontend+'/#'+actualRoute,actualRoute);
     }
+    await page.getByRole('button',{name:'Выйти',exact:true}).click();
+    await page.getByLabel('Рабочий идентификатор').waitFor();
+    assert.equal(await page.evaluate(()=>['user-detail','user-security','user-orders','user-cases','user-decisions','job-detail','scheduled'].some(key=>window.JOBA_ADMIN.routes[key])),false);
     // Functional recovery persistence was already checked above. Baseline W02
     // is the initial support form, not the conversation from that prior test.
     await page.goto(web+'/W02.html');await page.evaluate(()=>sessionStorage.removeItem('joba.recovery'));
     for(const frame of frames.filter(frame=>frame.surface==='public'))await captureFrame(frame,web+'/'+frame.design_route+'.html');
     await writeFile(join(output,'inventory.json'),JSON.stringify({scenario:'isolated real HTTP API; unsupported routes remain pending',frames:inventory},null,2)+'\n');
   }
-  console.log('Admin browser: real MFA login, live dashboard, UTC period selection, report export, masked security events, audited job retry, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence, live branding upload/crop/preview/independent approval/iconset download, frozen case evidence and actual content hiding passed.');
+  console.log('Admin browser: account selection, scoped user orders/status filters/cases/decision timeline/masked security, job details and scheduled queue, logout clears private views, real MFA login, live dashboard, UTC period selection, report export, masked security events, audited job retry, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence, live branding upload/crop/preview/independent approval/iconset download, frozen case evidence and actual content hiding passed.');
  }catch(error){if(page){await page.screenshot({path:'/tmp/joba-admin-browser-failure.png',fullPage:true});console.error('Page diagnostics:',await page.locator('[role=alert], .note.danger').allTextContents());}throw error;}finally{await browser?.close();await vite?.close();await webVite?.close();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error.message);process.exitCode=1;});
