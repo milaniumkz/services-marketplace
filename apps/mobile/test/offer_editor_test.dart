@@ -126,7 +126,7 @@ void main() {
     await t.tap(find.widgetWithText(FilledButton, 'Сохранить'));
     await t.pumpAndSettle();
     expect(sent?['expected_version'], 2);
-    expect(sent?['expires_local'], '2030-10-16T18:00');
+    expect(sent?.containsKey('expires_local'), false);
     expect(sent?['proposed_start_local'], '2030-10-17T10:00');
     expect(sent?['duration_minutes'], 300);
     await t.pumpWidget(const SizedBox());

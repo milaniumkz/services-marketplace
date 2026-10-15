@@ -25,7 +25,8 @@ export function offerTerms(order:RecordData,body:any,hours:number,now=new Date()
  if(duration!=null&&(!Number.isSafeInteger(duration)||duration<=0))invalid('duration_minutes','Укажите длительность в минутах больше нуля');
  const latest=Math.min(Date.parse(policy.latest_expires_at),start?Date.parse(start):Infinity);
  const expiresLocal=body.expires_local;
- const expires=expiresLocal===undefined?(previous?.expires_at??new Date(latest).toISOString()):localInstant(expiresLocal,zone,'expires_local');
+ const previousExpiry=previous?(previous.expires_at??new Date(Date.parse(previous.created_at)+hours*3600000).toISOString()):undefined;
+ const expires=expiresLocal===undefined?(previousExpiry??new Date(latest).toISOString()):localInstant(expiresLocal,zone,'expires_local');
  if(Date.parse(expires)<=now.getTime()||Date.parse(expires)>latest)invalid('expires_local','Срок отклика должен быть в будущем, до начала работы и в пределах срока заказа и правил страны');
  return {proposed_start_local:startLocal||null,proposed_start_at:start??null,duration_minutes:duration??null,time_zone:zone,expires_at:expires};
 }
@@ -35,8 +36,9 @@ export function offerExpired(offer:RecordData,hours:number,now=new Date()){
 }
 
 export function presentOffer(offer:RecordData,hours:number,now=new Date()){
- const expires_local=offer.expires_at?Temporal.Instant.from(offer.expires_at).toZonedDateTimeISO(offer.time_zone??zones[offer.country]).toPlainDateTime().toString({smallestUnit:'minute'}):undefined;
- return {...offer,expires_local,status:offer.status==='active'&&offerExpired(offer,hours,now)?'expired':offer.status};
+ const expires_at=offer.expires_at??new Date(Date.parse(offer.created_at)+hours*3600000).toISOString();
+ const expires_local=Temporal.Instant.from(expires_at).toZonedDateTimeISO(offer.time_zone??zones[offer.country]).toPlainDateTime().toString({smallestUnit:'minute'});
+ return {...offer,expires_at,expires_local,status:offer.status==='active'&&offerExpired(offer,hours,now)?'expired':offer.status};
 }
 
 /** Batch public participant labels and published review aggregates; never return account secrets. */

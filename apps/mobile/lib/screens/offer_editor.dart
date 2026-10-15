@@ -27,7 +27,7 @@ class _OfferEditorState extends State<OfferEditor> {
   late final TextEditingController note, price, duration;
   late Json order;
   DateTime? start, expiry;
-  bool accepted = false, busy = false;
+  bool accepted = false, busy = false, expiryChanged = false;
   Object? error;
   String get zone =>
       '${order['offer_policy']?['time_zone'] ?? order['time_window']?['time_zone'] ?? const {
@@ -129,7 +129,8 @@ class _OfferEditorState extends State<OfferEditor> {
         'duration_minutes': duration.text.trim().isEmpty
             ? null
             : (double.parse(duration.text.replaceAll(',', '.')) * 60).round(),
-        if (expiry != null) 'expires_local': local(expiry!),
+        if (expiry != null && (widget.offer == null || expiryChanged))
+          'expires_local': local(expiry!),
         if (widget.offer != null) 'expected_version': widget.offer!['version']
       };
       final result = await widget.api.request(
@@ -261,8 +262,10 @@ class _OfferEditorState extends State<OfferEditor> {
                           if (value != null && mounted)
                             setState(() {
                               start = value;
-                              if (expiry != null && expiry!.isAfter(value))
+                              if (expiry != null && expiry!.isAfter(value)) {
                                 expiry = value;
+                                expiryChanged = true;
+                              }
                             });
                         }),
                       ]))
@@ -278,8 +281,10 @@ class _OfferEditorState extends State<OfferEditor> {
                     if (value != null && mounted)
                       setState(() {
                         start = value;
-                        if (expiry != null && expiry!.isAfter(value))
+                        if (expiry != null && expiry!.isAfter(value)) {
                           expiry = value;
+                          expiryChanged = true;
+                        }
                       });
                   }, icon: 'clock')),
                   const SizedBox(width: 12),
@@ -320,7 +325,11 @@ class _OfferEditorState extends State<OfferEditor> {
                         : '${DateFormat.MMMd(locale).format(expiry!)} · ${DateFormat.Hm(locale).format(expiry!)}',
                     () async {
                   final value = await pick(expiry, clock: true, validity: true);
-                  if (value != null && mounted) setState(() => expiry = value);
+                  if (value != null && mounted)
+                    setState(() {
+                      expiry = value;
+                      expiryChanged = true;
+                    });
                 }),
                 CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
