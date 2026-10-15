@@ -9,3 +9,7 @@ node_modules
 !.env.example
 docs/design/packages
 docs/design/pdf
+
+.flutter-sdk
+.pub-cache
+.joba-config

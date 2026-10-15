@@ -52,6 +52,8 @@ jobs:
           "$FLUTTER_ROOT/bin/flutter" pub get --enforce-lockfile
           "$FLUTTER_ROOT/bin/flutter" analyze --no-pub
           "$FLUTTER_ROOT/bin/flutter" test --reporter expanded
+      - name: Verify server image without cloud-specific CA mounts
+        run: docker build -f services/api/Dockerfile -t joba-api:verified .
       - run: bash scripts/build-web-release.sh
       - run: tar -czf release-web.tgz -C release web
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

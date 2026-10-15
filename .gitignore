@@ -16,3 +16,7 @@ build/
 *.mobileprovision
 
 release/
+
+.flutter-sdk/
+.pub-cache/
+.joba-config/

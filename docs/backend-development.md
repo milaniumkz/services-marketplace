@@ -77,7 +77,7 @@ Push-адаптер подключается позднее с Firebase. Outbox 
 
 Из корня: `docker build -f services/api/Dockerfile -t joba-api .`. Node image закреплён digest, runtime работает пользователем node. `.dockerignore` исключает локальные ключи, пользовательские данные, .env и Git.
 
-Для установленного TLS-прокси используйте его системный CA-бандл как временный build secret:
+Для начальной HTTPS-установки пакета ca-certificates Dockerfile использует встроенные корневые сертификаты закреплённого Node image; TLS и APT-подписи проверяются. Для установленного TLS-прокси используйте его системный CA-бандл как временный build secret:
 
 ```sh
 BUILDX_CONFIG="$PWD/.local/buildx" docker build \
