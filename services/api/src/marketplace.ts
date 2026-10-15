@@ -757,7 +757,7 @@ export class Marketplace {
       const c=await this.object(caseUpdate[1],a,'case');if(c.owner!==a.id&&(c.reporter_private||c.subject_user_id!==a.id))fail(404,'NOT_FOUND','Дело не найдено');
       if(caseUpdate[2]==='appeals') {
         if(c.subject_user_id!==a.id||!['resolved','restricted'].includes(c.status)||c.status==='resolved'&&!['content_removed','sanction_upheld'].includes(c.decision))fail(409,'STATE_CONFLICT','Апелляция недоступна');
-        this.version(c,b);const result=await this.store.put({...c,status:'appealed',appeal_reason:text(b,'reason',10,3000),version:c.version+1});return result;
+        this.version(c,b);const result=await this.store.put({...c,status:'appealed',appeal_reason:text(b,'reason',10,3000),appeal_upload_ids:b.upload_ids===undefined?[]:await this.safeUploads(a,b.upload_ids,'chat'),appeal_submitted_at:new Date().toISOString(),version:c.version+1});return result;
       }
       return this.store.put(this.record('case_message',a,{case_id:c.id,text:text(b,'text',1,3000),upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[]}));
     }
@@ -1280,7 +1280,7 @@ export class Marketplace {
       if(support?.owner===a.id)return;
       if(support?.assignee_id===a.id){await this.staff(a,'support');return;}
       const caseMessage=(await this.store.all('case_message',a.country)).find(m=>!m.internal&&m.upload_ids?.includes(u.id));
-      const linkedCase=caseMessage?await this.store.get(caseMessage.case_id):(await this.store.all('case',a.country)).find(c=>[...c.upload_ids??[],...c.target_snapshot?.upload_ids??[],...c.target_snapshot?.gallery_ids??[],...c.target_snapshot?.photos??[],...(c.target_snapshot?.avatar_id?[c.target_snapshot.avatar_id]:[])].includes(u.id));
+      const linkedCase=caseMessage?await this.store.get(caseMessage.case_id):(await this.store.all('case',a.country)).find(c=>[...c.upload_ids??[],...c.appeal_upload_ids??[],...c.target_snapshot?.upload_ids??[],...c.target_snapshot?.gallery_ids??[],...c.target_snapshot?.photos??[],...(c.target_snapshot?.avatar_id?[c.target_snapshot.avatar_id]:[])].includes(u.id));
       if(linkedCase){
         if(linkedCase.upload_ids?.includes(u.id)&&(linkedCase.owner===a.id||!linkedCase.reporter_private&&linkedCase.subject_user_id===a.id))return;
         if(a.mfa&&(a.user.staff_permissions?.includes('moderator')||a.user.staff_permissions?.includes('administrator'))){await this.staff(a,'moderator');const reason=text(q,'reason',10,1000);await this.audit(a,'case.evidence_read',u.id,reason);return;}

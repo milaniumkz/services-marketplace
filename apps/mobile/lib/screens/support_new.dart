@@ -66,6 +66,7 @@ class _SupportNewState extends State<SupportNew> {
         InputSpec('text', 'Ваш вопрос',
             multiline: true,
             lines: 4,
+            minHeight: 120,
             validate: (value) =>
                 value.trim().isEmpty || value.trim().length > 3000
                     ? 'Введите от 1 до 3000 символов'

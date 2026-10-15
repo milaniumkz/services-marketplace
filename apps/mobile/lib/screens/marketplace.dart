@@ -3,6 +3,7 @@ import 'search_filters.dart';
 import 'support_new.dart';
 import 'legal_documents.dart';
 import 'account_restrictions.dart';
+import 'appeal_editor.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -723,7 +724,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   return date == null
                       ? ''
                       : '${DateFormat(date.toUtc().year == DateTime.now().toUtc().year ? 'd MMMM, HH:mm' : 'd MMMM y, HH:mm', locale).format(date.toUtc())} UTC';
-                }));
+                }),
+            titleOffset: -12);
       case 'legal':
         return page(
             'Правовые документы',
@@ -738,7 +740,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       'sr': 'Srpski',
                       'be': 'Беларуская'
                     }[locale] ??
-                    locale));
+                    locale),
+            titleOffset: -12);
       case 'support-new':
         return page(
             'Новое обращение',
@@ -746,7 +749,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api: api,
                 executor: executor,
                 pickUpload: () => pickUpload('chat'),
-                onCreated: (id) => go('support-chat', id)));
+                onCreated: (id) => go('support-chat', id)),
+            titleOffset: -12);
       case 'logout-confirm':
         return logoutConfirmation();
       case 'session-expired':
@@ -760,7 +764,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   icon: 'lock',
                   primaryLabel: 'Войти снова',
                   onPrimary: () => go('login'))
-            ]));
+            ]),
+            titleOffset: -12);
       case 'welcome':
         return welcomeScreen();
       case 'login':
@@ -3879,6 +3884,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     subtitle: '${data['description'] ?? ''}'),
                 for (final id in data['upload_ids'] as List? ?? [])
                   AttachmentView(api: api, id: id),
+                if (data['appeal_reason'] != null)
+                  DataCard('Ваша апелляция',
+                      translateTitle: true, subtitle: data['appeal_reason']),
+                for (final id in data['appeal_upload_ids'] as List? ?? [])
+                  AttachmentView(api: api, id: id),
                 SizedBox(
                     height: 280,
                     child: paged(
@@ -3900,29 +3910,48 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   button(
                       'Обжаловать решение', () => caseForm(true, data, reload)),
               ])));
-  void caseForm(bool appeal, Json data, VoidCallback reload) => Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-          builder: (c) => Scaffold(
-              appBar: AppBar(
-                  title:
-                      UiText(appeal ? 'Апелляция' : 'Сообщение по обращению')),
-              body: ActionForm(
-                  fields: [
-                    InputSpec(appeal ? 'reason' : 'text', 'Ваше сообщение',
-                        multiline: true)
-                  ],
-                  submit: (v) async {
-                    await api.request(
-                        '/cases/${data['id']}/${appeal ? 'appeals' : 'messages'}',
-                        method: 'POST',
-                        body: {
-                          ...v,
-                          if (appeal) 'expected_version': data['version']
-                        });
-                    if (c.mounted) Navigator.pop(c);
-                    reload();
-                  }))));
+  void caseForm(bool appeal, Json data, VoidCallback reload) {
+    if (appeal) {
+      Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+              builder: (c) => AppealEditor(
+                  api: api,
+                  incident: data,
+                  pickUpload: () => pickUpload('chat'),
+                  onCases: () {
+                    Navigator.pop(c);
+                    go('cases');
+                  }))).then((_) {
+        if (mounted) setState(() => revision++);
+      });
+      return;
+    }
+    Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+            builder: (c) => Scaffold(
+                appBar: AppBar(
+                    title: UiText(
+                        appeal ? 'Апелляция' : 'Сообщение по обращению')),
+                body: ActionForm(
+                    fields: [
+                      InputSpec(appeal ? 'reason' : 'text', 'Ваше сообщение',
+                          multiline: true)
+                    ],
+                    submit: (v) async {
+                      await api.request(
+                          '/cases/${data['id']}/${appeal ? 'appeals' : 'messages'}',
+                          method: 'POST',
+                          body: {
+                            ...v,
+                            if (appeal) 'expected_version': data['version']
+                          });
+                      if (c.mounted) Navigator.pop(c);
+                      reload();
+                    }))));
+  }
+
   Widget accessScreen() => page(
       'Мой доступ',
       ApiView(
@@ -4206,7 +4235,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             onPrimary: () => act(() => api.logout()),
             secondaryLabel: 'Остаться',
             onSecondary: back)
-      ]));
+      ]),
+      titleOffset: -12);
 
   Widget languageScreen() {
     var selected = pendingLocale ?? locale;

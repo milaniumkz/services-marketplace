@@ -203,6 +203,7 @@ class InputSpec {
   final bool secret, multiline;
   final bool required, translateOptions;
   final int lines;
+  final double? minHeight;
   final String? hint;
   final IconData? prefixIcon;
   final String? originalIcon;
@@ -221,6 +222,7 @@ class InputSpec {
       this.secret = false,
       this.multiline = false,
       this.lines = 5,
+      this.minHeight,
       this.required = true,
       this.translateOptions = true,
       this.options,
@@ -239,11 +241,13 @@ class ActionForm extends StatefulWidget {
   final List<Widget> before, after, afterFields;
   final Map<String, List<Widget>> beforeField, afterField;
   final bool authLayout, stickySubmit, externalBusy, submitEnabled;
+  final Object? errorResetKey;
   const ActionForm(
       {required this.fields,
       required this.submit,
       this.button = 'Сохранить',
       this.authLayout = false,
+      this.errorResetKey,
       this.stickySubmit = false,
       this.externalBusy = false,
       this.submitEnabled = true,
@@ -277,6 +281,7 @@ class _ActionFormState extends State<ActionForm> {
   @override
   void didUpdateWidget(ActionForm old) {
     super.didUpdateWidget(old);
+    if (widget.errorResetKey != old.errorResetKey) error = null;
     final keys = widget.fields.map((f) => f.key).toSet();
     for (final key in controllers.keys.toList()) {
       if (!keys.contains(key)) controllers.remove(key)!.dispose();
@@ -424,7 +429,10 @@ class _ActionFormState extends State<ActionForm> {
                               constraints: widget.authLayout
                                   ? BoxConstraints(
                                       minHeight: field.secret ? 74 : 52)
-                                  : null,
+                                  : field.minHeight == null
+                                      ? null
+                                      : BoxConstraints(
+                                          minHeight: field.minHeight!),
                               hintText: field.hint == null
                                   ? null
                                   : localize(context, field.hint!),
@@ -456,9 +464,10 @@ class _ActionFormState extends State<ActionForm> {
                                               visible.contains(field.key)
                                                   ? 'Скрыть пароль'
                                                   : 'Показать пароль'),
-                                          onPressed: () => setState(() => visible.contains(field.key)
-                                              ? visible.remove(field.key)
-                                              : visible.add(field.key)),
+                                          onPressed: () => setState(() =>
+                                              visible.contains(field.key)
+                                                  ? visible.remove(field.key)
+                                                  : visible.add(field.key)),
                                           icon: visible.contains(field.key) ? const Icon(Icons.visibility_off_outlined) : const JobaIcon('eye')))
                                   : null),
                           validator: (v) {

@@ -59,7 +59,9 @@ void main() {
       'loading': 'catalog',
       'session-expired': 'catalog',
       'photo-view': 'portfolio-project',
-      'login-error': 'login'
+      'login-error': 'login',
+      'appeal': 'case',
+      'appeal-sent': 'case'
     };
     final roots = (audit['frames'] as List).cast<Json>().where((f) =>
         f['surface'] == 'mobile' &&
@@ -217,6 +219,19 @@ void main() {
       dynamic data = {'items': []};
       if (path == '/me')
         data = user;
+      else if (path == '/cases/visual-object' ||
+          path == '/cases/visual-object/appeals')
+        data = {
+          'id': 'visual-object',
+          'owner': user['id'],
+          'subject_user_id': user['id'],
+          'version': path.endsWith('/appeals') ? 2 : 1,
+          'status': path.endsWith('/appeals') ? 'appealed' : 'resolved',
+          'decision': 'content_removed',
+          'reason_code': 'dictionary_match',
+          'description': 'Материал ограничен после проверки.',
+          'upload_ids': []
+        };
       else if (path == '/me/restrictions')
         data = {
           'items': [
@@ -515,6 +530,16 @@ void main() {
       final errors = <String>[];
       try {
         await tester.pumpAndSettle();
+        if (route == 'appeal' || route == 'appeal-sent') {
+          await tester.tap(find.text('Обжаловать решение'));
+          await tester.pumpAndSettle();
+          if (route == 'appeal-sent') {
+            await tester.enterText(find.byType(TextFormField),
+                'Прошу пересмотреть решение по материалу.');
+            await tester.tap(find.text('Отправить апелляцию'));
+            await tester.pumpAndSettle();
+          }
+        }
         if (route == 'login-error') {
           final fields = find.byType(TextFormField);
           await tester.enterText(fields.at(0), '+77000000001');

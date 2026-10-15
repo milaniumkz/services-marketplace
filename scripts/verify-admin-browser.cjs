@@ -105,6 +105,16 @@ async function main(){
   await page.waitForFunction(()=>!document.getElementById('case-decision'));
   const moderated=await marketplace.store.get(caseOrder.id);assert.equal(moderated.moderation_status,'hidden');assert.equal(moderated.status,'draft');
   assert.equal((await marketplace.store.get(caseReport.id)).decision,'content_removed');
+  let appealUpload=await ownerCommand('POST','/uploads/initiate',{purpose:'chat',mime:'image/png',size:bytes.length});
+  await ownerCommand('PUT','/uploads/'+appealUpload.id+'/content',bytes);appealUpload=await ownerCommand('POST','/uploads/'+appealUpload.id+'/finalize');
+  const appealCase=await marketplace.store.get(caseReport.id);
+  await ownerCommand('POST','/cases/'+caseReport.id+'/appeals',{expected_version:appealCase.version,reason:'Прошу пересмотреть решение по приложенным материалам.',upload_ids:[appealUpload.id]});
+  await page.goto(frontend+'/#case-live/'+caseReport.id);await page.getByRole('button',{name:'Обновить',exact:true}).click();await page.locator('#case-appeal-evidence').waitFor();
+  await page.locator('#case-appeal-evidence [name=reason]').fill('Проверка материалов апелляции уполномоченным сотрудником');
+  const appealDownloadEvent=page.waitForEvent('download');await page.locator('#case-appeal-evidence button').click();
+  const appealDownload=await appealDownloadEvent;assert.ok((await readFile(await appealDownload.path())).length>0);
+  await capture('A06-appeal-evidence');
+  assert.ok((await marketplace.store.all('audit','KZ')).some(row=>row.action==='case.evidence_read'&&row.target_id===appealUpload.id));
   await page.goto(frontend+'/#dashboard');await page.locator('#dashboard-period').waitFor();
 
   await page.locator('#dashboard-period').selectOption('30');

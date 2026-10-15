@@ -8665,8 +8665,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/CaseAppeal"
               }
             }
           }
@@ -20336,6 +20335,34 @@
           }
         },
         "description": "Optional first message is committed atomically with the thread. Linked order must belong to the customer or assigned executor in the same country. Attachments must be clean chat uploads; text is required with attachments."
+      },
+      "CaseAppeal": {
+        "type": "object",
+        "required": [
+          "expected_version",
+          "reason"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 3000
+          },
+          "upload_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 10,
+            "uniqueItems": true
+          }
+        },
+        "description": "Only the subject of an appealable, visible regional decision may submit. Evidence must be owned clean chat uploads. The reason, evidence and submission timestamp are saved atomically; retry uses the same Idempotency-Key."
       },
       "MessageCreate": {
         "type": "object",

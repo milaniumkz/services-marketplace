@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 145,
-    "not_captured": 42,
+    "captured": 147,
+    "not_captured": 40,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -160,7 +160,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.162333,
+      "different_pixels_ratio": 0.157045,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1276,7 +1276,24 @@
       "route": "appeal",
       "reference": "mobile/screens/S30.appeal-appeal.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S30.appeal-appeal.png",
+      "actual_route": "case",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.087085,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1284,7 +1301,24 @@
       "route": "appeal-sent",
       "reference": "mobile/screens/S30.appeal-sent-appeal-sent.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S30.appeal-sent-appeal-sent.png",
+      "actual_route": "case",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.092133,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1304,7 +1338,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.078365,
+      "different_pixels_ratio": 0.073117,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1583,7 +1617,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.022788,
+      "different_pixels_ratio": 0.018317,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1907,7 +1941,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.088214,
+      "different_pixels_ratio": 0.084194,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2088,7 +2122,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.016088,
+      "different_pixels_ratio": 0.011867,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2238,7 +2272,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.088734,
+      "different_pixels_ratio": 0.088728,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2317,7 +2351,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.075017,
+      "different_pixels_ratio": 0.074957,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2332,7 +2366,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.2---A12-user-security.png",
-      "actual_route": "user-security?user_id=c08efe20-643f-484e-b840-100c4e6c3d64",
+      "actual_route": "user-security?user_id=98d0917d-f528-45bd-bbf5-051b469daaf2",
       "errors": [],
       "reference_size": [
         1440,
@@ -2342,17 +2376,13 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.105284,
+      "different_pixels_ratio": 0.105319,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "admin",
-      "open_items": [
-        "Timed full-IP access and staff session management are not implemented.",
-        "Visual acceptance remains pending."
-      ]
+      "surface": "admin"
     },
     {
       "id": "A03.RBAC",
@@ -2438,7 +2468,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.cases-user-cases.png",
-      "actual_route": "user-cases?user_id=c08efe20-643f-484e-b840-100c4e6c3d64",
+      "actual_route": "user-cases?user_id=98d0917d-f528-45bd-bbf5-051b469daaf2",
       "errors": [],
       "reference_size": [
         1440,
@@ -2448,7 +2478,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.097226,
+      "different_pixels_ratio": 0.097199,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2490,7 +2520,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.detail-user-detail.png",
-      "actual_route": "record-live/users/c08efe20-643f-484e-b840-100c4e6c3d64",
+      "actual_route": "record-live/users/98d0917d-f528-45bd-bbf5-051b469daaf2",
       "errors": [],
       "reference_size": [
         1440,
@@ -2500,7 +2530,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.092887,
+      "different_pixels_ratio": 0.092883,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2515,7 +2545,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.history-user-decisions.png",
-      "actual_route": "user-decisions?user_id=86132953-e439-438d-a143-1e5fa646a8b3",
+      "actual_route": "user-decisions?user_id=5f7c0b9c-6cde-45d0-ac5e-25ce92d580dc",
       "errors": [],
       "reference_size": [
         1440,
@@ -2525,17 +2555,13 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.097422,
+      "different_pixels_ratio": 0.097285,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "admin",
-      "open_items": [
-        "History includes scoped immutable staff audit decisions; broader account activity needs further coverage.",
-        "Visual acceptance remains pending."
-      ]
+      "surface": "admin"
     },
     {
       "id": "A03.orders",
@@ -2544,7 +2570,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.orders-user-orders.png",
-      "actual_route": "user-orders?user_id=86132953-e439-438d-a143-1e5fa646a8b3",
+      "actual_route": "user-orders?user_id=5f7c0b9c-6cde-45d0-ac5e-25ce92d580dc",
       "errors": [],
       "reference_size": [
         1440,
@@ -2554,7 +2580,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.065696,
+      "different_pixels_ratio": 0.065651,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2569,7 +2595,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A04-order-detail.png",
-      "actual_route": "record-live/orders/d990df65-dec2-4720-9b70-e186364b5e83",
+      "actual_route": "record-live/orders/8eade43f-553e-4fc2-bba3-c0d5dc4bbdc8",
       "errors": [],
       "reference_size": [
         1440,
@@ -2579,7 +2605,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.072582,
+      "different_pixels_ratio": 0.072567,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2604,7 +2630,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.066298,
+      "different_pixels_ratio": 0.066368,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2629,7 +2655,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069822,
+      "different_pixels_ratio": 0.069885,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2669,7 +2695,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A06-case.png",
-      "actual_route": "case-live/8bfc1dac-979b-4d96-90ac-3071d03f43c2",
+      "actual_route": "case-live/69f9e7a7-ae51-48cf-95b4-27e17f3a8d72",
       "errors": [],
       "reference_size": [
         1440,
@@ -2679,7 +2705,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.155872,
+      "different_pixels_ratio": 0.181675,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2746,7 +2772,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.guard-verification-detail.png",
-      "actual_route": "record-live/verification/bfaa2813-e7de-4a46-9b96-c3c831ae7268",
+      "actual_route": "record-live/verification/e08dd904-84e3-44c0-b050-3b33edd0078e",
       "errors": [],
       "reference_size": [
         1440,
@@ -2756,7 +2782,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.107008,
+      "different_pixels_ratio": 0.107114,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2808,7 +2834,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.133993,
+      "different_pixels_ratio": 0.13394,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3018,7 +3044,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.078907,
+      "different_pixels_ratio": 0.079042,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3043,7 +3069,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.134215,
+      "different_pixels_ratio": 0.133986,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3095,7 +3121,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.099106,
+      "different_pixels_ratio": 0.098965,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3172,7 +3198,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.123903,
+      "different_pixels_ratio": 0.122054,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3187,7 +3213,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A15.retry-job-detail.png",
-      "actual_route": "job-detail?job_id=f14618fd-980e-46b2-be68-f3936c4f4b87",
+      "actual_route": "job-detail?job_id=98852c09-77bd-48ef-a581-930c3b808a1b",
       "errors": [],
       "reference_size": [
         1440,
@@ -3197,17 +3223,13 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.111061,
+      "different_pixels_ratio": 0.111034,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "admin",
-      "open_items": [
-        "Attempt history and diagnostic log presentation are not implemented.",
-        "Visual acceptance remains pending."
-      ]
+      "surface": "admin"
     },
     {
       "id": "A15.schedule",
@@ -3226,17 +3248,13 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.085632,
+      "different_pixels_ratio": 0.085615,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "admin",
-      "open_items": [
-        "Persisted future retries are shown; editing cron schedules is not implemented.",
-        "Visual acceptance remains pending."
-      ]
+      "surface": "admin"
     },
     {
       "id": "A16",
@@ -3438,7 +3456,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.152913,
+      "different_pixels_ratio": 0.150748,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3542,7 +3560,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.11419,
+      "different_pixels_ratio": 0.114231,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3567,7 +3585,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115951,
+      "different_pixels_ratio": 0.115938,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3696,7 +3714,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.226252,
+      "different_pixels_ratio": 0.226242,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3721,7 +3739,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.070197,
+      "different_pixels_ratio": 0.070189,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3746,7 +3764,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069361,
+      "different_pixels_ratio": 0.069354,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3771,7 +3789,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115454,
+      "different_pixels_ratio": 0.115447,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3796,7 +3814,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.061888,
+      "different_pixels_ratio": 0.061882,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3821,7 +3839,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069727,
+      "different_pixels_ratio": 0.069718,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
