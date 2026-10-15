@@ -31,6 +31,7 @@ export class Commerce {
     p={...p,valid_until:new Date(p.valid_until).toISOString()};
     const u=await this.store.get(p.user_id);if(!u||u.country!==p.country)fail('PURCHASE_OWNERSHIP_MISMATCH','Аккаунт покупки не найден',403);
     const existing=(await this.store.all('subscription',p.country)).find(x=>x.provider===p.provider&&x.original_transaction_id===p.original_transaction_id);
+    if(!existing&&!u.roles?.includes('executor'))fail('EXECUTOR_ROLE_REQUIRED','Подписка доступна только исполнителю',403);
     if(p.state==='pending'){
       const price=(await this.store.all('price_version',p.country)).find(x=>x.status==='effective'&&x.payload.provider===p.provider&&x.payload.product_id===p.product_id&&x.payload.product_type!=='boost');
       if(!price||price.payload.currency!==p.currency||price.payload.amount_minor!==p.amount_minor)fail('PRICE_MISMATCH','Предложение не соответствует покупке',422);
@@ -49,7 +50,7 @@ export class Commerce {
     const subscription=await this.store.put({...existing??this.record('subscription',p.user_id,p.country,{}),price_snapshot:existing?.price_snapshot??price?.payload,provider:p.provider,original_transaction_id:p.original_transaction_id,product_id:p.product_id,status:p.state,valid_until:p.valid_until,provider_revision:p.revision,version:existing?existing.version+1:1});
     const grant=(await this.store.all('grant',p.country)).find(g=>g.source_id===subscription.id);
     const valid=['active','grace','canceled_at_period_end'].includes(p.state);
-    await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:['search_full','publish_order','select_offer','send_offer','publish_profile'],version:grant?grant.version+1:1});
+    await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:['search_full','send_offer','publish_profile'],version:grant?grant.version+1:1});
     for(const check of await this.store.all('purchase_check',p.country))if(check.owner===p.user_id&&check.provider===p.provider&&check.transaction_id===p.transaction_id)await this.store.put({...check,status:'confirmed',subscription_id:subscription.id,version:check.version+1});
     return {subscription,duplicate:false};
   }

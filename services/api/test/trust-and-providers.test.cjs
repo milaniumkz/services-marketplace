@@ -76,6 +76,7 @@ test('payment evidence, ownership, provider revisions and webhook replay',async(
   const providers=new Providers(),api=new Marketplace(new Store('memory://'),providers);await api.initialize();
   try {
     const u=await account(api),other=await account(api,'+77000000102');
+    for(const account of [u,other])await api.store.put({...await api.store.get(account.user.id),roles:['customer','executor'],active_role:'executor'});
     const proof={provider:'test-contract',transaction_id:'transaction-1',original_transaction_id:'original-1',user_id:u.user.id,country:'KZ',product_id:'test-product',environment:'sandbox',amount_minor:100,currency:'KZT',valid_until:new Date(Date.now()+86400000).toISOString(),state:'active',revision:1};
     // Test doubles stay in test files. Runtime Providers has no enabled providers by default.
     providers.billing.set('test-contract',{name:'test-contract',verifyPurchase:async()=>proof,verifyWebhook:async(raw)=>{if(raw.toString()!=='valid')throw Error('Invalid signature');return {event_id:'event-1',purchase:proof};}});

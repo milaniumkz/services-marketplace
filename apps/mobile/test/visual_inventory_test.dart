@@ -569,7 +569,8 @@ void main() {
           : route == 'loading'
               ? <String, dynamic>{'q': 'Ремонт и отделка'}
               : <String, dynamic>{};
-      state.executor = route == 'executor-home';
+      state.executor = route == 'executor-home' || const ['access','my-access','checkout','manage-subscription','subscription-canceled','payment-pending','restore','reward','reward-granted','reward-nofill','reward-pending'].contains(route);
+      user['active_role'] = state.executor ? 'executor' : 'customer';
       state.objectId = 'visual-object';
       state.history.clear();
       if (route == 'redeem') {

@@ -17,7 +17,7 @@ export async function promotedListings(store:Store,country:string,actor:string,p
  AND COALESCE(t.data->>'moderation_status','') NOT IN ('hidden','quarantined','rejected')
  AND ($5::text='' OR t.data->>'city'=$5) AND ($6::text='' OR t.data->>'category_id'=$6 OR t.data->'category_ids' ? $6)
  AND NOT EXISTS(SELECT 1 FROM records p WHERE p.kind='pair_block' AND p.country=b.country AND p.data->>'status'='active' AND (p.owner=$7 AND p.data->>'target_id'=t.owner OR p.owner=t.owner AND p.data->>'target_id'=$7))
- AND EXISTS(SELECT 1 FROM records g WHERE g.kind='grant' AND g.country=t.country AND g.owner=t.owner AND g.data->>'valid_until'>$3 AND g.data->'capabilities' ? 'search_full' AND (g.data->>'balance' IS NULL OR (g.data->>'balance')::numeric>0))
+ AND (t.kind='order' OR EXISTS(SELECT 1 FROM records g WHERE g.kind='grant' AND g.country=t.country AND g.owner=t.owner AND g.data->>'valid_until'>$3 AND g.data->'capabilities' ? 'search_full' AND (g.data->>'balance' IS NULL OR (g.data->>'balance')::numeric>0)))
  ORDER BY b.data->>'starts_at',b.id LIMIT $8`,[country,placement,now.toISOString(),kind,String(query.city??''),String(query.category_id??''),actor,limit]);
  const presented=kind==='contractor'?await contractorPresentation(store,country,rows.rows.map(r=>r.data)):rows.rows.map(r=>({...publicContent(r.data),exact_address:undefined}));
  return {placement_id:placement,items:presented.map((r,i)=>({boost_id:rows.rows[i].boost_id,target_type:kind,promoted:true,target:r})),organic_rank_changed:false};

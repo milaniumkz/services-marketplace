@@ -16,7 +16,7 @@ test('marketplace lifecycle, access boundaries, command retry and refresh replay
     const stranger = await register('+77000000003');
     const otherRegion = await register('+375291234567','BY');
     const unpaidDraft=await call(customer,'POST','/orders',{title:'Неоплаченный черновик',description:'Описание достаточно длинное для создания черновика заказа.',category_id:'1',city:'Алматы',budget_amount:null});
-    await rejects(()=>call(customer,'POST',`/orders/${unpaidDraft.id}/publish`,{expected_version:unpaidDraft.version}),'ENTITLEMENT_REQUIRED');
+    assert.equal((await call(customer,'POST',`/orders/${unpaidDraft.id}/publish`,{expected_version:unpaidDraft.version})).status,'open');
     // Synthetic fixture grants only: never expose a client-side self-grant endpoint.
     for (const user of [customer,executor,stranger,otherRegion]) {
       const u=await api.store.get(user.user.id); u.verification='passed';u.roles=['customer','executor']; await api.store.put(u);
@@ -52,7 +52,7 @@ test('marketplace lifecycle, access boundaries, command retry and refresh replay
     assert.equal((await api.store.all('review','KZ')).filter(x=>x.status==='published').length,2);
     await rejects(()=>call(stranger,'POST','/reviews',{order_id:order.id,rating:5,text:'Чужой отзыв'}),'FORBIDDEN');
     await rejects(()=>call(customer,'GET','/admin/users'),'FORBIDDEN');
-    await rejects(()=>call(customer,'POST','/billing/verify-purchase',{transaction_reference:'fake',provider:'missing'}),'PROVIDER_UNAVAILABLE');
+    await rejects(()=>call(customer,'POST','/billing/verify-purchase',{transaction_reference:'fake',provider:'missing'}),'EXECUTOR_ROLE_REQUIRED');
     await rejects(()=>call(customer,'POST','/me/verification-sessions',{document_type:'passport'}),'COUNTRY_FLOW_UNAPPROVED');
     const rotated=await call(null,'POST','/auth/refresh',{refresh_token:customer.refresh_token});
     await rejects(()=>call(customer,'GET','/me'),'TOKEN_EXPIRED');

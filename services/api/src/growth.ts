@@ -66,7 +66,7 @@ export class Growth {
     if(p.state==='revoked')return this.store.put({...boost,status:'revoked',version:boost.version+1});
     const user=await this.store.get(owner),target=await this.store.get(boost.target_id);
     const entitlement=(await this.store.all('grant',country)).some(g=>g.owner===owner&&g.valid_until>new Date().toISOString()&&(g.balance===undefined||g.balance>0));
-    const eligible=user?.status==='active'&&target&&['open','published'].includes(target.status)&&(target.kind!=='contractor'||user.verification==='passed')&&entitlement;
+    const eligible=user?.status==='active'&&target&&['open','published'].includes(target.status)&&(target.kind!=='contractor'||user.verification==='passed')&&(target.kind==='order'||entitlement);
     const policy=(await this.store.all('placement_policy',country)).find(x=>x.status==='effective'&&x.payload.placement_id===boost.placement_id);
     const others=(await this.store.all('boost',country)).filter(x=>x.id!==boost.id&&x.placement_id===boost.placement_id&&['reserved','scheduled','active'].includes(x.status)&&(x.reservation_expires_at??x.ends_at)>new Date().toISOString());
     const available=policy&&others.length<policy.payload.capacity;
@@ -78,7 +78,7 @@ export class Growth {
     if(!target||target.country!==country||!['order','contractor'].includes(target.kind)||target.status!==(target.kind==='order'?'open':'published')||['quarantined','hidden','rejected'].includes(target.moderation_status))fail('TARGET_INELIGIBLE','Карточка недоступна',422);
     const user=await this.store.get(target.owner),now=new Date().toISOString();
     const access=(await this.store.db.query<{allowed:boolean}>("SELECT EXISTS(SELECT 1 FROM records WHERE kind='grant' AND country=$1 AND owner=$2 AND data->>'valid_until'>$3 AND COALESCE(data->'capabilities','[]'::jsonb) ? 'search_full' AND (data->>'balance' IS NULL OR (data->>'balance')::numeric>0)) AS allowed",[country,target.owner,now])).rows[0].allowed;
-    if(user?.kind!=='user'||user.country!==country||user.status!=='active'||target.kind==='contractor'&&user.verification!=='passed'||!access)fail('TARGET_INELIGIBLE','Не выполнены условия допуска',422);
+    if(user?.kind!=='user'||user.country!==country||user.status!=='active'||target.kind==='contractor'&&user.verification!=='passed'||target.kind==='contractor'&&!access)fail('TARGET_INELIGIBLE','Не выполнены условия допуска',422);
     const policy=(await this.store.all('placement_policy',country)).find(x=>x.status==='effective'&&x.payload.placement_id===b.placement_id);
     if(!policy)fail('PLACEMENT_UNAVAILABLE','Место не опубликовано',422);
     const end=Date.parse(b.ends_at);

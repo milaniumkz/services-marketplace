@@ -22,6 +22,8 @@ test('existing work reviews stay free, sealed feedback stays private and an open
   const closed=await api.store.get(caseId);await api.store.put({...closed,status:'resolved',version:2});
   await api.maintenance(new Date(Date.now()+15*86400000));
   const published=await call(customer,'GET','/users/'+customer.user.id+'/reviews');assert.equal(published.items.length,1);assert.ok(published.items[0].published_at);
+  assert.equal((await call(stranger,'GET','/users/'+customer.user.id+'/reviews')).items.length,1);
+  await api.store.put({...await api.store.get(stranger.user.id),roles:['customer','executor'],active_role:'executor'});
   await assert.rejects(()=>call(stranger,'GET','/users/'+customer.user.id+'/reviews'),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
   const record=await api.store.get(second.id);await api.store.put({...record,moderation_status:'hidden',version:record.version+1});
   assert.equal((await call(customer,'GET','/users/'+customer.user.id+'/reviews')).items.length,0);

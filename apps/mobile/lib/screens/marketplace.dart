@@ -1099,7 +1099,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             nav: true);
       case 'access':
       case 'my-access':
-        return accessScreen();
+        return executor ? accessScreen() : customerAccessScreen();
       case 'checkout':
       case 'manage-subscription':
       case 'subscription-canceled':
@@ -1109,6 +1109,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'reward-nofill':
       case 'reward-pending':
       case 'reward':
+        if (!executor) return customerAccessScreen();
         return page({'checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Рекламная награда'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'export':
         return page('Экспорт моих данных',
@@ -1639,7 +1640,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 Expanded(
                     child: listBody([
                   const UiHeading('Сегодня вы…',
-                      'Роли используют один аккаунт и общую подписку.'),
+                      'Заказчик пользуется JOBA бесплатно. Подписка нужна только исполнителю.'),
                   JobaMenu([
                     JobaMenuEntry(
                         'Заказчик',
@@ -1727,7 +1728,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       widthFactor: 1,
                       child: Container(
                           height: 36,
-                          padding: const EdgeInsets.symmetric(horizontal: 9),
+                          padding: const EdgeInsets.symmetric(horizontal: 7),
                           decoration: BoxDecoration(
                               color: Colors.white,
                               border: Border.all(color: line),
@@ -1936,11 +1937,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   child: Row(children: [
                     const JobaIcon('pin', size: 14, color: navy),
                     const SizedBox(width: 5),
-                    Expanded(
+                    Flexible(
                         child: Text(
                             '${me?['city'] ?? ''}${(me?['city'] ?? '').isEmpty ? '' : ', '}${countryName(country)}',
                             style:
                                 const TextStyle(fontSize: 12, color: muted))),
+                    const SizedBox(width: 8),
                     const JobaIcon('down', size: 14)
                   ]))
             ])),
@@ -1967,7 +1969,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     border: Border.all(color: line),
                                     borderRadius: BorderRadius.circular(14)),
                                 child: const Row(children: [
-                                  JobaIcon('search', color: muted),
+                                  JobaIcon('search', color: navy),
                                   SizedBox(width: 10),
                                   Expanded(
                                       child: UiText('Какая услуга нужна?',
@@ -2234,11 +2236,17 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     ]),
                     const SizedBox(height: 20),
                     Row(children: [
-                      JobaAvatar(
-                          api: api,
-                          name: data['display_name'] ?? '',
-                          id: data['avatar_id'],
-                          size: 68),
+                      Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: line, width: .5)),
+                          child: JobaAvatar(
+                              api: api, name: data['display_name'] ?? '',
+                              id: data['avatar_id'], size: 73,
+                              backgroundColor: const Color(0xFFE6E1F0),
+                              foregroundColor: const Color(0xFF6F608A))),
                       const SizedBox(width: 10),
                       Expanded(
                           child: Column(
@@ -2256,7 +2264,20 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                 style: const TextStyle(
                                     fontSize: 12, color: muted)),
                             const SizedBox(height: 8),
-                            roleButton()
+                            Material(
+                                color: const Color(0xFFEAF0FC),
+                                borderRadius: BorderRadius.circular(7),
+                                child: InkWell(
+                                    onTap: () => go('roles'),
+                                    borderRadius: BorderRadius.circular(7),
+                                    child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                        child: Row(children: [
+                                          UiText(executor ? 'Исполнитель' : 'Заказчик',
+                                              style: const TextStyle(fontSize: 10, height: 1.6, fontWeight: FontWeight.w700, color: primary)),
+                                          const SizedBox(width: 4),
+                                          const JobaIcon('down', size: 14),
+                                        ]))))
                           ]))
                     ]),
                     const SizedBox(height: 16),
@@ -2267,7 +2288,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(children: [
-                    JobaMenu([
+                    if (executor) JobaMenu([
                       JobaMenuEntry(
                           summary['subscription_until'] == null
                               ? 'Мой доступ'
@@ -2280,7 +2301,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           translateSubtitle:
                               summary['subscription_until'] == null)
                     ]),
-                    const SizedBox(height: 16),
+                    if (executor) const SizedBox(height: 16),
                     JobaMenu([
                       JobaMenuEntry('Мои заказы', 'brief', () => go('orders'),
                           subtitle:
@@ -2345,7 +2366,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 success('Профиль сохранён');
                 if (route == 'onboarding') {
                   registrationInProgress = false;
-                  go('access');
+                  go(executor ? 'access' : 'home');
                 } else
                   back();
               })));
@@ -4024,6 +4045,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       reload();
                     }))));
   }
+
+  Widget customerAccessScreen() => page(
+      'JOBA для заказчика',
+      listBody([
+        const UiHeading('Для заказчика бесплатно'),
+        const Notice(
+            'Поиск исполнителей, публикация заказов и выбор исполнителя доступны без подписки.'),
+        button('Найти исполнителя', () => go('catalog')),
+        button('Мои заказы', () => go('orders'), outline: true),
+      ]));
 
   Widget accessScreen() => page(
       'Мой доступ',

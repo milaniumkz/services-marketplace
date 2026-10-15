@@ -114,12 +114,15 @@ class JobaAvatar extends StatelessWidget {
   final String name;
   final String? id;
   final double size;
+  final Color backgroundColor, foregroundColor;
   final VoidCallback? onTap;
   const JobaAvatar(
       {required this.api,
       required this.name,
       this.id,
       this.size = 56,
+      this.backgroundColor = const Color(0xFFDDE8F5),
+      this.foregroundColor = const Color(0xFF3D6078),
       this.onTap,
       super.key});
   @override
@@ -129,7 +132,7 @@ class JobaAvatar extends StatelessWidget {
     final fallback = Center(
         child: Text(initials.isEmpty ? 'J' : initials.toUpperCase(),
             style: TextStyle(
-                color: const Color(0xFF3D6078),
+                color: foregroundColor,
                 fontSize: size * .32,
                 fontWeight: FontWeight.w700)));
     return Semantics(
@@ -138,7 +141,7 @@ class JobaAvatar extends StatelessWidget {
         child: ClipRRect(
             borderRadius: BorderRadius.circular(size * .3),
             child: Material(
-                color: const Color(0xFFDDE8F5),
+                color: backgroundColor,
                 child: InkWell(
                     onTap: onTap,
                     child: SizedBox(

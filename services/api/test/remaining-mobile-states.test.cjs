@@ -39,6 +39,7 @@ test('work-state details are participant-only, amendments preserve date proposal
 test('provider pending evidence creates no entitlement; client reward completion cannot grant access',async()=>{
  const a=fixture();await a.initialize();try{
   const u=await reg(a,'745'),owner=u.user.id;
+  await a.store.put({...await a.store.get(owner),roles:['customer','executor'],active_role:'executor'});
   await a.store.put(record('price_version',owner,{status:'effective',payload:{provider:'isolated',product_id:'monthly',product_type:'subscription',amount_minor:100,currency:'KZT'}}));
   const proof={provider:'isolated',transaction_id:'isolated-transaction',original_transaction_id:'isolated-original',user_id:owner,country:'KZ',product_id:'monthly',environment:'sandbox',amount_minor:100,currency:'KZT',valid_until:new Date(Date.now()+86400000).toISOString(),revision:1,state:'pending'};
   a.providers.billing.set('isolated',{name:'isolated',verifyPurchase:async()=>proof});
