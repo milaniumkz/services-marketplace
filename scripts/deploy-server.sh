@@ -92,6 +92,14 @@ if [[ -n "$("${joba_compose[@]}" ps -q database)" ]]; then
   cp /etc/joba/production.env "$joba_backup/production.env"
 fi
 "${joba_compose[@]}" up -d --build --wait --wait-timeout 300
+# User explicitly authorized these initial documents with blank operator details.
+# Existing legal versions are preserved on every subsequent deployment.
+"${joba_compose[@]}" cp scripts/publish-initial-kz-legal.cjs api:/tmp/joba-publish-legal.cjs
+python3 - <<'PYLEGAL' | "${joba_compose[@]}" exec -T -e JOBA_INITIAL_KZ_LEGAL=owner-authorized-2026-10-15 -e JOBA_LEGAL_STORE_MODULE=/app/services/api/dist/store api node /tmp/joba-publish-legal.cjs
+import json
+from pathlib import Path
+print(json.dumps([{'type':kind,'locale':'ru','content':Path('docs/legal/kz/'+name+'.ru.txt').read_text()} for kind,name in [('terms','terms'),('privacy','privacy')]]))
+PYLEGAL
 # This verifies a trusted public certificate; no -k/self-signed fallback.
 curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors --max-time 15 "https://$joba_domain/health"
 curl --fail --silent --show-error --max-time 15 "https://$joba_domain/" -o /dev/null

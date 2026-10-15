@@ -9,11 +9,13 @@ class OnboardingConsent extends StatefulWidget {
   final JobaApi api;
   final List<Json> documents;
   final VoidCallback onAccepted;
+  final VoidCallback? onReload;
   final String countryLabel, localeLabel;
   const OnboardingConsent(
       {required this.api,
       required this.documents,
       required this.onAccepted,
+      this.onReload,
       required this.countryLabel,
       required this.localeLabel,
       super.key});
@@ -130,6 +132,15 @@ class _OnboardingConsentState extends State<OnboardingConsent> {
                 translateSubtitle: policy == null)
           ]),
           const SizedBox(height: 24),
+          if (agreement == null || policy == null) ...[
+            const Notice(
+                'Регистрация временно недоступна: соглашение и политика конфиденциальности ещё не опубликованы. После публикации обновите документы.',
+                icon: 'info'),
+            if (widget.onReload != null)
+              TextButton(
+                  onPressed: busy ? null : widget.onReload,
+                  child: const UiText('Обновить')),
+          ],
           check(
               'Принимаю пользовательское соглашение и подтверждаю, что мне исполнилось 18 лет.',
               terms,

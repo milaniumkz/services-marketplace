@@ -5032,6 +5032,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             if (registrationInProgress || needsAge)
               return OnboardingConsent(
                   api: api,
+                  onReload: reload,
                   documents: documents,
                   countryLabel: countryName(country),
                   localeLabel: {

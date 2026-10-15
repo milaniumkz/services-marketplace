@@ -14,6 +14,33 @@ class _Vault implements SessionVault {
 }
 
 void main() {
+  testWidgets('missing legal documents explain the block and allow refreshing',
+      (tester) async {
+    var refreshed = false;
+    final api = JobaApi('https://isolated.example', vault: _Vault());
+    addTearDown(api.dispose);
+    await tester.pumpWidget(MaterialApp(
+        theme: jobaTheme(),
+        home: Scaffold(
+            body: OnboardingConsent(
+                api: api,
+                documents: const [],
+                countryLabel: 'Казахстан',
+                localeLabel: 'Русский',
+                onAccepted: () => fail('Missing documents'),
+                onReload: () => refreshed = true))));
+    expect(find.textContaining('Регистрация временно недоступна:'),
+        findsOneWidget);
+    await tester.tap(find.text('Обновить'));
+    expect(refreshed, true);
+    for (var i = 0; i < 3; i++) {
+      await tester.ensureVisible(find.byType(CheckboxListTile).at(i));
+      await tester.tap(find.byType(CheckboxListTile).at(i));
+      await tester.pump();
+    }
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull);
+  });
   testWidgets(
       'onboarding requires both explicit declarations and stores optional marketing separately',
       (tester) async {

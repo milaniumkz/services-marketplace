@@ -288,6 +288,15 @@ async function main(){
   await page.getByRole('button',{name:'Создать черновик',exact:true}).click();
   await page.getByRole('button',{name:'Опубликовать версию',exact:true}).waitFor();
   const legal=(await marketplace.store.all('legal_document','KZ'))[0];assert.equal(legal.status,'draft');
+  await page.getByRole('button',{name:'Редактировать новой версией',exact:true}).click();
+  assert.equal(await page.getByLabel('Текст документа',{exact:true}).inputValue(),legal.content);
+  await page.getByLabel('Текст документа',{exact:true}).fill(legal.content+' Дополненные реквизиты оператора.');
+  const revisionResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/admin/legal/documents');
+  await page.getByRole('button',{name:'Создать черновик',exact:true}).click();await revisionResponse;
+  const revisions=await marketplace.store.all('legal_document','KZ');assert.equal(revisions.length,2);
+  assert.equal((await marketplace.store.get(legal.id)).content,legal.content);
+  assert.ok(revisions.some(d=>d.id!==legal.id&&d.content.endsWith('Дополненные реквизиты оператора.')));
+
   // Live supplementary states: no synthetic success or publication during dry-run.
   const scenarioDictionary=randomUUID();await marketplace.store.put({id:scenarioDictionary,kind:'dictionary',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),title:'Проверка правила интерфейса',status:'draft',payload:{rules:[{value:'обман',type:'exact_word'}],exceptions:[]}});
   await page.goto(frontend+'/#dictionary-dryrun?id='+scenarioDictionary);await page.locator('#dictionary-dryrun').waitFor();

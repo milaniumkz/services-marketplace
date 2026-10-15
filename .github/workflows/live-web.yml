@@ -17,6 +17,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --ignore-scripts
+      - run: node scripts/verify-web-worker-upgrade.cjs
+        env:
+          JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
       - run: node scripts/verify-live-web.cjs
         env:
           GITHUB_TOKEN: ${{ github.token }}
