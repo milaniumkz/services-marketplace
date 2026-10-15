@@ -8,10 +8,13 @@ import '../core/widgets.dart';
 class SupportNew extends StatefulWidget {
   final JobaApi api;
   final bool executor;
+  final String initialTopic, initialText;
   final Future<Json?> Function() pickUpload;
   final ValueChanged<String> onCreated;
   const SupportNew(
       {required this.api,
+      this.initialTopic = 'orders',
+      this.initialText = '',
       required this.executor,
       required this.pickUpload,
       required this.onCreated,
@@ -58,12 +61,14 @@ class _SupportNewState extends State<SupportNew> {
             'Чем помочь?', 'Опишите вопрос, и мы передадим его специалисту.')
       ],
       fields: [
-        const InputSpec('topic', 'Тема', initial: 'orders', options: topics),
+        InputSpec('topic', 'Тема',
+            initial: widget.initialTopic, options: topics),
         InputSpec('order_id', 'Связанный заказ',
             required: false,
             pickerApi: widget.api,
             pickerPath: widget.executor ? '/me/assigned-orders' : '/me/orders'),
         InputSpec('text', 'Ваш вопрос',
+            initial: widget.initialText,
             multiline: true,
             lines: 4,
             minHeight: 120,

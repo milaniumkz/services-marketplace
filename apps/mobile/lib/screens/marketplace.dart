@@ -3179,7 +3179,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         method: 'POST',
                         body: {'target_user_id': record['owner']});
                     success('Контакт заблокирован');
-                  }))));
+                  }))), titleOffset:-12, actions:[IconButton(tooltip:localize(context,'Поделиться'),icon:const JobaIcon('share'),onPressed:()=>act(() async {
+                    final profile=await api.request('/contractors/$objectId');
+                    final shown=await shareInvitation('JOBA · ${profile['display_name']}\n${profile['title']} · ${profile['city'] ?? ''}\n${profile['description'] ?? ''}');
+                    if(!shown && mounted) success('Профиль скопирован');
+                  }))]);
   Widget publicProjectScreen() {
     final ids = (objectId ?? '').split('/');
     if (ids.length != 2)
@@ -4902,6 +4906,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           },
           pick: (id) => pickUpload('identity', verificationId: id),
           onTerms: () => go('terms'),
+          onAppeal: (session) => Navigator.push(context, MaterialPageRoute(builder: (c) => Scaffold(
+              backgroundColor: canvas, appBar: AppBar(title: const UiText('Обжаловать решение')),
+              body: SupportNew(api: api, executor: executor, initialTopic: 'account',
+                initialText: 'Прошу пересмотреть решение по проверке документа № ${session['id']}.\nПричина отказа: ${session['reason'] ?? ''}\n',
+                pickUpload: () => pickUpload('chat'),
+                onCreated: (id) {Navigator.pop(c); go('support-chat', id);})))),
           onProfile: () => go('services'),
           onSupport: () => go('support')));
   Widget termsScreen() => page(

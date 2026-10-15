@@ -11,6 +11,7 @@ class VerificationEditor extends StatefulWidget {
   final Future<Json?> Function(String) pick;
   final VoidCallback onTerms, onProfile, onSupport;
   final ValueChanged<String>? onTitle;
+  final ValueChanged<Json>? onAppeal;
   final Map<String, List<String>> uploads;
   const VerificationEditor(
       {required this.api,
@@ -22,6 +23,7 @@ class VerificationEditor extends StatefulWidget {
       required this.onSupport,
       required this.uploads,
       this.onTitle,
+      this.onAppeal,
       super.key});
   @override
   State<VerificationEditor> createState() => _VerificationEditorState();
@@ -33,7 +35,8 @@ class _VerificationEditorState extends State<VerificationEditor> {
   bool consent = false, busy = false;
   Object? error;
   int epoch = 0;
-  bool refreshQueued = false;
+  bool refreshQueued = false, retrying = false;
+  String? rejectedSession;
   @override
   void initState() {
     super.initState();
@@ -79,6 +82,10 @@ class _VerificationEditorState extends State<VerificationEditor> {
         data = result;
         error = null;
         session = records.isEmpty ? null : records.first;
+        if (session?['id'] != rejectedSession) {
+          retrying = false;
+          rejectedSession = session?['id'];
+        }
         final types = (result['policy']?['document_types'] as List?) ?? [];
         type = types.contains(type)
             ? type
@@ -251,6 +258,87 @@ class _VerificationEditorState extends State<VerificationEditor> {
         Text(value,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))
       ]));
+  Widget rejectionSummary() =>
+      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(
+            child: ListView(padding: const EdgeInsets.all(20), children: [
+          Notice(
+              session?['reason'] ??
+                  'Для проверки нужны новые фотографии документа.',
+              warning: true,
+              icon: 'info',
+              margin: EdgeInsets.zero),
+          Padding(
+              padding: const EdgeInsets.symmetric(vertical: 25),
+              child: Column(children: [
+                Container(
+                    width: 94,
+                    height: 94,
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFEAF0FC),
+                        borderRadius: BorderRadius.circular(30)),
+                    child: const Center(
+                        child: JobaIcon('camera', size: 42, color: primary))),
+                const SizedBox(height: 23),
+                const UiText('Давайте попробуем\nещё раз',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 25,
+                        height: 1.28,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -.7)),
+                const SizedBox(height: 12),
+                const UiText(
+                    'Снимите документ при рассеянном свете. Все края должны быть в кадре.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 13, height: 1.45, color: Color(0xFF627187))),
+              ])),
+          Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: line),
+                  borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const UiText('Что исправить',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    Text(
+                        session?['reason'] ??
+                            localize(context,
+                                'Загрузите читаемые фотографии всех необходимых страниц.'),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            height: 1.45,
+                            color: Color(0xFF627187))),
+                  ])),
+          const SizedBox(height: 20),
+          TextButton(
+              onPressed: () {
+                if (widget.onAppeal != null) {
+                  widget.onAppeal!(session!);
+                } else {
+                  widget.onSupport();
+                }
+              },
+              child: const UiText('Обжаловать решение')),
+        ])),
+        SafeArea(
+            top: false,
+            child: Container(
+                decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: line))),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                child: action('Загрузить заново', () {
+                  setState(() => retrying = true);
+                  widget.onTitle?.call('Проверка исполнителя');
+                }))),
+      ]);
   @override
   Widget build(BuildContext context) {
     if (data == null)
@@ -265,6 +353,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
         pending = session?['status'] == 'pending_review',
         passed = status == 'passed';
     final rejected = session?['status'] == 'rejected';
+    if (rejected && !retrying && !passed && !pending) return rejectionSummary();
     if (pending || passed)
       return Column(children: [
         Expanded(
@@ -467,7 +556,13 @@ class _VerificationEditorState extends State<VerificationEditor> {
             onPressed: widget.onTerms, child: const UiText('Условия проверки')),
         if (rejected)
           TextButton(
-              onPressed: widget.onSupport,
+              onPressed: () {
+                if (widget.onAppeal != null) {
+                  widget.onAppeal!(session!);
+                } else {
+                  widget.onSupport();
+                }
+              },
               child: const UiText('Обжаловать решение')),
         if (error != null) Notice('$error')
       ])),

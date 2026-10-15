@@ -14,10 +14,10 @@ test('own boost history is free scoped paged by current lifecycle and excludes s
   const active={...base,id:randomUUID(),status:'active',provenance:'admin_grant'};await api.store.put(active);
   const expired={...base,id:randomUUID(),status:'active',ends_at:'2000-01-01T00:00:00Z'};await api.store.put(expired);
   const pending={...base,id:randomUUID(),status:'payment_pending',reservation_expires_at:future};await api.store.put(pending);
-  const resolution={...base,id:randomUUID(),status:'resolution_required',provenance:'paid',confirmed_at:now,price_snapshot:{amount_minor:199000,currency:'KZT',period:'week',provider_secret:'PRIVATE PRICE'}};await api.store.put(resolution);
+  const resolution={...base,id:randomUUID(),status:'resolution_required',provenance:'paid',confirmed_at:now,starts_at:'2026-10-12T21:30:00Z',price_snapshot:{time_zone:'Asia/Almaty',amount_minor:199000,currency:'KZT',period:'week',provider_secret:'PRIVATE PRICE'}};await api.store.put(resolution);
   const list=await call(u,'/me/boosts',{bucket:'active'});assert.equal(list.items.length,3);assert.ok(!JSON.stringify(list).includes('PRIVATE'));
   assert.equal(list.items.find(r=>r.id===active.id).price.amount_minor,0);assert.equal(list.items.find(r=>r.id===pending.id).payment_confirmed,false);
-  assert.equal((await call(u,'/me/boosts/'+resolution.id)).payment_confirmed,true);
+  const details=await call(u,'/me/boosts/'+resolution.id);assert.equal(details.payment_confirmed,true);assert.equal(details.starts_local,'2026-10-13T02:30:00');assert.equal(details.price.time_zone,'Asia/Almaty');
   const old=await call(u,'/me/boosts',{bucket:'history'});assert.equal(old.items.length,1);assert.equal(old.items[0].status,'expired');
   await assert.rejects(()=>call(other,'/me/boosts/'+active.id),e=>e.getStatus()===404);
   assert.deepEqual((await call(other,'/me/boosts')).items,[]);

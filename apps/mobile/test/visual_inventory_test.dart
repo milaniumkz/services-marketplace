@@ -245,6 +245,7 @@ void main() {
       if(path=='/ads/reward-sessions/visual-object')return response({'id':'visual-object','status':route=='reward-granted'?'granted':'pending','grant':route=='reward-granted'?{'valid_until':'2026-12-13T09:41:00Z','capabilities':['search_full']}:null});
       if(path=='/me/processing-consents')return response({'version':1,'marketing':false,'ad_personalization':false,'optional_analytics':false});
       if(path=='/me/deletion-preview')return response({'active_orders':2,'policy_ready':true,'grace_hours':24});
+      if(path=='/me/orders' && route=='promotion') return response({'items':[{...order(),'id':'visual-order-target'}]});
       if(path=='/boost-offers')return response({'items':[{'id':'visual-price','amount_minor':199000,'currency':'KZT','period':'week','provider':'isolated','product_id':'boost'}],'placements':[{'id':'visual-placement','title':'Каталог услуг','payload':{'placement_id':'search.services.promoted','capacity':1}}]});
       if(path=='/contractors/map')return response({'items':[{...profile,'id':'visual-profile','display_name':'Алексей К.','public_location':{'latitude':43.24,'longitude':76.91,'approximate':true}}],'meta':{'map_provider_configured':false}});
       dynamic data = {'items': []};
@@ -458,7 +459,7 @@ void main() {
           'photos': ['visual-interior', 'visual-kitchen']
         };
       else if (path == '/me/boosts/visual-object')
-        data={'id':'visual-object','title':'Ремонт и отделка','city':'Алматы','price':{'amount_minor':199000,'currency':'KZT'},'reservation_expires_at':'2026-12-13T09:41:00Z','starts_at':'2026-10-12T09:41:00Z','ends_at':'2026-10-19T09:41:00Z','status':route=='promotion-checkout'?'reserved':route=='promotion-resolution'?'resolution_required':'payment_pending','payment_confirmed':route=='promotion-resolution'};
+        data={'id':'visual-object','title':'Ремонт и отделка','city':'Алматы','price':{'amount_minor':199000,'currency':'KZT','period':'week','time_zone':'Asia/Almaty'},'starts_local':'2026-10-12T14:41:00','ends_local':'2026-10-19T14:41:00','placement_id':'search.services.promoted','reservation_expires_at':DateTime.now().add(const Duration(minutes:10)).toIso8601String(),'starts_at':'2026-10-12T09:41:00Z','ends_at':'2026-10-19T09:41:00Z','status':route=='promotion-checkout'?'reserved':route=='promotion-resolution'?'resolution_required':'payment_pending','payment_confirmed':route=='promotion-resolution'};
       else if (path == '/me/boosts')
         data={'items':[{'id':'visual-object','status':'active','title':'Ремонт и отделка','city':'Алматы','placement_id':'search.services.promoted','provenance':'paid','payment_confirmed':true,'starts_at':'2026-10-12T10:00:00Z','ends_at':'2026-10-19T10:00:00Z','price':{'amount_minor':199000,'currency':'KZT'}}]};
       else if (path == '/me/sessions')
@@ -650,6 +651,12 @@ void main() {
           await tester.enterText(fields.at(1), 'Isolated rejected password');
           await tester.tap(find.text('Войти'));
           FocusManager.instance.primaryFocus?.unfocus();
+          await tester.pumpAndSettle();
+        }
+        if (route == 'promotion') {
+          await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Ремонт и отделка').last);
           await tester.pumpAndSettle();
         }
         if (route == 'photo-view') {

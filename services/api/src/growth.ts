@@ -3,6 +3,7 @@ import { HttpException } from '@nestjs/common';
 import { RecordData, Store } from './store';
 import { readSettings } from './settings';
 import { Providers } from './providers';
+import { promotedPlacements } from './promoted-listings';
 import { Temporal } from '@js-temporal/polyfill';
 function fail(code:string,message:string,status=409):never{throw new HttpException({error:{code,message,details:{},retryable:false}},status);};
 export class Growth {
@@ -37,17 +38,17 @@ export class Growth {
   }
   async reserveBoost(owner:string,country:string,b:any) {
     const settings=await readSettings(this.store,country);
-    const target=await this.store.get(b.target_id);if(!target||target.owner!==owner||target.country!==country||!['open','published'].includes(target.status))fail('TARGET_INELIGIBLE','Карточка недоступна',422);
+    const target=await this.store.get(b.target_id);if(!target||target.owner!==owner||target.country!==country||!['order','contractor'].includes(target.kind)||target.status!==(target.kind==='order'?'open':'published')||['quarantined','hidden','rejected'].includes(target.moderation_status))fail('TARGET_INELIGIBLE','Карточка недоступна',422);
     const policy=(await this.store.all('placement_policy',country)).find(x=>x.status==='effective'&&x.payload.placement_id===b.placement_id);if(!policy)fail('PLACEMENT_UNAVAILABLE','Место не опубликовано',422);
-    const price=await this.store.get(b.price_id);if(!price||price.kind!=='price_version'||price.status!=='effective'||price.country!==country)fail('PRICE_UNAVAILABLE','Цена не опубликована',422);
+    const price=await this.store.get(b.price_id);if(!price||price.kind!=='price_version'||price.status!=='effective'||price.country!==country||price.payload.product_type!=='boost')fail('PRICE_UNAVAILABLE','Цена не опубликована',422);
     let end:string;
     if(['month','year'].includes(price.payload.period)) {
       try{const start=Temporal.Instant.from(new Date().toISOString()).toZonedDateTimeISO(price.payload.time_zone??'UTC');end=start.add(price.payload.period==='month'?{months:1}:{years:1}).toInstant().toString();}catch{fail('DURATION_UNAPPROVED','Проверьте календарный период и часовой пояс',422);}
     }else {const days=price.payload.period==='week'?7:Number(price.payload.duration_days);if(!Number.isInteger(days)||days<1||days>366)fail('DURATION_UNAPPROVED','Длительность размещения не задана',422);end=new Date(Date.now()+days*86400000).toISOString();}
     if(target.kind==='order'&&Date.parse(target.expires_at)<Date.parse(end!))fail('TARGET_EXPIRES_EARLY','Заказ завершится раньше размещения',422);
-    const active=(await this.store.all('boost',country)).filter(x=>x.placement_id===b.placement_id&&['reserved','payment_pending','scheduled','active'].includes(x.status)&&(x.reservation_expires_at??x.ends_at)>new Date().toISOString());
-    if(active.length>=policy.payload.capacity)fail('PLACEMENT_FULL','Нет свободного места');
-    if(active.some(x=>x.target_id===target.id))fail('BOOST_OVERLAP','Для карточки уже есть размещение');
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-target:'+country+':'+b.target_id]);
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-capacity:'+country+':'+b.placement_id]);
+    await this.previewAdminBoost(country,{...b,ends_at:end});
     return this.store.put(this.record('boost',owner,country,{target_id:target.id,placement_id:b.placement_id,price_snapshot:price.payload,policy_snapshot:policy.payload,status:'reserved',starts_at:new Date().toISOString(),ends_at:end,reservation_expires_at:new Date(Date.now()+settings.boost_reservation_minutes*60000).toISOString()}));
   }
   async verifyBoost(owner:string,country:string,b:any) {
@@ -57,6 +58,8 @@ export class Growth {
     const p=await provider.verifyPurchase(String(b.transaction_reference),owner);
     if(p.user_id!==owner||p.country!==country||p.provider!==b.provider||p.product_id!==boost.price_snapshot.product_id||p.amount_minor!==boost.price_snapshot.amount_minor||p.currency!==boost.price_snapshot.currency)fail('PURCHASE_OWNERSHIP_MISMATCH','Покупка не соответствует резерву',403);
     if(process.env.NODE_ENV==='production'&&p.environment!=='production')fail('PROVIDER_ENVIRONMENT_MISMATCH','Недопустимая среда покупки',422);
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-target:'+country+':'+boost.target_id]);
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-capacity:'+country+':'+boost.placement_id]);
     const transactions=await this.store.all('payment_transaction',country);
     const previous=transactions.find(x=>x.provider===p.provider&&x.transaction_id===p.transaction_id&&x.state===p.state);
     if(previous){if(previous.boost_id!==boost.id)fail('TRANSACTION_ALREADY_USED','Покупка уже связана с другим правом',403);return {...boost,duplicate:true};}
@@ -64,16 +67,17 @@ export class Growth {
     if(!['active','revoked'].includes(p.state))fail('PAYMENT_PENDING','Покупка ещё не подтверждена',409);
     await this.store.put(this.record('payment_transaction',owner,country,{provider:p.provider,transaction_id:p.transaction_id,state:p.state,amount_minor:p.amount_minor,currency:p.currency,benefit:'boost',boost_id:boost.id}));
     if(p.state==='revoked')return this.store.put({...boost,status:'revoked',version:boost.version+1});
-    const user=await this.store.get(owner),target=await this.store.get(boost.target_id);
-    const entitlement=(await this.store.all('grant',country)).some(g=>g.owner===owner&&g.valid_until>new Date().toISOString()&&(g.balance===undefined||g.balance>0));
-    const eligible=user?.status==='active'&&target&&['open','published'].includes(target.status)&&(target.kind!=='contractor'||user.verification==='passed')&&(target.kind==='order'||entitlement);
-    const policy=(await this.store.all('placement_policy',country)).find(x=>x.status==='effective'&&x.payload.placement_id===boost.placement_id);
-    const others=(await this.store.all('boost',country)).filter(x=>x.id!==boost.id&&x.placement_id===boost.placement_id&&['reserved','scheduled','active'].includes(x.status)&&(x.reservation_expires_at??x.ends_at)>new Date().toISOString());
-    const available=policy&&others.length<policy.payload.capacity;
-    const resolution=!eligible||!available||boost.ends_at<=new Date().toISOString();
+    let resolution=false;
+    try {
+      const {target}=await this.previewAdminBoost(country,{target_id:boost.target_id,placement_id:boost.placement_id,ends_at:boost.ends_at},boost.id);
+      resolution=target.owner!==owner;
+    } catch(e) {
+      if(!(e instanceof HttpException)||!['TARGET_INELIGIBLE','PLACEMENT_UNAVAILABLE','TARGET_EXPIRES_EARLY','BOOST_OVERLAP','PLACEMENT_FULL'].includes((e.getResponse() as any)?.error?.code))throw e;
+      resolution=true;
+    }
     return this.store.put({...boost,status:resolution?'resolution_required':'active',provenance:'paid',provider:p.provider,transaction_id:p.transaction_id,confirmed_at:new Date().toISOString(),version:boost.version+1});
   }
-  async previewAdminBoost(country:string,b:any) {
+  async previewAdminBoost(country:string,b:any,excludedId?:string) {
     const target=await this.store.get(b.target_id);
     if(!target||target.country!==country||!['order','contractor'].includes(target.kind)||target.status!==(target.kind==='order'?'open':'published')||['quarantined','hidden','rejected'].includes(target.moderation_status))fail('TARGET_INELIGIBLE','Карточка недоступна',422);
     const user=await this.store.get(target.owner),now=new Date().toISOString();
@@ -81,9 +85,10 @@ export class Growth {
     if(user?.kind!=='user'||user.country!==country||user.status!=='active'||target.kind==='contractor'&&user.verification!=='passed'||target.kind==='contractor'&&!access)fail('TARGET_INELIGIBLE','Не выполнены условия допуска',422);
     const policy=(await this.store.all('placement_policy',country)).find(x=>x.status==='effective'&&x.payload.placement_id===b.placement_id);
     if(!policy)fail('PLACEMENT_UNAVAILABLE','Место не опубликовано',422);
+    if(!promotedPlacements.includes(b.placement_id)||(b.placement_id.includes('.orders.')?'order':'contractor')!==target.kind)fail('PLACEMENT_UNAVAILABLE','Площадка не подходит для карточки',422);
     const end=Date.parse(b.ends_at);
     if(!Number.isFinite(end)||end<=Date.now()||target.kind==='order'&&!(end<=Date.parse(target.expires_at)))fail('TARGET_EXPIRES_EARLY','Проверьте срок размещения',422);
-    const active=(await this.store.all('boost',country)).filter(x=>['reserved','payment_pending','scheduled','active'].includes(x.status)&&x.ends_at>now&&(x.starts_at??x.created_at)<new Date(end).toISOString()&&(!['reserved','payment_pending'].includes(x.status)||x.reservation_expires_at>now));
+    const active=(await this.store.all('boost',country)).filter(x=>x.id!==excludedId&&['reserved','payment_pending','scheduled','active'].includes(x.status)&&x.ends_at>now&&(x.starts_at??x.created_at)<new Date(end).toISOString()&&(!['reserved','payment_pending'].includes(x.status)||x.reservation_expires_at>now));
     if(active.some(x=>x.target_id===target.id))fail('BOOST_OVERLAP','Для карточки уже есть размещение');
     const events=active.filter(x=>x.placement_id===b.placement_id).flatMap(x=>[
       {time:Math.max(Date.parse(x.starts_at??x.created_at),Date.parse(now)),delta:1},
@@ -99,6 +104,8 @@ export class Growth {
   }
   async adminBoost(actor:string,country:string,b:any) {
     if(!Number.isInteger(b.expected_target_version)||!Number.isInteger(b.expected_policy_version))fail('VALIDATION_ERROR','Сначала выполните предпросмотр выдачи',400);
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-target:'+country+':'+b.target_id]);
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-capacity:'+country+':'+b.placement_id]);
     const {target,policy,preview}=await this.previewAdminBoost(country,b);
     return this.store.put(this.record('boost',target.owner,country,{target_id:target.id,placement_id:b.placement_id,policy_snapshot:policy.payload,provenance:'admin_grant',amount_minor:0,actor_id:actor,reason:b.reason,status:'active',starts_at:preview.starts_at,ends_at:preview.ends_at}));
   }

@@ -41,13 +41,13 @@ test('boost reservations preserve capacity and reject a duration beyond the orde
     const first=record('order',u.user.id,{status:'open',title:'Тест размещения',expires_at:new Date(Date.now()+10*86400000).toISOString()});
     const second=record('order',u.user.id,{status:'open',title:'Другой тест размещения',expires_at:new Date(Date.now()+10*86400000).toISOString()});
     await api.store.put(first);await api.store.put(second);
-    const policy=record('placement_policy','system',{status:'effective',payload:{placement_id:'test-placement',capacity:1}});await api.store.put(policy);
+    const policy=record('placement_policy','system',{status:'effective',payload:{placement_id:'search.orders.promoted',capacity:1}});await api.store.put(policy);
     const price=record('price_version','system',{status:'effective',payload:{duration_days:7,amount_minor:100,product_type:'boost'}});await api.store.put(price);
     await api.store.put(record('grant',u.user.id,{valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['search_full']}));
-    const boost=await command(api,u,'POST','/boost-reservations',{target_id:first.id,placement_id:'test-placement',price_id:price.id});assert.equal(boost.status,'reserved');
-    await assert.rejects(()=>command(api,u,'POST','/boost-reservations',{target_id:second.id,placement_id:'test-placement',price_id:price.id}),e=>e.getResponse().error.code==='PLACEMENT_FULL');
+    const boost=await command(api,u,'POST','/boost-reservations',{target_id:first.id,placement_id:'search.orders.promoted',price_id:price.id});assert.equal(boost.status,'reserved');
+    await assert.rejects(()=>command(api,u,'POST','/boost-reservations',{target_id:second.id,placement_id:'search.orders.promoted',price_id:price.id}),e=>e.getResponse().error.code==='PLACEMENT_FULL');
     await api.store.put({...first,expires_at:new Date(Date.now()+86400000).toISOString(),version:2});
-    await assert.rejects(()=>api.growth.reserveBoost(u.user.id,'KZ',{target_id:first.id,placement_id:'test-placement',price_id:price.id}),e=>e.getResponse().error.code==='TARGET_EXPIRES_EARLY');
+    await assert.rejects(()=>api.growth.reserveBoost(u.user.id,'KZ',{target_id:first.id,placement_id:'search.orders.promoted',price_id:price.id}),e=>e.getResponse().error.code==='TARGET_EXPIRES_EARLY');
   }finally{await api.store.close();}
 });
 
@@ -73,4 +73,57 @@ test('outbox requires a provider and only records send success after accepted de
     assert.equal((await api.deliverOutbox()).sent,1);assert.equal((await api.store.get(outbox.id)).status,'sent');
     await api.deliverOutbox();assert.equal(calls,1);
   }finally{await api.store.close();}
+});
+
+test('paid boost rejects subscription prices, hidden targets and incompatible placements and counts active paid slots',async()=>{
+  const api=new Marketplace(new Store('memory://'));await api.initialize();
+  try {
+    const u=await create(api,'+77000000219');
+    const future=new Date(Date.now()+10*86400000).toISOString();
+    const order=record('order',u.user.id,{status:'open',title:'Размещение заказа',expires_at:future});
+    const existing=record('order',u.user.id,{status:'open',title:'Уже продвигаемый заказ',expires_at:future});
+    await api.store.put(order);await api.store.put(existing);
+    const placement='search.orders.promoted';
+    await api.store.put(record('placement_policy','system',{status:'effective',payload:{placement_id:placement,capacity:1}}));
+    await api.store.put(record('placement_policy','system',{status:'effective',payload:{placement_id:'search.services.promoted',capacity:1}}));
+    const price=record('price_version','system',{status:'effective',payload:{period:'week',amount_minor:100,currency:'KZT',product_type:'boost'}});
+    const subscription=record('price_version','system',{status:'effective',payload:{period:'week',amount_minor:1,currency:'KZT',product_type:'subscription'}});
+    await api.store.put(price);await api.store.put(subscription);
+    const reserve=(body)=>command(api,u,'POST','/boost-reservations',{target_id:order.id,placement_id:placement,price_id:price.id,...body});
+    await assert.rejects(()=>reserve({price_id:subscription.id}),e=>e.getResponse().error.code==='PRICE_UNAVAILABLE');
+    await assert.rejects(()=>reserve({placement_id:'search.services.promoted'}),e=>e.getResponse().error.code==='PLACEMENT_UNAVAILABLE');
+    await api.store.put({...order,moderation_status:'quarantined'});
+    await assert.rejects(()=>reserve({}),e=>e.getResponse().error.code==='TARGET_INELIGIBLE');
+    await api.store.put(order);
+    await api.store.put(record('boost',u.user.id,{target_id:existing.id,placement_id:placement,status:'active',starts_at:new Date().toISOString(),ends_at:future,reservation_expires_at:'2000-01-01T00:00:00Z',provenance:'paid'}));
+    await assert.rejects(()=>reserve({}),e=>e.getResponse().error.code==='PLACEMENT_FULL');
+    assert.equal((await api.store.all('boost','KZ')).length,1);
+  }finally{await api.store.close();}
+});
+
+test('confirmed boost payments recheck hidden targets, exact access and occupied slots without losing payment evidence',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ try{
+  const u=await create(api,'+77000000229'),owner=u.user.id,future=new Date(Date.now()+10*86400000).toISOString();
+  await api.store.put({...await api.store.get(owner),verification:'passed'});
+  let proof;
+  api.providers.billing.set('isolated',{name:'isolated',verifyPurchase:async()=>proof});
+  for(const scenario of ['capacity','hidden','access']){
+   const kind=scenario==='access'?'contractor':'order',placement=kind==='order'?'search.orders.promoted':'search.services.promoted';
+   const target=record(kind,owner,{title:'Проверяемая карточка',status:kind==='order'?'open':'published',expires_at:future});await api.store.put(target);
+   const policy=record('placement_policy','system',{status:'effective',payload:{placement_id:placement,capacity:1}});await api.store.put(policy);
+   const price={provider:'isolated',product_id:'boost',amount_minor:100,currency:'KZT',product_type:'boost',period:'week'};
+   const reserved=record('boost',owner,{target_id:target.id,placement_id:placement,status:'reserved',starts_at:new Date().toISOString(),ends_at:future,reservation_expires_at:'2000-01-01T00:00:00Z',price_snapshot:price});await api.store.put(reserved);
+   if(scenario==='capacity')await api.store.put(record('boost',owner,{target_id:randomUUID(),placement_id:placement,status:'active',starts_at:new Date().toISOString(),ends_at:future,reservation_expires_at:'2000-01-01T00:00:00Z'}));
+   if(scenario==='hidden')await api.store.put({...target,moderation_status:'hidden'});
+   if(scenario==='access')await api.store.put(record('grant',owner,{valid_until:future,capabilities:['send_offer']}));
+   proof={provider:'isolated',transaction_id:'boost-'+scenario,user_id:owner,country:'KZ',product_id:'boost',environment:'sandbox',amount_minor:100,currency:'KZT',state:'active'};
+   const verify=()=>command(api,u,'POST','/boost-purchases/verify',{provider:'isolated',transaction_reference:'proof',reservation_id:reserved.id});
+   assert.equal((await verify()).status,'resolution_required',scenario);
+   const replay=await verify();assert.equal(replay.duplicate,true);assert.equal(replay.status,'resolution_required');
+   assert.equal((await api.store.all('payment_transaction','KZ')).filter(x=>x.transaction_id===proof.transaction_id).length,1);
+   for(const row of await api.store.all('boost','KZ'))await api.store.put({...row,status:'revoked'});
+   for(const row of await api.store.all('placement_policy','KZ'))await api.store.put({...row,status:'archived'});
+  }
+ }finally{await api.store.close();}
 });

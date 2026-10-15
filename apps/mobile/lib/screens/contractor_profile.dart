@@ -31,16 +31,57 @@ class ContractorProfile extends StatelessWidget {
       required this.onReport,
       required this.onBlock,
       super.key});
-  Widget stat(String value, String label) => Expanded(
-          child: Column(children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 20, height: 1.3, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4),
-        UiText(label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 9, height: 1.5, color: muted))
-      ]));
+  Widget stat(String value, String label,
+          {bool first = false, bool star = false}) =>
+      Expanded(
+          child: Container(
+              padding: EdgeInsets.only(left: first ? 0 : 16),
+              decoration: BoxDecoration(
+                  border: first
+                      ? null
+                      : const Border(left: BorderSide(color: line))),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Text(value,
+                          style: const TextStyle(
+                              fontSize: 18,
+                              height: 1.3,
+                              fontWeight: FontWeight.w700)),
+                      if (star) ...[
+                        const SizedBox(width: 5),
+                        const JobaIcon('star',
+                            size: 12,
+                            color: Color(0xFFBD8B14),
+                            fill: Color(0xFFBD8B14))
+                      ]
+                    ]),
+                    const SizedBox(height: 8),
+                    UiText(label,
+                        style: const TextStyle(
+                            fontSize: 9, height: 1.5, color: muted))
+                  ])));
+  Widget tab(String title, VoidCallback onTap, {bool selected = false}) =>
+      Container(
+          margin: const EdgeInsets.only(right: 22),
+          decoration: BoxDecoration(
+              border: Border(
+                  bottom: BorderSide(
+                      color: selected ? primary : Colors.transparent,
+                      width: 2))),
+          child: TextButton(
+              style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 48),
+                  foregroundColor: selected ? primary : muted,
+                  textStyle: TextStyle(
+                      fontFamily: 'Noto',
+                      fontSize: 12,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w400)),
+              onPressed: onTap,
+              child: Text(title)));
   @override
   Widget build(BuildContext context) {
     final rating = profile['rating'] as Json?;
@@ -55,15 +96,37 @@ class ContractorProfile extends StatelessWidget {
               SizedBox(
                   height: 114,
                   child: Stack(children: [
-                    Container(height: 62, color: const Color(0xFFE5EDFC)),
+                    SizedBox(
+                        height: 62,
+                        width: double.infinity,
+                        child: CustomPaint(painter: _ProfileCover())),
+                    Positioned(
+                        top: 48,
+                        right: 20,
+                        child: IconButton.filledTonal(
+                            tooltip: localize(context, 'Пожаловаться'),
+                            style: IconButton.styleFrom(
+                                backgroundColor: canvas,
+                                minimumSize: const Size(48, 48),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14))),
+                            onPressed: onReport,
+                            icon: const JobaIcon('flag'))),
                     Positioned(
                         top: 38,
                         left: 20,
-                        child: JobaAvatar(
-                            api: api,
-                            name: profile['display_name'] ?? '',
-                            id: profile['owner_avatar_id'],
-                            size: 68))
+                        child: Container(
+                            width: 68,
+                            height: 68,
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(28)),
+                            child: JobaAvatar(
+                                api: api,
+                                name: profile['display_name'] ?? '',
+                                id: profile['owner_avatar_id'],
+                                size: 60)))
                   ])),
               Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -82,12 +145,26 @@ class ContractorProfile extends StatelessWidget {
                           Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: Row(children: [
-                                const JobaIcon('shield',
-                                    size: 16, color: primary),
-                                const SizedBox(width: 6),
-                                const UiText('Документ проверен',
-                                    style: TextStyle(
-                                        fontSize: 11, color: primary)),
+                                Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(
+                                        color: const Color(0xFFE8F5EF),
+                                        borderRadius: BorderRadius.circular(7)),
+                                    child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          JobaIcon('shield',
+                                              size: 14,
+                                              color: Color(0xFF147657)),
+                                          SizedBox(width: 4),
+                                          UiText('Документ проверен',
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  height: 1.6,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF147657))),
+                                        ])),
                                 if (profile['verification']?['checked_at'] !=
                                     null) ...[
                                   const SizedBox(width: 8),
@@ -105,8 +182,11 @@ class ContractorProfile extends StatelessWidget {
                           stat(
                               rating?['average'] == null
                                   ? '—'
-                                  : '${NumberFormat('0.0', locale).format(rating!['average'])} ★',
-                              '${rating?['count'] ?? 0} ${localize(context, 'отзывов')}'),
+                                  : NumberFormat('0.0', locale)
+                                      .format(rating!['average']),
+                              '${rating?['count'] ?? 0} ${localize(context, 'отзывов')}',
+                              first: true,
+                              star: rating?['average'] != null),
                           stat('${profile['completed_orders'] ?? 0}',
                               'заказов выполнено'),
                           stat(
@@ -117,53 +197,40 @@ class ContractorProfile extends StatelessWidget {
                         ]),
                         const SizedBox(height: 14)
                       ])),
-              Row(children: [
-                Expanded(
-                    child: TextButton(
-                        onPressed: onOverview, child: const UiText('Обзор'))),
-                Expanded(
-                    child: TextButton(
-                        onPressed: onPortfolio,
-                        child: const UiText('Портфолио'))),
-                Expanded(
-                    child: TextButton(
-                        onPressed: onReviews, child: const UiText('Отзывы')))
-              ])
+              Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(children: [
+                    tab(localize(context, 'Обзор'), onOverview, selected: true),
+                    tab('${localize(context, 'Портфолио')}${profile['portfolio_count'] == null ? '' : ' · ${profile['portfolio_count']}'}',
+                        onPortfolio),
+                    tab(localize(context, 'Отзывы'), onReviews),
+                  ])),
             ])),
         Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(profile['title'] ?? '',
                   style: const TextStyle(
-                      fontSize: 19, height: 1.4, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
+                      fontSize: 16, height: 1.4, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
               Text(profile['description'] ?? '',
                   style:
                       const TextStyle(fontSize: 12, height: 1.6, color: muted)),
               const SizedBox(height: 20),
-              Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: line),
-                      borderRadius: BorderRadius.circular(16)),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const UiText('Стоимость услуг',
-                            style: TextStyle(fontSize: 12, color: muted)),
-                        const SizedBox(height: 8),
-                        Text(
-                            price == null ||
-                                    price['mode'] == 'negotiable' ||
-                                    price['amount_min'] == null
-                                ? localize(context, 'По договорённости')
-                                : '${localize(context, 'От')} ${formatMoney((price['amount_min'] as num).toInt(), price['currency'] ?? 'KZT', locale)}',
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w700))
-                      ])),
+              Row(children: [
+                const Expanded(
+                    child: UiText('Стоимость услуг',
+                        style: TextStyle(fontSize: 12, color: muted))),
+                Text(
+                    price == null ||
+                            price['mode'] == 'negotiable' ||
+                            price['amount_min'] == null
+                        ? localize(context, 'По договорённости')
+                        : '${localize(context, 'От')} ${formatMoney((price['amount_min'] as num).toInt(), price['currency'] ?? 'KZT', locale)}',
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700)),
+              ]),
               JobaSection('Последние работы', onPortfolio,
                   action: profile['portfolio_count'] == null
                       ? 'Все'
@@ -203,7 +270,7 @@ class ContractorProfile extends StatelessWidget {
                                                               ['cover_id'] ??
                                                           items(data)[i]
                                                               ['photos'][0],
-                                                      height: 110,
+                                                      height: 120,
                                                       onOpen: () => onProject(
                                                           items(data)[i])),
                                                 Padding(
@@ -269,4 +336,23 @@ class ContractorProfile extends StatelessWidget {
                       child: const UiText('Предложить заказ')))))
     ]);
   }
+}
+
+class _ProfileCover extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    canvas.drawRect(
+        Offset.zero & size, Paint()..color = const Color(0xFFE5EDFC));
+    canvas.drawCircle(
+        Offset(size.width * .65, 0),
+        size.width * .296,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 40
+          ..color = const Color(0xFFD1E1FA));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProfileCover oldDelegate) => false;
 }
