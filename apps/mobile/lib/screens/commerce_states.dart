@@ -3,6 +3,7 @@ import '../core/api.dart';
 import '../core/commerce_gateway.dart';
 import '../core/currency.dart';
 import '../core/design_states.dart';
+import '../core/design_widgets.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../core/widgets.dart';
@@ -58,6 +59,26 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
             onSecondary: onSecondary),
         if (error != null) Notice(errorText(context, error!), error: true)
       ]);
+  String periodLabel(dynamic period) => switch (period) {
+        'month' || 'P1M' => '1 месяц',
+        'year' || 'P1Y' => '1 год',
+        'week' || 'P1W' => '1 неделя',
+        null => 'Уточняется у провайдера',
+        _ => '$period',
+      };
+
+  Widget checkoutFact(String label, String value, {bool last = false}) =>
+      Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+              border:
+                  last ? null : const Border(bottom: BorderSide(color: line))),
+          child: Row(children: [
+            Expanded(child: UiText(label, style: const TextStyle(fontSize: 12, color: navy))),
+            const SizedBox(width: 12),
+            Flexible(child: UiText(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+          ]));
+
   String money(Json? r) => r?['amount_minor'] is int
       ? formatMoney(r!['amount_minor'], r['currency'],
           Localizations.localeOf(context).languageCode)
@@ -243,34 +264,59 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
           return Column(children: [
             Expanded(
                 child: ListView(padding: const EdgeInsets.all(20), children: [
-              const UiHeading(
-                  'Подписка JOBA', 'Полный доступ для обеих ролей.'),
-              for (final r in offers)
-                ListTile(
-                    onTap:
-                        busy ? null : () => setState(() => selected = r['id']),
-                    leading: Icon(
-                        offer?['id'] == r['id']
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        color: primary),
-                    title: Text('${r['title'] ?? r['product_id']}'),
-                    subtitle: Text('${money(r)} · ${r['period'] ?? ''}')),
+              const UiHeading('Подписка JOBA',
+                  'Поиск заказов и публикация услуг исполнителя.'),
+              if (offers.length > 1)
+                for (final r in offers)
+                  ListTile(
+                      onTap: busy
+                          ? null
+                          : () => setState(() => selected = r['id']),
+                      leading: Icon(
+                          offer?['id'] == r['id']
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: primary),
+                      title: Text('${r['title'] ?? r['product_id']}'),
+                      subtitle: Text('${money(r)} · ${r['period'] ?? ''}')),
               if (offer == null)
                 const Notice('Действующие предложения пока недоступны.'),
+              if (offer != null) ...[
+                Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: line),
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Column(children: [
+                      checkoutFact('Полный доступ', 'Исполнитель'),
+                      checkoutFact('Период', periodLabel(offer['period'])),
+                      checkoutFact('Цена', money(offer)),
+                      checkoutFact('Продление', 'По условиям провайдера',
+                          last: true),
+                    ])),
+                const SizedBox(height: 12),
+                const UiText(
+                    'Перед оплатой проверьте период, итоговую сумму и условия продления. Оплаченный срок сохраняется при отключении автопродления.',
+                    style: TextStyle(fontSize: 12, color: navy)),
+                const SizedBox(height: 16),
+              ],
               const Notice(
-                  'Доступ активируется только после серверного подтверждения оплаты. Условия и итоговая сумма показываются платёжным провайдером.'),
+                  'Доступ активируется после подтверждения оплаты. Если платёж обрабатывается, повторная покупка не требуется.'),
+              JobaMenu([
+                JobaMenuEntry('Условия подписки', 'file',
+                    () => widget.onGo('legal', null)),
+                JobaMenuEntry('Восстановить покупку', 'refresh',
+                    () => widget.onGo('restore', null)),
+              ]),
+              const SizedBox(height: 12),
               CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
                   value: accepted,
                   onChanged:
                       busy ? null : (v) => setState(() => accepted = v == true),
-                  title: const UiText('Ознакомился с условиями подписки.')),
-              TextButton(
-                  onPressed: () => widget.onGo('legal', null),
-                  child: const UiText('Условия подписки')),
-              TextButton(
-                  onPressed: () => widget.onGo('restore', null),
-                  child: const UiText('Восстановить покупку')),
+                  title: const UiText('Ознакомился с условиями подписки.',
+                      style: TextStyle(fontSize: 12))),
               if (error != null) Notice(errorText(context, error!), error: true)
             ])),
             Container(

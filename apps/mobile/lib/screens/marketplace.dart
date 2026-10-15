@@ -12,6 +12,7 @@ import 'top_listings.dart';
 import 'revoke_session.dart';
 import 'device_setup.dart';
 import 'commerce_states.dart';
+import 'executor_access.dart';
 import 'promotion_purchase.dart';
 import 'privacy_states.dart';
 import 'geo_states.dart';
@@ -4057,37 +4058,18 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       ]));
 
   Widget accessScreen() => page(
-      'Мой доступ',
+      route == 'access' ? 'Доступ к JOBA' : 'Мой доступ',
       ApiView(
-          key: ValueKey('access:$revision'),
+          key: ValueKey('access:$route:$revision'),
           load: () => Future.wait([
                 api.request('/me/entitlements'),
                 api.request('/me/monetization-config'),
                 api.request('/me/subscriptions')
               ]),
-          builder: (c, data, reload) => listBody([
-                const UiHeading('Ваши возможности'),
-                if (items(data[0]).isEmpty)
-                  const Notice('Активных прав доступа пока нет.'),
-                for (final r in items(data[0]))
-                  DataCard('Доступ JOBA',
-                      translateTitle: true,
-                      status: status(r),
-                      subtitle:
-                          '${r['valid_until'] ?? r['ends_at'] ?? r['expires_at'] ?? ''}'),
-                for (final r in items(data[2]))
-                  DataCard('Подписка',
-                      translateTitle: true,
-                      status: status(r),
-                      subtitle: '${r['ends_at'] ?? ''}'),
-                const Notice(
-                    'Оплата и восстановление покупок станут доступны после подключения платёжной системы.'),
-                button('Подписка JOBA', () => go('checkout')),
-                button('Управление подпиской', () => go('manage-subscription'),outline:true),
-                button('Восстановить покупку', () => go('restore'),outline:true),
-                button('Рекламная награда', () => go('reward'), outline: true),
-                button('Поддержка', () => go('support'), outline: true),
-              ])));
+          builder: (c, data, reload) => ExecutorAccess(
+              choosing: route == 'access', grants: items(data[0]),
+              config: Json.from(data[1]), subscriptions: items(data[2]),
+              onGo: (r, id) => go(r, id))));
   Widget privacyScreen() => page(
       'Приватность',
       loaded(
@@ -5458,14 +5440,17 @@ class _MessageThreadState extends State<MessageThread> {
                                   : Alignment.centerLeft,
                               child: Container(
                                   constraints:
-                                      const BoxConstraints(maxWidth: 290),
-                                  padding: const EdgeInsets.all(12),
+                                      const BoxConstraints(maxWidth: 312),
+                                  padding: const EdgeInsets.all(14),
                                   margin: const EdgeInsets.only(bottom: 12),
                                   decoration: BoxDecoration(
-                                      color: own
-                                          ? const Color(0xFFEFF4FD)
-                                          : canvas,
-                                      borderRadius: BorderRadius.circular(14)),
+                                      color: own ? primary : Colors.white,
+                                      border: own ? null : Border.all(color: line),
+                                      borderRadius: BorderRadius.only(
+                                          topLeft: const Radius.circular(16),
+                                          topRight: const Radius.circular(16),
+                                          bottomLeft: Radius.circular(own ? 16 : 4),
+                                          bottomRight: Radius.circular(own ? 4 : 16))),
                                   child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.end,
@@ -5476,7 +5461,8 @@ class _MessageThreadState extends State<MessageThread> {
                                             : m['hidden'] == true
                                                 ? localize(context,
                                                     'Сообщение временно скрыто')
-                                                : m['text'] ?? ''),
+                                                : m['text'] ?? '',
+                                            style: TextStyle(fontSize: 14, color: own ? Colors.white : navy)),
                                         for (final id
                                             in (m['upload_ids'] as List? ?? []))
                                           AttachmentView(
@@ -5490,8 +5476,7 @@ class _MessageThreadState extends State<MessageThread> {
                                                     'quarantined': 'На проверке'
                                                   }[m['delivery_state']] ??
                                                   'Отправлено',
-                                              style:
-                                                  const TextStyle(fontSize: 10))
+                                              style: TextStyle(fontSize: 10, color: own ? Colors.white70 : navy))
                                       ]))));
                     })),
         SafeArea(

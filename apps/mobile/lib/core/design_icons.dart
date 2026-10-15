@@ -44,6 +44,7 @@ const _paths = <String, String>{
       "M7 2H4a2 2 0 0 0-2 2c0 10 8 18 18 18a2 2 0 0 0 2-2v-3l-6-2-2 3c-4-1-7-4-8-8l3-2z",
   "camera": "M3 6h4l2-3h6l2 3h4v15H3zM16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
   "image": "M2 3h20v18H2zM2 16l6-6 5 5 3-3 6 6M16 7h.1",
+  "refresh": "M20 7V3l-3 3a8 8 0 1 0 3 10M20 3h-5",
   "file": "M5 2h9l5 5v15H5zM14 2v6h5M8 13h8M8 17h6",
   "logout": "M10 3H3v18h7M9 12h13m-5-5 5 5-5 5",
   "globe":

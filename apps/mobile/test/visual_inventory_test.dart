@@ -227,9 +227,11 @@ void main() {
               headers: {'content-type': 'image/png'});
       }
       if(path=='/order-invites/visual-object'||path=='/cancel-requests/visual-object')return response({'id':'visual-object','order_id':'visual-object','status':'pending','owner':user['id'],'version':1});
-      if(path=='/conversations/visual-object')return response({'id':'visual-object','order_id':'visual-object','order_title':'Сборка кухни','status':'frozen','blocked':true});
+      if(path=='/conversations/visual-object')return response({'id':'visual-object','order_id':'visual-object','order_title':'Сборка кухни','status':route == 'frozen-chat' ? 'frozen' : 'active','blocked':route == 'frozen-chat'});
       if(path=='/me/subscriptions/visual-object')return response({'id':'visual-object','status':route=='subscription-canceled'?'canceled_at_period_end':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}});
       if(path=='/me/purchase-checks/visual-object')return response({'id':'visual-object','status':'pending'});
+      if(path=='/me/subscriptions')return response({'items':[{'id':'visual-object','status':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}}]});
+      if(path=='/me/entitlements')return response({'items':[{'id':'visual-access','source':'subscription','valid_until':'2026-11-12T09:41:00Z','capabilities':['search_full','send_offer','publish_profile']}]});
       if(path=='/billing/offers')return response({'items':[{'id':'visual-offer','title':'Полный доступ','amount_minor':249000,'currency':'KZT','period':'month','provider':'isolated','product_id':'monthly','product_type':'subscription'}]});
       if(path=='/ads/reward-sessions/visual-object')return response({'id':'visual-object','status':route=='reward-granted'?'granted':'pending','grant':route=='reward-granted'?{'valid_until':'2026-12-13T09:41:00Z','capabilities':['search_full']}:null});
       if(path=='/me/processing-consents')return response({'version':1,'marketing':false,'ad_personalization':false,'optional_analytics':false});
@@ -516,11 +518,15 @@ void main() {
           'subscription_enabled': true,
           'rewarded_access_enabled': false,
           'checkout_enabled': false,
-          'offers': []
+          'offers': [{'id':'visual-offer','product_type':'subscription','amount_minor':249000,'currency':'KZT','period':'month'}]
         };
       else if (path.endsWith('/messages'))
         data = {
-          'items': [],
+          'items': route == 'chat' ? [
+            {'id':'visual-message-1','owner':'visual-peer','sequence':1,'text':'Здравствуйте! Смогу приехать завтра к 10:00.','created_at':'2026-10-12T09:24:00Z','upload_ids':[],'delivery_state':'read'},
+            {'id':'visual-message-2','owner':'visual-owner','sequence':2,'text':'Здравствуйте! Отлично, буду ждать. Инструменты у вас с собой?','created_at':'2026-10-12T09:25:00Z','upload_ids':[],'delivery_state':'read'},
+            {'id':'visual-message-3','owner':'visual-peer','sequence':3,'text':'Да, всё необходимое возьму с собой. Пришлите, пожалуйста, фото кухни.','created_at':'2026-10-12T09:26:00Z','upload_ids':[],'delivery_state':'read'},
+          ] : [],
           'meta': {'has_more': false, 'server_time': '2026-10-14T12:00:00Z'}
         };
       return http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
