@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-joba_domain="${JOBA_DOMAIN:-jobs.app.kz}"
+joba_domain="${JOBA_DOMAIN:-188-241-217-228.sslip.io}"
 [[ "$joba_domain" =~ ^[a-zA-Z0-9.-]+$ && "$joba_domain" == *.* ]] || { echo 'Set a public DNS hostname in JOBA_DOMAIN' >&2; exit 1; }
 joba_flutter="${FLUTTER_ROOT:-/workspace/flutter-sdk}/bin/flutter"
 [[ -x "$joba_flutter" ]] || { echo 'Set FLUTTER_ROOT to Flutter 3.35.7' >&2; exit 1; }

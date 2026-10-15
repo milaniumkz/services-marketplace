@@ -2,7 +2,7 @@
 import hashlib,os,socket,subprocess
 host=os.environ.get('JOBA_SSH_HOST','188.241.217.228')
 port=int(os.environ.get('JOBA_SSH_PORT','22'))
-domain=os.environ.get('JOBA_DOMAIN','jobs.app.kz')
+domain=os.environ.get('JOBA_DOMAIN','188-241-217-228.sslip.io')
 try: print('::notice title=Public DNS::'+domain+' '+', '.join(sorted({r[4][0] for r in socket.getaddrinfo(domain,443,type=socket.SOCK_STREAM)})))
 except OSError as e: print('::warning title=Public DNS unavailable::'+str(e))
 try:

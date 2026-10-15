@@ -9,7 +9,8 @@ concurrency:
   group: joba-production
   cancel-in-progress: false
 env:
-  JOBA_DOMAIN: jobs.app.kz
+  JOBA_DOMAIN: 188-241-217-228.sslip.io
+  JOBA_SSH_HOST_FINGERPRINT: SHA256:Bt3HkaktjLmWe4tB1pOK9b8gOnHuxp+tvp1hhEDtxp8
   JOBA_SSH_HOST: 188.241.217.228
   JOBA_SSH_PORT: '22'
 jobs:
@@ -71,20 +72,19 @@ jobs:
         env:
           SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
           SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.JOBA_SSH_KNOWN_HOSTS }}
         run: |
-          test -n "$SSH_KNOWN_HOSTS" || { echo 'Configure JOBA_SSH_KNOWN_HOSTS in repository Actions Secrets'; exit 1; }
           test -n "$SSHPASS$SSH_PRIVATE_KEY" || { echo 'Configure JOBA_SSH_PASSWORD or JOBA_SSH_PRIVATE_KEY in repository Actions Secrets'; exit 1; }
       - name: Deploy exact Git revision and verify HTTPS
         env:
           SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
           SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.JOBA_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           umask 077
           mkdir -p "$HOME/.ssh"
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          ssh-keyscan -T 10 -t ed25519 -p "$JOBA_SSH_PORT" "$JOBA_SSH_HOST" > "$HOME/.ssh/known_hosts"
+          joba_fingerprint="$(ssh-keygen -lf "$HOME/.ssh/known_hosts" -E sha256 | awk '{print $2}')"
+          test "$joba_fingerprint" = "$JOBA_SSH_HOST_FINGERPRINT" || { echo 'SSH host key changed; verify the server identity before deployment'; exit 1; }
           joba_ssh=(ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -p "$JOBA_SSH_PORT")
           joba_scp=(scp -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -P "$JOBA_SSH_PORT")
           if test -n "$SSH_PRIVATE_KEY"; then
