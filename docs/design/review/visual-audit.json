@@ -4,9 +4,9 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 155,
-    "not_captured": 32,
-    "captures_with_errors": 24,
+    "captured": 159,
+    "not_captured": 28,
+    "captures_with_errors": 20,
     "accepted": 0
   },
   "frames": [
@@ -709,7 +709,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.144813,
+      "different_pixels_ratio": 0.144788,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -763,7 +763,24 @@
       "route": "revoke-session",
       "reference": "mobile/screens/S15.revoke-revoke-session.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S15.revoke-revoke-session.png",
+      "actual_route": "revoke-session",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.025616,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -783,7 +800,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.047499,
+      "different_pixels_ratio": 0.058852,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2185,7 +2202,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.267734,
+      "different_pixels_ratio": 0.278256,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2206,7 +2223,24 @@
       "route": "promotion-history",
       "reference": "mobile/screens/S42.history-promotion-history.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S42.history-promotion-history.png",
+      "actual_route": "promotion-history",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.151833,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -2222,7 +2256,24 @@
       "route": "promotion-pending",
       "reference": "mobile/screens/S42.pending-promotion-pending.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S42.pending-promotion-pending.png",
+      "actual_route": "promotion-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.019665,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -2230,7 +2281,24 @@
       "route": "promotion-resolution",
       "reference": "mobile/screens/S42.resolution-promotion-resolution.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S42.resolution-promotion-resolution.png",
+      "actual_route": "promotion-resolution",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.103766,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -2408,7 +2476,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.088728,
+      "different_pixels_ratio": 0.088734,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2424,9 +2492,7 @@
       "status": "review_required",
       "capture": "A02.analytics-analytics.png",
       "actual_route": "analytics",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -2435,7 +2501,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.094396,
+      "different_pixels_ratio": 0.106697,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2487,7 +2553,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.074957,
+      "different_pixels_ratio": 0.075037,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2502,7 +2568,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.2---A12-user-security.png",
-      "actual_route": "user-security?user_id=98d0917d-f528-45bd-bbf5-051b469daaf2",
+      "actual_route": "user-security?user_id=f9e4b941-bfaf-4d3f-8f9d-8623d02d8770",
       "errors": [],
       "reference_size": [
         1440,
@@ -2512,7 +2578,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.105319,
+      "different_pixels_ratio": 0.105273,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2604,7 +2670,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.cases-user-cases.png",
-      "actual_route": "user-cases?user_id=98d0917d-f528-45bd-bbf5-051b469daaf2",
+      "actual_route": "user-cases?user_id=f9e4b941-bfaf-4d3f-8f9d-8623d02d8770",
       "errors": [],
       "reference_size": [
         1440,
@@ -2614,7 +2680,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.097199,
+      "different_pixels_ratio": 0.097177,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2656,7 +2722,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.detail-user-detail.png",
-      "actual_route": "record-live/users/98d0917d-f528-45bd-bbf5-051b469daaf2",
+      "actual_route": "record-live/users/f9e4b941-bfaf-4d3f-8f9d-8623d02d8770",
       "errors": [],
       "reference_size": [
         1440,
@@ -2666,7 +2732,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.092883,
+      "different_pixels_ratio": 0.092864,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2681,7 +2747,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.history-user-decisions.png",
-      "actual_route": "user-decisions?user_id=5f7c0b9c-6cde-45d0-ac5e-25ce92d580dc",
+      "actual_route": "user-decisions?user_id=e8a53fdd-3889-481d-ad2f-e043cb205d88",
       "errors": [],
       "reference_size": [
         1440,
@@ -2691,7 +2757,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.097285,
+      "different_pixels_ratio": 0.097451,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2706,7 +2772,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.orders-user-orders.png",
-      "actual_route": "user-orders?user_id=5f7c0b9c-6cde-45d0-ac5e-25ce92d580dc",
+      "actual_route": "user-orders?user_id=e8a53fdd-3889-481d-ad2f-e043cb205d88",
       "errors": [],
       "reference_size": [
         1440,
@@ -2716,7 +2782,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.065651,
+      "different_pixels_ratio": 0.065775,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2731,7 +2797,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A04-order-detail.png",
-      "actual_route": "record-live/orders/8eade43f-553e-4fc2-bba3-c0d5dc4bbdc8",
+      "actual_route": "record-live/orders/0f52a10d-38ff-482a-b34f-fa2aa3489fb3",
       "errors": [],
       "reference_size": [
         1440,
@@ -2741,7 +2807,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.072567,
+      "different_pixels_ratio": 0.07258,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2766,7 +2832,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.066368,
+      "different_pixels_ratio": 0.066409,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2791,7 +2857,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069885,
+      "different_pixels_ratio": 0.069813,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2831,7 +2897,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A06-case.png",
-      "actual_route": "case-live/69f9e7a7-ae51-48cf-95b4-27e17f3a8d72",
+      "actual_route": "case-live/4e2f0b24-19dc-453a-8460-dcdab4724c84",
       "errors": [],
       "reference_size": [
         1440,
@@ -2841,7 +2907,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.181675,
+      "different_pixels_ratio": 0.181757,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2866,7 +2932,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.094008,
+      "different_pixels_ratio": 0.094017,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2908,7 +2974,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.guard-verification-detail.png",
-      "actual_route": "record-live/verification/e08dd904-84e3-44c0-b050-3b33edd0078e",
+      "actual_route": "record-live/verification/9225598e-32d3-490a-9b36-c57db6d24f6b",
       "errors": [],
       "reference_size": [
         1440,
@@ -2918,7 +2984,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.107114,
+      "different_pixels_ratio": 0.107067,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2970,7 +3036,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.13394,
+      "different_pixels_ratio": 0.133866,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3180,7 +3246,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.079042,
+      "different_pixels_ratio": 0.078918,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3205,7 +3271,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.133986,
+      "different_pixels_ratio": 0.134229,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3257,7 +3323,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.098965,
+      "different_pixels_ratio": 0.099171,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3334,7 +3400,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.122054,
+      "different_pixels_ratio": 0.124087,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3349,7 +3415,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A15.retry-job-detail.png",
-      "actual_route": "job-detail?job_id=98852c09-77bd-48ef-a581-930c3b808a1b",
+      "actual_route": "job-detail?job_id=17f8310e-8ebf-46a5-92ce-5b8cac2e806f",
       "errors": [],
       "reference_size": [
         1440,
@@ -3359,7 +3425,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.111034,
+      "different_pixels_ratio": 0.111028,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3384,7 +3450,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.085615,
+      "different_pixels_ratio": 0.085612,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3592,7 +3658,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.150748,
+      "different_pixels_ratio": 0.152863,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3607,10 +3673,8 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A19.build-branding-build.png",
-      "actual_route": "branding-build",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "actual_route": "branding-build?version=67c0fa87-491e-4e40-a542-97ddd32f548a",
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3619,7 +3683,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.105922,
+      "different_pixels_ratio": 0.130452,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3696,7 +3760,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.114231,
+      "different_pixels_ratio": 0.114169,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3721,7 +3785,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115938,
+      "different_pixels_ratio": 0.115944,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3746,7 +3810,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.157152,
+      "different_pixels_ratio": 0.157136,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3762,9 +3826,7 @@
       "status": "review_required",
       "capture": "A22.boosts-boosts.png",
       "actual_route": "boosts",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3773,7 +3835,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.095814,
+      "different_pixels_ratio": 0.121801,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3789,9 +3851,7 @@
       "status": "review_required",
       "capture": "A22.grant-boost-grant.png",
       "actual_route": "boost-grant",
-      "errors": [
-        "Live scenario not implemented"
-      ],
+      "errors": [],
       "reference_size": [
         1440,
         1024
@@ -3800,7 +3860,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.112155,
+      "different_pixels_ratio": 0.130558,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3825,7 +3885,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.135705,
+      "different_pixels_ratio": 0.137854,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3850,7 +3910,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.226242,
+      "different_pixels_ratio": 0.226236,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3875,7 +3935,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.070189,
+      "different_pixels_ratio": 0.070183,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3900,7 +3960,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069354,
+      "different_pixels_ratio": 0.069347,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3925,7 +3985,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115447,
+      "different_pixels_ratio": 0.115453,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3950,7 +4010,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.061882,
+      "different_pixels_ratio": 0.061887,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3975,7 +4035,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069718,
+      "different_pixels_ratio": 0.069717,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0

@@ -429,6 +429,12 @@ void main() {
           'linked_completed_order': true,
           'photos': ['visual-interior', 'visual-kitchen']
         };
+      else if (path == '/me/boosts/visual-object')
+        data={'id':'visual-object','status':route=='promotion-resolution'?'resolution_required':'payment_pending','payment_confirmed':route=='promotion-resolution'};
+      else if (path == '/me/boosts')
+        data={'items':[{'id':'visual-object','status':'active','title':'Ремонт и отделка','city':'Алматы','placement_id':'search.services.promoted','provenance':'paid','payment_confirmed':true,'starts_at':'2026-10-12T10:00:00Z','ends_at':'2026-10-19T10:00:00Z','price':{'amount_minor':199000,'currency':'KZT'}}]};
+      else if (path == '/me/sessions')
+        data = {'items':[{'family':'visual-object','current':false,'expires_at':'2026-11-15T12:00:00Z'}]};
       else if (path == '/top-listings')
         data = {'items': [
           for (final entry in ['Алексей К.', 'Николай С.'].indexed)

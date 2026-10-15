@@ -72,14 +72,33 @@ export class Growth {
     const resolution=!eligible||!available||boost.ends_at<=new Date().toISOString();
     return this.store.put({...boost,status:resolution?'resolution_required':'active',provenance:'paid',provider:p.provider,transaction_id:p.transaction_id,confirmed_at:new Date().toISOString(),version:boost.version+1});
   }
+  async previewAdminBoost(country:string,b:any) {
+    const target=await this.store.get(b.target_id);
+    if(!target||target.country!==country||!['order','contractor'].includes(target.kind)||target.status!==(target.kind==='order'?'open':'published')||['quarantined','hidden','rejected'].includes(target.moderation_status))fail('TARGET_INELIGIBLE','Карточка недоступна',422);
+    const user=await this.store.get(target.owner),now=new Date().toISOString();
+    const access=(await this.store.db.query<{allowed:boolean}>("SELECT EXISTS(SELECT 1 FROM records WHERE kind='grant' AND country=$1 AND owner=$2 AND data->>'valid_until'>$3 AND COALESCE(data->'capabilities','[]'::jsonb) ? 'search_full' AND (data->>'balance' IS NULL OR (data->>'balance')::numeric>0)) AS allowed",[country,target.owner,now])).rows[0].allowed;
+    if(user?.kind!=='user'||user.country!==country||user.status!=='active'||target.kind==='contractor'&&user.verification!=='passed'||!access)fail('TARGET_INELIGIBLE','Не выполнены условия допуска',422);
+    const policy=(await this.store.all('placement_policy',country)).find(x=>x.status==='effective'&&x.payload.placement_id===b.placement_id);
+    if(!policy)fail('PLACEMENT_UNAVAILABLE','Место не опубликовано',422);
+    const end=Date.parse(b.ends_at);
+    if(!Number.isFinite(end)||end<=Date.now()||target.kind==='order'&&!(end<=Date.parse(target.expires_at)))fail('TARGET_EXPIRES_EARLY','Проверьте срок размещения',422);
+    const active=(await this.store.all('boost',country)).filter(x=>['reserved','payment_pending','scheduled','active'].includes(x.status)&&x.ends_at>now&&(x.starts_at??x.created_at)<new Date(end).toISOString()&&(!['reserved','payment_pending'].includes(x.status)||x.reservation_expires_at>now));
+    if(active.some(x=>x.target_id===target.id))fail('BOOST_OVERLAP','Для карточки уже есть размещение');
+    const events=active.filter(x=>x.placement_id===b.placement_id).flatMap(x=>[
+      {time:Math.max(Date.parse(x.starts_at??x.created_at),Date.parse(now)),delta:1},
+      {time:Math.min(Date.parse(x.ends_at),end),delta:-1}]);
+    let occupied=0,running=0;
+    for(const event of events.sort((x,y)=>x.time-y.time||x.delta-y.delta)){
+      if(!Number.isFinite(event.time))fail('PLACEMENT_UNAVAILABLE','Проверьте сроки существующих размещений',422);
+      running+=event.delta;occupied=Math.max(occupied,running);
+    }
+    if(occupied>=policy.payload.capacity)fail('PLACEMENT_FULL','Нет свободной ёмкости');
+    if(b.expected_target_version!==undefined&&b.expected_target_version!==target.version||b.expected_policy_version!==undefined&&b.expected_policy_version!==policy.version)fail('STATE_CONFLICT','Карточка или политика изменились. Повторите предпросмотр');
+    return {target,policy,preview:{target_id:target.id,target_type:target.kind,title:target.title,country,city:target.city??'',category_id:target.category_id??'',owner_id:target.owner,placement_id:b.placement_id,expected_target_version:target.version,expected_policy_version:policy.version,starts_at:now,ends_at:new Date(end).toISOString(),available_slots:policy.payload.capacity-occupied,amount_minor:0,provenance:'admin_grant',checks:{owner_active:true,verification:target.kind==='contractor'?'passed':'not_required',access_active:true,target_public:true,within_target_expiry:true,no_overlap:true},organic_rank_changed:false}};
+  }
   async adminBoost(actor:string,country:string,b:any) {
-    const target=await this.store.get(b.target_id);if(!target||target.country!==country||!['open','published'].includes(target.status))fail('TARGET_INELIGIBLE','Карточка недоступна',422);
-    const user=await this.store.get(target.owner),grants=await this.store.all('grant',country);
-    if(user?.status!=='active'||target.kind==='contractor'&&user.verification!=='passed'||!grants.some(g=>g.owner===target.owner&&g.valid_until>new Date().toISOString()))fail('TARGET_INELIGIBLE','Не выполнены условия допуска',422);
-    const policy=(await this.store.all('placement_policy',country)).find(x=>x.status==='effective'&&x.payload.placement_id===b.placement_id);if(!policy)fail('PLACEMENT_UNAVAILABLE','Место не опубликовано',422);
-    const end=Date.parse(b.ends_at);if(!Number.isFinite(end)||end<=Date.now()||target.kind==='order'&&end>Date.parse(target.expires_at))fail('TARGET_EXPIRES_EARLY','Проверьте срок размещения',422);
-    const active=(await this.store.all('boost',country)).filter(x=>x.placement_id===b.placement_id&&['reserved','scheduled','active'].includes(x.status)&&x.ends_at>new Date().toISOString());
-    if(active.length>=policy.payload.capacity)fail('PLACEMENT_FULL','Нет свободной ёмкости');
-    return this.store.put(this.record('boost',target.owner,country,{target_id:target.id,placement_id:b.placement_id,policy_snapshot:policy.payload,provenance:'admin_grant',amount_minor:0,actor_id:actor,reason:b.reason,status:'active',starts_at:new Date().toISOString(),ends_at:new Date(end).toISOString()}));
+    if(!Number.isInteger(b.expected_target_version)||!Number.isInteger(b.expected_policy_version))fail('VALIDATION_ERROR','Сначала выполните предпросмотр выдачи',400);
+    const {target,policy,preview}=await this.previewAdminBoost(country,b);
+    return this.store.put(this.record('boost',target.owner,country,{target_id:target.id,placement_id:b.placement_id,policy_snapshot:policy.payload,provenance:'admin_grant',amount_minor:0,actor_id:actor,reason:b.reason,status:'active',starts_at:preview.starts_at,ends_at:preview.ends_at}));
   }
 }

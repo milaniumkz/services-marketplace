@@ -58,6 +58,192 @@
         }
       }
     },
+    "/admin/analytics": {
+      "get": {
+        "operationId": "get__admin_analytics",
+        "tags": [
+          "admin"
+        ],
+        "description": "Regional aggregate publication-cohort funnel, current completion/selection/case ratios and UTC event series. Empty denominators return null. Mutual feedback requires published unhidden reviews by both order participants. Contains definitions and no user identifiers.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                7,
+                30,
+                90
+              ],
+              "default": 7
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/boost-grants/preview": {
+      "post": {
+        "operationId": "post__admin_boost_grants_preview",
+        "tags": [
+          "admin"
+        ],
+        "description": "Promotion staff with MFA; mutation-free checks of regional public target, current owner access, overlap, deadline and placement capacity. Returns actual target/policy versions for confirmation. No payment or placement is created.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoostPreview"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/boosts/{id}": {
+      "get": {
+        "operationId": "get__me_boosts_id_",
+        "tags": [
+          "me"
+        ],
+        "description": "Own regional placement only, same safe DTO as history. payment_confirmed is derived from verified paid provenance and confirmation, not reservation status. Expired placements do not claim active delivery.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
     "/contractors/{id}/portfolio/{project_id}": {
       "get": {
         "operationId": "get__contractors_id_portfolio_project_id_",
@@ -2192,6 +2378,7 @@
         "tags": [
           "me"
         ],
+        "description": "Only owned regional refresh families with unexpired, unused and unrevoked credentials; current identifies the requesting family.",
         "security": [
           {
             "BearerAuth": []
@@ -3830,12 +4017,25 @@
         "tags": [
           "me"
         ],
+        "description": "Owned country-scoped cursor page; lifecycle bucket is applied before pagination, including expired reservations. Internal administrative reason, actor, policy and provider transaction secrets are omitted. No paid entitlement is required.",
         "security": [
           {
             "BearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "bucket",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "history"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/Success"
@@ -5330,6 +5530,7 @@
         "tags": [
           "me"
         ],
+        "description": "UUID family of an owned regional session. Revokes only this family and records security event; unknown or foreign families return NOT_FOUND. Revoking the current family ends the current authorization.",
         "security": [
           {
             "BearerAuth": []
@@ -12024,7 +12225,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "description": "Promotion staff with MFA; rechecks all preview conditions and target/policy versions atomically, records zero-price admin_grant and audit. Does not change organic ranking.",
         "security": [
           {
             "BearerAuth": []
@@ -12079,7 +12280,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedCommand"
+                "$ref": "#/components/schemas/BoostAdminGrant"
               }
             }
           }
@@ -20713,6 +20914,70 @@
           "age_confirmed": {
             "type": "boolean",
             "description": "Explicit declaration of being 18 or older, attached to the terms agreement. This is not identity or age verification."
+          }
+        },
+        "additionalProperties": false
+      },
+      "BoostPreview": {
+        "type": "object",
+        "required": [
+          "target_id",
+          "placement_id",
+          "ends_at"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "placement_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true
+      },
+      "BoostAdminGrant": {
+        "type": "object",
+        "required": [
+          "target_id",
+          "placement_id",
+          "ends_at",
+          "reason",
+          "expected_target_version",
+          "expected_policy_version"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "placement_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "expected_target_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expected_policy_version": {
+            "type": "integer",
+            "minimum": 1
           }
         },
         "additionalProperties": false

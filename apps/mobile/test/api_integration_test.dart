@@ -36,6 +36,22 @@ void main() {
     expect(overview['orders']['draft'], 1);
     expect(overview['rating']['count'], 0);
     expect(items(await api.request('/me/sessions')).single['current'], true);
+    final remote = JobaApi(endpoint, vault: MemoryVault());
+    await remote
+        .signIn({'country': 'KZ', 'phone': number, 'password': password});
+    final families = items(await api.request('/me/sessions'));
+    expect(families.length, 2);
+    final remoteFamily =
+        families.singleWhere((r) => r['current'] == false)['family'];
+    await api.request('/me/sessions/$remoteFamily', method: 'DELETE');
+    await expectLater(remote.request('/me'), throwsA(isA<ApiException>()));
+    expect((await api.request('/me'))['id'], user['id']);
+    expect(items(await api.request('/me/boosts', query: {'bucket': 'active'})),
+        isEmpty);
+    expect(items(await api.request('/me/boosts', query: {'bucket': 'history'})),
+        isEmpty);
+    remote.dispose();
+
     expect(
         items(await api.request('/me/orders'))
             .any((o) => o['id'] == draft['id']),

@@ -8,6 +8,8 @@ import 'action_receipt.dart';
 import 'content_review_receipt.dart';
 import 'privacy_export.dart';
 import 'top_listings.dart';
+import 'revoke_session.dart';
+import 'promotions_history.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -1155,6 +1157,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               setState(() => revision++);
                             }),
                         outline: true))));
+      case 'revoke-session':
+        return page('Завершить сеанс?', RevokeSession(api: api, family: objectId ?? '',
+          onCancel: back, onRevoked: (current) async {
+            if (current) { await api.forget(); return; }
+            go('sessions');
+          }), titleOffset: -12);
       case 'logout-all':
         return page(
             'Завершить все сессии',
@@ -1215,6 +1223,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'top':
         return page('Топ-100', TopListings(api: api, initialCity: me?['city'] ?? '',
           onOpen: (type, id) => go(type == 'orders' ? 'order' : 'contractor', id)));
+      case 'promotion-history':
+        return page('Мои продвижения', PromotionsHistory(api: api, dateLabel: dateLabel,
+          onNew: () => go('promotion'), onOpen: (r) => go(r['status'] == 'resolution_required' ? 'promotion-resolution' : 'promotion-pending', r['id'])), titleOffset: -12);
+      case 'promotion-pending':
+      case 'promotion-resolution':
+        return page(route == 'promotion-resolution' ? 'Нужно решение по оплате' : 'Проверка продвижения', PromotionStatus(api: api, id: objectId ?? '',
+          onHistory: () => go('promotion-history'), onSupport: () => go('support')), titleOffset: -12);
       case 'promotion':
         return promotionScreen();
       default:
@@ -4210,16 +4225,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       subtitle: dateLabel(record['expires_at']),
                       footer: button(
                           'Завершить сессию',
-                          () => act(() async {
-                                await api.request(
-                                    '/me/sessions/${record['family']}',
-                                    method: 'DELETE');
-                                if (record['current'] == true) {
-                                  await api.forget();
-                                  return;
-                                }
-                                reload();
-                              }),
+                          () => go('revoke-session', record['family']),
                           outline: true)),
                 button('Завершить все сессии', () => go('logout-all'),
                     outline: true)
@@ -5055,11 +5061,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 const UiHeading('Больше внимания к вашей работе'),
                 const Notice(
                     'Оплата продвижений станет доступна после подключения платёжной системы.'),
+                button('Мои продвижения', () => go('promotion-history'), outline: true),
                 for (final r in items(data))
                   DataCard('Размещение',
                       translateTitle: true,
                       status: status(r),
-                      subtitle: '${r['starts_at']} — ${r['ends_at']}'),
+                      subtitle: '${r['starts_at']} — ${r['ends_at']}',
+                      onTap: () => go('promotion-pending', r['id'])),
                 button('Поддержка', () => go('support'), outline: true),
               ])));
 }

@@ -33,12 +33,13 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0004_account_views.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0005_invite_queries.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0006_ranking_votes.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0007_product_queries.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
+  async select(kind:string,country:string,options:{owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
@@ -47,6 +48,10 @@ export class Store {
     if(options.caseActor){const actor=bind(options.caseActor);where.push(`(owner=${actor} OR data->>'subject_user_id'=${actor} AND COALESCE(data->>'reporter_private','false')<>'true')`);}
     if(options.caseBucket)where.push("data->>'status' "+(options.caseBucket==='resolved'?'IN':'NOT IN')+" ('resolved','closed','dismissed')");
 
+    if(options.boostBucket){
+      const live="(data->>'status' IN('reserved','payment_pending','scheduled','active','paused','resolution_required') AND (data->>'status'='resolution_required' OR COALESCE(CASE WHEN data->>'status' IN('reserved','payment_pending') THEN data->>'reservation_expires_at' END,data->>'ends_at')::timestamptz>CURRENT_TIMESTAMP))";
+      where.push(options.boostBucket==='active'?live:'NOT '+live);
+    }
     if(options.inviteState){
       if(options.inviteState==='pending')where.push("data->>'status'='pending' AND (data->>'expires_at' IS NULL OR (data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP)");
       else if(options.inviteState==='expired')where.push("(data->>'status'='expired' OR data->>'status'='pending' AND (data->>'expires_at')::timestamptz <= CURRENT_TIMESTAMP)");

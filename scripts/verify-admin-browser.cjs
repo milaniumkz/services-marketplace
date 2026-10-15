@@ -96,6 +96,12 @@ async function main(){
   assert.equal((await marketplace.store.get(brand.id)).release_status,'not_built');
   assert.ok((await marketplace.store.all('audit','KZ')).some(row=>row.action==='brand.bundle_read'));
 
+  await page.goto(frontend+'/#branding-build?version='+brand.id);await page.locator('#build-command').waitFor();
+  await page.locator('#build-reason').fill('Скачать пакет на этапе проверки артефактов');
+  const buildDownload=page.waitForEvent('download');await page.locator('#build-command').getByRole('button',{name:'Скачать пакет',exact:true}).click();
+  assert.ok((await readFile(await (await buildDownload).path())).length>1000);
+  assert.equal(await page.getByText('Нет подтверждённой сборки',{exact:true}).count(),1);
+
   const caseOrder=await ownerCommand('POST','/orders',{title:'Проверка материала для дела',description:'Изолированная задача для проверки решения модератора.',category_id:category,city:'Алматы'});
   const caseReport=await ownerCommand('POST','/cases',{target_type:'order',target_id:caseOrder.id,reason_code:'content',description:'Проверка решения модератора через браузер'});
   await page.goto(frontend+'/#case-live/'+caseReport.id);
@@ -124,6 +130,11 @@ async function main(){
   const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Экспорт сводки',exact:true}).click();
   const download=await downloadEvent,report=JSON.parse(await readFile(await download.path(),'utf8'));
   assert.equal(report.country,'KZ');assert.equal(report.days,30);assert.equal(report.series.length,30);
+  await page.goto(frontend+'/#analytics');await page.locator('#analytics-period').selectOption('30');
+  await page.waitForFunction(()=>document.querySelector('#analytics-period')?.value==='30');
+  const analyticsDownload=page.waitForEvent('download');await page.locator('#analytics-export').click();
+  const analyticsReport=JSON.parse(await readFile(await (await analyticsDownload).path(),'utf8'));
+  assert.equal(analyticsReport.country,'KZ');assert.equal(analyticsReport.days,30);assert.equal(analyticsReport.series.length,30);assert.equal(analyticsReport.rates.selection,null);
   await page.goto(frontend+'/#security');await page.locator('#system-filter').waitFor();
   await capture('A12-security');
   assert.ok(await page.locator('tbody tr').count());assert.equal(await page.getByText(secret,{exact:true}).count(),0);
@@ -178,6 +189,23 @@ async function main(){
   await page.getByRole('button',{name:'Сохранить решение',exact:true}).click();
   await page.getByRole('button',{name:'Сохранить решение',exact:true}).waitFor({state:'detached'});
   profile=await marketplace.store.get(profile.id);assert.equal(profile.status,'published');
+  const boostPolicy={id:randomUUID(),kind:'placement_policy',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'effective',title:'Изолированное место',payload:{placement_id:'home.promoted.services',capacity:2}};
+  await marketplace.store.put(boostPolicy);
+  await marketplace.store.put({id:randomUUID(),kind:'grant',owner:professional.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['search_full'],source:'isolated_browser_fixture'});
+  await page.goto(frontend+'/#boost-grant');await page.locator('#boost-target').fill(profile.id);
+  await page.locator('#boost-placement').selectOption(boostPolicy.payload.placement_id);
+  await page.locator('#boost-end').fill(new Date(Date.now()+3600000).toISOString().slice(0,16));
+  await page.locator('#boost-reason').fill('Бесплатная выдача по изолированному обращению');
+  await page.locator('#boost-grant').getByRole('button',{name:'Предпросмотр выдачи',exact:true}).click();
+  await page.locator('#boost-confirm').waitFor();assert.equal((await marketplace.store.all('boost','KZ')).length,0);
+  await page.locator('#boost-reason').fill('Исправленная причина изолированной выдачи');assert.equal(await page.locator('#boost-confirm').count(),0);
+  await page.locator('#boost-grant').getByRole('button',{name:'Предпросмотр выдачи',exact:true}).click();await page.locator('#boost-confirm').click();
+  await page.locator('#boost-preview').filter({hasText:'Выдано размещение'}).waitFor();
+  const issuedBoost=(await marketplace.store.all('boost','KZ'))[0];assert.equal(issuedBoost.reason,'Исправленная причина изолированной выдачи');
+  await page.goto(frontend+'/#boosts');await page.getByText(issuedBoost.id,{exact:false}).waitFor();
+  assert.equal((await marketplace.store.all('boost','KZ')).length,1);
+  await page.goto(frontend+'/#record-live/contractors/'+profile.id);await page.locator('#refresh-data').waitFor();
+
   profile=await ownerCommand('PUT','/me/contractor-profile',{expected_version:profile.version,title:'Частная новая версия профиля',description:'Черновик ожидает независимой проверки',city:'Алматы',category_id:category});
   profile=await ownerCommand('POST','/me/contractor-profile/publish',{expected_version:profile.version});
   await page.getByRole('button',{name:'Обновить',exact:true}).click();
@@ -314,7 +342,8 @@ async function main(){
       'user-orders':'user-orders?user_id='+professional.user.id,
       'user-cases':'user-cases?user_id='+applicant.user.id,
       'user-decisions':'user-decisions?user_id='+professional.user.id,
-      'job-detail':'job-detail?job_id='+captureJob
+      'job-detail':'job-detail?job_id='+captureJob,
+      'branding-build':'branding-build?version='+brand.id
     };
     for(const frame of frames.filter(frame=>frame.surface==='admin'&&frame.design_route!=='login')){
       const actualRoute=details[frame.design_route]??frame.design_route;
@@ -322,7 +351,7 @@ async function main(){
     }
     await page.getByRole('button',{name:'Выйти',exact:true}).click();
     await page.getByLabel('Рабочий идентификатор').waitFor();
-    assert.equal(await page.evaluate(()=>['user-detail','user-security','user-orders','user-cases','user-decisions','job-detail','scheduled'].some(key=>window.JOBA_ADMIN.routes[key])),false);
+    assert.equal(await page.evaluate(()=>['user-detail','user-security','user-orders','user-cases','user-decisions','job-detail','scheduled','boosts','boost-grant','branding-build'].some(key=>window.JOBA_ADMIN.routes[key])),false);
     // Functional recovery persistence was already checked above. Baseline W02
     // is the initial support form, not the conversation from that prior test.
     await page.goto(web+'/W02.html');await page.evaluate(()=>sessionStorage.removeItem('joba.recovery'));

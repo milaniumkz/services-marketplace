@@ -38,7 +38,7 @@
 | S15.biometric | biometric | — | Нет снимка |
 | S15.password | password | [PNG](mobile/S15.password-password.png) | Нужна сверка |
 | S15.pin | pin-setup | — | Нет снимка |
-| S15.revoke | revoke-session | — | Нет снимка |
+| S15.revoke | revoke-session | [PNG](mobile/S15.revoke-revoke-session.png) | Нужна сверка |
 | S15.sessions | sessions | [PNG](mobile/S15.sessions-sessions.png) | Нужна сверка |
 | S16 | create | [PNG](mobile/S16-create.png) | Нужна сверка |
 | S17 | publish | [PNG](mobile/S17-publish.png) | Нужна сверка |
@@ -110,10 +110,10 @@
 | S41.orders | top-orders | [PNG](mobile/S41.orders-top-orders.png) | Нужна сверка |
 | S42 | promotion | [PNG](mobile/S42-promotion.png) | Нужна сверка |
 | S42.checkout | promotion-checkout | — | Нет снимка |
-| S42.history | promotion-history | — | Нет снимка |
+| S42.history | promotion-history | [PNG](mobile/S42.history-promotion-history.png) | Нужна сверка |
 | S42.no-slots | promotion-no-slots | — | Нет снимка |
-| S42.pending | promotion-pending | — | Нет снимка |
-| S42.resolution | promotion-resolution | — | Нет снимка |
+| S42.pending | promotion-pending | [PNG](mobile/S42.pending-promotion-pending.png) | Нужна сверка |
+| S42.resolution | promotion-resolution | [PNG](mobile/S42.resolution-promotion-resolution.png) | Нужна сверка |
 | S42.terms | promotion-terms | — | Нет снимка |
 | X01 | session-expired | [PNG](mobile/X01-session-expired.png) | Нужна сверка |
 | X02 | offline | [PNG](mobile/X02-offline.png) | Нужна сверка |
@@ -122,7 +122,7 @@
 | A01 | login | [PNG](admin/A01-login.png) | Нужна сверка |
 | A01.1 | mfa | [PNG](admin/A01.1-mfa.png) | Нужна сверка |
 | A02 | dashboard | [PNG](admin/A02-dashboard.png) | Нужна сверка |
-| A02.analytics | analytics | [PNG](admin/A02.analytics-analytics.png) | Сценарий не подключён |
+| A02.analytics | analytics | [PNG](admin/A02.analytics-analytics.png) | Нужна сверка |
 | A02.revenue / FR-033 | revenue | [PNG](admin/A02.revenue---FR-033-revenue.png) | Сценарий не подключён |
 | A03 | users | [PNG](admin/A03-users.png) | Нужна сверка |
 | A03.2 / A12 | user-security | [PNG](admin/A03.2---A12-user-security.png) | Нужна сверка |
@@ -168,14 +168,14 @@
 | A18 | dictionary | [PNG](admin/A18-dictionary.png) | Нужна сверка |
 | A18.dryrun | dictionary-dryrun | [PNG](admin/A18.dryrun-dictionary-dryrun.png) | Сценарий не подключён |
 | A19 | branding | [PNG](admin/A19-branding.png) | Нужна сверка |
-| A19.build | branding-build | [PNG](admin/A19.build-branding-build.png) | Сценарий не подключён |
+| A19.build | branding-build | [PNG](admin/A19.build-branding-build.png) | Нужна сверка |
 | A20 | referrals | [PNG](admin/A20-referrals.png) | Нужна сверка |
 | A20.preview | referral-preview | [PNG](admin/A20.preview-referral-preview.png) | Сценарий не подключён |
 | A21 | support | [PNG](admin/A21-support.png) | Нужна сверка |
 | A21.thread | support-recovery | [PNG](admin/A21.thread-support-recovery.png) | Нужна сверка |
 | A22 | top100 | [PNG](admin/A22-top100.png) | Нужна сверка |
-| A22.boosts | boosts | [PNG](admin/A22.boosts-boosts.png) | Сценарий не подключён |
-| A22.grant | boost-grant | [PNG](admin/A22.grant-boost-grant.png) | Сценарий не подключён |
+| A22.boosts | boosts | [PNG](admin/A22.boosts-boosts.png) | Нужна сверка |
+| A22.grant | boost-grant | [PNG](admin/A22.grant-boost-grant.png) | Нужна сверка |
 | A22.placements | placements | [PNG](admin/A22.placements-placements.png) | Нужна сверка |
 | G01 | users--loading | [PNG](admin/G01-users--loading.png) | Нужна сверка |
 | G02 | users--error | [PNG](admin/G02-users--error.png) | Нужна сверка |

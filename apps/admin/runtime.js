@@ -1,3 +1,5 @@
+import {brandingBuildWorkspace} from './branding-build-workspace.js';
+import {boostWorkspace} from './boost-workspace.js';
 import {userWorkspace,userRoutes} from './user-workspace.js';
 import {brandingWorkspace} from './branding-workspace.js';
 import {countryWorkspace} from './country-workspace.js';
@@ -12,7 +14,7 @@ const {routes,render,card,tablecard,field,note,metric,badge}=window.JOBA_ADMIN;
 const designMode=new URLSearchParams(location.search).has('design');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let session,loginDraft,cache={},error='',generation=0,disposeWorkspace;
-const privateWorkspaces=new Set([...userRoutes,'dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
+const privateWorkspaces=new Set([...userRoutes,'branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
 const cursors={},filters={},configRoutes=new Set(['prices','pricing','monetization','push','referrals','dictionaries','dictionary','categories','ranking','campaigns','placements','verificationPolicies','retention']);
 const sections={users:['users','Аккаунты'],orders:['orders','Заказы'],support:['support-threads','Поддержка'],'support-recovery':['recovery-threads','Восстановление доступа'],moderation:['cases','Дела'],portfolio:['portfolio','Портфолио'],contractors:['contractors','Профили исполнителей'],privacy:['privacy-requests','Запросы приватности'],blacklist:['blacklist','Черный список'],audit:['audit','Аудит'],prices:['price-versions','Цены'],monetization:['monetization-configs','Монетизация'],push:['push-campaigns','Рассылки'],referrals:['referral-campaigns','Реферальные кампании'],dictionaries:['moderation-dictionaries','Словари'],categories:['categories','Категории'],ranking:['ranking-configs','Рейтинг'],pricing:['price-versions','Каталог цен'],campaigns:['promotions','Кампании'],dictionary:['moderation-dictionaries','Запрещенные слова'],verification:['verifications','Проверка документов'],top100:['boost-reports','Топ и продвижение'],placements:['placement-policies','Размещения'],verificationPolicies:['verification-policies','Правила проверки'],retention:['retention-policies','Сроки хранения']};
 function clearStaffState(){
@@ -91,9 +93,11 @@ async function draw(reload=true) {
   try {
     if(reload&&session){
       const workspace=document.querySelector('.workspace');if(workspace){workspace.innerHTML=note('Загрузка данных…');workspace.setAttribute('aria-busy','true');}
+      if(['boosts','boost-grant'].includes(key))routes[key]=await boostWorkspace({key,api:request,esc,card,tablecard,note,badge,onRefresh:()=>draw()});
+      if(key==='branding-build')routes[key]=await brandingBuildWorkspace({key,api:request,download:api.download,esc,card,tablecard,note,badge,onRefresh:()=>draw()});
       if(key==='branding')routes[key]=await brandingWorkspace({key,api:request,files:{upload:async file=>{if(g!==generation)throw Error('Экран изменился');const result=await api.upload(file);if(g!==generation)throw Error('Экран изменился');return result;},download:async path=>{if(g!==generation)throw Error('Экран изменился');const result=await api.download(path);if(g!==generation)throw Error('Экран изменился');return result;}},esc,card,note,badge,namedField,onRefresh:()=>draw()});
       if(key==='countries')routes[key]=await countryWorkspace({key,api:request,esc,card,note,badge,namedField,onRefresh:()=>draw()});
-      if(['dashboard','security','jobs','scheduled','job-detail'].includes(key))routes[key]=await systemWorkspace({key,api:request,esc,card,tablecard,note,metric,badge,onRefresh:()=>draw()});
+      if(['analytics','dashboard','security','jobs','scheduled','job-detail'].includes(key))routes[key]=await systemWorkspace({key,api:request,esc,card,tablecard,note,metric,badge,onRefresh:()=>draw()});
       if(sections[key])cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
       if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});

@@ -12,6 +12,15 @@ function exportSummary(data){
  link.href=url;link.download=`JOBA-${data.country}-${data.server_time.slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 export async function systemWorkspace({key,api,esc,card,tablecard,note,metric,badge,onRefresh}){
+ if(key==='analytics'){
+  const params=new URLSearchParams(location.hash.split('?')[1]||''),days=params.get('days')||'7';
+  const data=await api('/admin/analytics?'+new URLSearchParams({days})),f=data.funnel;
+  const percent=value=>value===null?'—':new Intl.NumberFormat('ru',{style:'percent',maximumFractionDigits:1}).format(value);
+  const labels={published:'Опубликован заказ',with_offer:'Получен хотя бы один отклик',selected:'Выбран исполнитель',completed:'Завершён заказ',mutual_review:'Получен взаимный отзыв'};
+  return {key,id:'A02.analytics',title:'Аналитика продукта',section:'Обзор',subtitle:'Агрегированные показатели текущей страны, без персональных данных.',actions:'<button id="analytics-export">Экспорт сводки</button>',
+   body:()=>`<div class="filters"><span>${esc(names[data.country]||data.country)}</span><select id="analytics-period" aria-label="Период аналитики">${[7,30,90].map(n=>`<option value="${n}" ${data.days===n?'selected':''}>Последние ${n} дней</option>`).join('')}</select><span>UTC · ${esc(data.from.slice(0,10))} — ${esc(data.server_time.slice(0,10))}</span></div><div class="grid cols4">${metric('Выбор исполнителя',percent(data.rates.selection),`${f.selected} / ${f.published}`,'заказов когорты')}${metric('Завершение',percent(data.rates.completion),`${f.completed} / ${f.published}`,'заказов когорты')}${metric('Обращения',percent(data.rates.cases),`${f.with_case} / ${f.published}`,'заказов с обращением')}${metric('Взаимные отзывы',f.mutual_review,'Опубликованы','обоими участниками')}</div><div class="grid split mt">${card('Воронка заказа',`<div class="stack">${Object.entries(labels).map(([k,label])=>`<div><div class="row tiny" style="margin-bottom:8px"><span>${label}</span><b data-funnel="${k}">${f[k]}</b></div><div class="progress"><i style="width:${f.published?Math.min(100,f[k]*100/f.published):0}%"></i></div></div>`).join('')}</div>`)}${card('Определения',Object.entries(data.definitions).map(([k,text])=>`<div class="event"><b>${esc(({cohort:'Когорта',series:'Динамика',...labels,with_case:'Обращения'})[k]||k)}</b><p>${esc(text)}</p></div>`).join(''))}</div><div class="mt">${card('Динамика заказов',chart(data.series,esc),'<a href="#dashboard">Операционный обзор →</a>')}</div>${note('Проценты рассчитаны от опубликованных за выбранный период заказов. Пустая когорта обозначается «—». Доход и возвраты провайдеров не подменяются оценками.')}`,
+   bind(){document.getElementById('analytics-period').onchange=e=>{location.hash='analytics?days='+e.target.value;};document.getElementById('analytics-export').onclick=()=>exportSummary(data);}};
+ }
  if(key==='dashboard'){
   const params=new URLSearchParams(location.hash.split('?')[1]||''),days=params.get('days')||'7';
   const data=await api('/admin/dashboard?'+new URLSearchParams({days}));

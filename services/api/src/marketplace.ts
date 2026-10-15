@@ -1,3 +1,5 @@
+import {boostPresentation} from './boost-presentation';
+import {productAnalytics} from './product-analytics';
 import {rankingParameters} from './ranking';
 import {accountDecisions,securityEventSummary} from './staff-account';
 import {currentLegalDocuments} from './legal-documents';
@@ -311,9 +313,14 @@ export class Marketplace {
       await db.query('UPDATE credentials SET phone=$1 WHERE user_id=$2',[value,a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);
       await this.store.put({...a.user,phone:value,phone_status:'unverified',version:a.user.version+1});await this.store.put(this.record('security_event',a,{event:'phone.changed',ip,occurred_at:new Date().toISOString()}));return {phone:value,phone_status:'unverified'};
     }
-    if(path==='/me/sessions'&&method==='GET')return {items:(await db.query('SELECT DISTINCT family,expires_at FROM tokens WHERE user_id=$1 AND kind=\'refresh\' AND NOT revoked AND NOT used',[a.id])).rows.map(r=>({...r,current:r.family===a.family}))};
+    if(path==='/me/sessions'&&method==='GET')return {items:(await db.query('SELECT DISTINCT family,expires_at FROM tokens WHERE user_id=$1 AND kind=\'refresh\' AND country=$2 AND expires_at>now() AND NOT revoked AND NOT used ORDER BY expires_at DESC',[a.id,a.country])).rows.map(r=>({...r,current:r.family===a.family}))};
     const revokeSession=path.match(/^\/me\/sessions\/([^/]+)$/);
-    if(revokeSession&&method==='DELETE'){await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family=$2',[a.id,revokeSession[1]]);return {revoked:true};}
+    if(revokeSession&&method==='DELETE'){
+      if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(revokeSession[1]))fail(400,'VALIDATION_ERROR','Проверьте ID сессии');
+      const updated=await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND country=$2 AND family=$3 RETURNING family',[a.id,a.country,revokeSession[1]]);
+      if(!updated.rows.length)fail(404,'NOT_FOUND','Сессия не найдена');
+      await this.store.put(this.record('security_event',a,{event:'session.revoked',session_family:revokeSession[1],ip,occurred_at:new Date().toISOString()}));return {revoked:true};
+    }
     if(path==='/me/blocks'&&method==='POST') {
       const target=await this.object(String(b.target_user_id),a,'user');if(target.id===a.id)fail(400,'VALIDATION_ERROR','Нельзя заблокировать себя');
       const old=(await this.store.all('pair_block',a.country)).find(x=>x.owner===a.id&&x.target_id===target.id&&x.status==='active');
@@ -783,7 +790,11 @@ export class Marketplace {
     if(path==='/boost-offers'&&method==='GET'){await this.entitlement(a,'search_full');return {items:(await this.store.all('price_version',a.country)).filter(x=>x.status==='effective'&&x.payload.product_type==='boost').map(x=>({id:x.id,...x.payload})),placements:(await this.store.all('placement_policy',a.country)).filter(x=>x.status==='effective')};}
     if(path==='/boost-reservations'&&method==='POST'){const target=await this.object(String(b.target_id),a,undefined,true);await this.entitlement(a,'search_full',target.kind==='contractor');return this.growth.reserveBoost(a.id,a.country,b);}
     if(path==='/boost-purchases/verify'&&method==='POST')return this.growth.verifyBoost(a.id,a.country,b);
-    if(path==='/me/boosts'&&method==='GET')return this.list((await this.store.all('boost',a.country)).filter(x=>x.owner===a.id),q);
+    if(path==='/me/boosts'&&method==='GET'){
+      if(q.bucket!==undefined&&!['active','history'].includes(q.bucket))fail(400,'VALIDATION_ERROR','Выберите раздел размещений');
+      const page=await this.page('boost',a,q,{owner:a.id,boostBucket:q.bucket});return {...page,items:await boostPresentation(this.store,a.country,page.items)};
+    }
+    const ownBoost=path.match(/^\/me\/boosts\/([^/]+)$/);if(ownBoost&&method==='GET')return (await boostPresentation(this.store,a.country,[await this.object(ownBoost[1],a,'boost',true)]))[0];
     if(path==='/uploads/initiate'&&method==='POST') {
       if(!['avatar','portfolio','order','chat','identity','brand'].includes(b.purpose))fail(400,'VALIDATION_ERROR','Недопустимая цель загрузки');
       if(b.purpose==='brand'){await this.staff(a,'content');if(b.mime!=='image/png'||b.size>5*1024*1024)fail(422,'POLICY_REJECTED','Нужен PNG до 5 MB');}
@@ -858,9 +869,10 @@ export class Marketplace {
         await this.audit(a,'brand.bundle_read',record.id,text(q,'reason',10,1000));
         return {download_stream:await this.files.readStream(record.bundle_file_id),download_size:record.bundle_size,download_filename:'joba-icons.zip',mime:'application/zip'};
       }
-      const permission=({'security-events':'security',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({'security-events':'security',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy','country-controls':'country_control',verifications:'verification'};
+      if(path==='/admin/analytics'&&method==='GET'){const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');return productAnalytics(this.store,a.country,days);}
       if(path==='/admin/dashboard'&&method==='GET') {
         const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');
         return operationsOverview(this.store,a.country,days);
@@ -905,6 +917,7 @@ export class Marketplace {
         const updated=await this.store.put({...r!,...updates,failure_code:null,next_attempt_at:new Date().toISOString(),version:r!.version+1});
         await this.audit(a,'job.retry_requested',r!.id,reason);return operationJob(updated);
       }
+      if(path==='/admin/boost-grants/preview'&&method==='POST'){await this.staff(a,'promotion');return (await this.growth.previewAdminBoost(a.country,b)).preview;}
       if(path==='/admin/boost-grants'&&method==='POST'){await this.staff(a,'promotion');const reason=text(b,'reason',10,1000);const result=await this.growth.adminBoost(a.id,a.country,{...b,reason});await this.audit(a,'boost.admin_grant',result.id,reason);return result;}
       if(path==='/admin/boost-reports'&&method==='GET'){await this.staff(a,'promotion');return this.list(await this.store.all('boost',a.country),q);}
       if(path==='/admin/monetization-summary'&&method==='GET') {
@@ -1168,7 +1181,7 @@ export class Marketplace {
   private async nextCursor(id:string,q:any) {
     const payload=Buffer.from(JSON.stringify({after:id,filter_hash:this.filterHash(q),expires_at:new Date(Date.now()+86400000).toISOString()})).toString('base64url');return payload+'.'+await this.files.requestDigest(payload);
   }
-  private async page(kind:string,a:Actor,q:any,options:{owner?:string;recipient?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean}={}) {
+  private async page(kind:string,a:Actor,q:any,options:{owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const filters:any={};
     if(kind==='contractor'&&options.publicActor){

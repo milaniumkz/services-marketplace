@@ -91,7 +91,7 @@ class JobaStatePanel extends StatelessWidget {
           SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                  onPressed: onSecondary, child: UiText(secondaryLabel!)))
+                  onPressed: busy ? null : onSecondary, child: UiText(secondaryLabel!)))
         ]
       ]));
 }
