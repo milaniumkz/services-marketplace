@@ -42,7 +42,15 @@ mkdir -p "$joba_release"
 if [[ ! -d "$joba_release/source/.git" ]]; then
   git init -q "$joba_release/source"
   git -C "$joba_release/source" remote add origin https://github.com/milaniumkz/services-marketplace.git
-  git -C "$joba_release/source" fetch --depth=1 origin "$joba_commit"
+  # Reuse verified Git objects locally; fetch only the changed objects online.
+  if [[ -d /opt/joba/current/.git ]]; then
+    git -C "$joba_release/source" fetch --no-tags /opt/joba/current HEAD:refs/heads/joba-previous-release
+  fi
+fi
+if [[ "$(git -C "$joba_release/source" rev-parse --verify HEAD 2>/dev/null || true)" != "$joba_commit" ]]; then
+  [[ -z "$(git -C "$joba_release/source" status --porcelain --untracked-files=no)" ]] || { echo 'Release source was modified; refusing overwrite' >&2; exit 1; }
+  printf '%s\n' 'Fetching the exact release from GitHub'
+  timeout 300 git -C "$joba_release/source" -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=90 fetch --progress --depth=1 origin "$joba_commit"
   git -C "$joba_release/source" checkout --detach FETCH_HEAD
 fi
 [[ "$(git -C "$joba_release/source" rev-parse HEAD)" == "$joba_commit" ]] || exit 1

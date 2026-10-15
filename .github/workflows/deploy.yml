@@ -91,7 +91,7 @@ jobs:
           ssh-keyscan -T 10 -t ed25519 -p "$JOBA_SSH_PORT" "$JOBA_SSH_HOST" > "$HOME/.ssh/known_hosts"
           joba_fingerprint="$(ssh-keygen -lf "$HOME/.ssh/known_hosts" -E sha256 | awk '{print $2}')"
           test "$joba_fingerprint" = "$JOBA_SSH_HOST_FINGERPRINT" || { echo 'SSH host key changed; verify the server identity before deployment'; exit 1; }
-          joba_ssh=(ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -p "$JOBA_SSH_PORT")
+          joba_ssh=(ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -p "$JOBA_SSH_PORT")
           joba_scp=(scp -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -P "$JOBA_SSH_PORT")
           if test -n "$SSH_PRIVATE_KEY"; then
             printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/joba_deploy"
