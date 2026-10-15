@@ -36,7 +36,12 @@ def acquire():
     run_id=os.environ['GITHUB_RUN_ID']+'-'+os.environ['GITHUB_RUN_ATTEMPT']
     with tempfile.TemporaryDirectory(prefix='joba-recipient-') as directory:
         private,request=challenge(Path(directory),run_id,os.environ['GITHUB_SHA'])
-        print('::notice title=Deployment credential challenge::'+json.dumps(request,separators=(',',':')),flush=True)
+        # Publish public metadata as a separate completed check: live job log
+        # annotations are buffered until a step ends and cannot be a mailbox.
+        public_check={'name':'bootstrap-key-'+run_id,'head_sha':request['commit'],'status':'completed','conclusion':'neutral','output':{'title':'One-time bootstrap public key','summary':json.dumps(request,separators=(',',':'))}}
+        publication=urllib.request.Request('https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/check-runs',method='POST',data=json.dumps(public_check).encode(),headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'joba-deployment-bootstrap'})
+        with urllib.request.urlopen(publication,timeout=20) as response:published=json.load(response)
+        print('Public bootstrap key published as check '+str(published['id']),flush=True)
         endpoint='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/envelope.json?ref=deploy/credential-'+run_id
         deadline=time.monotonic()+600
         while time.monotonic()<deadline:

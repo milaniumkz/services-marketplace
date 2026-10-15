@@ -60,6 +60,9 @@ jobs:
           path: release-web.tgz
           retention-days: 7
   deploy:
+    permissions:
+      contents: read
+      checks: write
     needs: [inspect, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
