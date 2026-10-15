@@ -1,6 +1,7 @@
 import '../core/design_states.dart';
 import 'search_filters.dart';
 import 'support_new.dart';
+import 'legal_documents.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -698,6 +699,21 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return lockSetup();
       case 'unlock':
         return unlockScreen();
+      case 'legal':
+        return page(
+            'Правовые документы',
+            LegalDocuments(
+                api: api,
+                country: country,
+                locale: locale,
+                countryLabel: countryName(country),
+                localeLabel: {
+                      'ru': 'Русский',
+                      'kk': 'Қазақша',
+                      'sr': 'Srpski',
+                      'be': 'Беларуская'
+                    }[locale] ??
+                    locale));
       case 'support-new':
         return page(
             'Новое обращение',
@@ -3924,6 +3940,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 button(
                     'Удалить аккаунт', () => privacyRequest('delete', reload),
                     outline: true),
+                button('Правовые документы', () => go('legal'), outline: true),
                 button('Согласия и документы', () => go('terms'),
                     outline: true),
               ])));
@@ -4275,7 +4292,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 style: TextStyle(fontSize: 12, color: muted))),
         const SizedBox(height: 24),
         JobaMenu([
-          JobaMenuEntry('Документы и согласия', 'file', () => go('terms')),
+          JobaMenuEntry('Правовые документы', 'file', () => go('legal')),
+          JobaMenuEntry('Документы и согласия', 'shield', () => go('terms')),
           JobaMenuEntry('Поддержка', 'help', () => go('support'))
         ])
       ]));

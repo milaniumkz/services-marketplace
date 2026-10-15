@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'legal_documents.dart';
 import '../core/api.dart';
 import '../core/design_widgets.dart';
 import '../core/l10n.dart';
@@ -95,12 +96,7 @@ class _OnboardingConsentState extends State<OnboardingConsent> {
     Navigator.push(
         context,
         MaterialPageRoute<void>(
-            builder: (context) => Scaffold(
-                appBar: AppBar(title: UiText(title)),
-                body: ListView(padding: const EdgeInsets.all(20), children: [
-                  Text('${d['content'] ?? ''}',
-                      style: const TextStyle(fontSize: 14, height: 1.6))
-                ]))));
+            builder: (context) => LegalDocumentReader(document: Json.from(d))));
   }
 
   Widget check(String label, bool value, ValueChanged<bool> change) =>

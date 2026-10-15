@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 142,
-    "not_captured": 45,
+    "captured": 143,
+    "not_captured": 44,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -131,7 +131,24 @@
       "route": "legal",
       "reference": "mobile/screens/S03.documents-legal.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S03.documents-legal.png",
+      "actual_route": "legal",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.162333,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1409,7 +1426,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.125516,
+      "different_pixels_ratio": 0.129799,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
