@@ -44,7 +44,7 @@ if [[ ! -d "$joba_release/source/.git" ]]; then
   git -C "$joba_release/source" remote add origin https://github.com/milaniumkz/services-marketplace.git
   # Reuse verified Git objects locally; fetch only the changed objects online.
   if [[ -d /opt/joba/current/.git ]]; then
-    git -C "$joba_release/source" fetch --no-tags /opt/joba/current HEAD:refs/heads/joba-previous-release
+    git -C "$joba_release/source" fetch --update-shallow --no-tags /opt/joba/current HEAD:refs/heads/joba-previous-release
   fi
 fi
 if [[ "$(git -C "$joba_release/source" rev-parse --verify HEAD 2>/dev/null || true)" != "$joba_commit" ]]; then
