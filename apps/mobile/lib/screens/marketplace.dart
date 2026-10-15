@@ -23,6 +23,7 @@ import 'geo_states.dart';
 import '../core/commerce_gateway.dart';
 import 'work_states.dart';
 import 'portfolio_photos.dart';
+import 'portfolio_editor.dart';
 import 'promotions_history.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
@@ -4861,149 +4862,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     if (mounted) go('portfolio');
                   }))));
   Widget projectScreen() => page(
-      objectId == null ? 'Новый проект' : 'Проект и фото',
-      ApiView(
-          key: ValueKey('project:$objectId:$revision'),
-          load: () => Future.wait([
-                api.request('/catalog/categories'),
-                objectId == null
-                    ? Future.value(null)
-                    : api.request('/me/portfolio-projects/$objectId')
-              ]),
-          builder: (c, data, reload) {
-            final p = data[1] as Json?;
-            return ActionForm(
-                fields: [
-                  InputSpec('title', 'Название проекта',
-                      initial: p?['title'] ?? '', validate: titleCheck),
-                  InputSpec('description', 'Описание',
-                      initial: p?['description'] ?? '',
-                      multiline: true,
-                      required: false),
-                  InputSpec('category_id', 'Категория',
-                      translateOptions: false,
-                      initial: p?['category_id'] ?? '',
-                      options: {
-                        for (final r in items(data[0])) r['id']: r['name']
-                      }),
-                  InputSpec('order_id', 'Связать с выполненным заказом',
-                      pickerApi: api,
-                      pickerPath: '/me/completed-orders',
-                      pickerQuery: const {'role': 'executor'},
-                      translateOptions: false,
-                      initial: p?['order_id'] ?? '',
-                      required: false,
-                      options: const {'': 'Без связи с заказом'}),
-                  InputSpec('rights_confirmed',
-                      'У меня есть права на публикацию материалов',
-                      initial: '${p?['rights_confirmed'] ?? false}',
-                      options: const {
-                        'false': 'Не подтверждено',
-                        'true': 'Подтверждаю'
-                      })
-                ],
-                submit: (v) async {
-                  final saved = await api.request(
-                      p == null
-                          ? '/me/portfolio-projects'
-                          : '/me/portfolio-projects/${p['id']}',
-                      method: p == null ? 'POST' : 'PATCH',
-                      body: {
-                        ...v,
-                        'order_id':
-                            v['order_id']!.isEmpty ? null : v['order_id'],
-                        'rights_confirmed': v['rights_confirmed'] == 'true',
-                        if (p != null) 'expected_version': p['version']
-                      }) as Json;
-                  success('Проект сохранён');
-                  go('portfolio-project', saved['id']);
-                },
-                after: [
-                  if (p != null) ...[
-                    Notice(
-                        '${localize(context, status(p))} · ${(p['photos'] as List).length} ${localize(context, 'фото')}'),
-                    button('Фото проекта',()=>go('portfolio-photos',p['id']),outline:true),
-                    for (final photo in p['photos'] as List) ...[
-                      PrivatePhoto(api: api, id: photo),
-                      Row(children: [
-                        Expanded(
-                            child: button(
-                                'Обложка',
-                                () => act(() async {
-                                      await api.request(
-                                          '/me/portfolio-projects/${p['id']}',
-                                          method: 'PATCH',
-                                          body: {
-                                            'expected_version': p['version'],
-                                            'cover_id': photo
-                                          });
-                                      reload();
-                                    }),
-                                outline: true)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                            child: button(
-                                'Удалить фото',
-                                () => act(() async {
-                                      final photos = (p['photos'] as List)
-                                          .where((id) => id != photo)
-                                          .toList();
-                                      await api.request(
-                                          '/me/portfolio-projects/${p['id']}',
-                                          method: 'PATCH',
-                                          body: {
-                                            'expected_version': p['version'],
-                                            'upload_ids': photos,
-                                            if (photos.isNotEmpty &&
-                                                p['cover_id'] == photo)
-                                              'cover_id': photos.first
-                                          });
-                                      reload();
-                                    }),
-                                outline: true))
-                      ]),
-                      const SizedBox(height: 16),
-                    ],
-                    button(
-                        'Добавить фотографию',
-                        () => act(() async {
-                              final upload = await pickUpload('portfolio');
-                              if (upload == null) return;
-                              await api.request(
-                                  '/me/portfolio-projects/${p['id']}',
-                                  method: 'PATCH',
-                                  body: {
-                                    'expected_version': p['version'],
-                                    'upload_ids': [...p['photos'], upload['id']]
-                                  });
-                              reload();
-                            }),
-                        outline: true),
-                    button(
-                        'Отправить на проверку',
-                        () => act(() async {
-                              await api.request(
-                                  '/me/portfolio-projects/${p['id']}/submit',
-                                  method: 'POST',
-                                  body: {'expected_version': p['version']});
-                              go('portfolio-pending', p['id']);
-                            })),
-                    button('История опубликованных версий',
-                        () => go('content-history', p['id']),
-                        outline: true),
-                    button(
-                        'Удалить проект',
-                        () => act(() async {
-                              await api.request(
-                                  '/me/portfolio-projects/${p['id']}',
-                                  method: 'DELETE',
-                                  body: {'expected_version': p['version']});
-                              go('portfolio');
-                            }),
-                        outline: true)
-                  ]
-                ]);
-          }));
+      objectId == null ? 'Новый проект' : 'Редактировать проект',
+      PortfolioEditor(key: ValueKey('project:$objectId:$revision'), api: api,
+          id: objectId, pickPhoto: () => pickUpload('portfolio'),
+          onGo: (route, id) => go(route, id)), titleOffset: -12);
   Future<Json?> pickUpload(String purpose, {String? verificationId}) async {
     final selected = await FilePicker.platform.pickFiles(
         type: FileType.custom,

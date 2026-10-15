@@ -446,11 +446,13 @@ void main() {
           'id': 'visual-object',
           'version': 1,
           'status':
-              route == 'portfolio-pending' ? 'pending_review' : 'published',
+              route == 'portfolio-pending' ? 'pending_review' : route == 'portfolio-edit' ? 'draft' : 'published',
           'public_status': 'published',
           'public_visible': true,
-          'title': 'Ремонт комнаты',
-          'description': 'Покраска стен и отделка',
+          'title': route == 'portfolio-edit' ? 'Гостиная в тёплых тонах' : 'Ремонт комнаты',
+          'description': route == 'portfolio-edit' ? 'Обновили отделку стен, уложили покрытие и собрали мебель. Сохранили много света.' : 'Покраска стен и отделка',
+          'category_id': 'repair',
+          'rights_confirmed': true,
           'category_name': 'Ремонт',
           'linked_completed_order': true,
           'photos': ['visual-interior', 'visual-kitchen']
