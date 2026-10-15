@@ -1,0 +1,19 @@
+name: Server deployment diagnostics
+on:
+  push:
+    branches: [ops/joba-diagnostics]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  checks: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: python3 scripts/report-server-deployment.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JOBA_DIAGNOSTIC_JOB: '116412577475'
