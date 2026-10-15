@@ -6,6 +6,7 @@ import 'account_restrictions.dart';
 import 'appeal_editor.dart';
 import 'action_receipt.dart';
 import 'content_review_receipt.dart';
+import 'privacy_export.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -138,6 +139,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Json listingFilters = {};
   bool? ordersHasAny;
   String catalogPresentation = 'loading';
+  String exportTitle = 'Экспорт готовится';
   String ordersBucket = 'active';
   final List<String> draftPhotos = [];
   final Map<String, List<String>> verificationUploads = {};
@@ -405,6 +407,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       history.add((route, objectId));
       route = next;
       if (next == 'catalog') catalogPresentation = 'loading';
+      if (next == 'export-pending') exportTitle = 'Экспорт готовится';
       if (next == 'offer') {
         offerAcknowledged = false;
         acknowledgedOrderRevision = null;
@@ -1099,6 +1102,35 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           : 'Рекламные награды сейчас отключены.'),
                       button('Мой доступ', () => go('my-access'), outline: true)
                     ])));
+      case 'export':
+        return page('Экспорт моих данных',
+            ExportIntro(onRequest: () => privacyRequest('export', () {})),
+            titleOffset: -12);
+      case 'export-pending':
+        final exportRequestId = objectId;
+        return page(
+            exportTitle,
+            ExportStatus(
+                key: ValueKey('export:$objectId:$revision'),
+                api: api,
+                id: objectId!,
+                busy: actionBusy,
+                onTitle: (title) {
+                  if (mounted &&
+                      route == 'export-pending' &&
+                      objectId == exportRequestId &&
+                      exportTitle != title) setState(() => exportTitle = title);
+                },
+                onPrivacy: () => go('privacy'),
+                onNewRequest: () => go('export'),
+                onDownload: (id) => act(() async {
+                      final result = await saveExport(api, id);
+                      if (result == ExportResult.saved)
+                        success('Архив сохранён');
+                      if (result == ExportResult.started)
+                        success('Загрузка передана браузеру');
+                    })),
+            titleOffset: -12);
       case 'privacy':
         return privacyScreen();
       case 'security':
@@ -1316,8 +1348,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               style: TextStyle(fontSize: 11, color: Color(0xFF627187))),
         ])),
         Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: line))),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
             child: FilledButton(
                 onPressed: actionBusy
                     ? null
@@ -2560,8 +2594,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Widget stickyActions(List<Widget> actions) => SafeArea(
       top: false,
       child: Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: line))),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
           child: Row(children: [
             for (var index = 0; index < actions.length; index++) ...[
               if (index > 0) const SizedBox(width: 10),
@@ -4036,6 +4072,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           : 'Удаление аккаунта',
                       translateTitle: true,
                       status: status(r),
+                      onTap: r['type'] == 'export'
+                          ? () => go('export-pending', r['id'])
+                          : null,
                       footer: Column(children: [
                         if (r['type'] == 'export' &&
                             r['status'] == 'completed' &&
@@ -4066,8 +4105,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               outline: true),
                       ])),
                 button('Обновить статус', reload, outline: true),
-                button('Экспортировать данные',
-                    () => privacyRequest('export', reload)),
+                button('Экспортировать данные', () => go('export')),
                 button(
                     'Удалить аккаунт', () => privacyRequest('delete', reload),
                     outline: true),
@@ -4095,9 +4133,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   ],
                   button: 'Создать запрос',
                   submit: (v) async {
-                    await api.request('/me/privacy-requests',
-                        method: 'POST', body: {...v, 'type': type});
+                    final request = await api.request('/me/privacy-requests',
+                        method: 'POST', body: {...v, 'type': type}) as Json;
                     if (c.mounted) Navigator.pop(c);
+                    if (type == 'export') {
+                      go('export-pending', request['id']);
+                      return;
+                    }
                     success('Запрос создан');
                     reload();
                   }))));
@@ -4340,8 +4382,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   SafeArea(
                       top: false,
                       child: Container(
-                          color: Colors.white,
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                          decoration: const BoxDecoration(
+                              color: Colors.white,
+                              border: Border(top: BorderSide(color: line))),
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
                           child: FilledButton(
                               onPressed: actionBusy
                                   ? null

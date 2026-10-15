@@ -3594,6 +3594,7 @@
         "tags": [
           "me"
         ],
+        "description": "Requires current_password. REAUTH_REQUIRED (401) denotes an incorrect current password and must not refresh or revoke an otherwise valid session.",
         "security": [
           {
             "BearerAuth": []
@@ -6556,6 +6557,7 @@
         "tags": [
           "me"
         ],
+        "description": "Own country-scoped privacy request. Export requests include download_available and download_expires_at, derived from the owned clean export upload and its current expiry. A completed job alone does not establish download availability.",
         "security": [
           {
             "BearerAuth": []

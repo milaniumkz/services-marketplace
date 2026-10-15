@@ -264,12 +264,6 @@ class JobaApi extends ChangeNotifier {
     if (authenticated && capability == null && generation != _generation)
       throw ApiException(
           'SESSION_SUPERSEDED', 'Сессия изменилась. Повторите вход', 401);
-    if (response.statusCode == 401 && authenticated && !rotated) {
-      await refresh();
-      // Keep the original idempotency key when replaying a mutation.
-      return _send(uri, method, body, key, authenticated,
-          rotated: true, capability: capability, sessionGeneration: generation);
-    }
     dynamic decoded;
     try {
       decoded = jsonDecode(response.body);
@@ -277,15 +271,33 @@ class JobaApi extends ChangeNotifier {
       throw ApiException('INVALID_RESPONSE', 'Сервер вернул некорректный ответ',
           response.statusCode);
     }
+    if (decoded is! Map)
+      throw ApiException('INVALID_RESPONSE', 'Сервер вернул некорректный ответ',
+          response.statusCode);
+    final responseError =
+        decoded['error'] is Map ? decoded['error'] as Map : const {};
+    final errorCode = responseError['code'];
+    if (response.statusCode == 401 &&
+        authenticated &&
+        capability == null &&
+        errorCode == 'TOKEN_EXPIRED' &&
+        !rotated) {
+      await refresh();
+      return _send(uri, method, body, key, authenticated,
+          rotated: true, capability: capability, sessionGeneration: generation);
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      if (response.statusCode == 401 && authenticated)
-        await forget(expired: true);
+      if (response.statusCode == 401 &&
+          authenticated &&
+          capability == null &&
+          ['TOKEN_EXPIRED', 'UNAUTHENTICATED', 'REFRESH_REPLAY']
+              .contains(errorCode)) await forget(expired: true);
       throw ApiException(
-          decoded['error']?['code'] ?? 'SERVER_ERROR',
-          decoded['error']?['message'] ?? 'Не удалось выполнить запрос',
+          responseError['code'] ?? 'SERVER_ERROR',
+          responseError['message'] ?? 'Не удалось выполнить запрос',
           response.statusCode,
-          decoded['error']?['details'] is Map
-              ? Map<String, dynamic>.from(decoded['error']['details'])
+          responseError['details'] is Map
+              ? Map<String, dynamic>.from(responseError['details'])
               : const {});
     }
     serverTime = decoded['meta']?['server_time'];

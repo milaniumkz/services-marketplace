@@ -5,29 +5,34 @@ import 'l10n.dart';
 import 'theme.dart';
 
 class JobaStatePanel extends StatelessWidget {
-  final String title, message, icon, primaryLabel;
-  final VoidCallback onPrimary;
+  final String title, message, icon;
+  final String? primaryLabel;
+  final VoidCallback? onPrimary;
   final String? secondaryLabel;
   final VoidCallback? onSecondary;
-  final bool brand, destructive;
+  final bool brand, destructive, busy;
+  final EdgeInsets contentPadding;
   final Color iconColor;
   final Color? iconFill;
   const JobaStatePanel(
       {required this.title,
       required this.message,
       required this.icon,
-      required this.primaryLabel,
-      required this.onPrimary,
+      this.primaryLabel,
+      this.onPrimary,
       this.secondaryLabel,
       this.onSecondary,
       this.brand = false,
+      this.busy = false,
+      this.contentPadding =
+          const EdgeInsets.symmetric(horizontal: 23, vertical: 38),
       this.iconColor = navy,
       this.iconFill,
       this.destructive = false,
       super.key});
   @override
   Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 23, vertical: 38),
+      padding: contentPadding,
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         if (brand)
           ClipRRect(
@@ -62,17 +67,25 @@ class JobaStatePanel extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
                 fontSize: 13, height: 1.55, color: Color(0xFF627187))),
-        const SizedBox(height: 24),
-        SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-                onPressed: onPrimary,
-                style: destructive
-                    ? FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFBECEC),
-                        foregroundColor: const Color(0xFFB83232))
-                    : null,
-                child: UiText(primaryLabel))),
+        if (primaryLabel != null && onPrimary != null) ...[
+          const SizedBox(height: 24),
+          SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                  onPressed: busy ? null : onPrimary,
+                  style: destructive
+                      ? FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFFBECEC),
+                          foregroundColor: const Color(0xFFB83232))
+                      : null,
+                  child: busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : UiText(primaryLabel!))),
+        ],
         if (secondaryLabel != null && onSecondary != null) ...[
           const SizedBox(height: 20),
           SizedBox(

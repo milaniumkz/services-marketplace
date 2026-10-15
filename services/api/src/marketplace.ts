@@ -701,7 +701,12 @@ export class Marketplace {
     if(reviews&&method==='GET'){await this.entitlement(a,'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status)),q);}
     if(path==='/me/privacy-requests'&&method==='POST'){await this.reauth(a,b);if(!['export','delete'].includes(b.type))fail(400,'VALIDATION_ERROR','Выберите тип запроса');return this.store.put(this.record('privacy',a,{type:b.type,status:'requested'}));}
     if(path==='/me/privacy-requests'&&method==='GET')return {items:(await this.store.all('privacy',a.country)).filter(x=>x.owner===a.id)};
-    const privacy=path.match(/^\/me\/privacy-requests\/([^/]+)$/);if(privacy&&method==='GET')return this.object(privacy[1],a,'privacy',true);
+    const privacy=path.match(/^\/me\/privacy-requests\/([^/]+)$/);if(privacy&&method==='GET'){
+      const r=await this.object(privacy[1],a,'privacy',true);if(r.type!=='export')return r;
+      const file=r.upload_id?await this.store.get(r.upload_id):undefined;
+      const owned=file?.kind==='upload'&&file.purpose==='export'&&file.owner===a.id&&file.country===a.country;
+      return {...r,download_available:!!(r.status==='completed'&&owned&&file.status==='clean'&&file.expires_at>new Date().toISOString()),download_expires_at:owned?file.expires_at:null};
+    }
     const privacyCancel=path.match(/^\/me\/privacy-requests\/([^/]+)\/cancel$/);
     if(privacyCancel&&method==='POST') {
       const r=await this.object(privacyCancel[1],a,'privacy',true);this.version(r,b);
@@ -1143,7 +1148,7 @@ export class Marketplace {
   }
   private async reauth(a:Actor,b:any) {
     const c=(await this.store.db.query<any>('SELECT password_hash FROM credentials WHERE user_id=$1',[a.id])).rows[0];
-    if(!c||!await verify(c.password_hash,String(b.current_password??'')))fail(401,'INVALID_CREDENTIALS','Подтвердите текущий пароль');
+    if(!c||!await verify(c.password_hash,String(b.current_password??'')))fail(401,'REAUTH_REQUIRED','Подтвердите текущий пароль');
   }
   private pageLimit(q:any) {const limit=q.limit===undefined?20:Number(q.limit);if(!Number.isInteger(limit)||limit<1||limit>100)fail(400,'VALIDATION_ERROR','limit должен быть от 1 до 100');return limit;}
   private filterHash(q:any) {return digest(JSON.stringify(Object.fromEntries(Object.entries(q).filter(([k])=>!['cursor','limit'].includes(k)).sort(([a],[b])=>a.localeCompare(b)))));}

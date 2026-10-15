@@ -241,6 +241,13 @@ void main() {
           'description': 'Материал ограничен после проверки.',
           'upload_ids': []
         };
+      else if (path == '/me/privacy-requests/visual-object')
+        data = {
+          'id': 'visual-object',
+          'type': 'export',
+          'status': 'processing',
+          'download_available': false
+        };
       else if (path == '/me/restrictions')
         data = {
           'items': [

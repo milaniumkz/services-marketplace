@@ -56,7 +56,7 @@ test('new account keeps an empty profile; changing a phone requires password and
   try{
     const u=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000201',password:'a long safe test password'},undefined,undefined,{},'test');assert.equal(u.user.display_name,'');
     await create(api,'+77000000202');
-    await assert.rejects(()=>command(api,u,'POST','/me/phone-change-requests',{new_phone:'+77000000203',current_password:'wrong'}),e=>e.getResponse().error.code==='INVALID_CREDENTIALS');
+    await assert.rejects(()=>command(api,u,'POST','/me/phone-change-requests',{new_phone:'+77000000203',current_password:'wrong'}),e=>e.getResponse().error.code==='REAUTH_REQUIRED');
     await assert.rejects(()=>command(api,u,'POST','/me/phone-change-requests',{new_phone:'+77000000202',current_password:'a long safe test password'}),e=>e.getResponse().error.code==='PHONE_CHANGE_UNAVAILABLE');
     const changed=await command(api,u,'POST','/me/phone-change-requests',{new_phone:'+77000000203',current_password:'a long safe test password'});assert.equal(changed.phone_status,'unverified');
     const me=await command(api,u,'GET','/me');assert.equal(me.id,u.user.id);assert.equal(me.phone,'+77000000203');

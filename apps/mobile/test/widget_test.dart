@@ -43,6 +43,43 @@ class RecordingSink implements StreamConsumer<List<int>> {
 
 void main() {
   test(
+      'reauthentication and credential errors preserve current credentials without spending a refresh token',
+      () async {
+    final vault = MemoryVault()..value = 'isolated saved session';
+    var refreshes = 0;
+    String code = 'REAUTH_REQUIRED';
+    final api = JobaApi('https://isolated.example', vault: vault,
+        transport: MockClient((r) async {
+      if (r.url.path.endsWith('/auth/refresh')) refreshes++;
+      return http.Response(
+          jsonEncode({
+            'error': {'code': code}
+          }),
+          401);
+    }))
+      ..session = {
+        'access_token': 'isolated-access',
+        'refresh_token': 'isolated-refresh',
+        'user': {'id': 'isolated-owner'}
+      };
+    for (final failure in ['REAUTH_REQUIRED', 'INVALID_CREDENTIALS']) {
+      code = failure;
+      await expectLater(
+          api.request('/me/privacy-requests', method: 'POST', body: {
+            'type': 'export',
+            'current_password': 'isolated wrong password'
+          }),
+          throwsA(isA<ApiException>().having((e) => e.code, 'code', failure)));
+      expect(api.authenticated, true);
+      expect(api.sessionExpired, false);
+      expect(api.accessToken, 'isolated-access');
+      expect(vault.value, 'isolated saved session');
+    }
+    expect(refreshes, 0);
+    api.dispose();
+  });
+
+  test(
       'expired access without refresh clears credentials and distinguishes expiry from explicit logout',
       () async {
     final vault = MemoryVault()..value = 'isolated saved session';

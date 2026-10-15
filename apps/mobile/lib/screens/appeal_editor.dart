@@ -151,7 +151,8 @@ class _AppealEditorState extends State<AppealEditor> {
                 Notice(errorText(context, uploadError!), error: true),
               for (final file in attachments)
                 ListTile(
-                    title: UiText('Файл ${attachments.indexOf(file) + 1}'),
+                    title: Text(
+                        '${localize(context, 'Файл')} ${attachments.indexOf(file) + 1}'),
                     trailing: IconButton(
                         tooltip: localize(context, 'Удалить'),
                         onPressed: busy

@@ -141,8 +141,10 @@ class AccountRestrictions extends StatelessWidget {
             SafeArea(
                 top: false,
                 child: Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                    decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(top: BorderSide(color: lineColor))),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
                     width: double.infinity,
                     child: FilledButton(
                         onPressed: () => onAppeal(appealable.first['case_id']),

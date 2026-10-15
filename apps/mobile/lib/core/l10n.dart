@@ -15,6 +15,7 @@ String errorText(BuildContext context, Object error) {
       translated != source) return translated;
   final message = const {
         'INVALID_CREDENTIALS': 'Неверный номер или пароль',
+        'REAUTH_REQUIRED': 'Подтвердите текущий пароль',
         'REGISTRATION_UNAVAILABLE':
             'Не удалось зарегистрироваться. Обратитесь в поддержку.',
         'SESSION_SUPERSEDED': 'Войдите снова с номером и паролем.',

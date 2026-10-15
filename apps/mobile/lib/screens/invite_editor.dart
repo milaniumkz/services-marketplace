@@ -188,11 +188,13 @@ class _InviteEditorState extends State<InviteEditor> {
                           Notice(errorText(context, error!), error: true)
                       ]))),
           Container(
-              color: Colors.white,
+              decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: line))),
               child: SafeArea(
                   top: false,
                   child: Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
                       child: SizedBox(
                           width: double.infinity,
                           child: FilledButton(

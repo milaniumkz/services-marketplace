@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 152,
-    "not_captured": 35,
+    "captured": 154,
+    "not_captured": 33,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -27,7 +27,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.092434,
+      "different_pixels_ratio": 0.070139,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -135,7 +135,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.096054,
+      "different_pixels_ratio": 0.073614,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -185,7 +185,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.094619,
+      "different_pixels_ratio": 0.071025,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -384,7 +384,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.222199,
+      "different_pixels_ratio": 0.205303,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -484,7 +484,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.117569,
+      "different_pixels_ratio": 0.096199,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -808,7 +808,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.090616,
+      "different_pixels_ratio": 0.066528,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -833,7 +833,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.191524,
+      "different_pixels_ratio": 0.167782,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -933,7 +933,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.15665,
+      "different_pixels_ratio": 0.13947,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -991,7 +991,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.18461,
+      "different_pixels_ratio": 0.174312,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1074,7 +1074,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.314713,
+      "different_pixels_ratio": 0.3043,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1190,7 +1190,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.343419,
+      "different_pixels_ratio": 0.332497,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1223,7 +1223,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.205968,
+      "different_pixels_ratio": 0.182758,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1256,7 +1256,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.219756,
+      "different_pixels_ratio": 0.204411,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1306,7 +1306,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.102453,
+      "different_pixels_ratio": 0.078256,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1356,7 +1356,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.087085,
+      "different_pixels_ratio": 0.062853,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1406,7 +1406,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.073117,
+      "different_pixels_ratio": 0.050713,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1607,7 +1607,24 @@
       "route": "export",
       "reference": "mobile/screens/S34.export-export.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S34.export-export.png",
+      "actual_route": "export",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.048203,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1615,7 +1632,24 @@
       "route": "export-pending",
       "reference": "mobile/screens/S34.export-pending-export-pending.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S34.export-pending-export-pending.png",
+      "actual_route": "export-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.011204,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1660,7 +1694,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.070649,
+      "different_pixels_ratio": 0.04754,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2026,7 +2060,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.084194,
+      "different_pixels_ratio": 0.056862,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44

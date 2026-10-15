@@ -89,6 +89,15 @@ void main() {
       'description': 'Проверка обработки жалобы из приложения'
     }) as Json;
     expect((await api.request('/cases/${report['id']}'))['id'], report['id']);
+    await expectLater(
+        api.request('/me/privacy-requests', method: 'POST', body: {
+          'type': 'export',
+          'current_password': 'Wrong isolated current password'
+        }),
+        throwsA(isA<ApiException>()
+            .having((e) => e.code, 'code', 'REAUTH_REQUIRED')));
+    expect(api.authenticated, true);
+    expect((await api.request('/me'))['id'], user['id']);
     final privacy = await api.request('/me/privacy-requests',
         method: 'POST',
         body: {'type': 'export', 'current_password': password}) as Json;
@@ -101,6 +110,10 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
     expect(exported['status'], 'completed');
+    expect(exported['download_available'], true);
+    expect(
+        DateTime.parse(exported['download_expires_at']).isAfter(DateTime.now()),
+        true);
     final archive = RecordingSink();
     await api.downloadToSink(exported['upload_id'], archive);
     expect(archive.bytes.take(2).toList(), [0x50, 0x4b]);

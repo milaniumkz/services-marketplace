@@ -504,8 +504,10 @@ class _ActionFormState extends State<ActionForm> {
               SafeArea(
                   top: false,
                   child: Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                      decoration: const BoxDecoration(
+                          color: Colors.white,
+                          border: Border(top: BorderSide(color: line))),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
                       child: submitButton()))
             ])
           : content(context));
