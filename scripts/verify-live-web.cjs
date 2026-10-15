@@ -13,17 +13,18 @@ const assert=require('node:assert/strict');
  await mkdir('live-web-report',{recursive:true});
  const browser=await chromium.launch({executablePath:process.env.JOBA_CHROMIUM_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']});
  const errors=[];let render;
+ const page=await browser.newPage({viewport:{width:390,height:844}});
  try{
-  const page=await browser.newPage({viewport:{width:390,height:844}});page.on('pageerror',error=>errors.push(error.message));
+  page.on('pageerror',error=>errors.push(error.message));
   const start=Date.now();await page.goto(base,{waitUntil:'domcontentloaded'});await page.locator('flutter-view').waitFor({timeout:60000});
   const access=page.locator('flt-semantics-placeholder');if(await access.count())await access.evaluate(element=>element.click());
   await page.getByRole('button',{name:'Продолжить',exact:true}).waitFor({timeout:30000});render=Date.now()-start;
   await page.screenshot({path:'live-web-report/welcome.png'});
-  await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByText('С возвращением',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByRole('button',{name:'Войти',exact:true}).waitFor();
   await page.screenshot({path:'live-web-report/login.png'});
   await page.goto(base+'/admin/');await page.getByLabel('Рабочий идентификатор').waitFor();await page.screenshot({path:'live-web-report/admin.png'});
   await page.goto(base+'/site/');await page.getByRole('heading').first().waitFor();assert.deepEqual(errors,[]);
- }finally{await browser.close();}
+ }catch(error){await page.screenshot({path:'live-web-report/error.png'});await writeFile('live-web-report/error.html',await page.content());throw error;}finally{await browser.close();}
  const result={url:base,https_certificate_verified:true,production_database_ready:true,welcome_continue_opens_login:true,admin_login_available:true,public_site_available:true,first_render_ms:render,errors};
  await writeFile('live-web-report/result.json',JSON.stringify(result,null,2));console.log('Verified live HTTPS web:',JSON.stringify(result));
  if(process.env.GITHUB_TOKEN){const r=await fetch('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/check-runs',{method:'POST',headers:{authorization:'Bearer '+process.env.GITHUB_TOKEN,'content-type':'application/json',accept:'application/vnd.github+json'},body:JSON.stringify({name:'live-https-web-verification',head_sha:process.env.GITHUB_SHA,status:'completed',conclusion:'success',output:{title:'Live HTTPS web verified',summary:JSON.stringify(result)}})});assert.ok(r.ok,'Could not publish live verification result');}
