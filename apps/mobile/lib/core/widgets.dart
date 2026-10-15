@@ -1,3 +1,4 @@
+import 'design_states.dart';
 import '../screens/search_filters.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -54,7 +55,11 @@ class PagedList extends StatefulWidget {
   final Json query;
   final Widget Function(Json) tile;
   final String empty;
-  final Widget? header, footer;
+  final Widget? header, footer, emptyState, loadingState;
+  final Widget Function(Json)? emptyStateBuilder;
+  final ValueChanged<Json>? onMetadata;
+  final ValueChanged<String>? onStatus;
+  final Widget Function(Object, VoidCallback)? errorState;
   const PagedList(
       {required this.api,
       required this.path,
@@ -63,6 +68,12 @@ class PagedList extends StatefulWidget {
       this.empty = 'Пока здесь ничего нет',
       this.header,
       this.footer,
+      this.emptyState,
+      this.emptyStateBuilder,
+      this.onMetadata,
+      this.onStatus,
+      this.loadingState,
+      this.errorState,
       super.key});
   @override
   State<PagedList> createState() => _PagedListState();
@@ -71,6 +82,7 @@ class PagedList extends StatefulWidget {
 class _PagedListState extends State<PagedList> {
   final List<Json> rows = [];
   String? cursor;
+  Json metadata = {};
   Object? error;
   bool busy = false, end = false;
   int generation = 0;
@@ -78,6 +90,14 @@ class _PagedListState extends State<PagedList> {
   void initState() {
     super.initState();
     load();
+  }
+
+  void report(String status, int run) {
+    if (widget.onStatus == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && run == generation && (status != 'loading' || busy))
+        widget.onStatus?.call(status);
+    });
   }
 
   Future<void> load({bool reset = false}) async {
@@ -93,6 +113,7 @@ class _PagedListState extends State<PagedList> {
       busy = true;
       error = null;
     });
+    if (rows.isEmpty) report('loading', run);
     try {
       final result = await widget.api.request(widget.path, query: {
         ...widget.query,
@@ -104,12 +125,32 @@ class _PagedListState extends State<PagedList> {
       for (final row in batch) {
         if (!rows.any((r) => r['id'] == row['id'])) rows.add(row);
       }
+      metadata = Map<String, dynamic>.from(result['meta'] as Map? ?? {});
+      widget.onMetadata?.call(metadata);
       cursor = result['meta']?['next_cursor'];
       end = cursor == null;
     } catch (e) {
       if (mounted && run == generation) error = e;
     } finally {
-      if (mounted && run == generation) setState(() => busy = false);
+      if (mounted && run == generation) {
+        setState(() => busy = false);
+        final failure = error;
+        report(
+            rows.isNotEmpty
+                ? 'data'
+                : failure == null
+                    ? 'empty'
+                    : failure is ApiException && failure.code == 'OFFLINE'
+                        ? 'offline'
+                        : failure is ApiException &&
+                                failure.status > 0 &&
+                                failure.status < 500 &&
+                                !['TIMEOUT', 'INVALID_RESPONSE']
+                                    .contains(failure.code)
+                            ? 'domain-error'
+                            : 'error',
+            run);
+      }
     }
   }
 
@@ -122,20 +163,30 @@ class _PagedListState extends State<PagedList> {
           children: [
             if (widget.header != null) widget.header!,
             if (!busy && error == null && rows.isEmpty)
-              Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 70),
-                  child: Column(children: [
-                    const Icon(Icons.inbox_outlined, size: 48, color: primary),
-                    const SizedBox(height: 16),
-                    UiText(widget.empty, textAlign: TextAlign.center)
-                  ])),
+              widget.emptyStateBuilder?.call(metadata) ??
+                  widget.emptyState ??
+                  Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 70),
+                      child: Column(children: [
+                        const Icon(Icons.inbox_outlined,
+                            size: 48, color: primary),
+                        const SizedBox(height: 16),
+                        UiText(widget.empty, textAlign: TextAlign.center)
+                      ])),
             ...rows.map(widget.tile),
-            if (error != null) Notice(errorText(context, error!), error: true),
-            if (busy)
+            if (error != null)
+              rows.isEmpty && widget.errorState != null
+                  ? widget.errorState!(error!, () => load(reset: true))
+                  : Notice(errorText(context, error!), error: true),
+            if (busy && rows.isEmpty && widget.loadingState != null)
+              widget.loadingState!
+            else if (busy)
               const Padding(
                   padding: EdgeInsets.all(20),
                   child: Center(child: CircularProgressIndicator())),
-            if (!busy && (!end || error != null))
+            if (!busy &&
+                (!end || error != null) &&
+                !(rows.isEmpty && error != null && widget.errorState != null))
               OutlinedButton(
                   onPressed: () => load(
                       reset: error is ApiException &&
@@ -572,12 +623,16 @@ class SearchListings extends StatefulWidget {
   final JobaApi api;
   final String path;
   final Json initialFilters;
+  final VoidCallback? onCreate;
+  final ValueChanged<String>? onStatus;
   final Widget Function(Json) tile;
   const SearchListings(
       {required this.api,
       required this.path,
       required this.tile,
       this.initialFilters = const {},
+      this.onCreate,
+      this.onStatus,
       super.key});
   @override
   State<SearchListings> createState() => _SearchListingsState();
@@ -587,11 +642,14 @@ class _SearchListingsState extends State<SearchListings> {
   final search = TextEditingController();
   Json filters = {};
   String query = '';
+  String presentation = 'loading';
   Timer? debounce;
   @override
   void initState() {
     super.initState();
     filters = Map<String, dynamic>.from(widget.initialFilters);
+    query = '${filters.remove('q') ?? ''}'.trim();
+    search.text = query;
   }
 
   Future<void> chooseFilters() async {
@@ -600,10 +658,15 @@ class _SearchListingsState extends State<SearchListings> {
         MaterialPageRoute(
             builder: (c) => SearchFilters(
                 api: widget.api,
-                initial: filters,
+                initial: {...filters, 'q': query},
                 onClose: () => Navigator.pop(c),
                 onApply: (value) => Navigator.pop(c, value))));
-    if (result != null && mounted) setState(() => filters = result);
+    if (result != null && mounted)
+      setState(() {
+        query = '${result.remove('q') ?? query}'.trim();
+        search.text = query;
+        filters = result;
+      });
   }
 
   @override
@@ -615,30 +678,43 @@ class _SearchListingsState extends State<SearchListings> {
 
   @override
   Widget build(BuildContext context) => Column(children: [
-        Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-            child: Row(children: [
-              Expanded(
-                  child: TextField(
-                      controller: search,
-                      decoration: InputDecoration(
-                          hintText: localize(context, 'Что ищете?'),
-                          prefixIcon: const Padding(
-                              padding: EdgeInsets.all(14),
-                              child: JobaIcon('search'))),
-                      onChanged: (v) {
-                        debounce?.cancel();
-                        debounce = Timer(const Duration(milliseconds: 300), () {
-                          if (mounted) setState(() => query = v.trim());
-                        });
-                      })),
-              const SizedBox(width: 8),
-              IconButton(
-                  tooltip: localize(context, 'Фильтры'),
-                  onPressed: chooseFilters,
-                  icon: const JobaIcon('filter'))
-            ])),
-        if (filters.isNotEmpty)
+        if (widget.path != '/contractors' ||
+            !['empty', 'error', 'offline'].contains(presentation))
+          Padding(
+              padding:
+                  widget.path == '/contractors' && presentation == 'loading'
+                      ? const EdgeInsets.fromLTRB(20, 20, 20, 0)
+                      : const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: Row(children: [
+                Expanded(
+                    child: TextField(
+                        controller: search,
+                        style: const TextStyle(
+                            fontSize: 14, color: Color(0xFF627187)),
+                        decoration: InputDecoration(
+                            hintText: localize(context, 'Что ищете?'),
+                            fillColor: canvas,
+                            prefixIcon: const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: JobaIcon('search'))),
+                        onChanged: (v) {
+                          debounce?.cancel();
+                          debounce =
+                              Timer(const Duration(milliseconds: 300), () {
+                            if (mounted) setState(() => query = v.trim());
+                          });
+                        })),
+                if (widget.path != '/contractors' ||
+                    presentation != 'loading') ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                      tooltip: localize(context, 'Фильтры'),
+                      onPressed: chooseFilters,
+                      icon: const JobaIcon('filter'))
+                ]
+              ])),
+        if (filters.isNotEmpty &&
+            ['data', 'domain-error'].contains(presentation))
           Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(children: [
@@ -656,6 +732,28 @@ class _SearchListingsState extends State<SearchListings> {
                 path: widget.path,
                 query: {...filters, if (query.isNotEmpty) 'q': query},
                 tile: widget.tile,
+                onStatus: (status) {
+                  if (mounted && presentation != status)
+                    setState(() => presentation = status);
+                  widget.onStatus?.call(status);
+                },
+                loadingState: widget.path == '/contractors'
+                    ? const JobaSearchSkeleton()
+                    : null,
+                errorState: (error, retry) =>
+                    JobaReadFailure(error: error, onRetry: retry),
+                emptyState: widget.path == '/contractors'
+                    ? JobaStatePanel(
+                        title: 'Пока никого не нашли',
+                        message:
+                            'Попробуйте выбрать другую категорию. Можно создать заказ, и специалисты откликнутся сами.',
+                        icon: 'search',
+                        primaryLabel: 'Изменить фильтры',
+                        onPrimary: chooseFilters,
+                        secondaryLabel:
+                            widget.onCreate == null ? null : 'Создать заказ',
+                        onSecondary: widget.onCreate)
+                    : null,
                 empty: 'По вашему запросу ничего не найдено')),
       ]);
 }

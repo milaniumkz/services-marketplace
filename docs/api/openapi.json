@@ -2782,6 +2782,7 @@
         "tags": [
           "me"
         ],
+        "description": "Owner-scoped orders in the session country. data.meta.has_any is a boolean across all owned order states, independent of bucket and cursor; clients may use it for the first-order empty state.",
         "security": [
           {
             "BearerAuth": []

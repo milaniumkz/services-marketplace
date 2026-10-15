@@ -452,7 +452,11 @@ export class Marketplace {
       const uploads=b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[];
       return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
     }
-    if(path==='/me/orders'&&method==='GET')return this.page('order',a,q,{owner:a.id,statuses:orderBucket(q.bucket)});
+    if(path==='/me/orders'&&method==='GET'){
+      const page=await this.page('order',a,q,{owner:a.id,statuses:orderBucket(q.bucket)});
+      const hasAny=(await this.store.db.query<{exists:boolean}>("SELECT EXISTS(SELECT 1 FROM records WHERE kind='order' AND country=$1 AND owner=$2) AS exists",[a.country,a.id])).rows[0].exists;
+      return {...page,meta:{...page.meta,has_any:hasAny}};
+    }
     if(path==='/me/completed-orders'&&method==='GET'){if(q.role&&!['customer','executor'].includes(q.role))fail(400,'VALIDATION_ERROR','Проверьте роль');return this.page('order',a,q,{...(q.role==='executor'?{executor:a.id}:q.role==='customer'?{owner:a.id}:{participant:a.id}),statuses:['completed']});}
     if(path==='/me/assigned-orders'&&method==='GET')return this.page('order',a,q,{executor:a.id,statuses:orderBucket(q.bucket)});
     if(path==='/me/offers'&&method==='GET')return this.list((await this.store.all('offer',a.country)).filter(x=>x.owner===a.id),q);

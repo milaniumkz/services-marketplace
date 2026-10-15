@@ -79,8 +79,15 @@ void main() {
       'rating_min': '4.8'
     });
     applied = null;
+    await tester.ensureVisible(lower);
+    await tester.enterText(lower, 'invalid price');
+    await tester.tap(find.text('Показать специалистов'));
+    await tester.pumpAndSettle();
+    expect(applied, isNull);
+    expect(find.text('Проверьте диапазон цены'), findsOneWidget);
     await tester.tap(find.text('Сбросить'));
     await tester.pumpAndSettle();
+    expect(find.text('Проверьте диапазон цены'), findsNothing);
     await tester.tap(find.text('Показать специалистов'));
     await tester.pumpAndSettle();
     expect(applied, isEmpty);

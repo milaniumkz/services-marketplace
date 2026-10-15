@@ -24,7 +24,9 @@ class SearchFilters extends StatefulWidget {
 
 class _SearchFiltersState extends State<SearchFilters> {
   final form = GlobalKey<FormState>();
-  final lower = TextEditingController(), upper = TextEditingController();
+  final lower = TextEditingController(),
+      upper = TextEditingController(),
+      query = TextEditingController();
   late String city, category, mode;
   late bool rated, verified;
   @override
@@ -34,6 +36,7 @@ class _SearchFiltersState extends State<SearchFilters> {
   }
 
   void reset() {
+    query.text = '${widget.initial['q'] ?? ''}';
     city = widget.initial['city'] ?? '';
     category = widget.initial['category_id'] ?? '';
     mode = widget.initial['work_mode'] ?? '';
@@ -51,6 +54,7 @@ class _SearchFiltersState extends State<SearchFilters> {
 
   @override
   void dispose() {
+    query.dispose();
     lower.dispose();
     upper.dispose();
     super.dispose();
@@ -80,6 +84,7 @@ class _SearchFiltersState extends State<SearchFilters> {
       return;
     }
     widget.onApply({
+      if (widget.initial.containsKey('q')) 'q': query.text.trim(),
       if (city.isNotEmpty) 'city': city,
       if (category.isNotEmpty) 'category_id': category,
       if (mode.isNotEmpty) 'work_mode': mode,
@@ -134,17 +139,23 @@ class _SearchFiltersState extends State<SearchFilters> {
   Widget build(BuildContext context) => Scaffold(
       backgroundColor: canvas,
       appBar: AppBar(
+          leadingWidth: 72,
           title: const UiText('Фильтры'),
           leading: IconButton(
-              onPressed: widget.onClose, icon: const JobaIcon('back')),
+              tooltip: localize(context, 'Назад'),
+              onPressed: widget.onClose,
+              icon: const JobaIcon('back')),
           actions: [
             TextButton(
                 onPressed: () => setState(() {
+                      form.currentState?.reset();
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       city = '';
                       category = '';
                       mode = '';
                       rated = false;
                       verified = false;
+                      query.clear();
                       lower.clear();
                       upper.clear();
                     }),
@@ -287,6 +298,14 @@ class _SearchFiltersState extends State<SearchFilters> {
                           value: verified,
                           onChanged: (value) =>
                               setState(() => verified = value!)),
+                      if (widget.initial.containsKey('q')) ...[
+                        label('Что ищете?'),
+                        TextFormField(
+                            key: const ValueKey('search-filter-query'),
+                            controller: query,
+                            decoration: InputDecoration(
+                                hintText: localize(context, 'Что ищете?')))
+                      ],
                       label('Категория'),
                       DropdownButtonFormField<String>(
                           initialValue:

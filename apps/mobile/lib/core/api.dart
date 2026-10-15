@@ -54,6 +54,8 @@ class JobaApi extends ChangeNotifier {
   final Map<String, Future<dynamic>> _pendingReads = {};
   final Map<String, String> _retryKeys = {};
   final Map<String, Json> _pendingUploads = {};
+  bool _sessionExpired = false;
+  bool get sessionExpired => _sessionExpired;
   bool disposed = false;
   bool persistSession = true;
   String? serverTime;
@@ -124,6 +126,7 @@ class JobaApi extends ChangeNotifier {
       throw ApiException(
           'SESSION_SUPERSEDED', 'Сессия изменилась. Повторите вход', 401);
     session = value;
+    _sessionExpired = false;
     if (!disposed) notifyListeners();
   }
 
@@ -140,19 +143,23 @@ class JobaApi extends ChangeNotifier {
   Future<void> _rotate() async {
     final generation = _generation;
     final token = session?['refresh_token'];
-    if (token == null)
+    if (token == null) {
+      if (authenticated) await forget(expired: true);
       throw ApiException('TOKEN_EXPIRED', 'Войдите в аккаунт', 401);
+    }
     try {
       final result = await request('/auth/refresh',
           method: 'POST', body: {'refresh_token': token}, authenticated: false);
       await _save(result as Json, generation);
     } on ApiException catch (e) {
-      if (e.status == 401 && generation == _generation) await forget();
+      if (e.status == 401 && generation == _generation)
+        await forget(expired: true);
       rethrow;
     }
   }
 
-  Future<void> forget() async {
+  Future<void> forget({bool expired = false}) async {
+    _sessionExpired = expired;
     _generation++;
     _refreshing = null;
     session = null;
@@ -271,7 +278,8 @@ class JobaApi extends ChangeNotifier {
           response.statusCode);
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      if (response.statusCode == 401 && authenticated) await forget();
+      if (response.statusCode == 401 && authenticated)
+        await forget(expired: true);
       throw ApiException(
           decoded['error']?['code'] ?? 'SERVER_ERROR',
           decoded['error']?['message'] ?? 'Не удалось выполнить запрос',

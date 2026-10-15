@@ -11,6 +11,11 @@ test('account overview counts before pagination without exposing other accounts 
   const owner=session.user.id,other=randomUUID(),now=new Date().toISOString();
   const put=(kind,data={},country='KZ',account=owner)=>api.store.put({id:randomUUID(),kind,owner:account,country,version:1,created_at:now,...data});
   const get=(path,query={})=>api.handle('GET',path,{},'Bearer '+session.access_token,undefined,query,'overview-test');
+  assert.equal((await get('/me/orders',{bucket:'active'})).meta.has_any,false);
+  const returning=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000092',password:'Another isolated password!'},undefined,undefined,{},'overview-returning-test');
+  await put('order',{status:'completed'},'KZ',returning.user.id);
+  const activeEmpty=await api.handle('GET','/me/orders',{},'Bearer '+returning.access_token,undefined,{bucket:'active'});
+  assert.equal(activeEmpty.items.length,0);assert.equal(activeEmpty.meta.has_any,true);
   const empty=await get('/me/overview');assert.equal(empty.orders.active,0);assert.equal(empty.rating.average,null);assert.equal(empty.contractor,null);
   for(let n=0;n<125;n++)await put('order',{status:'open'});
   await put('order',{status:'in_progress',executor_id:owner},'KZ',other);
@@ -25,6 +30,7 @@ test('account overview counts before pagination without exposing other accounts 
   const until=new Date(Date.now()+86400000).toISOString();await put('grant',{source:'subscription',valid_until:until});
   const profile=await put('contractor',{status:'published',availability:'busy',title:'Услуги владельца',draft:{description:'Secret draft'}});
   const drafts=await get('/me/orders',{bucket:'drafts',limit:1});assert.equal(drafts.items.length,1);assert.equal(drafts.items[0].status,'draft');
+  assert.equal((await get('/me/orders',{bucket:'active'})).meta.has_any,true);
   const assigned=await get('/me/assigned-orders',{bucket:'active'});assert.equal(assigned.items.length,1);assert.equal(assigned.items[0].executor_id,owner);
   await assert.rejects(()=>get('/me/orders',{bucket:'invalid'}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
   const result=await get('/me/overview');assert.deepEqual(result.orders,{active:125,open:125,draft:1,completed:1});

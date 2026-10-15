@@ -1,3 +1,5 @@
+import 'package:crypto/crypto.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -49,7 +51,13 @@ void main() {
       'verification-status': 'verification',
       'verification-review': 'verification',
       'verification-resubmit': 'verification',
-      'redeem': 'referrals'
+      'redeem': 'referrals',
+      'empty-search': 'catalog',
+      'empty-orders': 'orders',
+      'error': 'catalog',
+      'offline': 'catalog',
+      'loading': 'catalog',
+      'session-expired': 'catalog'
     };
     final roots = (audit['frames'] as List).cast<Json>().where((f) =>
         f['surface'] == 'mobile' &&
@@ -68,6 +76,7 @@ void main() {
             (await tester.runAsync(() => file.readAsBytes()))!;
     }
     var route = 'home';
+    Completer<http.Response>? pendingSearch;
     final user = <String, dynamic>{
       'id': 'visual-owner',
       'version': 1,
@@ -147,6 +156,51 @@ void main() {
     final api = JobaApi('https://isolated-visual.example', vault: _Vault(),
         transport: MockClient((request) async {
       final path = request.url.path.replaceFirst('/api/v1', '');
+      http.Response response(dynamic data) =>
+          http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
+              headers: {'content-type': 'application/json; charset=utf-8'});
+      if (path == '/auth/refresh' && route == 'session-expired')
+        return http.Response(
+            jsonEncode({
+              'error': {
+                'code': 'TOKEN_EXPIRED',
+                'message': 'Session revoked in isolated test'
+              }
+            }),
+            401);
+      if (path == '/contractors') {
+        if (route == 'loading') {
+          pendingSearch = Completer<http.Response>();
+          return pendingSearch!.future;
+        }
+        if (route == 'offline')
+          throw http.ClientException('Isolated unavailable transport');
+        if (route == 'error')
+          return http.Response(
+              jsonEncode({
+                'error': {
+                  'code': 'SERVER_ERROR',
+                  'message': 'Isolated read failure'
+                }
+              }),
+              500);
+        if (route == 'session-expired')
+          return http.Response(
+              jsonEncode({
+                'error': {
+                  'code': 'TOKEN_EXPIRED',
+                  'message': 'Isolated expired access'
+                }
+              }),
+              401);
+        if (route == 'empty-search') return response({'items': []});
+      }
+      if (path == '/me/orders' && route == 'empty-orders')
+        return response({
+          'items': [],
+          'meta': {'has_any': false}
+        });
+
       if (path.startsWith('/uploads/') && path.endsWith('/download')) {
         final id = path.split('/')[2];
         if (pictures.containsKey(id))
@@ -390,9 +444,25 @@ void main() {
     api.session = {'access_token': 'isolated-visual-token', 'user': user};
     state.me = user;
     final results = <Json>[];
+    final stateDigests = <String, String>{};
     await tester.runAsync(() => Directory(output).create(recursive: true));
     for (final frame in roots) {
       route = frame['design_route'];
+      if (!api.authenticated) {
+        await api.forget();
+        await tester.pumpAndSettle();
+        api.session = {'access_token': 'isolated-visual-token', 'user': user};
+        state.me = user;
+      }
+      if (route == 'session-expired')
+        api.session = {
+          'access_token': 'isolated-expired-token',
+          'refresh_token': 'isolated-revoked-refresh',
+          'user': user
+        };
+      state.ordersHasAny = null;
+      state.ordersBucket = 'active';
+
       Navigator.of(state.context).popUntil((route) => route.isFirst);
       state.recovery = {
         'id': 'visual-recovery',
@@ -406,7 +476,9 @@ void main() {
               'price_max': 5000000,
               'rating_min': '4.8'
             }
-          : <String, dynamic>{};
+          : route == 'loading'
+              ? <String, dynamic>{'q': 'Ремонт и отделка'}
+              : <String, dynamic>{};
       state.executor = route == 'executor-home';
       state.objectId = 'visual-object';
       state.history.clear();
@@ -441,20 +513,47 @@ void main() {
                 as RenderRepaintBoundary)
             .toImage(pixelRatio: 2);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        if ([
+          'empty-search',
+          'empty-orders',
+          'error',
+          'offline',
+          'loading',
+          'session-expired'
+        ].contains(route))
+          stateDigests[route] =
+              sha256.convert(bytes!.buffer.asUint8List()).toString();
         await File('$output/$filename')
             .writeAsBytes(bytes!.buffer.asUint8List());
         image.dispose();
       });
+      if (pendingSearch != null && !pendingSearch!.isCompleted) {
+        pendingSearch!.complete(http.Response(
+            jsonEncode({
+              'data': {'items': []},
+              'meta': {}
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'}));
+        await tester.pumpAndSettle();
+        pendingSearch = null;
+      }
       results.add({
         'id': frame['id'],
         'route': frame['design_route'],
         'capture': filename,
         'reference_png': frame['reference_png'],
-        'actual_route': frame['native_route'] ?? aliases[route] ?? route,
+        'actual_route': route == 'session-expired'
+            ? state.route
+            : frame['native_route'] ?? aliases[route] ?? route,
         'errors': errors,
         'visual_acceptance': 'pending'
       });
     }
+    expect(stateDigests.length, 6);
+    expect(stateDigests.values.toSet().length, 6,
+        reason:
+            'Distinct API states must not reuse a stale search widget capture');
     await tester.pumpWidget(const SizedBox());
     api.dispose();
     await tester.runAsync(() => File('$output/inventory.json').writeAsString(

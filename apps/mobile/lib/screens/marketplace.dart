@@ -1,3 +1,4 @@
+import '../core/design_states.dart';
 import 'search_filters.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
@@ -129,6 +130,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Set<String>? serviceCategories;
   String? objectId;
   Json listingFilters = {};
+  bool? ordersHasAny;
+  String catalogPresentation = 'loading';
   String ordersBucket = 'active';
   final List<String> draftPhotos = [];
   final Map<String, List<String>> verificationUploads = {};
@@ -258,12 +261,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       localProtected = false;
       setState(() {
         me = null;
+        ordersHasAny = null;
         recovery = null;
         draftPhotos.clear();
         verificationUploads.clear();
         draftWindow = null;
         registrationInProgress = false;
-        route = 'login';
+        route = api.sessionExpired ? 'session-expired' : 'login';
         objectId = null;
         history.clear();
       });
@@ -393,6 +397,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     setState(() {
       history.add((route, objectId));
       route = next;
+      if (next == 'catalog') catalogPresentation = 'loading';
       if (next == 'offer') {
         offerAcknowledged = false;
         acknowledgedOrderRevision = null;
@@ -485,6 +490,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               backgroundColor: canvas,
               appBar: chrome
                   ? AppBar(
+                      leadingWidth: 72,
                       title: UiText(title),
                       leading: IconButton(
                           onPressed: back,
@@ -570,39 +576,40 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Widget ordersScreen() => page(
           'Мои заказы',
           Column(children: [
-            Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(children: [
-                  for (final entry in const {
-                    'active': 'Активные',
-                    'completed': 'Завершённые',
-                    'drafts': 'Черновики'
-                  }.entries)
-                    if (!executor || entry.key != 'drafts')
-                      Expanded(
-                          child: InkWell(
-                              onTap: () =>
-                                  setState(() => ordersBucket = entry.key),
-                              child: Container(
-                                  constraints:
-                                      const BoxConstraints(minHeight: 48),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                      border: Border(
-                                          bottom: BorderSide(
-                                              width: 2,
-                                              color: ordersBucket == entry.key
-                                                  ? primary
-                                                  : line))),
-                                  child: UiText(entry.value,
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: ordersBucket == entry.key
-                                              ? primary
-                                              : muted,
-                                          fontWeight: ordersBucket == entry.key ? FontWeight.w700 : FontWeight.w400)))))
-                ])),
+            if (executor || ordersHasAny != false)
+              Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(children: [
+                    for (final entry in const {
+                      'active': 'Активные',
+                      'completed': 'Завершённые',
+                      'drafts': 'Черновики'
+                    }.entries)
+                      if (!executor || entry.key != 'drafts')
+                        Expanded(
+                            child: InkWell(
+                                onTap: () =>
+                                    setState(() => ordersBucket = entry.key),
+                                child: Container(
+                                    constraints:
+                                        const BoxConstraints(minHeight: 48),
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                        border: Border(
+                                            bottom: BorderSide(
+                                                width: 2,
+                                                color: ordersBucket == entry.key
+                                                    ? primary
+                                                    : line))),
+                                    child: UiText(entry.value,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: ordersBucket == entry.key
+                                                ? primary
+                                                : muted,
+                                            fontWeight: ordersBucket == entry.key ? FontWeight.w700 : FontWeight.w400)))))
+                  ])),
             Expanded(
                 child: PagedList(
                     key: ValueKey('orders:$executor:$ordersBucket:$revision'),
@@ -610,13 +617,38 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     path: executor ? '/me/assigned-orders' : '/me/orders',
                     query: {'bucket': ordersBucket},
                     tile: orderCard,
+                    onMetadata: (meta) {
+                      if (!executor &&
+                          meta['has_any'] is bool &&
+                          mounted &&
+                          (ordersHasAny != meta['has_any'] ||
+                              meta['has_any'] == false &&
+                                  ordersBucket != 'active')) {
+                        setState(() {
+                          ordersHasAny = meta['has_any'];
+                          if (ordersHasAny == false) ordersBucket = 'active';
+                        });
+                      }
+                    },
+                    emptyStateBuilder: !executor && ordersBucket == 'active'
+                        ? (meta) => JobaStatePanel(
+                            title: 'Начнём с одной\nзадачи',
+                            message:
+                                'Опишите, что нужно сделать. Подходящие специалисты предложат свои условия.',
+                            icon: 'brief',
+                            brand: true,
+                            primaryLabel: meta['has_any'] == false
+                                ? 'Создать первый заказ'
+                                : 'Создать заказ',
+                            onPrimary: () => go('create'))
+                        : null,
                     empty: ordersBucket == 'drafts'
                         ? 'Черновиков пока нет'
                         : 'Заказов пока нет'))
           ]),
-          nav: true,
+          nav: executor || ordersHasAny != false,
           actions: [
-            if (!executor)
+            if (!executor && ordersHasAny != false)
               IconButton(
                   tooltip: localize(context, 'Создать заказ'),
                   onPressed: () => go('create'),
@@ -665,6 +697,18 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return lockSetup();
       case 'unlock':
         return unlockScreen();
+      case 'session-expired':
+        return page(
+            'Сессия завершена',
+            ListView(padding: const EdgeInsets.all(20), children: [
+              JobaStatePanel(
+                  title: 'Сессия больше\nне действует',
+                  message:
+                      'Войдите номером и паролем. PIN и биометрия не восстанавливают отозванную сессию.',
+                  icon: 'lock',
+                  primaryLabel: 'Войти снова',
+                  onPrimary: () => go('login'))
+            ]));
       case 'welcome':
         return welcomeScreen();
       case 'login':
@@ -706,6 +750,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return page(
             'Заказы рядом',
             SearchListings(
+                key: ValueKey('jobs:$revision'),
                 api: api,
                 path: '/orders',
                 initialFilters: listingFilters,
@@ -812,13 +857,25 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             });
       case 'catalog':
         return page(
-            'Специалисты',
+            catalogPresentation == 'offline'
+                ? 'Нет подключения'
+                : catalogPresentation == 'error'
+                    ? 'Не удалось загрузить'
+                    : 'Специалисты',
             SearchListings(
+                key: ValueKey('catalog:$revision'),
+                onStatus: (status) {
+                  if (mounted &&
+                      route == 'catalog' &&
+                      catalogPresentation != status)
+                    setState(() => catalogPresentation = status);
+                },
                 api: api,
                 path: '/contractors',
+                onCreate: () => go('create'),
                 initialFilters: listingFilters,
                 tile: contractorCard),
-            nav: true);
+            nav: !['empty', 'error', 'offline'].contains(catalogPresentation));
       case 'contractor':
         return contractorScreen();
       case 'public-project':

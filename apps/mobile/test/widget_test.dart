@@ -42,6 +42,37 @@ class RecordingSink implements StreamConsumer<List<int>> {
 }
 
 void main() {
+  test(
+      'expired access without refresh clears credentials and distinguishes expiry from explicit logout',
+      () async {
+    final vault = MemoryVault()..value = 'isolated saved session';
+    final api = JobaApi('https://isolated.example',
+        vault: vault,
+        transport: MockClient(
+            (request) async => request.url.path.endsWith('/auth/login')
+                ? ok({
+                    'access_token': 'isolated-restored',
+                    'refresh_token': 'isolated-refresh',
+                    'user': {'id': 'isolated-owner'}
+                  })
+                : http.Response('{"error":{"code":"TOKEN_EXPIRED"}}', 401)))
+      ..session = {'access_token': 'isolated-expired'};
+    addTearDown(api.dispose);
+    await expectLater(
+        api.request('/me'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.code, 'code', 'TOKEN_EXPIRED')));
+    expect(api.authenticated, false);
+    expect(api.sessionExpired, true);
+    expect(vault.value, isNull);
+    await api.signIn(
+        {'phone': 'isolated-account', 'password': 'isolated test password'});
+    expect(api.authenticated, true);
+    expect(api.sessionExpired, false);
+    await api.forget();
+    expect(api.sessionExpired, false);
+  });
+
   testWidgets(
       'Completed order picker keeps executor scope across pages and can clear a saved link',
       (tester) async {

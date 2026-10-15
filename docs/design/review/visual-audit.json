@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 133,
-    "not_captured": 54,
+    "captured": 139,
+    "not_captured": 48,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -60,7 +60,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.059062,
+      "different_pixels_ratio": 0.058901,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -93,7 +93,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.137991,
+      "different_pixels_ratio": 0.13783,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -118,7 +118,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.096215,
+      "different_pixels_ratio": 0.096054,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -151,7 +151,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.09478,
+      "different_pixels_ratio": 0.094619,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -176,7 +176,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.214015,
+      "different_pixels_ratio": 0.213855,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -234,24 +234,37 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.110154,
+      "different_pixels_ratio": 0.111342,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile",
-      "open_items": [
-        "Map, result total and sorting are not implemented.",
-        "Visual acceptance remains pending."
-      ]
+      "surface": "mobile"
     },
     {
       "id": "S07.empty",
       "route": "empty-search",
       "reference": "mobile/screens/S07.empty-empty-search.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S07.empty-empty-search.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.11694,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -271,18 +284,13 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.07039,
+      "different_pixels_ratio": 0.07023,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile",
-      "open_items": [
-        "Coordinate-based radius search is not implemented.",
-        "Preview result count is not implemented.",
-        "Visual acceptance remains pending."
-      ]
+      "surface": "mobile"
     },
     {
       "id": "S07.gps",
@@ -309,17 +317,13 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.112155,
+      "different_pixels_ratio": 0.111994,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile",
-      "open_items": [
-        "GPS entry and permission flow are not implemented.",
-        "Visual acceptance remains pending."
-      ]
+      "surface": "mobile"
     },
     {
       "id": "S07.map",
@@ -346,7 +350,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.222359,
+      "different_pixels_ratio": 0.222199,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -396,7 +400,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.330488,
+      "different_pixels_ratio": 0.330327,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -446,7 +450,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.117723,
+      "different_pixels_ratio": 0.117569,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -471,7 +475,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.098341,
+      "different_pixels_ratio": 0.098181,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -496,7 +500,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.158112,
+      "different_pixels_ratio": 0.157952,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -529,7 +533,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.155655,
+      "different_pixels_ratio": 0.155494,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -554,7 +558,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.149765,
+      "different_pixels_ratio": 0.149604,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -579,7 +583,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.207852,
+      "different_pixels_ratio": 0.207691,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -604,7 +608,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.117613,
+      "different_pixels_ratio": 0.117453,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -629,7 +633,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.061542,
+      "different_pixels_ratio": 0.061381,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -654,7 +658,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.144974,
+      "different_pixels_ratio": 0.144813,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -687,7 +691,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.163164,
+      "different_pixels_ratio": 0.163004,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -728,7 +732,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.04766,
+      "different_pixels_ratio": 0.047499,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -753,7 +757,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.090854,
+      "different_pixels_ratio": 0.090694,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -778,7 +782,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.191685,
+      "different_pixels_ratio": 0.191524,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -811,7 +815,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.075756,
+      "different_pixels_ratio": 0.075736,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -824,7 +828,24 @@
       "route": "empty-orders",
       "reference": "mobile/screens/S18.empty-empty-orders.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S18.empty-empty-orders.png",
+      "actual_route": "orders",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.043761,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -844,7 +865,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.15681,
+      "different_pixels_ratio": 0.15665,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -877,7 +898,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.080721,
+      "different_pixels_ratio": 0.08056,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -902,7 +923,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.184771,
+      "different_pixels_ratio": 0.18461,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -943,7 +964,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.146075,
+      "different_pixels_ratio": 0.145914,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -968,7 +989,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.314881,
+      "different_pixels_ratio": 0.314713,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -993,7 +1014,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.150869,
+      "different_pixels_ratio": 0.150709,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1026,7 +1047,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.292755,
+      "different_pixels_ratio": 0.292823,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1059,7 +1080,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.066761,
+      "different_pixels_ratio": 0.066749,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1084,7 +1105,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.34358,
+      "different_pixels_ratio": 0.343419,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1117,7 +1138,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.206129,
+      "different_pixels_ratio": 0.205968,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1150,7 +1171,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.219916,
+      "different_pixels_ratio": 0.219756,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1183,7 +1204,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.102613,
+      "different_pixels_ratio": 0.102453,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1208,7 +1229,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.058354,
+      "different_pixels_ratio": 0.058193,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1257,7 +1278,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.055493,
+      "different_pixels_ratio": 0.055521,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1282,7 +1303,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.298251,
+      "different_pixels_ratio": 0.298091,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1339,7 +1360,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.234657,
+      "different_pixels_ratio": 0.234497,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1388,7 +1409,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.125676,
+      "different_pixels_ratio": 0.125516,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1461,7 +1482,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.074229,
+      "different_pixels_ratio": 0.074068,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1486,7 +1507,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.070809,
+      "different_pixels_ratio": 0.070649,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1519,7 +1540,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.101319,
+      "different_pixels_ratio": 0.101159,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1577,7 +1598,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.10502,
+      "different_pixels_ratio": 0.10486,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1627,7 +1648,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.143579,
+      "different_pixels_ratio": 0.143419,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1652,7 +1673,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.198376,
+      "different_pixels_ratio": 0.198216,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1677,7 +1698,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.244709,
+      "different_pixels_ratio": 0.244548,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1718,7 +1739,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.196662,
+      "different_pixels_ratio": 0.196501,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1751,7 +1772,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.16815,
+      "different_pixels_ratio": 0.16799,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1776,7 +1797,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.151774,
+      "different_pixels_ratio": 0.151842,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1809,7 +1830,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.192176,
+      "different_pixels_ratio": 0.192016,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1834,7 +1855,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.123665,
+      "different_pixels_ratio": 0.123505,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1859,7 +1880,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.179007,
+      "different_pixels_ratio": 0.178847,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1892,7 +1913,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.267904,
+      "different_pixels_ratio": 0.267734,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1953,7 +1974,24 @@
       "route": "session-expired",
       "reference": "mobile/screens/X01-session-expired.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "X01-session-expired.png",
+      "actual_route": "session-expired",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.016877,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1961,7 +1999,24 @@
       "route": "offline",
       "reference": "mobile/screens/X02-offline.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "X02-offline.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.093509,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1969,7 +2024,24 @@
       "route": "error",
       "reference": "mobile/screens/X03-error.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "X03-error.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.063305,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -1977,7 +2049,24 @@
       "route": "loading",
       "reference": "mobile/screens/X04-loading.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "X04-loading.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.143742,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
