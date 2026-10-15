@@ -95,6 +95,7 @@ fi
 # User explicitly authorized these initial documents with blank operator details.
 # Existing legal versions are preserved on every subsequent deployment.
 "${joba_compose[@]}" cp scripts/publish-initial-kz-legal.cjs api:/tmp/joba-publish-legal.cjs
+"${joba_compose[@]}" exec -T -u root api chmod 0644 /tmp/joba-publish-legal.cjs
 python3 - <<'PYLEGAL' | "${joba_compose[@]}" exec -T -e JOBA_INITIAL_KZ_LEGAL=owner-authorized-2026-10-15 -e JOBA_LEGAL_STORE_MODULE=/app/services/api/dist/store api node /tmp/joba-publish-legal.cjs
 import json
 from pathlib import Path
