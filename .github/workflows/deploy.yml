@@ -107,6 +107,12 @@ jobs:
           "${joba_scp[@]}" release-web.tgz "root@$JOBA_SSH_HOST:$joba_remote_archive"
           joba_digest="$(sha256sum release-web.tgz | cut -d' ' -f1)"
           "${joba_ssh[@]}" "root@$JOBA_SSH_HOST" "echo '$joba_digest  $joba_remote_archive' | sha256sum -c -"
-          "${joba_ssh[@]}" "root@$JOBA_SSH_HOST" "bash -s -- '$GITHUB_SHA' '$joba_remote_archive' '$JOBA_DOMAIN' '$JOBA_SSH_HOST'" < scripts/deploy-server.sh
+          joba_remote_script="/tmp/joba-deploy-$GITHUB_SHA.sh"
+          "${joba_scp[@]}" scripts/deploy-server.sh "root@$JOBA_SSH_HOST:$joba_remote_script"
+          joba_script_digest="$(sha256sum scripts/deploy-server.sh | cut -d' ' -f1)"
+          "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "echo '$joba_script_digest  $joba_remote_script' | sha256sum -c -"
+          # Execute a file: Git/Docker subprocesses must never consume bash's script input.
+          "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "bash '$joba_remote_script' '$GITHUB_SHA' '$joba_remote_archive' '$JOBA_DOMAIN' '$JOBA_SSH_HOST'"
+          "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "test \"\$(readlink -f /opt/joba/current)\" = '/opt/joba/releases/$GITHUB_SHA/source'"
           curl --fail --silent --show-error "https://$JOBA_DOMAIN/health"
           printf '### Verified URL\nhttps://%s/\n' "$JOBA_DOMAIN" >> "$GITHUB_STEP_SUMMARY"
