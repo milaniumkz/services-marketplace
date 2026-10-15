@@ -4,8 +4,8 @@
   "acceptance_rule": "Capture and pixel metrics do not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
-    "captured": 143,
-    "not_captured": 44,
+    "captured": 145,
+    "not_captured": 42,
     "captures_with_errors": 24,
     "accepted": 0
   },
@@ -60,7 +60,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.058901,
+      "different_pixels_ratio": 0.052085,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -73,7 +73,24 @@
       "route": "login-error",
       "reference": "mobile/screens/S02.error-login-error.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S02.error-login-error.png",
+      "actual_route": "login",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.233983,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -93,7 +110,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.13783,
+      "different_pixels_ratio": 0.113819,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1275,7 +1292,24 @@
       "route": "banned",
       "reference": "mobile/screens/S30.restricted-banned.png",
       "visual_acceptance": "pending",
-      "status": "not_captured",
+      "status": "review_required",
+      "capture": "S30.restricted-banned.png",
+      "actual_route": "banned",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.078365,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {

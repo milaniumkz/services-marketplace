@@ -237,7 +237,7 @@ class ActionForm extends StatefulWidget {
   final String button;
   final Future<void> Function(Map<String, String>) submit;
   final List<Widget> before, after, afterFields;
-  final Map<String, List<Widget>> beforeField;
+  final Map<String, List<Widget>> beforeField, afterField;
   final bool authLayout, stickySubmit, externalBusy, submitEnabled;
   const ActionForm(
       {required this.fields,
@@ -249,6 +249,7 @@ class ActionForm extends StatefulWidget {
       this.submitEnabled = true,
       this.afterFields = const [],
       this.beforeField = const {},
+      this.afterField = const {},
       this.before = const [],
       this.after = const [],
       super.key});
@@ -428,10 +429,15 @@ class _ActionFormState extends State<ActionForm> {
                                   ? null
                                   : localize(context, field.hint!),
                               hintStyle: const TextStyle(
-                                  color: Color(0xFF6B7890), fontSize: 14),
+                                  color: Color(0xFF627187), fontSize: 14),
+                              prefixIconConstraints: widget.authLayout && field.originalIcon != null
+                                  ? const BoxConstraints(
+                                      minWidth: 44, maxWidth: 44)
+                                  : null,
                               prefixIcon: field.originalIcon != null
                                   ? Padding(
-                                      padding: const EdgeInsets.all(14),
+                                      padding: EdgeInsets.fromLTRB(14, 14,
+                                          widget.authLayout ? 8 : 14, 14),
                                       child: JobaIcon(field.originalIcon!))
                                   : field.prefixIcon == null
                                       ? null
@@ -441,20 +447,19 @@ class _ActionFormState extends State<ActionForm> {
                                       horizontal: 14, vertical: 25)
                                   : null,
                               suffixIcon: field.secret
-                                  ? IconButton(
-                                      tooltip: localize(
-                                          context,
-                                          visible.contains(field.key)
-                                              ? 'Скрыть пароль'
-                                              : 'Показать пароль'),
-                                      onPressed: () => setState(() =>
-                                          visible.contains(field.key)
+                                  ? Padding(
+                                      padding: EdgeInsets.only(
+                                          right: widget.authLayout ? 14 : 0),
+                                      child: IconButton(
+                                          tooltip: localize(
+                                              context,
+                                              visible.contains(field.key)
+                                                  ? 'Скрыть пароль'
+                                                  : 'Показать пароль'),
+                                          onPressed: () => setState(() => visible.contains(field.key)
                                               ? visible.remove(field.key)
                                               : visible.add(field.key)),
-                                      icon: visible.contains(field.key)
-                                          ? const Icon(
-                                              Icons.visibility_off_outlined)
-                                          : const JobaIcon('eye'))
+                                          icon: visible.contains(field.key) ? const Icon(Icons.visibility_off_outlined) : const JobaIcon('eye')))
                                   : null),
                           validator: (v) {
                             if (field.required && (v ?? '').trim().isEmpty)
@@ -464,6 +469,7 @@ class _ActionFormState extends State<ActionForm> {
                                 ? null
                                 : localize(context, problem);
                           }),
+                    ...?widget.afterField[field.key],
                   ])),
         ],
         ...widget.afterFields,

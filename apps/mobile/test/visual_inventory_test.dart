@@ -58,7 +58,8 @@ void main() {
       'offline': 'catalog',
       'loading': 'catalog',
       'session-expired': 'catalog',
-      'photo-view': 'portfolio-project'
+      'photo-view': 'portfolio-project',
+      'login-error': 'login'
     };
     final roots = (audit['frames'] as List).cast<Json>().where((f) =>
         f['surface'] == 'mobile' &&
@@ -160,6 +161,11 @@ void main() {
       http.Response response(dynamic data) =>
           http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
               headers: {'content-type': 'application/json; charset=utf-8'});
+      if (path == '/auth/login' && route == 'login-error')
+        return http.Response(
+            '{"error":{"code":"INVALID_CREDENTIALS","message":"Неверный номер или пароль"}}',
+            401,
+            headers: {'content-type': 'application/json; charset=utf-8'});
       if (path == '/auth/refresh' && route == 'session-expired')
         return http.Response(
             jsonEncode({
@@ -211,6 +217,21 @@ void main() {
       dynamic data = {'items': []};
       if (path == '/me')
         data = user;
+      else if (path == '/me/restrictions')
+        data = {
+          'items': [
+            {
+              'id': 'isolated-limit',
+              'type': 'automatic_review',
+              'ends_at': '2026-10-16T10:00:00Z',
+              'reason': 'Проверка содержания',
+              'case_id': 'visual-object',
+              'case_status': 'resolved',
+              'can_appeal': true
+            }
+          ],
+          'meta': {'restricted': true, 'account_status': 'restricted'}
+        };
       else if (path == '/public/config')
         data = {
           'countries': [
@@ -494,6 +515,14 @@ void main() {
       final errors = <String>[];
       try {
         await tester.pumpAndSettle();
+        if (route == 'login-error') {
+          final fields = find.byType(TextFormField);
+          await tester.enterText(fields.at(0), '+77000000001');
+          await tester.enterText(fields.at(1), 'Isolated rejected password');
+          await tester.tap(find.text('Войти'));
+          FocusManager.instance.primaryFocus?.unfocus();
+          await tester.pumpAndSettle();
+        }
         if (route == 'photo-view') {
           await tester.tap(find.text('Увеличить'));
           await tester.pumpAndSettle();

@@ -11,6 +11,53 @@
     }
   ],
   "paths": {
+    "/me/restrictions": {
+      "get": {
+        "operationId": "get__me_restrictions",
+        "tags": [
+          "me"
+        ],
+        "description": "Current active sanctions and automatic review holds for this account and country. Excludes expired/released limits, staff reasons, reporter details and unrelated case references. case_id and can_appeal are returned only for a case visible to this account; the appeal command independently rechecks current state.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
     "/contractors/{id}/portfolio/{project_id}": {
       "get": {
         "operationId": "get__contractors_id_portfolio_project_id_",

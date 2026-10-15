@@ -277,6 +277,20 @@ export class Marketplace {
     }
     if(path==='/me'&&method==='GET')return {...safeUser(a.user),phone:a.user.phone,phone_status:'unverified',status:a.user.status,version:a.user.version};
     if(path==='/me/overview'&&method==='GET')return accountOverview(this.store,a.id,a.country);
+    if(path==='/me/restrictions'&&method==='GET'){
+      const now=new Date().toISOString();
+      const rows=await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind=ANY($1::text[]) AND country=$2 AND data->>'user_id'=$3 AND data->>'status'='active' AND (COALESCE(data->>'ends_at',data->>'expires_at') IS NULL OR COALESCE(data->>'ends_at',data->>'expires_at')>$4) ORDER BY data->>'created_at' DESC,id DESC",[['blacklist','auto_hold'],a.country,a.id,now]);
+      const restrictions=[];
+      for(const {data:r} of rows.rows){
+        let incident=r.case_id?await this.store.get(r.case_id):undefined;
+        if(incident?.reporter_private&&incident.owner!==a.id)incident=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='case' AND country=$1 AND owner=$2 AND data->>'source_private_case_id'=$3 ORDER BY data->>'created_at' DESC,id DESC LIMIT 1",[a.country,a.id,incident.id])).rows[0]?.data;
+        const visible=incident?.kind==='case'&&incident.country===a.country&&(incident.owner===a.id||!incident.reporter_private&&incident.subject_user_id===a.id)?incident:undefined;
+        const appeal=visible?.subject_user_id===a.id&&(visible.status==='restricted'||visible.status==='resolved'&&['content_removed','sanction_upheld'].includes(visible.decision));
+        restrictions.push({id:r.id,type:r.kind==='auto_hold'?'automatic_review':'new_business',ends_at:r.ends_at??r.expires_at??null,reason:visible&&(visible.public_reason||visible.source_private_case_id)?visible.public_reason??visible.description:'Проверка содержания',...(visible?{case_id:visible.id,case_status:visible.status,can_appeal:!!appeal}:{can_appeal:false})});
+      }
+      return {items:restrictions,meta:{account_status:a.user.status,restricted:a.user.status!=='active',server_time:now}};
+    }
+
     if(path==='/me'&&method==='PATCH') {
       this.version(a.user,b);const changes:any={};
       for(const [f,min,max] of [['display_name',2,60],['city',0,100],['locale',2,5]] as const)if(b[f]!==undefined)changes[f]=text(b,f,min,max);

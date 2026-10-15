@@ -2,6 +2,7 @@ import '../core/design_states.dart';
 import 'search_filters.dart';
 import 'support_new.dart';
 import 'legal_documents.dart';
+import 'account_restrictions.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
@@ -324,7 +325,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           'content.moderated',
           'verification.updated',
           'entitlement.changed',
-          'case.updated'
+          'case.updated',
+          'sanction.created'
         ].contains(event['type'])) refreshIdentity();
         if (mounted &&
             ![
@@ -482,7 +484,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Widget page(String title, Widget body,
           {List<Widget> actions = const [],
           bool nav = false,
-          bool chrome = true}) =>
+          bool chrome = true,
+          double titleOffset = 0}) =>
       PopScope(
           canPop: history.isEmpty,
           onPopInvokedWithResult: (popped, result) {
@@ -493,7 +496,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               appBar: chrome
                   ? AppBar(
                       leadingWidth: 72,
-                      title: UiText(title),
+                      title: Transform.translate(
+                          offset: Offset(0, titleOffset), child: UiText(title)),
                       leading: IconButton(
                           onPressed: back,
                           tooltip: localize(context, 'Назад'),
@@ -699,6 +703,27 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return lockSetup();
       case 'unlock':
         return unlockScreen();
+      case 'banned':
+        return page(
+            'Ограничение аккаунта',
+            AccountRestrictions(
+                key: ValueKey('restrictions:$revision'),
+                api: api,
+                onSupport: () => go('support'),
+                onPrivacy: () => go('privacy'),
+                onOrders: () => go('orders'),
+                onCase: (id) => go('case', id),
+                onAppeal: (id) => act(() async {
+                      final incident = await api.request('/cases/$id') as Json;
+                      if (mounted)
+                        caseForm(true, incident, () => go('case', id));
+                    }),
+                dateLabel: (value) {
+                  final date = DateTime.tryParse('$value');
+                  return date == null
+                      ? ''
+                      : '${DateFormat(date.toUtc().year == DateTime.now().toUtc().year ? 'd MMMM, HH:mm' : 'd MMMM y, HH:mm', locale).format(date.toUtc())} UTC';
+                }));
       case 'legal':
         return page(
             'Правовые документы',
@@ -1269,12 +1294,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               UiHeading(
                   register ? 'Добро пожаловать' : 'С возвращением',
                   register
-                      ? 'Создайте аккаунт, чтобы начать.'
+                      ? 'Один аккаунт для ваших задач и работы.'
                       : 'Войдите в свой аккаунт, чтобы продолжить.')
             ],
             fields: [
-              if (register)
-                const InputSpec('display_name', 'Как к вам обращаться'),
               InputSpec('phone', 'Номер телефона',
                   hint: '${{
                     'KZ': '+7',
@@ -1284,16 +1307,46 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   }[country]} · ${localize(context, 'Номер телефона').toLowerCase()}',
                   originalIcon: 'phone',
                   keyboard: TextInputType.phone),
-              InputSpec('password', 'Пароль',
-                  hint: 'Введите пароль',
+              InputSpec('password', register ? 'Придумайте пароль' : 'Пароль',
+                  hint: register ? 'Не менее 15 символов' : 'Введите пароль',
                   secret: true,
                   validate: (v) => register && v.length < 15
                       ? 'Не менее 15 символов'
                       : null),
               if (register)
-                const InputSpec('repeat', 'Повторите пароль', secret: true)
+                const InputSpec('repeat', 'Повторите пароль',
+                    hint: 'Введите пароль ещё раз', secret: true)
             ],
-            button: register ? 'Создать аккаунт' : 'Войти',
+            afterField: register
+                ? const {
+                    'phone': [
+                      Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: UiText(
+                              'Номер будет вашим логином, он не подтверждён.',
+                              style: TextStyle(
+                                  fontSize: 10, color: muted, height: 1.4)))
+                    ],
+                    'password': [
+                      Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: UiText(
+                              'Можно использовать пробелы и длинную фразу.',
+                              style: TextStyle(
+                                  fontSize: 10, color: muted, height: 1.4)))
+                    ]
+                  }
+                : const {},
+            afterFields: register
+                ? const [
+                    Notice(
+                        'Сохраните пароль в надёжном месте. Он нужен для входа на новом устройстве.',
+                        icon: 'info',
+                        margin: EdgeInsets.zero),
+                    SizedBox(height: 20)
+                  ]
+                : const [],
+            button: register ? 'Продолжить' : 'Войти',
             submit: (v) async {
               if (register && v['password'] != v['repeat'])
                 throw ApiException('VALIDATION_ERROR', 'Пароли не совпадают');
@@ -1301,7 +1354,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 'country': country,
                 'phone': v['phone']!.trim(),
                 'password': v['password'],
-                if (register) 'display_name': v['display_name'],
                 if (register) 'locale': locale
               }, register: register);
               registrationInProgress = register;
@@ -1325,46 +1377,48 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   history.clear();
                 });
             },
-            after: [
-              TextButton(
-                  style: TextButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 52)),
-                  onPressed: () => go('recovery'),
-                  child: const UiText('Нужна помощь со входом?')),
-              const Divider(height: 29),
-              if (!register)
-                const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: UiText('Ещё нет аккаунта?',
+            after: register
+                ? [
+                    TextButton(
+                        onPressed: () => go('login'),
+                        child: const UiText('Уже есть аккаунт? Войти'))
+                  ]
+                : [
+                    TextButton(
+                        style: TextButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 52)),
+                        onPressed: () => go('recovery'),
+                        child: const UiText('Нужна помощь со входом?')),
+                    const Divider(height: 29),
+                    const UiText('Ещё нет аккаунта?',
                         textAlign: TextAlign.center,
                         style:
-                            TextStyle(fontSize: 12, color: Color(0xFF627187)))),
-              button(
-                  register ? 'Уже есть аккаунт? Войти' : 'Зарегистрироваться',
-                  () => go(register ? 'login' : 'register'),
-                  outline: true),
-              const Notice(
-                  'Ваш номер используется как логин. Подтверждение кодом не требуется.',
-                  icon: 'lock',
-                  margin: const EdgeInsets.only(top: 24)),
-              Padding(
-                  padding: const EdgeInsets.only(top: 24),
-                  child: Text(
-                      '${localize(context, {
-                            'KZ': 'Казахстан',
-                            'RU': 'Россия',
-                            'BY': 'Беларусь',
-                            'RS': 'Сербия'
-                          }[country]!)} · ${{
-                        'ru': 'Русский',
-                        'kk': 'Қазақша',
-                        'sr': 'Српски',
-                        'be': 'Беларуская'
-                      }[locale]}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF627187))))
-            ]));
+                            TextStyle(fontSize: 12, color: Color(0xFF627187))),
+                    button('Зарегистрироваться', () => go('register'),
+                        outline: true),
+                    const Notice(
+                        'Ваш номер используется как логин. Подтверждение кодом не требуется.',
+                        icon: 'lock',
+                        margin: const EdgeInsets.only(top: 24)),
+                    Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Text(
+                            '${localize(context, {
+                                  'KZ': 'Казахстан',
+                                  'RU': 'Россия',
+                                  'BY': 'Беларусь',
+                                  'RS': 'Сербия'
+                                }[country]!)} · ${{
+                              'ru': 'Русский',
+                              'kk': 'Қазақша',
+                              'sr': 'Српски',
+                              'be': 'Беларуская'
+                            }[locale]}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xFF627187))))
+                  ]),
+        titleOffset: -12);
   }
 
   void finishLocalSetup() {
@@ -1778,6 +1832,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Widget homeScreen() => page(
       'JOBA',
       ListView(children: [
+        if (me?['status'] != null && me?['status'] != 'active')
+          Padding(
+              padding: const EdgeInsets.all(20),
+              child: OutlinedButton(
+                  onPressed: () => go('banned'),
+                  child: const UiText('Ограничение аккаунта'))),
         Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
