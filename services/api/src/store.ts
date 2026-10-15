@@ -35,15 +35,17 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0006_ranking_votes.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0007_product_queries.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0008_push_campaigns.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0009_conversation_inbox.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
+  async select(kind:string,country:string,options:{member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
+    if(options.member)where.push("COALESCE(data->'members','[]'::jsonb) ? "+bind(options.member));
     if(options.endUserOnly)where.push("COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0");
     if(options.recipient)where.push("data->>'recipient_id'="+bind(options.recipient));
     if(options.subjectUser)where.push(`data->>'subject_user_id'=${bind(options.subjectUser)}`);
@@ -84,7 +86,10 @@ export class Store {
       where.push(`EXISTS(SELECT 1 FROM records account WHERE account.kind='user' AND account.id::text=r.owner AND account.country=r.country AND account.data->>'status'='active' ${kind==='contractor'?"AND account.data->>'verification'='passed'":''})`);
       if(kind==='order')where.push("(data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP");
     }
-    if(options.search){const parameter=bind('%'+options.search+'%');where.push(`(id::text ILIKE ${parameter} OR owner ILIKE ${parameter} OR data->>'event' ILIKE ${parameter} OR data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);}
+    if(options.search){const parameter=bind('%'+options.search+'%');
+      if(kind==='conversation'&&options.member){const actor=bind(options.member);where.push(`(EXISTS(SELECT 1 FROM records linked WHERE linked.country=r.country AND (linked.kind='order' AND linked.id::text=r.data->>'order_id' AND linked.data->>'title' ILIKE ${parameter} OR linked.kind='user' AND COALESCE(r.data->'members','[]'::jsonb) ? linked.id::text AND linked.id::text<>${actor} AND linked.data->>'display_name' ILIKE ${parameter})))`);}
+      else where.push(`(id::text ILIKE ${parameter} OR owner ILIKE ${parameter} OR data->>'event' ILIKE ${parameter} OR data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);
+    }
     if(options.ranking){
       const ranking=options.ranking,cutoff=bind(new Date(Date.now()-ranking.windowDays*86400000).toISOString());
       const alpha=bind(ranking.dislikeWeight),decay=bind(ranking.ageDays),viewer=options.publicActor?bind(options.publicActor):undefined;

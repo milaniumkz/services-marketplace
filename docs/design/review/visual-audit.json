@@ -253,7 +253,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.237628,
+      "different_pixels_ratio": 0.173493,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -503,7 +503,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.330327,
+      "different_pixels_ratio": 0.150087,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1230,7 +1230,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.3043,
+      "different_pixels_ratio": 0.279082,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1255,7 +1255,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.150709,
+      "different_pixels_ratio": 0.143965,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1305,7 +1305,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.377653,
+      "different_pixels_ratio": 0.216579,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1355,7 +1355,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.066749,
+      "different_pixels_ratio": 0.062877,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1380,7 +1380,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.332497,
+      "different_pixels_ratio": 0.203645,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2481,7 +2481,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.151842,
+      "different_pixels_ratio": 0.148384,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2556,7 +2556,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.123505,
+      "different_pixels_ratio": 0.120371,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44

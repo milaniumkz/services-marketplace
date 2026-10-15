@@ -98,7 +98,7 @@ void main() {
     };
     Json order() => {
           'id': 'visual-object',
-          'owner': user['id'],
+          'owner': route == 'order' ? 'visual-customer' : user['id'],
           if (route == 'review-sent')
             'my_review': {
               'id': 'visual-own-review',
@@ -125,6 +125,8 @@ void main() {
           'currency': 'KZT',
           'budget_amount': 25000,
           'upload_ids': [],
+          if(route == 'order') ...{'title':'Собрать кухню и подключить мойку','description':'Собрать прямую кухню длиной 2,8 м, установить столешницу и подключить мойку. Мебель уже доставлена. Нужны свои инструменты.','budget_amount':4500000,'upload_ids':['visual-kitchen'],'time_window':{'start_date':'2026-10-14','end_date':'2026-10-16','time_zone':'Asia/Almaty'}},
+          if(route == 'complete') ...{ 'completion_upload_ids': ['visual-kitchen'], 'completion_note':'Всё собрано и подключено, проверил соединения. Фото результата приложил.', 'completion_requested_at':'2026-10-12T15:12:00Z', 'title':'Кухня готова'},
           'expires_at': '2027-01-01T12:00:00Z',
           'created_at': '2026-10-14T10:00:00Z',
           'work_mode': 'onsite',
@@ -227,7 +229,11 @@ void main() {
               headers: {'content-type': 'image/png'});
       }
       if(path=='/order-invites/visual-object'||path=='/cancel-requests/visual-object')return response({'id':'visual-object','order_id':'visual-object','status':'pending','owner':user['id'],'version':1});
-      if(path=='/conversations/visual-object')return response({'id':'visual-object','order_id':'visual-object','order_title':'Сборка кухни','status':route == 'frozen-chat' ? 'frozen' : 'active','blocked':route == 'frozen-chat'});
+      if(path=='/me/conversations')return response({'items':[
+        {'id':'visual-object','status':'working','peer':{'id':'visual-peer','display_name':'Алексей К.'},'order_id':'visual-object','order_title':'Сборка кухни','order_status':'in_progress','unread_count':2,'last_message':{'text':'Спасибо, до встречи!','created_at':'2026-10-15T09:32:00Z'}},
+        {'id':'visual-second-chat','status':'open','peer':{'id':'visual-second-peer','display_name':'Николай С.'},'order_id':'visual-object','order_title':'Установка светильников','unread_count':0,'last_message':{'text':'Могу в пятницу после 14:00.','created_at':'2026-10-14T16:10:00Z'}}
+      ]});
+      if(path=='/conversations/visual-object')return response({'id':'visual-object','order_id':'visual-object','order_title':'Сборка кухни','order_status':'assigned','order_amount':4500000,'currency':'KZT','peer':{'id':'visual-peer','display_name':'Алексей М.'},'status':route == 'frozen-chat' ? 'frozen' : 'active','blocked':route == 'frozen-chat'});
       if(path=='/me/subscriptions/visual-object')return response({'id':'visual-object','status':route=='subscription-canceled'?'canceled_at_period_end':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}});
       if(path=='/me/purchase-checks/visual-object')return response({'id':'visual-object','status':'pending'});
       if(path=='/me/subscriptions')return response({'items':[{'id':'visual-object','status':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}}]});
@@ -575,7 +581,7 @@ void main() {
           : route == 'loading'
               ? <String, dynamic>{'q': 'Ремонт и отделка'}
               : <String, dynamic>{};
-      state.executor = route == 'executor-home' || const ['access','my-access','checkout','manage-subscription','subscription-canceled','payment-pending','restore','reward','reward-granted','reward-nofill','reward-pending'].contains(route);
+      state.executor = route == 'executor-home' || const ['order','access','my-access','checkout','manage-subscription','subscription-canceled','payment-pending','restore','reward','reward-granted','reward-nofill','reward-pending'].contains(route);
       user['active_role'] = state.executor ? 'executor' : 'customer';
       state.objectId = 'visual-object';
       state.history.clear();

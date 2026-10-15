@@ -579,7 +579,7 @@ class DataCard extends StatelessWidget {
 class PrivatePhoto extends StatelessWidget {
   final JobaApi api;
   final String id;
-  final double height;
+  final double? height;
   final VoidCallback? onOpen;
   final List<String> gallery;
   final String? caption;

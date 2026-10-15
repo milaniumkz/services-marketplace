@@ -582,7 +582,13 @@ export class Marketplace {
         const updated={...o,status:'assigned',assignment_id:assignment.id,executor_id:offer.owner,selected_offer_id:offer.id,agreed_amount:offer.amount,version:o.version+1};await this.store.put(updated);await this.notify(offer.owner,a,'order.selected',o.id);return updated;
       }
       if(action==='start'&&method==='POST'){if(o.executor_id!==a.id||o.status!=='assigned')fail(409,'STATE_CONFLICT','Начало работы недоступно');return this.store.put({...o,status:'in_progress',started_at:new Date().toISOString(),version:o.version+1});}
-      if(action==='complete'&&method==='POST'){if(o.executor_id!==a.id||o.status!=='in_progress')fail(409,'STATE_CONFLICT','Завершение недоступно');return this.store.put({...o,status:'completion_requested',version:o.version+1});}
+      if(action==='complete'&&method==='POST'){
+        if(o.executor_id!==a.id||o.status!=='in_progress')fail(409,'STATE_CONFLICT','Завершение недоступно');
+        const completion_note=b.note===undefined||b.note===''?'':text(b,'note',1,3000);
+        const completion_upload_ids=b.upload_ids===undefined?[]:await this.safeUploads(a,b.upload_ids,'order',8);
+        const result=await this.store.put({...o,status:'completion_requested',completion_note,completion_upload_ids,completion_requested_at:new Date().toISOString(),version:o.version+1});
+        await this.notify(o.owner,a,'order.completion_requested',o.id);return result;
+      }
       if(action==='confirm-completion'&&method==='POST'){if(o.status!=='completion_requested')fail(409,'STATE_CONFLICT','Исполнитель не запросил завершение');const result=await this.store.put({...o,status:'completed',completed_at:new Date().toISOString(),version:o.version+1});await this.growth.qualify(o.owner,a.country,'completed_order',o.id);await this.growth.qualify(o.executor_id,a.country,'completed_order',o.id);return result;}
       if(action==='request-revision'&&method==='POST'){if(o.status!=='completion_requested')fail(409,'STATE_CONFLICT','Доработка недоступна');return this.store.put({...o,status:'in_progress',revision_reason:text(b,'reason',5,1000),revision_upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[],revision_time_window:b.time_window===undefined?undefined:timeWindow(b.time_window),version:o.version+1});}
       if(action==='cancel'&&method==='POST'){if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Активный заказ требует разрешения через поддержку');return this.store.put({...o,status:'cancelled',reason:text(b,'reason',5,1000),version:o.version+1});}
@@ -641,10 +647,38 @@ export class Marketplace {
     if(workDetail&&method==='GET'){
       const kind=({'order-invites':'invite','cancel-requests':'cancel_request',amendments:'amendment',conversations:'conversation'} as any)[workDetail[1]],r=await this.object(workDetail[2],a,kind);
       if(r.owner!==a.id&&r.recipient_id!==a.id&&!r.members?.includes(a.id))fail(404,'NOT_FOUND','Запись не найдена');
-      if(kind==='conversation'){const order=r.order_id?await this.store.get(r.order_id):null;let blocked=['closed','frozen','restricted'].includes(r.status);for(const member of r.members)if(member!==a.id&&await this.blocked(a,member))blocked=true;return {id:r.id,status:r.status,order_id:r.order_id,order_title:order?.title??'',blocked};}
+      if(kind==='conversation'){
+        const order=r.order_id?await this.store.get(r.order_id):null;
+        let blocked=['closed','frozen','restricted'].includes(r.status);
+        for(const member of r.members)if(member!==a.id&&await this.blocked(a,member))blocked=true;
+        const peerId=r.members.find((id:string)=>id!==a.id),peer=peerId?await this.store.get(peerId):null;
+        const visiblePeer=peer?.kind==='user'&&peer.country===a.country;
+        return {id:r.id,status:r.status,order_id:r.order_id,order_title:order?.title??'',
+          order_status:order?.status,order_amount:order?.agreed_amount??order?.budget_amount,currency:order?.currency,
+          peer:visiblePeer?{id:peer.id,display_name:peer.display_name,avatar_id:peer.avatar_id}:null,blocked};
+      }
       return r;
     }
-    if(path==='/me/conversations'&&method==='GET')return {items:(await this.store.all('conversation',a.country)).filter(x=>x.members.includes(a.id))};
+    if(path==='/me/conversations'&&method==='GET'){
+      const page=await this.page('conversation',a,q,{member:a.id});if(!page.items.length)return page;
+      const summaries=await db.query<{id:string;peer:any;order_title:string;order_status:string;last_message:any;unread_count:string}>(`
+        SELECT c.id,jsonb_build_object('id',peer.id,'display_name',peer.data->>'display_name','avatar_id',peer.data->>'avatar_id') AS peer,
+          o.data->>'title' AS order_title,o.data->>'status' AS order_status,last_message.data AS last_message,
+          (SELECT count(*) FROM records m WHERE m.kind='message' AND m.country=c.country AND m.data->>'thread_id'=c.id::text AND m.owner<>$3
+            AND (m.data->>'sequence')::int>COALESCE((c.data->'read_sequences'->>$3)::int,0)
+            AND COALESCE(m.data->>'moderation_status','') NOT IN('quarantined','hidden','rejected') AND COALESCE(m.data->>'tombstone','false')<>'true') AS unread_count
+        FROM records c
+        LEFT JOIN records o ON o.id::text=c.data->>'order_id' AND o.kind='order' AND o.country=c.country
+        LEFT JOIN LATERAL(SELECT u.id,u.data FROM records u WHERE u.kind='user' AND u.country=c.country AND u.id::text<>$3 AND COALESCE(c.data->'members','[]'::jsonb) ? u.id::text ORDER BY u.id LIMIT 1)peer ON true
+        LEFT JOIN LATERAL(SELECT m.data FROM records m WHERE m.kind='message' AND m.country=c.country AND m.data->>'thread_id'=c.id::text
+          AND (COALESCE(m.data->>'moderation_status','') NOT IN('quarantined','hidden','rejected') OR m.owner=$3)
+          ORDER BY (m.data->>'sequence')::int DESC LIMIT 1)last_message ON true
+        WHERE c.id=ANY($1::uuid[]) AND c.country=$2 AND c.kind='conversation' AND COALESCE(c.data->'members','[]'::jsonb) ? $3`,[page.items.map(c=>c.id),a.country,a.id]);
+      return {...page,items:page.items.map(c=>{const summary=summaries.rows.find(r=>r.id===c.id)!,m=summary.last_message;
+        const hidden=m&&(['hidden','rejected'].includes(m.moderation_status)||m.moderation_status==='quarantined'&&m.owner!==a.id);
+        return {id:c.id,status:c.status,order_id:c.order_id,order_title:summary.order_title,order_status:summary.order_status,peer:summary.peer?.id?summary.peer:null,
+          unread_count:Number(summary.unread_count),last_message:m?{text:m.tombstone||hidden?'':String(m.text??'').slice(0,200),created_at:m.created_at,tombstone:m.tombstone===true,hidden,has_attachments:!hidden&&!m.tombstone&&!!m.upload_ids?.length}:null};})};
+    }
     const readConversation=path.match(/^\/conversations\/([^/]+)\/(read|delivered)$/);
     if(readConversation&&method==='POST') {
       const c=await this.object(readConversation[1],a,'conversation');if(!c.members.includes(a.id))fail(404,'NOT_FOUND','Чат не найден');
@@ -965,7 +999,7 @@ export class Marketplace {
       }
       if(path==='/admin/legal-holds'&&method==='GET')return this.page('legal_hold',a,q);
       if(path==='/admin/legal-holds'&&method==='POST'){
-        const target=await this.object(String(b.target_id),a),allowed:Record<string,string[]>={upload:['file'],verification:['document_refs'],order:['upload_ids','revision_upload_ids'],message:['upload_ids'],portfolio:['photos'],contractor:['gallery_ids']};
+        const target=await this.object(String(b.target_id),a),allowed:Record<string,string[]>={upload:['file'],verification:['document_refs'],order:['upload_ids','revision_upload_ids','completion_upload_ids'],message:['upload_ids'],portfolio:['photos'],contractor:['gallery_ids']};
         const fields=allowed[target.kind];if(!fields||!Array.isArray(b.fields)||!b.fields.length||b.fields.some((f:any)=>!fields.includes(f)))fail(400,'VALIDATION_ERROR','Укажите конкретные поля удержания');
         if(['purge_pending','purged'].includes(target.status))fail(409,'STATE_CONFLICT','Очистка уже началась');
         for(const field of b.fields)for(const id of Array.isArray(target[field])?target[field]:[]){const file=await this.store.get(id);if(file&&['purge_pending','purged'].includes(file.status))fail(409,'STATE_CONFLICT','Очистка файла уже началась');}
@@ -1327,7 +1361,7 @@ export class Marketplace {
   private async nextCursor(id:string,q:any) {
     const payload=Buffer.from(JSON.stringify({after:id,filter_hash:this.filterHash(q),expires_at:new Date(Date.now()+86400000).toISOString()})).toString('base64url');return payload+'.'+await this.files.requestDigest(payload);
   }
-  private async page(kind:string,a:Actor,q:any,options:{subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean}={}) {
+  private async page(kind:string,a:Actor,q:any,options:{member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const filters:any={};
     if(kind==='contractor'&&options.publicActor){
@@ -1463,7 +1497,7 @@ export class Marketplace {
       if(support?.owner===a.id)return;
       if(support?.assignee_id===a.id){await this.staff(a,'support');return;}
       const caseMessage=(await this.store.all('case_message',a.country)).find(m=>!m.internal&&m.upload_ids?.includes(u.id));
-      const linkedCase=caseMessage?await this.store.get(caseMessage.case_id):(await this.store.all('case',a.country)).find(c=>[...c.upload_ids??[],...c.appeal_upload_ids??[],...c.target_snapshot?.upload_ids??[],...c.target_snapshot?.gallery_ids??[],...c.target_snapshot?.photos??[],...(c.target_snapshot?.avatar_id?[c.target_snapshot.avatar_id]:[])].includes(u.id));
+      const linkedCase=caseMessage?await this.store.get(caseMessage.case_id):(await this.store.all('case',a.country)).find(c=>[...c.upload_ids??[],...c.appeal_upload_ids??[],...c.target_snapshot?.upload_ids??[],...c.target_snapshot?.completion_upload_ids??[],...c.target_snapshot?.gallery_ids??[],...c.target_snapshot?.photos??[],...(c.target_snapshot?.avatar_id?[c.target_snapshot.avatar_id]:[])].includes(u.id));
       if(linkedCase){
         if(linkedCase.upload_ids?.includes(u.id)&&(linkedCase.owner===a.id||!linkedCase.reporter_private&&linkedCase.subject_user_id===a.id))return;
         if(a.mfa&&(a.user.staff_permissions?.includes('moderator')||a.user.staff_permissions?.includes('administrator'))){await this.staff(a,'moderator');const reason=text(q,'reason',10,1000);await this.audit(a,'case.evidence_read',u.id,reason);return;}
@@ -1480,10 +1514,10 @@ export class Marketplace {
         if(profile&&owner?.status==='active'&&owner.verification==='passed'&&!await this.blocked(a,profile.owner)){await this.entitlement(a,'search_full');return;}
       }
       if(u.purpose==='order') {
-        const order=(await this.store.all('order',a.country)).find(o=>o.upload_ids?.includes(u.id)||o.revision_upload_ids?.includes(u.id));
+        const order=(await this.store.all('order',a.country)).find(o=>o.upload_ids?.includes(u.id)||o.revision_upload_ids?.includes(u.id)||o.completion_upload_ids?.includes(u.id));
         if(order&&[order.owner,order.executor_id].includes(a.id))return;
         const owner=order?await this.store.get(order.owner):undefined;
-        if(owner?.status==='active'&&order?.expires_at>new Date().toISOString()&&order?.status==='open'&&!['quarantined','hidden','rejected'].includes(order.moderation_status)&&!await this.blocked(a,order.owner)){await this.entitlement(a,'search_full',true);return;}
+        if(order?.upload_ids?.includes(u.id)&&owner?.status==='active'&&order?.expires_at>new Date().toISOString()&&order?.status==='open'&&!['quarantined','hidden','rejected'].includes(order.moderation_status)&&!await this.blocked(a,order.owner)){await this.entitlement(a,'search_full',true);return;}
       }
       if(u.purpose==='avatar') {
         const user=await this.store.get(u.owner);if(user?.status==='active'&&user.avatar_id===u.id&&!await this.blocked(a,u.owner)){await this.entitlement(a,'search_full');return;}

@@ -6,7 +6,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
  const cases=(await store.all('case')).filter(r=>!['resolved','closed','dismissed'].includes(r.status));
  const verifications=await store.all('verification');
  const protectedFiles=new Set<string>();
- for(const incident of cases)for(const id of [...incident.upload_ids??[],...incident.appeal_upload_ids??[],...incident.target_snapshot?.upload_ids??[],...incident.target_snapshot?.gallery_ids??[],...incident.target_snapshot?.photos??[],...incident.target_snapshot?.document_refs??[]])protectedFiles.add(incident.country+':'+id);
+ for(const incident of cases)for(const id of [...incident.upload_ids??[],...incident.appeal_upload_ids??[],...incident.target_snapshot?.upload_ids??[],...incident.target_snapshot?.completion_upload_ids??[],...incident.target_snapshot?.gallery_ids??[],...incident.target_snapshot?.photos??[],...incident.target_snapshot?.document_refs??[]])protectedFiles.add(incident.country+':'+id);
  for(const hold of holds){
   const target=await store.get(hold.target_id);if(!target||target.country!==hold.country)continue;
   if(target.kind==='upload')protectedFiles.add(hold.country+':'+target.id);

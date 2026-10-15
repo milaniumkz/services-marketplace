@@ -302,7 +302,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                 const SizedBox(height: 16),
               ],
               const Notice(
-                  'Доступ активируется после подтверждения оплаты. Если платёж обрабатывается, повторная покупка не требуется.'),
+                  'Доступ активируется после подтверждения оплаты. Если платёж обрабатывается, повторная покупка не требуется.', warning: true, icon: 'info'),
               JobaMenu([
                 JobaMenuEntry('Условия подписки', 'file',
                     () => widget.onGo('legal', null)),

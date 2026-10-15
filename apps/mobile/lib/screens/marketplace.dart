@@ -13,6 +13,8 @@ import 'revoke_session.dart';
 import 'device_setup.dart';
 import 'commerce_states.dart';
 import 'executor_access.dart';
+import 'order_overview.dart';
+import 'conversation_inbox.dart';
 import 'promotion_purchase.dart';
 import 'privacy_states.dart';
 import 'geo_states.dart';
@@ -94,6 +96,7 @@ const eventTitles = {
   'verification.updated': 'Результат проверки документа',
   'offer.created': 'Новый отклик на заказ',
   'order.selected': 'Вы выбраны исполнителем',
+  'order.completion_requested': 'Исполнитель прислал результат работы',
   'invite.created': 'Приглашение в заказ',
   'message.created': 'Новое сообщение',
   'support.message.created': 'Ответ поддержки',
@@ -505,7 +508,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           {List<Widget> actions = const [],
           bool nav = false,
           bool chrome = true,
-          double titleOffset = 0}) =>
+          double titleOffset = 0,
+          Widget? titleWidget, double? toolbarHeight, double leadingWidth = 72}) =>
       PopScope(
           canPop: history.isEmpty,
           onPopInvokedWithResult: (popped, result) {
@@ -515,9 +519,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               backgroundColor: canvas,
               appBar: chrome
                   ? AppBar(
-                      leadingWidth: 72,
+                      leadingWidth: leadingWidth,
+                      toolbarHeight: toolbarHeight,
+                      titleSpacing: titleWidget == null ? null : 0,
+                      centerTitle: titleWidget == null,
                       title: Transform.translate(
-                          offset: Offset(0, titleOffset), child: UiText(title)),
+                          offset: Offset(0, titleOffset), child: titleWidget ?? UiText(title)),
                       leading: IconButton(
                           onPressed: back,
                           tooltip: localize(context, 'Назад'),
@@ -1007,15 +1014,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'invite':
         return inviteScreen();
       case 'messages':
-        return page(
-            'Сообщения',
-            paged(
-                '/me/conversations',
-                (r) => DataCard('Чат заказа',
-                    translateTitle: true,
-                    status: status(r),
-                    onTap: () => go('chat', r['id']))),
-            nav: true);
+        return page('Сообщения', ConversationInbox(api: api, revision: revision,
+            onGo: (r,id)=>go(r,id)), chrome:false, nav:true);
       case 'chat':
         return chatScreen(false);
       case 'support-chat':
@@ -2592,6 +2592,20 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     return '${dateLabel(window['start_date'] ?? window['start'])} — ${dateLabel(window['end_date'] ?? window['end'])}';
   }
 
+  String compactWindowLabel(Json order) {
+    final window = order['time_window'];
+    if(window == null) return windowLabel(order);
+    final start = DateTime.tryParse('${window['start_date']}');
+    final end = DateTime.tryParse('${window['end_date']}');
+    if(start == null || end == null) return windowLabel(order);
+    final locale = Localizations.localeOf(context).languageCode;
+    if(start.year == end.year && start.month == end.month) {
+      final last = DateFormat(start.year == DateTime.now().year ? 'd MMMM' : 'd MMMM y', locale).format(end);
+      return start.day == end.day ? last : '${start.day}–$last';
+    }
+    return '${DateFormat.MMMd(locale).format(start)} — ${DateFormat.yMMMd(locale).format(end)}';
+  }
+
   Widget fact(String label, String value) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2700,6 +2714,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             before: [
               const UiHeading('Договоримся о главном',
                   'После выбора остальные отклики закроются.'),
+              Container(padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, border: Border.all(color: line), borderRadius: BorderRadius.circular(16)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 JobaAvatar(
                     api: api,
@@ -2711,20 +2728,21 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w700)))
               ]),
-              const SizedBox(height: 16),
+              const Divider(height: 28, thickness: 1, color: line),
               Text(order['title'],
                   style: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w700)),
               fact('Стоимость работы',
                   price(offer['amount'], offer['currency'])),
-              const Divider(height: 1),
               fact('Когда', windowLabel(order)),
               Text(
                   '${localize(context, 'Версия')} ${order['revision']} · ${offer['version']}',
                   style: const TextStyle(fontSize: 10, color: muted)),
+              ])),
+              const SizedBox(height: 8),
               const Notice(
                   'Оплату услуги вы согласуете напрямую с исполнителем. JOBA не хранит и не переводит эти деньги.',
-                  icon: 'info'),
+                  icon: 'info', warning: true),
               CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
@@ -2752,55 +2770,94 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               go('work', order['id']);
             });
       }));
+  Future<void> submitCompletion(Json order, VoidCallback reload) async {
+    final photos = <String>[];
+    final sent = await Navigator.push<bool>(context, MaterialPageRoute(builder: (screenContext) =>
+        StatefulBuilder(builder: (context, refresh) => Scaffold(
+            backgroundColor: canvas,
+            appBar: AppBar(title: const UiText('Результат работы')),
+            body: ActionForm(
+                stickySubmit: true,
+                before: [UiHeading('Покажите результат', '${order['title']}')],
+                fields: const [InputSpec('note', 'Сообщение заказчику', required: false, multiline: true,
+                    hint: 'Что выполнено и что нужно проверить')],
+                afterFields: [
+                  for(final id in photos) Row(children: [
+                    Expanded(child: SizedBox(height: 120, child: PrivatePhoto(api: api, id: id))),
+                    IconButton(tooltip: localize(context, 'Удалить фото'), icon: const JobaIcon('close'),
+                        onPressed: () => refresh(() => photos.remove(id))),
+                  ]),
+                  OutlinedButton.icon(onPressed: photos.length >= 8 ? null : () async {
+                    final upload = await pickUpload('order');
+                    if(upload != null && context.mounted) refresh(() => photos.add(upload['id']));
+                  }, icon: const JobaIcon('camera'), label: const UiText('Добавить фото результата')),
+                ],
+                button: 'Отправить результат',
+                submit: (values) async {
+                  await api.request('/orders/${order['id']}/request-completion', method: 'POST', body: {
+                    'expected_version': order['version'], 'note': values['note'] ?? '', 'upload_ids': photos,
+                  });
+                  if(screenContext.mounted) Navigator.pop(screenContext, true);
+                })))));
+    if(sent == true && mounted) reload();
+  }
   Widget completionScreen() => page(
       'Результат работы',
       loaded('/orders/$objectId', (data, reload) {
         final order = data as Json;
-        final allowed = order['status'] == 'completion_requested' &&
-            order['owner'] == me?['id'];
+        final allowed = order['status'] == 'completion_requested' && order['owner'] == me?['id'];
+        final person = order['executor'] as Json?;
+        final photos = order['completion_upload_ids'] as List? ?? [];
         return Column(children: [
-          Expanded(
-              child: listBody([
-            JobaBadge(status(order)),
+          Expanded(child: listBody([
+            Row(children: [
+              JobaBadge(status(order), background: const Color(0xFFFFF4D4), foreground: const Color(0xFF705000)),
+              const Spacer(),
+              Text('№ ${order['id'].toString().substring(0, order['id'].toString().length.clamp(0,8))}',
+                  style: const TextStyle(fontSize: 10, color: muted)),
+            ]),
             const SizedBox(height: 16),
-            Heading(order['title']),
-            if (order['executor'] != null)
-              Row(children: [
-                JobaAvatar(
-                    api: api,
-                    name: order['executor']['display_name'] ?? '',
-                    id: order['executor']['avatar_id']),
-                const SizedBox(width: 10),
-                Expanded(child: Text(order['executor']['display_name'] ?? ''))
-              ]),
-            const Notice(
-                'Проверьте работу перед подтверждением. Если что-то осталось, запросите доработку.',
-                icon: 'shield'),
+            Text(order['title'], style: const TextStyle(fontSize: 28, height: 1.25, letterSpacing: -.9, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text('${person?['display_name'] ?? localize(context, 'Исполнитель')} ${localize(context, 'отметил работу выполненной.')}',
+                style: const TextStyle(fontSize: 12, color: muted, height: 1.5)),
+            if(photos.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              for(final id in photos) Padding(padding: const EdgeInsets.only(bottom: 12),
+                  child: ClipRRect(borderRadius: BorderRadius.circular(16),
+                      child: PrivatePhoto(api: api, id: id, height: null, gallery: photos.cast<String>()))),
+            ],
+            if('${order['completion_note'] ?? ''}'.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.white, border: Border.all(color: line), borderRadius: BorderRadius.circular(16)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      JobaAvatar(api: api, name: person?['display_name'] ?? '', id: person?['avatar_id'], size: 42),
+                      const SizedBox(width: 10),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const UiText('Сообщение исполнителя', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                        if(order['completion_requested_at'] != null) Text(dateLabel(order['completion_requested_at']),
+                            style: const TextStyle(fontSize: 10, color: muted)),
+                      ])),
+                    ]),
+                    const SizedBox(height: 12),
+                    Text(order['completion_note'], style: const TextStyle(fontSize: 12, height: 1.5)),
+                  ])),
+            ],
+            const SizedBox(height: 16),
+            const UiText('Проверьте работу перед подтверждением. Если что-то осталось, запросите доработку.',
+                style: TextStyle(fontSize: 12, color: muted, height: 1.5)),
             if (!allowed) const Notice('Состояние заказа изменилось.'),
-            button(
-                'Открыть чат',
-                () => go(order['conversation_id'] == null ? 'messages' : 'chat',
-                    order['conversation_id']),
-                outline: true)
+            const SizedBox(height: 16),
+            OutlinedButton(onPressed: allowed && !actionBusy ? () => go('rework', order['id']) : null,
+                child: const UiText('Нужна доработка')),
           ])),
           stickyActions([
-            OutlinedButton(
-                onPressed: allowed && !actionBusy
-                    ? () => reasonCommand(order, 'request-revision',
-                        () => go('work', order['id']))
-                    : null,
-                child: const UiText('Нужна доработка')),
-            FilledButton(
-                onPressed: allowed && !actionBusy
-                    ? () => act(() async {
-                          await api.request(
-                              '/orders/${order['id']}/confirm-completion',
-                              method: 'POST',
-                              body: {'expected_version': order['version']});
-                          go('review', order['id']);
-                        })
-                    : null,
-                child: const UiText('Принять работу'))
+            FilledButton(onPressed: allowed && !actionBusy ? () => act(() async {
+              await api.request('/orders/${order['id']}/confirm-completion', method: 'POST', body: {'expected_version': order['version']});
+              go('review', order['id']);
+            }) : null, child: const UiText('Принять работу'))
           ])
         ]);
       }));
@@ -2877,17 +2934,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             });
       }));
   Widget orderScreen() => page(
-      route == 'publish' ? 'Проверьте заказ' : 'Карточка заказа',
+      route == 'publish' ? 'Проверьте заказ' : 'Детали заказа',
       loaded('/orders/$objectId', (data, reload) {
         final o = data as Json;
         final owner = o['owner'] == me!['id'],
             assigned = o['executor_id'] == me!['id'];
-        return listBody([
-          Heading('${o['title']}'),
-          DataCard(status(o),
-              subtitle:
-                  '${o['city']} · ${price(o['budget_amount'], o['currency'])}'),
-          Text('${o['description']}', style: const TextStyle(height: 1.6)),
+        final canOffer = !owner && o['status'] == 'open';
+        return Column(children: [Expanded(child: listBody([
+          OrderOverview(api: api, order: o, stateLabel: status(o),
+              priceLabel: price(o['budget_amount'], o['currency']), timeLabel: compactWindowLabel(o),
+              onReport: () => reportObject(o['id'], 'order')),
           if ((owner || assigned) && o['revision_reason'] != null) ...[
             const Heading('Комментарий исполнителю'),
             Text('${o['revision_reason']}'),
@@ -2910,15 +2966,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       go('publish', cloned['id']);
                     }),
                 outline: true),
-          if (!owner && o['status'] == 'open')
-            button('Откликнуться', () => go('offer', o['id'])),
           if (owner && o['status'] == 'open')
             button('Список откликов', () => go('offers', o['id'])),
           if (assigned && o['status'] == 'assigned')
             button('Начать работу', () => orderCommand(o, 'start', reload)),
           if (assigned && o['status'] == 'in_progress')
             button('Запросить завершение',
-                () => orderCommand(o, 'complete', reload)),
+                () => submitCompletion(o, reload)),
           if (owner && o['status'] == 'completion_requested') ...[
             button('Проверить результат', () => go('complete', o['id'])),
             button('Запросить доработку',
@@ -2950,8 +3004,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 () => go(o['conversation_id'] == null ? 'messages' : 'chat',
                     o['conversation_id']),
                 outline: true),
-          button('Пожаловаться', () => reportObject(o['id'], 'order'),
-              outline: true),
+        ])),
+          if(canOffer) stickyActions([FilledButton(onPressed: () => go('offer', o['id']), child: const UiText('Откликнуться'))]),
         ]);
       }));
   Widget editOrderScreen() => page(
@@ -3617,9 +3671,66 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     fontSize: 10, color: muted)))
                     ]));
           }));
-  Widget chatScreen(bool support) => page(
-      support ? 'Поддержка JOBA' : 'Чат заказа',
-      support ? messageThread(true) : ApiView(key:ValueKey('conversation:$objectId'),load:()=>api.request('/conversations/$objectId'),builder:(context,r,reload)=>r['blocked']==true?WorkStateScreen(api:api,mode:'frozen-chat',id:objectId!,onGo:(r,id)=>go(r,id),pickPhoto:()=>pickUpload('order')):messageThread(false)));
+  Widget chatScreen(bool support) {
+    if (support) return page('Поддержка JOBA', messageThread(true));
+    return ApiView(
+        key: ValueKey('conversation:$objectId'),
+        load: () => api.request('/conversations/$objectId'),
+        builder: (context, r, reload) {
+          final peer = r['peer'] as Json?;
+          final name = '${peer?['display_name'] ?? 'Участник заказа'}';
+          return page(name,
+              Column(children: [
+                if (r['order_id'] != null)
+                  Material(color: Colors.white, child: InkWell(
+                      onTap: () => go('order', r['order_id']),
+                      child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          child: Row(children: [
+                            const JobaIcon('brief', color: primary),
+                            const SizedBox(width: 10),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              UiText('${r['order_title'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 2),
+                              UiText([if(r['order_status'] != null) status({'status': r['order_status']}),
+                                if(r['order_amount'] != null) money(r['order_amount'], r['currency'] ?? 'KZT')].join(' · '),
+                                  style: const TextStyle(fontSize: 10, color: muted)),
+                            ])),
+                            const JobaIcon('right', size: 18),
+                          ])))),
+                Expanded(child: r['blocked'] == true
+                    ? WorkStateScreen(api: api, mode: 'frozen-chat', id: objectId!,
+                        onGo: (r, id) => go(r, id), pickPhoto: () => pickUpload('order'))
+                    : messageThread(false)),
+              ]),
+              toolbarHeight: 64, leadingWidth: 58,
+              titleWidget: Row(children: [
+                Container(width: 42, height: 42,
+                    decoration: BoxDecoration(color: const Color(0xFFDDEFE9), borderRadius: BorderRadius.circular(14)),
+                    clipBehavior: Clip.antiAlias,
+                    child: peer?['avatar_id'] != null
+                        ? PrivatePhoto(api: api, id: peer!['avatar_id'])
+                        : Center(child: Text(name.trim().isEmpty ? '?' : name.trim().substring(0, 1),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF487E70))))),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  UiText(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  const UiText('Участник заказа', style: TextStyle(fontSize: 10, color: muted, fontWeight: FontWeight.w400)),
+                ])),
+              ]),
+              actions: [PopupMenuButton<String>(
+                  tooltip: localize(context, 'Действия чата'),
+                  icon: const JobaIcon('dots'),
+                  onSelected: (value) => value == 'report'
+                      ? reportObject(objectId!, 'conversation') : go('support-new'),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: 'report', child: UiText(localize(context, 'Пожаловаться'))),
+                    PopupMenuItem(value: 'support', child: UiText(localize(context, 'Поддержка'))),
+                  ])]);
+        });
+  }
   Widget messageThread(bool support) => MessageThread(
           key: ValueKey('thread:$objectId'),
           api: api,
@@ -5421,7 +5532,7 @@ class _MessageThreadState extends State<MessageThread> {
                         : const UiText('Начните разговор'))
                 : ListView.builder(
                     controller: scroll,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                     itemCount: messages.length + (moreHistory ? 1 : 0),
                     itemBuilder: (c, i) {
                       if (moreHistory && i == 0)
@@ -5432,7 +5543,7 @@ class _MessageThreadState extends State<MessageThread> {
                                 : 'Показать ранние сообщения'));
                       final m = messages[i - (moreHistory ? 1 : 0)],
                           own = m['owner'] == widget.owner;
-                      return GestureDetector(
+                      final bubble = GestureDetector(
                           onLongPress: () => messageMenu(m),
                           child: Align(
                               alignment: own
@@ -5441,7 +5552,7 @@ class _MessageThreadState extends State<MessageThread> {
                               child: Container(
                                   constraints:
                                       const BoxConstraints(maxWidth: 312),
-                                  padding: const EdgeInsets.all(14),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   margin: const EdgeInsets.only(bottom: 12),
                                   decoration: BoxDecoration(
                                       color: own ? primary : Colors.white,
@@ -5462,27 +5573,37 @@ class _MessageThreadState extends State<MessageThread> {
                                                 ? localize(context,
                                                     'Сообщение временно скрыто')
                                                 : m['text'] ?? '',
-                                            style: TextStyle(fontSize: 14, color: own ? Colors.white : navy)),
+                                            style: TextStyle(fontSize: 13, height: 20/13, color: own ? Colors.white : navy)),
                                         for (final id
                                             in (m['upload_ids'] as List? ?? []))
                                           AttachmentView(
                                               api: widget.api, id: id),
-                                        if (own)
-                                          UiText(
-                                              const {
-                                                    'sent': 'Отправлено',
-                                                    'delivered': 'Доставлено',
-                                                    'read': 'Прочитано',
-                                                    'quarantined': 'На проверке'
-                                                  }[m['delivery_state']] ??
-                                                  'Отправлено',
-                                              style: TextStyle(fontSize: 10, color: own ? Colors.white70 : navy))
+                                        Padding(padding: const EdgeInsets.only(top: 4),
+                                            child: Text([
+                                              if(DateTime.tryParse('${m['created_at']}') case final DateTime created)
+                                                DateFormat.Hm(Localizations.localeOf(context).languageCode).format(created.toLocal()),
+                                              if(own) localize(context, const {
+                                                'sent':'Отправлено','delivered':'Доставлено','read':'Прочитано','quarantined':'На проверке'
+                                              }[m['delivery_state']] ?? 'Отправлено'),
+                                            ].join(' · '), style: TextStyle(fontSize: 9, height: 13/9,
+                                                color: own ? const Color(0xFFD6E4FF) : muted))),
                                       ]))));
+                      final date = DateTime.tryParse('${m['created_at']}')?.toLocal();
+                      final previous = i - (moreHistory ? 1 : 0) - 1;
+                      final before = previous < 0 ? null : DateTime.tryParse('${messages[previous]['created_at']}')?.toLocal();
+                      final showDate = date != null && (before == null || date.year != before.year || date.month != before.month || date.day != before.day);
+                      return Column(children: [
+                        if(showDate) Padding(padding: const EdgeInsets.only(bottom: 20, top: 4),
+                            child: Text(DateFormat.yMMMMd(Localizations.localeOf(context).languageCode).format(date),
+                                style: const TextStyle(fontSize: 10, color: muted))),
+                        bubble,
+                      ]);
                     })),
         SafeArea(
             top: false,
-            child: Padding(
-                padding: const EdgeInsets.all(12),
+            child: Container(
+                decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: line))),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                 child: Row(children: [
                   if (widget.capability == null)
                     IconButton(
@@ -5494,7 +5615,7 @@ class _MessageThreadState extends State<MessageThread> {
                                 height: 20,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.attach_file)),
+                            : const JobaIcon('plus')),
                   Expanded(
                       child: TextField(
                           controller: text,
@@ -5503,13 +5624,18 @@ class _MessageThreadState extends State<MessageThread> {
                           enabled: !sending,
                           onChanged: (_) => pendingId = null,
                           decoration: InputDecoration(
-                              hintText: localize(context, 'Сообщение')))),
-                  IconButton(
+                              hintText: localize(context, 'Сообщение'),
+                              filled: true, fillColor: canvas,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: line))))),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                      style: IconButton.styleFrom(backgroundColor: primary, minimumSize: const Size(48,48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                       tooltip: localize(context, 'Отправить'),
                       onPressed: sending ? null : send,
                       icon: sending
                           ? const CircularProgressIndicator()
-                          : const Icon(Icons.send, color: primary)),
+                          : const JobaIcon('send', color: Colors.white)),
                 ]))),
         if (attachments.isNotEmpty)
           Padding(

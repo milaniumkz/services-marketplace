@@ -118,11 +118,12 @@ class UiHeading extends StatelessWidget {
 
 class Notice extends StatelessWidget {
   final String text;
-  final bool error;
+  final bool error, warning;
   final String? icon;
   final EdgeInsets margin;
   const Notice(this.text,
       {this.error = false,
+      this.warning = false,
       this.icon,
       this.margin = const EdgeInsets.symmetric(vertical: 12),
       super.key});
@@ -132,7 +133,7 @@ class Notice extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       margin: margin,
       decoration: BoxDecoration(
-          color: error ? const Color(0xFFFFEEEE) : const Color(0xFFEAF0FC),
+          color: error ? const Color(0xFFFFEEEE) : warning ? const Color(0xFFFFF4D4) : const Color(0xFFEAF0FC),
           borderRadius: BorderRadius.circular(12)),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (icon != null) ...[
@@ -145,7 +146,7 @@ class Notice extends StatelessWidget {
                 style: TextStyle(
                     color: error
                         ? const Color(0xFFA02C32)
-                        : const Color(0xFF3C5A8B),
+                        : warning ? const Color(0xFF705000) : const Color(0xFF3C5A8B),
                     fontSize: 12,
                     letterSpacing: 0,
                     height: 1.583)))
