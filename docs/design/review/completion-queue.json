@@ -1017,8 +1017,11 @@
       "reference": "mobile/screens/S37.rules-referral-rules.png",
       "status": "unreviewed",
       "acceptance": "pending",
-      "diagnostic_difference": 0.143419,
-      "known_gaps": [],
+      "diagnostic_difference": 0.123463,
+      "known_gaps": [
+        "Реальные условия отличаются по длине от DEMO, точная типографика и все языковые/ошибочные состояния требуют визуальной сверки.",
+        "Обещание «3 дня каждому» не используется вместо условий опубликованной кампании."
+      ],
       "evidence": [
         "mobile-referral-terms-update.md"
       ]

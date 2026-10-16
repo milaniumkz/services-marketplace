@@ -2281,12 +2281,12 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.143419,
+      "different_pixels_ratio": 0.123463,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
-      "note": "Referral policy snapshot/attribution window and reward expiry display implemented. Visual fixture has no issued rewards or window; widget tests verify those branches. Exact layout acceptance remains open.",
+      "note": "Three-step timeline, prototype title position and warning styling. Actual campaign policy remains visible, so text/height differ from demo. Empty and narrow large-text cases tested; visual acceptance remains pending.",
       "surface": "mobile"
     },
     {

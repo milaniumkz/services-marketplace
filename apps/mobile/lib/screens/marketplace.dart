@@ -1,7 +1,7 @@
+import 'referral_rules.dart';
 import 'referral_code.dart';
 import 'referral_reward_card.dart';
 import 'referral_hero_decoration.dart';
-import 'referral_terms.dart';
 import 'service_area.dart';
 import '../core/design_states.dart';
 import 'search_filters.dart';
@@ -4630,19 +4630,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           })));
   Widget referralRulesScreen() => page(
       'Условия бонусов',
-      loaded(
-          '/me/referrals',
-          (data, reload) => listBody([
-                const UiHeading('Как получить бонус'),
-                if ((data['campaigns'] as List).isEmpty)
-                  const Notice('Активных программ приглашений пока нет.'),
-                for (final campaign in (data['campaigns'] as List).cast<Json>())
-                  DataCard('Условия программы',
-                      translateTitle: true,
-                      subtitle: referralTerms(context, campaign)),
-                const Notice(
-                    'Самоприглашение недопустимо. Бонус не превращается в деньги и не меняет рейтинг.')
-              ])));
+      loaded('/me/referrals', (data, reload) => ReferralRulesContent(
+          campaigns: (data['campaigns'] as List).cast<Json>())),
+      titleOffset: -11);
   Widget referralsScreen() => page(
       'Приглашения и бонусы',
       loaded('/me/referrals', (data, reload) {
