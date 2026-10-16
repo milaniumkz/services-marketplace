@@ -1,3 +1,4 @@
+import {validateRetentionCategories} from './deletion-plan';
 import {monetizationPayload} from './monetization-payload';
 import {placementPolicyPayload,placementPromises} from './placement-policy';
 import {referralPolicy} from './referral-policy';
@@ -70,6 +71,7 @@ export class Configuration {
     if(r.kind==='referral_campaign')referralPolicy(p);
     if(r.kind==='ranking_config')rankingParameters(p);
     if(r.kind==='placement_policy'){const policy=placementPolicyPayload(p);return {valid:true,...policy,...await placementPromises(this.store,r.country,policy.placement_id)};}
+    if(r.kind==='retention_policy')validateRetentionCategories(p);
     if(['verification_policy','retention_policy'].includes(r.kind)) {
       const document=await this.store.get(p.document_id);if(!document||document.kind!=='legal_document'||document.country!==r.country||document.status!=='published')fail('LEGAL_VERSION_UNAPPROVED','Нужно опубликованное правовое основание');
       if(r.kind==='verification_policy'&&(!Array.isArray(p.document_types)||!p.document_types.length||p.document_types.some((t:string)=>!['passport','id_card'].includes(t))))fail('VALIDATION_ERROR','Укажите допустимые типы документа');

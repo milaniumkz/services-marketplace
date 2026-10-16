@@ -1,3 +1,4 @@
+import {deletionPlan,anonymizeProfile,validateRetentionCategories} from './deletion-plan';
 import {Refunds} from './refunds';
 import {monetizationPayload} from './monetization-payload';
 import {placementPolicyPayload,placementPromises} from './placement-policy';
@@ -807,7 +808,7 @@ export class Marketplace {
     if(reviews&&method==='GET'){await this.entitlement(a,'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status)),q);}
     if(path==='/me/deletion-preview'&&method==='GET'){
       const active=(await this.store.select('order',a.country,{participant:a.id,statuses:['assigned','in_progress','completion_requested'],limit:1000})).length;
-      return {active_orders:active,subscription_relevant:a.user.active_role==='executor'&&(await this.store.select('subscription',a.country,{owner:a.id,limit:1000})).some(s=>['active','grace','canceled_at_period_end'].includes(s.status)),policy_ready:(await this.store.all('retention_policy',a.country)).some(p=>p.status==='effective'),grace_hours:settings.deletion_grace_hours};
+      return {active_orders:active,subscription_relevant:a.user.active_role==='executor'&&(await this.store.select('subscription',a.country,{owner:a.id,limit:1000})).some(s=>['active','grace','canceled_at_period_end'].includes(s.status)),policy_ready:(await this.store.all('retention_policy',a.country)).some(p=>p.status==='effective'),grace_hours:settings.deletion_grace_hours,retention_plan:await deletionPlan(this.store,a.id,a.country,(await this.store.all('retention_policy',a.country)).find(p=>p.status==='effective'),new Date())};
     }
     if(path==='/me/processing-consents'&&method==='GET')return (await this.store.select('processing_consent',a.country,{owner:a.id,limit:1}))[0]??{version:0,marketing:false,ad_personalization:false,optional_analytics:false};
     if(path==='/me/processing-consents'&&method==='POST'){
@@ -1311,6 +1312,7 @@ export class Marketplace {
       }
       const configKinds=['monetization-configs','price-versions','categories','push-campaigns','referral-campaigns','moderation-dictionaries','ranking-configs','promotions','placement-policies','verification-policies','retention-policies','country-controls'];
       if(configKinds.includes(section)&&method==='POST'&&path.split('/').length===3) {
+        if(section==='retention-policies')validateRetentionCategories(b.payload??{});
         if(section==='moderation-dictionaries'){try{b.payload=dictionaryPayload(b.payload);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}}
         if(section==='categories'){
           const r=this.record('category',a,{title:text(b,'title',3,120),status:'draft'});let stable=r.id;
@@ -1365,6 +1367,7 @@ export class Marketplace {
       if(editDocumentPolicy&&['GET','PATCH'].includes(method)){
         const r=await this.object(editDocumentPolicy[2],a,kinds[section]);if(method==='GET')return r;
         this.version(r,b);if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новый черновик политики');
+        if(r.kind==='retention_policy')validateRetentionCategories(b.payload??{});
         const result=await this.store.put({...r,title:text(b,'title',3,120),payload:b.payload??{},preview:undefined,version:r.version+1});await this.audit(a,section+'.edited',r.id,text(b,'reason',5,1000));return result;
       }
       const editPromotion=path.match(/^\/admin\/promotions\/([^/]+)$/);
@@ -1685,7 +1688,7 @@ export class Marketplace {
         }catch(error){await this.store.db.exec('ROLLBACK');throw error;}
       });
       if(!upload.claimed)return upload;
-      let state='clean',failure:string|null=null,clean:Buffer|undefined,previewId:string|undefined;
+      let state='clean',failure:string|null=null,clean:Buffer|undefined,preview:Buffer|undefined,previewId:string|undefined;
       try{
         const raw=await this.files.read(id);let verdict:string;
         try{verdict=await this.providers.scanner!.scan(raw,upload.mime);}catch{throw Error('SCANNER_UNAVAILABLE');}
@@ -1694,13 +1697,16 @@ export class Marketplace {
           if(!this.providers.pdfSanitizer)throw Error('PDF_SANITIZER_UNAVAILABLE');
           try{clean=await this.providers.pdfSanitizer.sanitize(raw);}catch{throw Error('PDF_POLICY_REJECTED');}
         }else{try{const image=sharp(raw,{limitInputPixels:25000000}),metadata=await image.metadata();if(metadata.format!==(upload.mime==='image/png'?'png':'jpeg'))throw Error('Unexpected image format');const bannerWidth=[5,6,7,8].includes(metadata.orientation??0)?metadata.height:metadata.width,bannerHeight=[5,6,7,8].includes(metadata.orientation??0)?metadata.width:metadata.height;if(upload.purpose==='banner'&&(!bannerWidth||!bannerHeight||bannerWidth<320||bannerHeight<50||bannerWidth>4096||bannerHeight>4096))throw Error('IMAGE_POLICY_REJECTED');if(upload.purpose==='brand'){if(!metadata.width||!metadata.height||metadata.width<1024||metadata.height<1024||metadata.width>4096||metadata.height>4096)throw Error('IMAGE_POLICY_REJECTED');clean=await image.rotate().png().toBuffer();}else clean=await image.rotate().jpeg().toBuffer();}catch{throw Error('IMAGE_POLICY_REJECTED');}}
-        if(clean){await this.files.write(id,clean);if(upload.mime!=='application/pdf'){const preview=upload.purpose==='brand'?await sharp(clean).resize({width:960,withoutEnlargement:true}).png().toBuffer():await sharp(clean).resize({width:960,withoutEnlargement:true}).jpeg({quality:80}).toBuffer();previewId=randomUUID();await this.files.write(previewId,preview);}}
+        if(clean){if(upload.mime!=='application/pdf'){preview=upload.purpose==='brand'?await sharp(clean).resize({width:960,withoutEnlargement:true}).png().toBuffer():await sharp(clean).resize({width:960,withoutEnlargement:true}).jpeg({quality:80}).toBuffer();previewId=randomUUID();}}
       }catch(error:any){failure=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','PDF_POLICY_REJECTED','IMAGE_POLICY_REJECTED'].includes(error.message)?error.message:'FILE_PROCESSING_UNAVAILABLE';state=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','FILE_PROCESSING_UNAVAILABLE'].includes(failure!)?'processing':'rejected';}
       return this.exclusive(async()=>{
         await this.store.db.exec('BEGIN');try{
           await this.store.db.query('SELECT id FROM records WHERE id=$1 FOR UPDATE',[id]);
           const current=await this.store.get(id);
           if(!current||current.scan_nonce!==upload.scan_nonce||current.status!=='scanning'){await this.store.db.exec('COMMIT');return current??{id,status:'expired'};}
+          // Persist derived bytes only while the claimed row is locked and still scanning.
+          // A deletion that invalidated the claim must never have its files recreated.
+          if(clean){try{await this.files.write(id,clean);if(previewId&&preview)await this.files.write(previewId,preview);}catch{if(previewId)await this.files.remove(previewId).catch(()=>{});previewId=undefined;clean=undefined;state='processing';failure='FILE_PROCESSING_UNAVAILABLE';}}
           const attempts=(current.scan_attempts??0)+1;
           const result=await this.store.put({...current,status:state==='processing'&&attempts>=5?'rejected':state,failure_code:failure,scan_attempts:attempts,next_attempt_at:state==='processing'?new Date(Date.now()+Math.min(3600000,2**attempts*1000)).toISOString():null,scan_lease_until:null,mime:clean&&current.mime!=='application/pdf'&&current.purpose!=='brand'?'image/jpeg':current.mime,stored_size:clean?.length??current.stored_size,...(previewId?{preview_file_id:previewId}:{}),version:current.version+1});
           await this.store.db.exec('COMMIT');return result;
@@ -1715,6 +1721,8 @@ export class Marketplace {
   private async processExport(job:RecordData,now:Date){
     const file=this.record('upload',{id:job.owner,country:job.country},{purpose:'export',mime:'application/zip',status:'clean',expires_at:new Date(now.getTime()+7*86400000).toISOString()});
     try{
+      const valid=await this.exclusive(async()=>{const current=await this.store.get(job.id),owner=await this.store.get(job.owner);return current?.status==='processing'&&current.version===job.version&&owner?.status!=='deleted';});
+      if(!valid)return;
       const snapshot=await this.exclusive(()=>exportSnapshot(this.store,job.owner,job.country));
       const size=await writeExport(this.files,file.id,snapshot,now.toISOString());
       const committed=await this.exclusive(async()=>{
@@ -1778,11 +1786,15 @@ export class Marketplace {
           const work=await this.store.select('order',r.country,{participant:r.owner,statuses:['assigned','in_progress','completion_requested'],limit:1});
           if(work.length){if(r.status!=='awaiting_resolution')await this.store.put({...r,status:'awaiting_resolution',version:r.version+1});continue;}
           await this.store.put({...r,status:'erasing',version:r.version+1});
-          const u=await this.store.get(r.owner);if(u)await this.store.put({id:u.id,kind:u.kind,owner:u.owner,country:u.country,created_at:u.created_at,phone:null,avatar_id:null,languages:[],roles:[],display_name:'Удалённый пользователь',city:'',status:'deleted',version:u.version+1});
+          const u=await this.store.get(r.owner);if(u)await this.store.put({id:u.id,kind:u.kind,owner:u.owner,country:u.country,created_at:u.created_at,phone:null,avatar_id:null,languages:[],roles:[],display_name:'Удалённый пользователь',city:'',status:'deleted',version:u.version+1},{skipContentCheck:true});
           await this.store.db.query('DELETE FROM credentials WHERE user_id=$1',[r.owner]);await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[r.owner]);
           await this.store.db.query('DELETE FROM idempotency WHERE scope LIKE $1',[r.owner+':%']);
-          for(const kind of ['contractor','portfolio'])for(const x of await this.store.all(kind,r.country))if(x.owner===r.owner)await this.store.put({...x,status:'archived',description:'',title:'',version:x.version+1});
-          await this.store.put({...r,status:'limited_retention',reason:'История заказов и обязательные записи сохраняются по опубликованной политике',policy_id:policy.id,retention_review_at:new Date(now.getTime()+policy.payload.document_days*86400000).toISOString(),completed_at:now.toISOString(),version:r.version+2});
+          for(const kind of ['contractor','portfolio','content_revision'])for(const {data:x} of (await this.store.db.query<{data:RecordData}>('SELECT data FROM records WHERE kind=$1 AND country=$2 AND owner=$3',[kind,r.country,r.owner])).rows)await anonymizeProfile(this.store,x);
+          const plan=await deletionPlan(this.store,r.owner,r.country,policy,now,'account_removed');
+          await this.store.db.query("UPDATE records SET version=version+1,data=jsonb_set(jsonb_set(data,'{status}',$3::jsonb),'{version}',to_jsonb(version+1)) WHERE kind='download_ticket' AND country=$1 AND owner=$2 AND data->>'status'='active'",[r.country,r.owner,JSON.stringify('revoked')]);
+          await this.store.db.query("UPDATE records SET version=version+1,data=jsonb_build_object('id',id::text,'kind',kind,'owner',owner,'country',country,'created_at',data->'created_at','status','revoked','version',version+1) WHERE kind='push_token' AND country=$1 AND owner=$2",[r.country,r.owner]);
+          await this.store.db.query("UPDATE records SET version=version+1,data=data||jsonb_build_object('status','canceled','failure_code','ACCOUNT_DELETED','lease_expires_at',NULL,'version',version+1) WHERE kind='privacy' AND country=$1 AND owner=$2 AND data->>'type'='export' AND data->>'status' IN ('requested','processing','failed')",[r.country,r.owner]);
+          await this.store.put({...r,status:'limited_retention',reason:plan.missing_policy_categories.length?'Для части сохранённых данных нужны опубликованные сроки. Полное удаление ещё не завершено.':'Часть данных сохранена по категориям и основаниям. Полное удаление ещё не завершено.',policy_id:policy.id,retention_plan:plan,retention_review_at:undefined,completed_at:now.toISOString(),version:r.version+2});
         }
         pushRecipients=await queuePushCampaigns(this.store,now);
         purgeFiles=await planFileRetention(this.store,now,async verification=>{await this.notify(verification.owner,{id:verification.owner,country:verification.country},'verification.expired',verification.id);});
@@ -1792,7 +1804,7 @@ export class Marketplace {
     };
     const promise=this.queue.then(run,run);this.queue=promise.catch(()=>{});await promise;
     for(const id of pushRecipients)this.events.emit(id);
-    for(const id of purgeFiles){try{await this.files.remove(id);await this.exclusive(async()=>{const file=await this.store.get(id);if(file?.status==='purge_pending')await this.store.put(purgedUpload(file,now));});}catch{/* The pending marker is retried on the next maintenance run. */}}
+    for(const id of purgeFiles){try{const pending=await this.exclusive(()=>this.store.get(id));if(pending?.status!=='purge_pending')continue;await this.files.remove(id);if(pending.preview_file_id)await this.files.remove(pending.preview_file_id);await this.exclusive(async()=>{const file=await this.store.get(id);if(file?.status==='purge_pending')await this.store.put(purgedUpload(file,now));});}catch{/* The pending marker is retried on the next maintenance run. */}}
     for(const job of exportJobs)await this.processExport(job,now);
   }
 }

@@ -7,6 +7,8 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
  const verifications=await store.all('verification');
  const protectedFiles=new Set<string>();
  for(const incident of cases)for(const id of [...incident.upload_ids??[],...incident.appeal_upload_ids??[],...incident.target_snapshot?.upload_ids??[],...incident.target_snapshot?.completion_upload_ids??[],...incident.target_snapshot?.gallery_ids??[],...incident.target_snapshot?.photos??[],...incident.target_snapshot?.document_refs??[]])protectedFiles.add(incident.country+':'+id);
+ for(const incident of cases)for(const field of ['avatar_id','cover_id']){const id=incident.target_snapshot?.[field];if(typeof id==='string')protectedFiles.add(incident.country+':'+id);}
+ const deleted=new Set((await store.db.query<{id:string,country:string}>("SELECT id::text AS id,country FROM records WHERE kind='user' AND data->>'status'='deleted'")).rows.map(u=>u.country+':'+u.id));
  for(const hold of holds){
   const target=await store.get(hold.target_id);if(!target||target.country!==hold.country)continue;
   if(target.kind==='upload')protectedFiles.add(hold.country+':'+target.id);
@@ -18,6 +20,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
   if(file.status==='purged'||protectedFiles.has(file.country+':'+file.id))continue;
   const policy=policies.find(p=>p.country===file.country);if(!policy)continue;
   let reason:string|undefined;
+  if(deleted.has(file.country+':'+file.owner)&&['avatar','portfolio','export'].includes(file.purpose))reason='account_deleted_personal_media';
   if(['initiated','uploaded','rejected','infected','failed'].includes(file.status)&&Date.parse(file.created_at)+86400000<=now.getTime())reason='abandoned_upload_24h';
   if(file.purpose==='export'&&file.expires_at<=now.toISOString())reason='export_link_expired';
   if(file.purpose==='identity'){
