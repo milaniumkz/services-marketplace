@@ -9,7 +9,7 @@ export async function mountAvailability(request,feedback){
    const country=data.countries[index];if(!country){row.remove();return;}
    const text=row.querySelector('.left div');
    if(text){text.replaceChildren();const title=document.createElement('b');title.textContent=country.name;const note=document.createElement('small');note.textContent=country.checkout_enabled?'Оплата разрешена текущей конфигурацией':'Оплата недоступна. Поддержка и управление данными доступны.';text.append(title,note);}
-   const badge=row.querySelector('.badge');if(badge)badge.textContent=({unverified:'Подготовка',ready:'Доступен',limited:'Ограничен',disabled:'Отключён'})[country.launch_status]||'Статус не подтверждён';
+   const badge=row.querySelector('.badge');if(badge)badge.textContent=country.active===true?'Доступен':country.registration_enabled===false?'Отключён':country.stop_new_business===true?'Ограничен':({unverified:'Подготовка',ready:'Доступен',limited:'Ограничен',disabled:'Отключён'})[country.launch_status]||'Статус не подтверждён';
    row.removeAttribute('aria-busy');
   });
   document.querySelectorAll('main .demo-label').forEach(el=>el.textContent='Текущая конфигурация');

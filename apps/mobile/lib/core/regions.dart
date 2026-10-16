@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'api.dart';
 
-const regionCodes = ['KZ', 'RS', 'RU', 'BY'];
+const regionCodes = ['KZ', 'KG', 'RU', 'BY'];
 const interfaceLocales = ['ru', 'kk', 'sr', 'be'];
 
 /// Endpoints are build configuration, never values supplied by an API response.
@@ -21,12 +21,12 @@ class RegionGateway {
     return RegionGateway({
       'KZ':
           const String.fromEnvironment('JOBA_KZ_API_URL', defaultValue: shared),
-      'RS': const String.fromEnvironment('JOBA_RS_API_URL',
-          defaultValue: kReleaseMode ? '' : shared),
+      'KG': const String.fromEnvironment('JOBA_KG_API_URL',
+          defaultValue: shared),
       'RU': const String.fromEnvironment('JOBA_RU_API_URL',
-          defaultValue: kReleaseMode ? '' : shared),
+          defaultValue: shared),
       'BY': const String.fromEnvironment('JOBA_BY_API_URL',
-          defaultValue: kReleaseMode ? '' : shared),
+          defaultValue: shared),
     });
   }
   JobaApi create(String country) {

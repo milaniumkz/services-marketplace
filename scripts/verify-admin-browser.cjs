@@ -439,7 +439,8 @@ async function main(){
   await page.goto(web+'/W05.html');
   await page.locator('.status-history').filter({hasText:'Конфигурация получена'}).waitFor();
   assert.equal(await page.locator('.status-row').count(),4);
-  assert.deepEqual((await page.locator('.status-row .left b').allTextContents()).sort(),['Беларусь','Казахстан','Россия','Сербия']);
+  assert.deepEqual((await page.locator('.status-row .left b').allTextContents()).sort(),['Беларусь','Казахстан','Кыргызстан','Россия']);
+  assert.deepEqual(await page.locator('.status-row .badge').allTextContents(),['Доступен','Доступен','Доступен','Доступен']);
   assert.equal(await page.getByText('Оплата недоступна. Поддержка и управление данными доступны.',{exact:true}).count(),4);
   await page.goto(web+'/W02.html');
   await page.locator('#message').fill('Проверка обращения и восстановления переписки при обновлении страницы');

@@ -21,7 +21,7 @@ test('staff review protects document references, regional data and sensitive rea
   await call(owner,'POST','/me/consents',{document_id:documentId,document_hash:'isolated-review-consent',accepted:true});
   const id=randomUUID(),file=randomUUID(),base={kind:'verification',policy_id:policyId,policy_version:1,required_pages:['Страница с данными'],owner:owner.user.id,version:1,created_at:new Date().toISOString(),status:'pending_review',document_type:'passport',document_revision:2,document_refs:[file]};
   await api.store.put({...base,id,country:'KZ'});
-  const foreign=randomUUID();await api.store.put({...base,id:foreign,country:'RS'});
+  const foreign=randomUUID();await api.store.put({...base,id:foreign,country:'KG'});
   const path='/admin/verifications/'+id;
   assert.equal((await call(staff,'GET',path)).document_refs,undefined);
   assert.equal((await call(staff,'GET','/admin/verifications')).items[0].document_refs,undefined);

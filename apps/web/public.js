@@ -1,6 +1,6 @@
 import {mountAvailability} from './availability.js';
 import {mountLegal} from './legal.js';
-const countryCodes={'Казахстан':'KZ','Россия':'RU','Беларусь':'BY','Сербия':'RS'};
+const countryCodes={'Казахстан':'KZ','Россия':'RU','Беларусь':'BY','Кыргызстан':'KG'};
 let recovery;
 try {const saved=JSON.parse(sessionStorage.getItem('joba.recovery')||'null');if(saved?.expires_at>Date.now()&&typeof saved.id==='string'&&typeof saved.capability==='string')recovery=saved;else sessionStorage.removeItem('joba.recovery');}catch{sessionStorage.removeItem('joba.recovery');}
 const pending=new Map();

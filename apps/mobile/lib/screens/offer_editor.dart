@@ -32,7 +32,7 @@ class _OfferEditorState extends State<OfferEditor> {
   String get zone =>
       '${order['offer_policy']?['time_zone'] ?? order['time_window']?['time_zone'] ?? const {
             'KZ': 'Asia/Almaty',
-            'RS': 'Europe/Belgrade',
+            'KG': 'Asia/Bishkek',
             'RU': 'Europe/Moscow',
             'BY': 'Europe/Minsk'
           }[order['country']] ?? 'Asia/Almaty'}';

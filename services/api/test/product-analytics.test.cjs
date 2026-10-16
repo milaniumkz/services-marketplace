@@ -22,6 +22,6 @@ test('product funnel uses the regional publication cohort, distinct participant 
   const result=await productAnalytics(store,'KZ',7,now);
   assert.deepEqual(result.funnel,{published:2,with_offer:1,selected:1,completed:1,with_case:1,mutual_review:1});assert.equal(result.rates.selection,.5);assert.equal(result.series.length,7);
   assert.equal(JSON.stringify(result).includes(owner),false);
-  const empty=await productAnalytics(store,'RS',7,now);assert.equal(empty.rates.completion,null);assert.equal(empty.funnel.published,0);
+  const empty=await productAnalytics(store,'KG',7,now);assert.equal(empty.rates.completion,null);assert.equal(empty.funnel.published,0);
  }finally{await store.close();}
 });

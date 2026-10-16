@@ -26,6 +26,6 @@ test('authorized initial KZ legal publication is complete, public, audited and p
   const second=await publishInitialLegal(app.store,documents);assert.equal(second.every(d=>d.status==='preserved_existing'),true);
   assert.equal((await app.store.get(terms.id)).content,'Administrator revision must remain');
   assert.equal((await app.store.all('audit','KZ')).filter(d=>d.action==='legal.initial_publication').length,2);
-  assert.equal((await app.store.all('legal_document','RS')).length,0);
+  assert.equal((await app.store.all('legal_document','KG')).length,0);
  }finally{await app.store.close();}
 });

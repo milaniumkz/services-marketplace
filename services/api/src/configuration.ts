@@ -23,7 +23,7 @@ export class Configuration {
       if(typeof p.registration_enabled!=='boolean'||typeof p.stop_new_business!=='boolean')fail('VALIDATION_ERROR','Укажите состояние регистрации и новых действий');
     }
     if(r.kind==='price_version') {
-      if(!Number.isSafeInteger(p.amount_minor)||p.amount_minor<0||!['KZT','RSD','RUB','BYN'].includes(p.currency))fail('VALIDATION_ERROR','Проверьте цену и валюту');
+      if(!Number.isSafeInteger(p.amount_minor)||p.amount_minor<0||!['KZT','KGS','RUB','BYN'].includes(p.currency))fail('VALIDATION_ERROR','Проверьте цену и валюту');
       const provider=this.providers.billing.get(p.provider);if(!provider)fail('PROVIDER_UNAVAILABLE','Сначала подключите платёжного провайдера',503);
       const product=await provider.validateProduct(p.product_id,r.country);
       if(product.currency!==p.currency||product.amount_minor!==p.amount_minor)fail('PRICE_MISMATCH','Цена не синхронизирована с провайдером');

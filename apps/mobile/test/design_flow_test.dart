@@ -408,17 +408,17 @@ void main() {
     state.locale = 'ru';
     state.go('country');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Сербия'));
+    await tester.tap(find.text('Кыргызстан'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Отмена'));
     await tester.pumpAndSettle();
     expect(state.country, 'KZ');
     expect(requests.where((r) => r.url.path.endsWith('/auth/logout')), isEmpty);
-    await tester.tap(find.text('Сербия'));
+    await tester.tap(find.text('Кыргызстан'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Продолжить'));
     await tester.pumpAndSettle();
-    expect(state.country, 'RS');
+    expect(state.country, 'KG');
     expect(api.authenticated, false);
     expect(user['country'], 'KZ');
     api.session = {

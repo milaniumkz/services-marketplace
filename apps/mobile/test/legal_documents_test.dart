@@ -45,13 +45,13 @@ void main() {
         home: Scaffold(
             body: LegalDocuments(
                 api: api,
-                country: 'RS',
+                country: 'KG',
                 locale: 'ru',
-                countryLabel: 'Сербия',
+                countryLabel: 'Кыргызстан',
                 localeLabel: 'Русский'))));
     await tester.pumpAndSettle();
     expect(
-        requests.single.url.queryParameters, {'country': 'RS', 'locale': 'ru'});
+        requests.single.url.queryParameters, {'country': 'KG', 'locale': 'ru'});
     expect(requests.single.headers['Authorization'], isNull);
     expect(find.text('Версия 4 · 15.10.2026'), findsOneWidget);
     await tester.tap(find.text('Пользовательское соглашение'));

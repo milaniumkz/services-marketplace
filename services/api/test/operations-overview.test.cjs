@@ -8,12 +8,12 @@ test('dashboard series and totals use the same UTC period and remain region-scop
  try{
   const now=new Date('2026-10-13T12:00:00Z'),user=randomUUID(),other=randomUUID();
   const put=(kind,data={},country='KZ',owner=user)=>store.put({id:randomUUID(),kind,country,owner,version:1,created_at:'2026-10-01T00:00:00.000Z',...data});
-  await put('user',{id:user,status:'active'});await put('user',{id:other,status:'active'},'RS',other);
+  await put('user',{id:user,status:'active'});await put('user',{id:other,status:'active'},'KG',other);
   await put('user',{status:'active',staff_permissions:['administrator']});
   await put('order',{status:'completed',published_at:'2026-10-07T01:00:00.000Z',completed_at:'2026-10-13T11:00:00.000Z'});
   await put('order',{status:'open',published_at:'2026-10-06T23:59:59.999Z'});
   await put('order',{status:'open',published_at:'2026-10-14T00:00:00.000Z'});
-  await put('order',{status:'open',published_at:'2026-10-13T08:00:00.000Z'},'RS',other);
+  await put('order',{status:'open',published_at:'2026-10-13T08:00:00.000Z'},'KG',other);
   await put('support',{status:'new'});await put('verification',{status:'pending_review'});
   const data=await operationsOverview(store,'KZ',7,now);
   assert.equal(data.users,1);assert.equal(data.active_users,1);assert.equal(data.published_orders,1);assert.equal(data.completed_orders,1);
@@ -41,7 +41,7 @@ test('operational retries require staff MFA, current version and an eligible tra
   const list=await call(staff,'GET','/admin/jobs');assert.equal(list.items.find(item=>item.id===id).private_note,undefined);
   assert.equal((await call(staff,'GET','/admin/jobs/'+id)).private_note,undefined);
   await assert.rejects(()=>call(account,'GET','/admin/jobs/'+id),e=>e.getStatus()===403);
-  const foreign={...job,id:randomUUID(),country:'RS'};await api.store.put(foreign);
+  const foreign={...job,id:randomUUID(),country:'KG'};await api.store.put(foreign);
   await assert.rejects(()=>call(staff,'GET','/admin/jobs/'+foreign.id),e=>e.getStatus()===404);
   const future={...job,id:randomUUID(),status:'retry',next_attempt_at:new Date(Date.now()+3600000).toISOString()};await api.store.put(future);
   await api.store.put({...future,id:randomUUID(),status:'completed'});

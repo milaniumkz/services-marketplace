@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 
-const currencySymbols = {'KZT': '₸', 'RUB': '₽', 'BYN': 'Br', 'RSD': 'RSD'};
+const currencySymbols = {'KZT': '₸', 'RUB': '₽', 'BYN': 'Br', 'KGS': 'сом'};
 
 /// Keep minor units as integers so even large values retain their exact cents.
 String formatMoney(int amount, String currency, String locale) {

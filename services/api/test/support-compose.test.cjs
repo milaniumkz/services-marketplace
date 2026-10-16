@@ -21,7 +21,7 @@ test('support composition atomically links participant order and clean attachmen
   assert.equal(messages.length,1);assert.equal(messages[0].text,body.text);assert.deepEqual(messages[0].upload_ids,[upload.id]);
   const assigned=await put('order',{executor_id:actor,status:'in_progress'},other);
   assert.equal((await create({...body,order_id:assigned.id})).order_id,assigned.id);
-  const foreign=await put('order',{},other),overseas=await put('order',{},actor,'RS');
+  const foreign=await put('order',{},other),overseas=await put('order',{},actor,'KG');
   for(const id of [foreign.id,overseas.id])await assert.rejects(()=>create({...body,order_id:id}),e=>e.getResponse().error.code==='NOT_FOUND');
   const unclean=await put('upload',{purpose:'chat',status:'pending'});
   const identity=await put('upload',{purpose:'identity',status:'clean'});

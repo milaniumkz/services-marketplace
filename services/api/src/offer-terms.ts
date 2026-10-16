@@ -1,7 +1,7 @@
 import {HttpException} from '@nestjs/common';
 import {Temporal} from '@js-temporal/polyfill';
 import {RecordData} from './store';
-const zones:Record<string,string>={KZ:'Asia/Almaty',RS:'Europe/Belgrade',RU:'Europe/Moscow',BY:'Europe/Minsk'};
+const zones:Record<string,string>={KZ:'Asia/Almaty',KG:'Asia/Bishkek',RU:'Europe/Moscow',BY:'Europe/Minsk'};
 function invalid(field:string,message:string):never{throw new HttpException({error:{code:'VALIDATION_ERROR',message,details:{field},retryable:false}},400);}
 export function offerPolicy(order:RecordData,hours:number,now=new Date()){
  const time_zone=order.time_window?.time_zone??zones[order.country];

@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID,randomBytes}=require('node:crypto');
 const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store'),{totp}=require('../dist/totp');
 const password='Isolated bulk test password';
-const register=(a,n,country='KZ')=>a.handle('POST','/auth/register',{country,phone:country==='KZ'?'+77000000'+n:'+38160123'+n,password},undefined,randomUUID(),{},'bulk-register-'+n);
+const register=(a,n,country='KZ')=>a.handle('POST','/auth/register',{country,phone:country==='KZ'?'+77000000'+n:'+996700123'+n,password},undefined,randomUUID(),{},'bulk-register-'+n);
 const call=(a,u,m,p,b={},key=randomUUID())=>a.handle(m,p,b,'Bearer '+u.access_token,key,{},'bulk-tests');
 async function staff(a,n,permissions=['bulk_restrict'],country='KZ'){const u=await register(a,n,country),r=await a.store.get(u.user.id),secret=randomBytes(20).toString('hex');await a.store.put({...r,totp_secret:secret,staff_permissions:permissions});return a.handle('POST','/auth/staff-login',{country,phone:r.phone,password,mfa_code:totp(secret)},undefined,undefined,{},'bulk-staff-'+n);}
 const row=(kind,owner,extra={})=>({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:new Date().toISOString(),...extra});
@@ -9,7 +9,7 @@ async function fixture(fn){const a=new Marketplace(new Store('memory://'));await
 async function incident(a,u){const r=row('case',randomUUID(),{subject_user_id:u.user.id,target_type:'user',target_id:u.user.id,status:'new',reporter_private:true,description:'Изолированное дело другого автора'});await a.store.put(r);return r;}
 const request=selection=>({selection,ends_at:new Date(Date.now()+3600000).toISOString(),reason:'Внутреннее основание ручной проверки группы аккаунтов'});
 test('bulk account restrictions require an explicit permission, regional MFA and independent approval; stale records are skipped and accepted work remains available',()=>fixture(async a=>{
- const author=await staff(a,'871'),reviewer=await staff(a,'872'),admin=await staff(a,'873',['administrator']),foreign=await staff(a,'874',['bulk_restrict'],'RS'),u=await register(a,'875'),v=await register(a,'876');
+ const author=await staff(a,'871'),reviewer=await staff(a,'872'),admin=await staff(a,'873',['administrator']),foreign=await staff(a,'874',['bulk_restrict'],'KG'),u=await register(a,'875'),v=await register(a,'876');
  const c=await incident(a,u),d=await incident(a,v),body=request([{user_id:u.user.id,case_id:c.id},{user_id:v.user.id,case_id:d.id}]);
  await assert.rejects(()=>call(a,admin,'POST','/admin/account-restriction-jobs/preview',body),e=>e.getStatus()===403);
  await assert.rejects(()=>call(a,u,'POST','/admin/account-restriction-jobs/preview',body),e=>e.getStatus()===403);

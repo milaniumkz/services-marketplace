@@ -1,3 +1,4 @@
+import {countryEnabled} from './country-access';
 import {bannerCampaigns} from './banner-campaigns';
 import {accountRestrictionJobs} from './account-restriction-jobs';
 import {normalizePushPayload,validatePushCampaign,pushPreview,queuePushCampaigns,cancelPushCampaign,claimCampaignMessage,testCampaign,refreshPushCampaign} from './push-campaigns';
@@ -41,7 +42,7 @@ import { EventEmitter } from 'node:events';
 const digest = (s: string) => createHash('sha256').update(s).digest('hex');
 const countries: Record<string, {currency: string; locales: string[]; cities: string[]}> = {
   KZ: {currency:'KZT',locales:['ru','kk'],cities:['Алматы','Астана','Шымкент']},
-  RS: {currency:'RSD',locales:['sr'],cities:['Београд','Нови Сад']},
+  KG: {currency:'KGS',locales:['ru'],cities:['Бишкек','Ош']},
   RU: {currency:'RUB',locales:['ru'],cities:['Москва','Санкт-Петербург']},
   BY: {currency:'BYN',locales:['ru','be'],cities:['Минск','Гомель']}
 };
@@ -199,8 +200,8 @@ export class Marketplace {
       const controls=await this.store.all('country_control');
       return {countries:Object.entries(countries).map(([code,c])=>{
         const control=controls.find(r=>r.country===code&&r.status==='effective');
-        return {code,name:({KZ:'Казахстан',RS:'Сербия',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,launch_status:'unverified',checkout_enabled:false,
-          registration_enabled:control?.payload.registration_enabled??true,stop_new_business:control?.payload.stop_new_business??false};
+        return {code,name:({KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,launch_status:'unverified',checkout_enabled:false,
+          active:countryEnabled(code)&&(control?.payload.registration_enabled??true)&&!(control?.payload.stop_new_business??false),registration_enabled:countryEnabled(code)&&(control?.payload.registration_enabled??true),stop_new_business:!countryEnabled(code)||(control?.payload.stop_new_business??false)};
       }),subscription_enabled:true,subscription_scope:'executor',customer_access:'free',banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
     }
     if(path==='/legal/documents'&&method==='GET') {
@@ -227,7 +228,7 @@ export class Marketplace {
     }
     if(path==='/auth/register'&&method==='POST') {
       const country=text(b,'country',2,2);if(!countries[country])fail(400,'VALIDATION_ERROR','Недопустимая страна');
-      if(process.env.JOBA_REGION&&country!==process.env.JOBA_REGION)fail(403,'COUNTRY_DISABLED','Выбран неверный региональный endpoint');
+      if(!countryEnabled(country))fail(403,'COUNTRY_DISABLED','Выбран неверный региональный endpoint');
       const control=(await this.store.all('country_control',country)).find(r=>r.status==='effective');
       if(control?.payload.registration_enabled===false)fail(503,'COUNTRY_DISABLED','Регистрация в этой стране временно приостановлена');
       const phone=text(b,'phone',8,16);const number=parsePhoneNumberFromString(phone);
@@ -240,7 +241,7 @@ export class Marketplace {
       return this.tokens(u,randomUUID(),false,ip);
     }
     if(['/auth/login','/auth/staff-login'].includes(path)&&method==='POST') {
-      if(process.env.JOBA_REGION&&b.country!==process.env.JOBA_REGION)fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
+      if(!countryEnabled(b.country))fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       const c=(await db.query<any>('SELECT * FROM credentials WHERE country=$1 AND phone=$2',[String(b.country),String(b.phone)])).rows[0];
       // Hash even nonexistent credentials to avoid the obvious timing distinction.
       const ok=c?await verify(c.password_hash,String(b.password)):await hash(String(b.password??''),{memoryCost:19456,timeCost:2,parallelism:1}).then(()=>false);

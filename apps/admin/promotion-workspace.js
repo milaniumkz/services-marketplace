@@ -1,4 +1,4 @@
-const zones={KZ:'Asia/Almaty',RS:'Europe/Belgrade',RU:'Europe/Moscow',BY:'Europe/Minsk'};
+const zones={KZ:'Asia/Almaty',KG:'Asia/Bishkek',RU:'Europe/Moscow',BY:'Europe/Minsk'};
 const audiences={all:'Все исполнители',new:'Новые аккаунты исполнителей',existing:'Существующие аккаунты исполнителей'};
 function localInput(value,zone){if(!value)return '';try{return new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value)).replace(' ','T');}catch{return '';}}
 export async function promotionWorkspace({key,api,esc,card,note,tablecard,country,actorId,onRefresh}){

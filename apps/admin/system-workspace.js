@@ -1,4 +1,4 @@
-const names={KZ:'Казахстан',RS:'Сербия',RU:'Россия',BY:'Беларусь'};
+const names={KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'};
 const states={requested:'В очереди',pending:'Ожидание',retry:'Повтор запланирован',processing:'Обработка',scanning:'Проверка файла',sending:'Отправка',sent:'Доставлено',ready:'Готово',completed:'Завершено',failed:'Ошибка',dead_letter:'Требует разбора',clean:'Проверен',rejected:'Отклонён',infected:'Заблокирован',expired:'Срок истёк'};
 const date=value=>value?new Intl.DateTimeFormat('ru',{dateStyle:'short',timeStyle:'short',timeZone:'UTC'}).format(new Date(value)):'—';
 function chart(rows,esc){

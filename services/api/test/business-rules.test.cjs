@@ -10,7 +10,7 @@ const command=(api,u,method,path,body={},q={})=>api.handle(method,path,body,'Bea
 const record=(kind,owner,extra={})=>({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:new Date().toISOString(),...extra});
 
 test('promotion boundaries use IANA zones, including DST; exceptions cannot bypass another forbidden match',()=>{
-  assert.equal(promoEnd('2026-10-25','Europe/Belgrade'),'2026-10-25T23:00:00Z');
+  assert.equal(promoEnd('2026-10-25','Europe/Berlin'),'2026-10-25T23:00:00Z');
   assert.equal(promoEnd('2026-10-12','Asia/Almaty'),'2026-10-12T19:00:00Z');
   assert.equal(matchesRule('учебный маркер','маркер','exact_word',['учебный маркер']),false);
   assert.equal(matchesRule('учебный маркер и запрещённый маркер','маркер','exact_word',['учебный маркер']),true);

@@ -1333,7 +1333,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
           const SizedBox(height: 8),
           countryCard('KZ', 'Казахстан', 'KZT · локальные услуги'),
-          countryCard('RS', 'Сербия', 'RSD'),
+          countryCard('KG', 'Кыргызстан', 'KGS'),
           Row(children: [
             Expanded(child: countryCard('RU', 'Россия', 'RUB')),
             const SizedBox(width: 12),
@@ -1398,7 +1398,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     'KZ': '+7',
                     'RU': '+7',
                     'BY': '+375',
-                    'RS': '+381'
+                    'KG': '+996'
                   }[country]} · ${localize(context, 'Номер телефона').toLowerCase()}',
                   originalIcon: 'phone',
                   keyboard: TextInputType.phone),
@@ -1502,7 +1502,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   'KZ': 'Казахстан',
                                   'RU': 'Россия',
                                   'BY': 'Беларусь',
-                                  'RS': 'Сербия'
+                                  'KG': 'Кыргызстан'
                                 }[country]!)} · ${{
                               'ru': 'Русский',
                               'kk': 'Қазақша',
@@ -1600,7 +1600,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       context,
       const {
             'KZ': 'Казахстан',
-            'RS': 'Сербия',
+            'KG': 'Кыргызстан',
             'RU': 'Россия',
             'BY': 'Беларусь'
           }[code] ??
@@ -2509,7 +2509,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               DateFormat('yyyy-MM-dd').format(range.end),
                           'time_zone': const {
                             'KZ': 'Asia/Almaty',
-                            'RS': 'Europe/Belgrade',
+                            'KG': 'Asia/Bishkek',
                             'RU': 'Europe/Moscow',
                             'BY': 'Europe/Minsk'
                           }[country]
@@ -3379,7 +3379,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       'mode': v['price_mode'],
                       'currency': const {
                         'KZ': 'KZT',
-                        'RS': 'RSD',
+                        'KG': 'KGS',
                         'RU': 'RUB',
                         'BY': 'BYN'
                       }[me!['country']],
@@ -4465,7 +4465,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             icon: 'info'),
         for (final entry in const {
           'KZ': 'Казахстан',
-          'RS': 'Сербия',
+          'KG': 'Кыргызстан',
           'RU': 'Россия',
           'BY': 'Беларусь'
         }.entries)
@@ -4590,7 +4590,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     InputSpec('time_zone', 'Часовой пояс IANA',
                         initial: '${data[1]['quiet_hours']?['time_zone'] ?? {
                               'KZ': 'Asia/Almaty',
-                              'RS': 'Europe/Belgrade',
+                              'KG': 'Asia/Bishkek',
                               'RU': 'Europe/Moscow',
                               'BY': 'Europe/Minsk'
                             }[me?['country']] ?? 'UTC'}')

@@ -430,7 +430,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
         Text(
             'Документ · ${{
                   'KZ': 'Казахстан',
-                  'RS': 'Сербия',
+                  'KG': 'Кыргызстан',
                   'RU': 'Россия',
                   'BY': 'Беларусь'
                 }[widget.country] ?? widget.country}',

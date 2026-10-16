@@ -20,7 +20,7 @@ test('account overview counts before pagination without exposing other accounts 
   for(let n=0;n<125;n++)await put('order',{status:'open'});
   await put('order',{status:'in_progress',executor_id:owner},'KZ',other);
   await put('order',{status:'draft'});await put('order',{status:'completed'});
-  await put('order',{status:'open'},'KZ',other);await put('order',{status:'open'},'RS');
+  await put('order',{status:'open'},'KZ',other);await put('order',{status:'open'},'KG');
   await put('invite',{status:'pending',recipient_id:owner},'KZ',other);
   await put('invite',{status:'pending',recipient_id:other});
   await put('review',{status:'published',target_id:owner,rating:4},'KZ',other);
@@ -38,7 +38,7 @@ test('account overview counts before pagination without exposing other accounts 
   assert.deepEqual(result.rating,{count:1,average:4});assert.deepEqual(result.portfolio,{published:1,pending:1});
   assert.equal(result.subscription_until,until);assert.deepEqual(result.contractor,{status:'published',availability:'busy'});
   await put('order',{status:'completed',executor_id:owner},'KZ',other);
-  await put('order',{status:'completed',executor_id:owner},'RS',other);
+  await put('order',{status:'completed',executor_id:owner},'KG',other);
   await put('portfolio',{status:'published',moderation_status:'hidden'});
   const checkedAt=new Date().toISOString();await put('verification',{status:'passed',decided_at:checkedAt,expires_at:until});
   assert.equal((await get('/me/contractor-profile')).profile.public_visible,false);

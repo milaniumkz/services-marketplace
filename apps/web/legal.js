@@ -1,7 +1,7 @@
 export function mountLegal(request,feedback){
  const paper=document.querySelector('.legal-paper');if(!paper)return;
  const country=document.querySelector('[aria-label="Страна"]'),locale=document.querySelector('[aria-label="Язык"]');
- const countries={'Казахстан':'KZ','Россия':'RU','Беларусь':'BY','Сербия':'RS'},locales={'Русский':'ru','Қазақша':'kk','Беларуская':'be','Српски':'sr'};
+ const countries={'Казахстан':'KZ','Россия':'RU','Беларусь':'BY','Кыргызстан':'KG'},locales={'Русский':'ru','Қазақша':'kk','Беларуская':'be','Српски':'sr'};
  const names={privacy:'Конфиденциальность',terms:'Условия использования',subscriptions:'Подписка и платежи',community:'Правила сообщества'};
  const aliases={privacy:['privacy','privacy_policy'],terms:['terms','terms_of_use'],subscriptions:['subscriptions','subscription','payments'],community:['community','community_rules']};
  let generation=0;

@@ -16,7 +16,7 @@ test('export availability is derived from an owned clean unexpired export file a
   await api.store.put({...job,upload_id:clean.id});
   assert.equal((await show()).download_available,true);assert.equal((await show()).download_expires_at,future);
   await api.store.put({...clean,expires_at:'2000-01-01T00:00:00Z'});assert.equal((await show()).download_available,false);
-  for(const [owner,country,purpose] of [[other,'KZ','export'],[actor,'RS','export'],[actor,'KZ','identity']]){
+  for(const [owner,country,purpose] of [[other,'KZ','export'],[actor,'KG','export'],[actor,'KZ','identity']]){
    const file=await put('upload',{purpose,status:'clean',expires_at:future},owner,country);await api.store.put({...job,upload_id:file.id});
    const result=await show();assert.equal(result.download_available,false);assert.equal(result.download_expires_at,null);
   }

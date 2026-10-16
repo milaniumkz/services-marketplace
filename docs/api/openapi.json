@@ -22752,7 +22752,7 @@
             "type": "string",
             "enum": [
               "KZ",
-              "RS",
+              "KG",
               "RU",
               "BY"
             ]
@@ -22949,7 +22949,7 @@
               "currency": {
                 "enum": [
                   "KZT",
-                  "RSD",
+                  "KGS",
                   "RUB",
                   "BYN"
                 ]

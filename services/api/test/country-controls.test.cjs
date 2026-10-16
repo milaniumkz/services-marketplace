@@ -32,7 +32,7 @@ test('regional controls require independent approval and stop registration and n
   await assert.rejects(()=>call(customer,'POST','/orders/'+next.id+'/publish',{expected_version:1}),e=>e.getResponse().error.code==='COUNTRY_BUSINESS_PAUSED');
   const completed=await call(executor,'POST','/orders/'+order.id+'/complete',{expected_version:started.version});
   assert.equal((await call(customer,'POST','/orders/'+order.id+'/confirm-completion',{expected_version:completed.version})).status,'completed');
-  const config=await api.handle('GET','/public/config');assert.equal(config.countries.find(c=>c.code==='KZ').registration_enabled,false);assert.equal(config.countries.find(c=>c.code==='RS').registration_enabled,true);
+  const config=await api.handle('GET','/public/config');assert.equal(config.countries.find(c=>c.code==='KZ').registration_enabled,false);assert.equal(config.countries.find(c=>c.code==='KG').registration_enabled,true);
   await assert.rejects(()=>call(staff[0],'POST','/admin/country-controls/'+control.id+'/stop',{expected_version:effective.version,reason:'Нельзя обойти второе подтверждение'}),e=>e.getResponse().error.code==='SECOND_APPROVAL_REQUIRED');
  }finally{await api.store.close();}
 });

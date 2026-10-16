@@ -8,7 +8,7 @@ const password='Isolated promotion contract password!';
 async function register(a,phone){return a.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID(),{},phone);}
 test('promotion local start rejects DST ambiguity and uses the specified country timezone',()=>{
  assert.equal(normalizePromotionPayload({start_local:'2027-10-15T00:00',time_zone:'Asia/Almaty'}).valid_from,'2027-10-14T19:00:00.000Z');
- for(const start_local of ['2027-03-28T02:30','2027-10-31T02:30'])assert.throws(()=>normalizePromotionPayload({start_local,time_zone:'Europe/Belgrade'}));
+ for(const start_local of ['2027-03-28T02:30','2027-10-31T02:30'])assert.throws(()=>normalizePromotionPayload({start_local,time_zone:'Europe/Berlin'}));
 });
 test('promotion grants are executor-only, start-bounded and audience-bounded with a fixed end and no automatic charge',async()=>{
  const a=new Marketplace(new Store('memory://'));await a.initialize();

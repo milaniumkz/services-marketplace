@@ -21,6 +21,6 @@ test('document policies edit only own drafts and require published country-match
   let retention=await call(a,staff[0],'POST','/admin/retention-policies',{title:'Срок документов',reason,payload:{document_id:document.id,document_days:30}});
   retention=await call(a,staff[0],'PATCH','/admin/retention-policies/'+retention.id,{title:'Уточнённый срок',reason,expected_version:1,payload:{document_id:document.id,document_days:15}});assert.equal(retention.version,2);
   const preview=await call(a,staff[1],'POST','/admin/retention-policies/'+retention.id+'/preview',{reason,expected_version:2});assert.equal(preview.source_version,2);assert.equal(preview.applied,false);
-  await a.store.put({...document,status:'published',country:'RS'});await assert.rejects(()=>call(a,staff[1],'POST','/admin/retention-policies/'+retention.id+'/publish',{reason,expected_version:2}),e=>e.getResponse().error.code==='LEGAL_VERSION_UNAPPROVED');
+  await a.store.put({...document,status:'published',country:'KG'});await assert.rejects(()=>call(a,staff[1],'POST','/admin/retention-policies/'+retention.id+'/publish',{reason,expected_version:2}),e=>e.getResponse().error.code==='LEGAL_VERSION_UNAPPROVED');
  }finally{await a.store.close();}
 });

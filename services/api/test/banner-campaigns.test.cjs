@@ -7,13 +7,13 @@ const code=c=>e=>e.getResponse().error.code===c;
 test('banner payload rejects unsafe destinations, fractional money, invalid local dates and ambiguous DST',()=>{
  assert.equal(bannerPayload(payload(),'KZ').valid_from,'2027-01-01T04:00:00Z');
  for(const patch of [{destination:'https://external.invalid'},{budget_minor:1.1},{daily_limit:0},{placement:'chat.inline'},{end_local:'2026-01-01T00:00'},{time_zone:'UTC'},{start_local:'2027-02-30T09:00'}])assert.throws(()=>bannerPayload({...payload(),...patch},'KZ'));
- assert.throws(()=>bannerPayload({...payload(),time_zone:'Europe/Belgrade',start_local:'2027-10-31T02:30'},'RS'));
+ assert.equal(bannerPayload({...payload(),time_zone:'Asia/Bishkek',start_local:'2027-01-01T09:00'},'KG').valid_from,'2027-01-01T03:00:00Z');
 });
 test('banner drafts are separate from subscription promos, versioned, country-scoped, reviewed independently and never fake provider activation',async()=>{
  const a=new Marketplace(new Store('memory://'));await a.initialize();
  try{
-  const staff=[];for(const [i,country,permissions] of [[0,'KZ',['campaign']],[1,'KZ',['campaign']],[2,'RS',['campaign']],[3,'KZ',[]]]){
-   const phone=country==='RS'?'+381601234567':'+770000008'+(10+i),u=await a.handle('POST','/auth/register',{country,phone,password},undefined,randomUUID(),{},phone),secret=randomBytes(20).toString('hex');
+  const staff=[];for(const [i,country,permissions] of [[0,'KZ',['campaign']],[1,'KZ',['campaign']],[2,'KG',['campaign']],[3,'KZ',[]]]){
+   const phone=country==='KG'?'+996700123456':'+770000008'+(10+i),u=await a.handle('POST','/auth/register',{country,phone,password},undefined,randomUUID(),{},phone),secret=randomBytes(20).toString('hex');
    await a.store.put({...await a.store.get(u.user.id),staff_permissions:permissions,totp_secret:secret});staff.push(permissions.length?await a.handle('POST','/auth/staff-login',{country,phone,password,mfa_code:totp(secret)},undefined,randomUUID(),{},phone):u);
   }
   const body={title:'Баннер каталога',payload:payload(),reason:'Проверка реального черновика'};

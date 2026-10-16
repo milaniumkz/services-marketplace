@@ -26,7 +26,7 @@ test('campaign validation, audience preview, finite test permission and independ
  c=await call(a,reviewer,'POST','/admin/push-campaigns/'+c.id+'/schedule',{expected_version:c.version,preview_id:actual.preview_id,reason:'Независимо проверил и подтверждаю отправку'});assert.equal(c.status,'scheduled');
  await call(a,reviewer,'POST','/admin/push-campaigns/'+c.id+'/cancel',{expected_version:c.version,reason:'Проверка отмены до формирования получателей'});await a.maintenance();assert.equal((await a.store.all('outbox','KZ')).filter(o=>o.campaign_id===c.id).length,0);
  assert.equal(normalizePushPayload({send_local:'2027-01-01T10:00',time_zone:'Asia/Almaty'}).send_at,'2027-01-01T05:00:00.000Z');
- assert.throws(()=>normalizePushPayload({send_local:'2026-03-29T02:30',time_zone:'Europe/Belgrade'}));
+ assert.throws(()=>normalizePushPayload({send_local:'2026-03-29T02:30',time_zone:'Europe/Berlin'}));
 }));
 test('withdrawal after queue suppresses push; retries preserve per-device acceptance and create no duplicate notifications',()=>fixture(async a=>{
  const u=await reg(a,'864');await marketing(a,u);await token(a,u,'isolated-first-token');await token(a,u,'isolated-second-token');

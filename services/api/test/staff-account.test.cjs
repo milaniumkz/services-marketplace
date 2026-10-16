@@ -20,7 +20,7 @@ test('staff account tabs scope relations, mask security metadata and page immuta
   const ownOrder=await put('order',{title:'Заказ владельца',status:'open',exact_address:'Private address',upload_ids:['private-file']});
   const assigned=await put('order',{title:'Работа исполнителя',status:'completed',executor_id:owner.user.id},'KZ',other.user.id);
   await put('order',{title:'Другой заказ',status:'open'},'KZ',other.user.id);
-  await put('order',{title:'Другая страна',status:'open'},'RS');
+  await put('order',{title:'Другая страна',status:'open'},'KG');
   const first=await get('orders',{limit:1});assert.equal(first.items.length,1);assert.ok(first.meta.next_cursor);
   const second=await get('orders',{limit:1,cursor:first.meta.next_cursor});
   assert.deepEqual(new Set([...first.items,...second.items].map(r=>r.id)),new Set([ownOrder.id,assigned.id]));
@@ -36,10 +36,10 @@ test('staff account tabs scope relations, mask security metadata and page immuta
   const older=await put('audit',{target_id:owner.user.id,actor_id:operator.user.id,action:'user.checked',reason:'Older decision',created_at:'2026-01-01T00:00:00.000Z'},'KZ',operator.user.id);
   const newer=await put('audit',{target_id:verification.id,actor_id:operator.user.id,action:'verification.decided',reason:'Newer decision',created_at:'2026-01-02T00:00:00.000Z'},'KZ',operator.user.id);
   await put('audit',{target_id:other.user.id,action:'unrelated',reason:'Other account'},'KZ',operator.user.id);
-  await put('audit',{target_id:owner.user.id,action:'foreign',reason:'Other country'},'RS',operator.user.id);
+  await put('audit',{target_id:owner.user.id,action:'foreign',reason:'Other country'},'KG',operator.user.id);
   const history=await get('decisions',{limit:1});assert.equal(history.items[0].id,newer.id);
   const history2=await get('decisions',{limit:1,cursor:history.meta.next_cursor});assert.equal(history2.items[0].id,older.id);assert.equal(history2.meta.next_cursor,null);
-  const foreign=await put('user',{status:'active'},'RS');await assert.rejects(()=>get('orders',{},foreign.id),e=>e.getStatus()===404);
+  const foreign=await put('user',{status:'active'},'KG');await assert.rejects(()=>get('orders',{},foreign.id),e=>e.getStatus()===404);
   await assert.rejects(()=>call(owner,'GET','/admin/users/'+owner.user.id+'/orders'),e=>e.getStatus()===403);
   await put('security_event',{event:'test.login',ip:'192.0.2.42',session_family:'private-session-id'});
   await assert.rejects(()=>get('security-events'),e=>e.getStatus()===400);

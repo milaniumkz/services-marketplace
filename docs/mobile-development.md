@@ -4,7 +4,7 @@
 
 ## Подключение
 
-Региональные серверы задаются при сборке через `--dart-define=JOBA_KZ_API_URL=...`, `JOBA_RS_API_URL`, `JOBA_RU_API_URL`, `JOBA_BY_API_URL`. В release общий `JOBA_API_URL` служит резервом только для KZ; остальные регионы без собственного URL недоступны. В debug общий адрес допустим для локальной разработки. Клиент добавляет `/api/v1` сам. Указывайте корень регионального API без query, fragment и credentials. Release требует HTTPS; отсутствующий production URL не заменяется демонстрационным сервером.
+Региональные серверы задаются при сборке через `--dart-define=JOBA_KZ_API_URL=...`, `JOBA_KG_API_URL`, `JOBA_RU_API_URL`, `JOBA_BY_API_URL`. Общий `JOBA_API_URL` используется всеми четырьмя странами, если для страны не указан отдельный URL. Страны: KZ (Казахстан), KG (Кыргызстан), RU (Россия), BY (Беларусь). Production API разрешает их явно через `JOBA_ENABLED_COUNTRIES=KZ,KG,RU,BY`; данные и сессии остаются разделены по country. Клиент добавляет `/api/v1` сам. Указывайте корень регионального API без query, fragment и credentials. Release требует HTTPS; отсутствующий production URL не заменяется демонстрационным сервером.
 
 ```bash
 npm ci --cache /workspace/.npm

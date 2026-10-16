@@ -22,7 +22,7 @@ void main() {
     });
     final parsed = DevicePreferences(vault);
     expect(await parsed.read(), {'country': 'KZ', 'locale': 'ru'});
-    await Future.wait([parsed.save('RS', 'sr'), parsed.save('BY', 'be')]);
+    await Future.wait([parsed.save('KG', 'sr'), parsed.save('BY', 'be')]);
     expect(await parsed.read(), {'country': 'BY', 'locale': 'be'});
     expect(jsonDecode(vault.value!).keys.toSet(), {'country', 'locale'});
   });
@@ -31,13 +31,13 @@ void main() {
       () {
     var calls = 0;
     final regions =
-        RegionGateway({'KZ': 'https://user:secret@example.com', 'RS': ''},
+        RegionGateway({'KZ': 'https://user:secret@example.com', 'KG': ''},
             factory: (country, endpoint) {
       calls++;
       throw StateError('must not be called');
     });
     expect(() => regions.create('KZ'), throwsA(isA<ApiException>()));
-    expect(() => regions.create('RS'), throwsA(isA<ApiException>()));
+    expect(() => regions.create('KG'), throwsA(isA<ApiException>()));
     expect(() => regions.create('RU'), throwsA(isA<ApiException>()));
     expect(calls, 0);
   });
@@ -49,10 +49,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final prefs = MemoryVault();
-    prefs.value = jsonEncode({'country': 'RS', 'locale': 'ru'});
+    prefs.value = jsonEncode({'country': 'KG', 'locale': 'ru'});
     final requests = <http.Request>[], clients = <JobaApi>[];
     final regions =
-        RegionGateway({'KZ': 'https://kz.example', 'RS': 'https://rs.example'},
+        RegionGateway({'KZ': 'https://kz.example', 'KG': 'https://kg.example'},
             factory: (country, endpoint) {
       final api = JobaApi(endpoint, vault: MemoryVault(),
           transport: MockClient((request) async {
@@ -68,15 +68,15 @@ void main() {
         JobaApp(regions: regions, preferences: DevicePreferences(prefs)));
     await tester.pumpAndSettle();
     final dynamic state = tester.state(find.byType(Marketplace));
-    expect(state.country, 'RS');
-    expect(state.api.base.host, 'rs.example');
+    expect(state.country, 'KG');
+    expect(state.api.base.host, 'kg.example');
     final original = state.api as JobaApi;
     original.session = {
-      'access_token': 'isolated-rs-token',
-      'refresh_token': 'isolated-rs-refresh',
-      'user': {'id': 'account', 'country': 'RS'}
+      'access_token': 'isolated-kg-token',
+      'refresh_token': 'isolated-kg-refresh',
+      'user': {'id': 'account', 'country': 'KG'}
     };
-    state.me = {'id': 'account', 'country': 'RS'};
+    state.me = {'id': 'account', 'country': 'KG'};
     await expectLater(state.chooseCountry('BY'), throwsA(isA<ApiException>()));
     expect(state.api, original);
     expect(original.authenticated, true);
@@ -88,8 +88,8 @@ void main() {
     expect(state.api.authenticated, false);
     final logout =
         requests.singleWhere((r) => r.url.path.endsWith('/auth/logout'));
-    expect(logout.url.host, 'rs.example');
-    expect(logout.headers['Authorization'], 'Bearer isolated-rs-token');
+    expect(logout.url.host, 'kg.example');
+    expect(logout.headers['Authorization'], 'Bearer isolated-kg-token');
     expect(original.disposed, true);
     expect(state.me, null);
     expect(jsonDecode(prefs.value!)['country'], 'KZ');

@@ -1,3 +1,4 @@
+import {countryEnabled} from './country-access';
 import { randomBytes,randomUUID } from 'node:crypto';
 import { hash } from '@node-rs/argon2';
 import { Store } from './store';
@@ -11,7 +12,7 @@ function base32(bytes:Buffer){
 }
 /** Offline operator command only. No HTTP route can grant staff permissions. */
 export async function bootstrapStaff(store:Store,files:PrivateFiles,input:any,saveEnrollment:(value:any)=>Promise<void>){
- if(!['KZ','RS','RU','BY'].includes(input.country)||process.env.JOBA_REGION&&input.country!==process.env.JOBA_REGION)throw Error('Select the matching regional country');
+ if(!countryEnabled(input.country))throw Error('Select the matching regional country');
  if(input.locale!==undefined&&!['ru','kk','sr','be'].includes(input.locale))throw Error('Unsupported staff locale');
  if(typeof input.identifier!=='string'||!/^staff-[a-z0-9._-]{3,60}$/.test(input.identifier))throw Error('Use a separate staff identifier');
  if(typeof input.display_name!=='string'||input.display_name.trim().length<2||input.display_name.length>60)throw Error('Invalid staff display name');

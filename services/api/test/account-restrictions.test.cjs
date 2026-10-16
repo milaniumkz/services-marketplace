@@ -19,7 +19,7 @@ test('account restrictions expose only current own regional limits and subject-s
   await put('blacklist',{user_id:actor,case_id:incident.id,status:'active',ends_at:'2000-01-01T00:00:00Z'});
   await put('auto_hold',{user_id:actor,status:'released',expires_at:future});
   await put('blacklist',{user_id:other,status:'active',ends_at:future});
-  await put('blacklist',{user_id:actor,status:'active',ends_at:future},'RS');
+  await put('blacklist',{user_id:actor,status:'active',ends_at:future},'KG');
   const hidden=await put('case',{subject_user_id:other,status:'resolved',decision:'content_removed',public_reason:'PRIVATE OTHER SUBJECT'});
   await put('blacklist',{user_id:actor,case_id:hidden.id,status:'active',ends_at:future,reason:'PRIVATE STAFF REASON'});
   const result=await get();assert.equal(result.meta.restricted,true);assert.equal(result.items.length,3);

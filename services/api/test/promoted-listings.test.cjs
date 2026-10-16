@@ -11,7 +11,7 @@ test('promoted inventory is separate, confirmed, scoped and eligible before capa
   for(const t of [hidden,visible])await s.put(record('boost',owner,{target_id:t.id,placement_id:'search.services.promoted',provenance:'admin_grant',status:'active',starts_at:start,ends_at:end}));
   const result=await promotedListings(s,'KZ',viewer,'search.services.promoted',{city:'Алматы'},now);assert.equal(result.items.length,1);assert.equal(result.items[0].target.id,visible.id);assert.equal(result.items[0].promoted,true);assert.equal(result.organic_rank_changed,false);assert.equal(result.items[0].actor_id,undefined);
   assert.equal((await promotedListings(s,'KZ',viewer,'search.services.promoted',{city:'Астана'},now)).items.length,0);
-  assert.equal((await promotedListings(s,'RS',viewer,'search.services.promoted',{},now)).items.length,0);
+  assert.equal((await promotedListings(s,'KG',viewer,'search.services.promoted',{},now)).items.length,0);
   await s.put({...access,valid_until:start,version:2});assert.equal((await promotedListings(s,'KZ',viewer,'search.services.promoted',{},now)).items.length,0);await s.put(access);
   await s.put(record('pair_block',viewer,{target_id:owner,status:'active'}));assert.equal((await promotedListings(s,'KZ',viewer,'search.services.promoted',{},now)).items.length,0);
  }finally{await s.close();}

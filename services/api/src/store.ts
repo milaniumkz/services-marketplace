@@ -1,3 +1,4 @@
+import {enabledCountries} from './country-access';
 import { PGlite } from '@electric-sql/pglite';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -23,11 +24,12 @@ export class Store {
   contentHook?: (data:RecordData)=>Promise<void>;
   constructor(path = process.env.JOBA_DATA_DIR ?? resolve(__dirname, '../../../.local/joba')) {
     if(process.env.NODE_ENV==='production'&&!process.env.DATABASE_URL)throw Error('Production requires a regional PostgreSQL DATABASE_URL');
-    if(process.env.NODE_ENV==='production'&&!['KZ','RS','RU','BY'].includes(process.env.JOBA_REGION??''))throw Error('Production requires an explicit JOBA_REGION');
+    if(process.env.NODE_ENV==='production'&&!['KZ','KG','RU','BY'].includes(process.env.JOBA_REGION??''))throw Error('Production requires an explicit JOBA_REGION');
     if(process.env.DATABASE_URL&&path!=='memory://')this.db=new ServerPostgres(process.env.DATABASE_URL);
     else {if(path!=='memory://')mkdirSync(path,{recursive:true});this.db=new PGlite(path);}
   }
   async initialize() {
+    enabledCountries();
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0002_runtime.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0003_rate_limits.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0004_account_views.up.sql"), "utf8"));

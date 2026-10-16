@@ -14,8 +14,8 @@ test('offer terms retain local time and exact UTC, cap expiry, reject invalid du
  rejects({duration_minutes:-1});rejects({duration_minutes:1.5});rejects({proposed_start_local:'2026-10-19T10:00'});
  rejects({proposed_start_local:'2026-10-15T09:00'});rejects({expires_local:'2026-10-15T14:00'});
  rejects({proposed_start_local:'2026-10-16T10:00',expires_local:'2026-10-16T11:00'});rejects({expires_local:'2026-11-01T10:00'});
- const serbia={...order,country:'RS',time_window:{time_zone:'Europe/Belgrade'}};
- for(const proposed_start_local of ['2026-10-25T02:30','2027-03-28T02:30'])assert.throws(()=>offerTerms(serbia,{proposed_start_local},10000,now),e=>e.getStatus()===400);
+ const dstOrder={...order,country:'KG',time_window:{time_zone:'Europe/Berlin'}};
+ for(const proposed_start_local of ['2026-10-25T02:30','2027-03-28T02:30'])assert.throws(()=>offerTerms(dstOrder,{proposed_start_local},10000,now),e=>e.getStatus()===400);
  assert.equal(offerExpired({created_at:'2026-10-12T09:00:00Z'},72,now),true);
  const legacy=offerTerms(order,{},72,now,{country:'KZ',created_at:'2026-10-13T12:00:00Z'});assert.equal(legacy.expires_at,'2026-10-16T12:00:00.000Z');
  const capped=offerTerms({...order,expires_at:'2026-10-16T00:00:00Z'},{},72,now,{country:'KZ',created_at:'2026-10-13T12:00:00Z'});assert.equal(capped.expires_at,'2026-10-16T00:00:00.000Z');

@@ -5,7 +5,7 @@ test('retention requires a published regional policy and protects exact held fil
  const store=new Store('memory://');await store.initialize();try{
   const now=new Date('2026-03-01T00:00:00Z'),verification=record('verification',{status:'passed',decided_at:'2026-01-15T00:00:00Z'});await store.put(verification);
   const held=record('upload',{owner:verification.owner,purpose:'identity',status:'clean',verification_id:verification.id,mime:'image/jpeg'}),free={...held,id:randomUUID()};await store.put(held);await store.put(free);
-  const foreign=record('upload',{country:'RS',purpose:'identity',status:'uploaded'});await store.put(foreign);
+  const foreign=record('upload',{country:'KG',purpose:'identity',status:'uploaded'});await store.put(foreign);
   assert.deepEqual(await planFileRetention(store,now),[]);
   await store.put(record('retention_policy',{status:'effective',payload:{document_days:30}}));
   const hold=record('legal_hold',{target_id:held.id,fields:['file'],status:'active',review_at:'2026-02-01T00:00:00Z'});await store.put(hold);

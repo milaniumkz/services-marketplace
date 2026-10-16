@@ -4,7 +4,7 @@ import {Store,RecordData} from './store';
 const fail=(status:number,code:string,message:string):never=>{throw new HttpException({error:{code,message,details:{},retryable:status===503}},status);};
 const text=(v:any,min:number,max:number)=>{if(typeof v!=='string'||v.trim().length<min||v.length>max)fail(422,'VALIDATION_ERROR','Проверьте обязательные поля кампании');return v.trim();};
 export function bannerPayload(value:any,country:string){
- const p=value??{},zone=({KZ:'Asia/Almaty',RS:'Europe/Belgrade',RU:'Europe/Moscow',BY:'Europe/Minsk'} as Record<string,string>)[country];
+ const p=value??{},zone=({KZ:'Asia/Almaty',KG:'Asia/Bishkek',RU:'Europe/Moscow',BY:'Europe/Minsk'} as Record<string,string>)[country];
  if(p.time_zone!==zone)fail(422,'VALIDATION_ERROR','Выберите часовой пояс страны кампании');
  const instant=(v:any)=>{try{if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v))throw Error();return Temporal.PlainDateTime.from(v).toZonedDateTime(zone,{disambiguation:'reject'}).toInstant().toString();}catch{fail(422,'VALIDATION_ERROR','Проверьте местное время; неоднозначное время DST недопустимо');}};
  const valid_from=instant(p.start_local)!,valid_until=instant(p.end_local)!;
@@ -12,7 +12,7 @@ export function bannerPayload(value:any,country:string){
  if(!['catalog.inline','catalog.inline.end','home.inline','top.inline'].includes(p.placement))fail(422,'VALIDATION_ERROR','Недопустимое размещение баннера');
  if(!['home','catalog','top'].includes(p.destination))fail(422,'VALIDATION_ERROR','Выберите внутренний экран назначения');
  for(const [key,max] of [['budget_minor',100000000000],['daily_limit',1000000],['screen_interval',100]] as const)if(!Number.isSafeInteger(p[key])||p[key]<1||p[key]>max)fail(422,'VALIDATION_ERROR','Проверьте бюджет и лимиты');
- return {headline:text(p.headline,3,100),caption:text(p.caption,0,300),placement:p.placement,destination:p.destination,time_zone:zone,start_local:p.start_local,end_local:p.end_local,valid_from,valid_until,budget_minor:p.budget_minor,currency:({KZ:'KZT',RS:'RSD',RU:'RUB',BY:'BYN'} as Record<string,string>)[country],daily_limit:p.daily_limit,screen_interval:p.screen_interval,...(p.creative_id?{creative_id:text(p.creative_id,36,36)}:{})};
+ return {headline:text(p.headline,3,100),caption:text(p.caption,0,300),placement:p.placement,destination:p.destination,time_zone:zone,start_local:p.start_local,end_local:p.end_local,valid_from,valid_until,budget_minor:p.budget_minor,currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country],daily_limit:p.daily_limit,screen_interval:p.screen_interval,...(p.creative_id?{creative_id:text(p.creative_id,36,36)}:{})};
 }
 type Actor={id:string;country:string};
 type Context={object:(id:string)=>Promise<RecordData>;record:(data:any)=>RecordData;audit:(action:string,id:string,reason:string)=>Promise<any>};

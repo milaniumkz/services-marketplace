@@ -244,7 +244,7 @@ class _SearchFiltersState extends State<SearchFilters> {
                           padding: const EdgeInsets.only(top: 18, bottom: 8),
                           child: Text(
                               '${localize(context, 'Стоимость')}, ${currencySymbols[const {
-                                    'RS': 'RSD',
+                                    'KG': 'KGS',
                                     'RU': 'RUB',
                                     'BY': 'BYN'
                                   }[widget.api.session?['user']?['country']] ?? 'KZT']}',
