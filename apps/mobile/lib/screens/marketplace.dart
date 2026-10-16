@@ -1,3 +1,4 @@
+import 'referral_code.dart';
 import 'referral_reward_card.dart';
 import 'referral_hero_decoration.dart';
 import 'referral_terms.dart';
@@ -4620,26 +4621,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   })));
   void enterReferralCode() => Navigator.push(
       context,
-      MaterialPageRoute<void>(
-          builder: (c) => Scaffold(
-              appBar: AppBar(title: const UiText('Код приглашения')),
-              body: ActionForm(
-                  fields: const [
-                    InputSpec('code', 'Код')
-                  ],
-                  before: const [
-                    UiHeading('Вас пригласил друг?',
-                        'Введите его код, чтобы проверить условия бонуса.'),
-                    Notice(
-                        'Бонус появится после выполнения правил программы. Нельзя использовать собственный код или активировать приглашение повторно.')
-                  ],
-                  button: 'Проверить код',
-                  submit: (values) async {
-                    await api.request('/referrals/attribute',
-                        method: 'POST', body: {'code': values['code']?.trim()});
-                    if (c.mounted) Navigator.pop(c);
-                    if (mounted) setState(() => revision++);
-                  }))));
+      MaterialPageRoute<void>(builder: (c) => ReferralCodeScreen(
+          api: api, onAccepted: () {
+            if (mounted) {
+              setState(() => revision++);
+              success('Код приглашения принят');
+            }
+          })));
   Widget referralRulesScreen() => page(
       'Условия бонусов',
       loaded(

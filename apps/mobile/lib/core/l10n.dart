@@ -50,6 +50,11 @@ String errorText(BuildContext context, Object error) {
         'PDF_SANITIZER_UNAVAILABLE':
             'Проверка файлов недоступна. Попробуйте позже.',
         'PROVIDER_UNAVAILABLE': 'Сервис ещё не подключён.',
+        'ATTRIBUTION_WINDOW_EXPIRED': 'Срок ввода кода после регистрации истёк',
+        'ATTRIBUTION_ALREADY_SET': 'Пригласивший уже закреплён',
+        'REFERRAL_BUDGET_EXHAUSTED': 'Бюджет новых приглашений исчерпан',
+        'CAMPAIGN_UNAVAILABLE': 'Активной реферальной кампании нет',
+        'REFERRAL_INELIGIBLE': 'Код недоступен',
         'POLICY_REJECTED': 'Действие не разрешено действующими правилами.',
       }[error.code] ??
       'Не удалось выполнить запрос';

@@ -2256,12 +2256,12 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.204967,
+      "different_pixels_ratio": 0.026715,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
-      "note": "Referral policy snapshot/attribution window and reward expiry display implemented. Visual fixture has no issued rewards or window; widget tests verify those branches. Exact layout acceptance remains open.",
+      "note": "Dedicated code entry screen: sticky submit, below-field explanation card, prototype canvas/back icon/title offset and 52px input. Validation, API rejection/retained input and retry tested. Demo text intentionally replaced; exact visual acceptance remains pending.",
       "surface": "mobile"
     },
     {

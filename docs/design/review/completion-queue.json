@@ -997,8 +997,11 @@
       "reference": "mobile/screens/S37.redeem-redeem.png",
       "status": "unreviewed",
       "acceptance": "pending",
-      "diagnostic_difference": 0.204967,
-      "known_gaps": [],
+      "diagnostic_difference": 0.026715,
+      "known_gaps": [
+        "Точная типографика, ошибки/клавиатура и длинные тексты на всех языках требуют визуальной сверки.",
+        "DEMO-подписи заменены рабочими; приёмка 1:1 не подтверждена."
+      ],
       "evidence": [
         "mobile-referral-terms-update.md",
         "mobile/reward-states/available.png",
