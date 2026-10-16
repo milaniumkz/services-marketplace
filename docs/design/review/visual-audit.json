@@ -3556,12 +3556,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.149339,
+      "different_pixels_ratio": 0.105596,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Structured price fields, real product/status/SKU filters and published promotion. Shared shell, badges, exact layout and data states still require acceptance. Country/role changes follow owner instructions.",
       "surface": "admin"
     },
     {

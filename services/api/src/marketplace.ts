@@ -1,3 +1,4 @@
+import {pricePayload} from './price-payload';
 import {countryEnabled} from './country-access';
 import {bannerCampaigns} from './banner-campaigns';
 import {accountRestrictionJobs} from './account-restriction-jobs';
@@ -1277,8 +1278,14 @@ export class Marketplace {
       const configKinds=['monetization-configs','price-versions','categories','push-campaigns','referral-campaigns','moderation-dictionaries','ranking-configs','promotions','placement-policies','verification-policies','retention-policies','country-controls'];
       if(configKinds.includes(section)&&method==='POST'&&path.split('/').length===3) {
         if(section==='moderation-dictionaries'){try{validateRules(b.payload?.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}}
-        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
+        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='price-versions'?pricePayload(b.payload,a.country):section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
+      }
+      const editPrice=path.match(/^\/admin\/price-versions\/([^/]+)$/);
+      if(editPrice&&['GET','PATCH'].includes(method)){
+        const r=await this.object(editPrice[1],a,'price_version');if(method==='GET')return r;
+        this.version(r,b);if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новую версию цены');
+        const result=await this.store.put({...r,title:text(b,'title',3,120),payload:pricePayload(b.payload,a.country),preview:undefined,version:r.version+1});await this.audit(a,'prices.edited',r.id,text(b,'reason',5,1000));return result;
       }
       const editDocumentPolicy=path.match(/^\/admin\/(verification-policies|retention-policies)\/([^/]+)$/);
       if(editDocumentPolicy&&['GET','PATCH'].includes(method)){
@@ -1358,7 +1365,7 @@ export class Marketplace {
       if(configurationCommand&&configKinds.includes(section)&&method==='POST') {
         const r=await this.object(configurationCommand[2],a,kinds[section]);
         if(configurationCommand[3]==='preview'){this.version(r,b);const reason=text(b,'reason',10,1000);const preview=await this.configuration.preview(r);await this.audit(a,'configuration.preview',r.id,reason);return preview;}
-        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy'].includes(r.kind))this.version(r,b);return this.configuration.validate(r);}
+        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy','price_version'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
         const result=await this.configuration.publish(r,a.id,b.expected_version);await this.audit(a,section+'.published',r.id,text(b,'reason',10,1000));return result;
       }
       const configurationStop=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(stop|cancel|rollback)$/);
@@ -1414,7 +1421,7 @@ export class Marketplace {
   }
   private async list(items:any[],q:any) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
-    const filtered=items.filter(x=>(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.order_id||x.order_id===q.order_id)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason,x.type,x.event].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
+    const filtered=items.filter(x=>(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.product_type||x.payload?.product_type===q.product_type)&&(!q.order_id||x.order_id===q.order_id)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason,x.type,x.event,x.payload?.product_id,x.payload?.provider].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
     const page=filtered.slice(0,limit);return {items:page,meta:{next_cursor:filtered.length>limit?await this.nextCursor(page.at(-1).id,q):null,total:filtered.length}};
   }
   private async messages(c:RecordData,a:Actor,method:string,b:any,q:any,kind:string) {

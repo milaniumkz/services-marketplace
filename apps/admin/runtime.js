@@ -1,3 +1,4 @@
+import {priceWorkspace} from './price-workspace.js';
 import {documentPolicyWorkspace} from './document-policy-workspace.js';
 import {bannerWorkspace} from './banner-workspace.js';
 import {promotionWorkspace} from './promotion-workspace.js';
@@ -19,7 +20,7 @@ const {routes,render,card,tablecard,field,note,metric,badge}=window.JOBA_ADMIN;
 const designMode=new URLSearchParams(location.search).has('design');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let session,loginDraft,cache={},error='',generation=0,disposeWorkspace;
-const privateWorkspaces=new Set([...pushRoutes,...scenarioRoutes,...userRoutes,'verificationPolicies','retention','campaigns','banner-detail','branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
+const privateWorkspaces=new Set([...pushRoutes,...scenarioRoutes,...userRoutes,'prices','pricing','verificationPolicies','retention','campaigns','banner-detail','branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
 const cursors={},filters={},configRoutes=new Set(['prices','pricing','monetization','push','referrals','dictionaries','dictionary','categories','ranking','placements','verificationPolicies','retention']);
 const sections={users:['users','Аккаунты'],orders:['orders','Заказы'],support:['support-threads','Поддержка'],'support-recovery':['recovery-threads','Восстановление доступа'],moderation:['cases','Дела'],portfolio:['portfolio','Портфолио'],contractors:['contractors','Профили исполнителей'],privacy:['privacy-requests','Запросы приватности'],blacklist:['blacklist','Черный список'],audit:['audit','Аудит'],prices:['price-versions','Цены'],monetization:['monetization-configs','Монетизация'],push:['push-campaigns','Рассылки'],referrals:['referral-campaigns','Реферальные кампании'],dictionaries:['moderation-dictionaries','Словари'],categories:['categories','Категории'],ranking:['ranking-configs','Рейтинг'],pricing:['price-versions','Каталог цен'],campaigns:['banner-campaigns','Кампании'],dictionary:['moderation-dictionaries','Запрещенные слова'],verification:['verifications','Проверка документов'],top100:['boost-reports','Топ и продвижение'],placements:['placement-policies','Размещения'],verificationPolicies:['verification-policies','Правила проверки'],retention:['retention-policies','Сроки хранения']};
 function clearStaffState(){
@@ -109,11 +110,11 @@ async function draw(reload=true) {
       if(key==='countries')routes[key]=await countryWorkspace({key,api:request,esc,card,note,badge,namedField,onRefresh:()=>draw()});
       if(['analytics','dashboard','security','jobs','scheduled','job-detail'].includes(key))routes[key]=await systemWorkspace({key,api:request,esc,card,tablecard,note,metric,badge,onRefresh:()=>draw()});
       if(key==='security')routes[key].actions+='<a class="btn" href="#security-full">Защищённый просмотр</a>';
-      if(sections[key]&&!pushRoutes.has(key)&&!['campaigns','verificationPolicies','retention'].includes(key))cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
+      if(sections[key]&&!pushRoutes.has(key)&&!['campaigns','verificationPolicies','retention','prices','pricing'].includes(key))cache[key]=await request('/admin/'+sections[key][0]+'?'+new URLSearchParams({...filters[key],...(cursors[key]?{cursor:cursors[key]}:{})}));
       if(['verificationPolicies','retention'].includes(key))routes[key]=await documentPolicyWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
       if(['campaigns','banner-detail'].includes(key))routes[key]=await bannerWorkspace({key,api:request,files:{upload:async file=>{if(g!==generation)throw Error('Экран изменился');const result=await api.upload(file,'banner');if(g!==generation)throw Error('Экран изменился');return result;},download:async path=>{if(g!==generation)throw Error('Экран изменился');const result=await api.download(path);if(g!==generation)throw Error('Экран изменился');return result;}},esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
       if(['promo','promo-preview'].includes(key))routes[key]=await promotionWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
-      if(['pricing','prices'].includes(key))routes[key].actions='<a class="btn primary" href="#promo">Промо-период исполнителя</a>';
+      if(['pricing','prices'].includes(key))routes[key]=await priceWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
       if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
       if(userRoutes.has(key)||key.startsWith('record-live/users/'))routes[key]=await userWorkspace({key,api:request,esc,card,tablecard,note,badge,namedField,sections,onRefresh:()=>draw()});

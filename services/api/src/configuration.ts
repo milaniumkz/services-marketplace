@@ -1,3 +1,4 @@
+import {pricePayload} from './price-payload';
 import {validatePushCampaign} from './push-campaigns';
 import {rankingParameters} from './ranking';
 import { Temporal } from '@js-temporal/polyfill';
@@ -23,10 +24,11 @@ export class Configuration {
       if(typeof p.registration_enabled!=='boolean'||typeof p.stop_new_business!=='boolean')fail('VALIDATION_ERROR','Укажите состояние регистрации и новых действий');
     }
     if(r.kind==='price_version') {
+      pricePayload(p,r.country);
       if(!Number.isSafeInteger(p.amount_minor)||p.amount_minor<0||!['KZT','KGS','RUB','BYN'].includes(p.currency))fail('VALIDATION_ERROR','Проверьте цену и валюту');
       const provider=this.providers.billing.get(p.provider);if(!provider)fail('PROVIDER_UNAVAILABLE','Сначала подключите платёжного провайдера',503);
       const product=await provider.validateProduct(p.product_id,r.country);
-      if(product.currency!==p.currency||product.amount_minor!==p.amount_minor)fail('PRICE_MISMATCH','Цена не синхронизирована с провайдером');
+      if(product.product_id!==p.product_id||product.currency!==p.currency||product.amount_minor!==p.amount_minor)fail('PRICE_MISMATCH','Цена не синхронизирована с провайдером');
       return {provider_verified:true};
     }
     if(r.kind==='monetization_config') {

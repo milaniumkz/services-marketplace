@@ -1558,11 +1558,17 @@
       "surface": "admin",
       "route": "pricing",
       "reference": "admin/screens/pricing.png",
-      "status": "unreviewed",
+      "status": "reviewed_changes_required",
       "acceptance": "pending",
-      "diagnostic_difference": 0.149339,
-      "known_gaps": [],
-      "evidence": []
+      "diagnostic_difference": 0.105596,
+      "known_gaps": [
+        "Нужна дальнейшая визуальная сверка общего shell, бейджей, отступов и дополнительных состояний редактора.",
+        "Правила изменения цены для существующих когорт не завершены; UI не имитирует их применение."
+      ],
+      "evidence": [
+        "price-editor-update.md",
+        "visual-audit.json"
+      ]
     },
     {
       "id": "A09.preview",

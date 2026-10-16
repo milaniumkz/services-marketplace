@@ -9,7 +9,7 @@ export class Commerce {
   private record(kind:string,owner:string,country:string,data:any):RecordData {return {...data,id:randomUUID(),kind,owner,country,version:1,created_at:new Date().toISOString()};}
   async offers(country:string) {
     const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective');
-    return {items:prices.filter(p=>this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload}))};
+    return {items:prices.filter(p=>p.payload.product_type!=='boost'&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload}))};
   }
   async verify(owner:string,country:string,providerName:string,reference:string) {
     const provider=this.providers.billing.get(providerName);if(!provider)fail('PROVIDER_UNAVAILABLE','Платёжный провайдер ещё не подключён');
