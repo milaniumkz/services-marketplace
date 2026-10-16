@@ -1,0 +1,86 @@
+name: joba
+services:
+  database:
+    image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: joba
+      POSTGRES_DB: joba
+      POSTGRES_PASSWORD: ${JOBA_DATABASE_PASSWORD:?Set the server database password}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U joba -d joba]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [private]
+  api:
+    build:
+      context: ../..
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      JOBA_REGION: KZ
+      JOBA_ENABLED_COUNTRIES: KZ,KG,RU,BY
+      JOBA_TRUST_PROXY: '1'
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      DATABASE_URL: postgres://joba:${JOBA_DATABASE_PASSWORD:?Set database password}@database:5432/joba
+      JOBA_FILE_KEY: ${JOBA_FILE_KEY:?Set the persistent file encryption key}
+      JOBA_UPLOAD_DIR: /app/.local/private-files
+    volumes:
+      - private_files:/app/.local
+      - antivirus:/var/lib/clamav:ro
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [private]
+  antivirus:
+    build:
+      context: ../..
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    user: root
+    command: [freshclam, --foreground, --daemon, --stdout]
+    volumes:
+      - antivirus:/var/lib/clamav
+    networks: [private]
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/production/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      JOBA_DOMAIN: ${JOBA_DOMAIN:?Set the public DNS hostname}
+      NO_PROXY: api,database,localhost,127.0.0.1
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [private]
+volumes:
+  database:
+    name: joba_database
+  private_files:
+    name: joba_private_files
+  antivirus:
+    name: joba_antivirus
+  caddy_data:
+    name: joba_caddy_data
+  caddy_config:
+    name: joba_caddy_config
+networks:
+  private:

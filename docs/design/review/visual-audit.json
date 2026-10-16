@@ -1,0 +1,4694 @@
+{
+  "generated_on": "2026-10-16",
+  "scenario": "Isolated fixtures; native and browser clients use real API contracts.",
+  "acceptance_rule": "A capture, route or pixel metric does not establish visual or functional acceptance. All frames remain pending.",
+  "summary": {
+    "expected": 187,
+    "captured": 187,
+    "not_captured": 0,
+    "captures_with_errors": 0,
+    "accepted": 0
+  },
+  "frames": [
+    {
+      "id": "S01",
+      "route": "welcome",
+      "reference": "mobile/screens/S01-welcome.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S01-welcome.png",
+      "actual_route": "welcome",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.070139,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S01.disabled",
+      "route": "country-unavailable",
+      "reference": "mobile/screens/S01.disabled-country-unavailable.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S01.disabled-country-unavailable.png",
+      "actual_route": "country-unavailable",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.050386,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S02",
+      "route": "login",
+      "reference": "mobile/screens/S02-login.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S02-login.png",
+      "actual_route": "login",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.052085,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S02.error",
+      "route": "login-error",
+      "reference": "mobile/screens/S02.error-login-error.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S02.error-login-error.png",
+      "actual_route": "login",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.233983,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S02.register",
+      "route": "register",
+      "reference": "mobile/screens/S02.register-register.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S02.register-register.png",
+      "actual_route": "register",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.113819,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S03",
+      "route": "terms",
+      "reference": "mobile/screens/S03-terms.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S03-terms.png",
+      "actual_route": "terms",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.073614,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S03.documents",
+      "route": "legal",
+      "reference": "mobile/screens/S03.documents-legal.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S03.documents-legal.png",
+      "actual_route": "legal",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.157045,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S04",
+      "route": "onboarding",
+      "reference": "mobile/screens/S04-onboarding.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S04-onboarding.png",
+      "actual_route": "onboarding",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.071025,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S05",
+      "route": "access",
+      "reference": "mobile/screens/S05-access.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S05-access.png",
+      "actual_route": "access",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.08509,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile",
+      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
+    },
+    {
+      "id": "S05.checkout",
+      "route": "checkout",
+      "reference": "mobile/screens/S05.checkout-checkout.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S05.checkout-checkout.png",
+      "actual_route": "checkout",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.173493,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S06",
+      "route": "home",
+      "reference": "mobile/screens/S06-home.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S06-home.png",
+      "actual_route": "home",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.049257,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S07",
+      "route": "catalog",
+      "reference": "mobile/screens/S07-catalog.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S07-catalog.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.111803,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S07.empty",
+      "route": "empty-search",
+      "reference": "mobile/screens/S07.empty-empty-search.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S07.empty-empty-search.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.11678,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S07.filters",
+      "route": "filters",
+      "reference": "mobile/screens/S07.filters-filters.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S07.filters-filters.png",
+      "actual_route": "filters",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.07023,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S07.gps",
+      "route": "gps-denied",
+      "reference": "mobile/screens/S07.gps-gps-denied.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S07.gps-gps-denied.png",
+      "actual_route": "gps-denied",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.06063,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S07.location",
+      "route": "location",
+      "reference": "mobile/screens/S07.location-location.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S07.location-location.png",
+      "actual_route": "location",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.097007,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S07.map",
+      "route": "map",
+      "reference": "mobile/screens/S07.map-map.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S07.map-map.png",
+      "actual_route": "map",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.626438,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S08",
+      "route": "contractor",
+      "reference": "mobile/screens/S08-contractor.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S08-contractor.png",
+      "actual_route": "contractor",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.143109,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S09",
+      "route": "executor-home",
+      "reference": "mobile/screens/S09-executor-home.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S09-executor-home.png",
+      "actual_route": "home",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.108286,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S10",
+      "route": "order",
+      "reference": "mobile/screens/S10-order.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S10-order.png",
+      "actual_route": "order",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.150087,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S11",
+      "route": "account",
+      "reference": "mobile/screens/S11-account.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S11-account.png",
+      "actual_route": "account",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.077826,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile",
+      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
+    },
+    {
+      "id": "S11.edit",
+      "route": "profile-edit",
+      "reference": "mobile/screens/S11.edit-profile-edit.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S11.edit-profile-edit.png",
+      "actual_route": "profile-edit",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.096199,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S11.roles",
+      "route": "roles",
+      "reference": "mobile/screens/S11.roles-roles.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S11.roles-roles.png",
+      "actual_route": "roles",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.099857,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile",
+      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
+    },
+    {
+      "id": "S12",
+      "route": "services",
+      "reference": "mobile/screens/S12-services.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S12-services.png",
+      "actual_route": "services",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.15834,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S12.pending",
+      "route": "profile-pending",
+      "reference": "mobile/screens/S12.pending-profile-pending.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S12.pending-profile-pending.png",
+      "actual_route": "profile-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.011227,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S13",
+      "route": "verification",
+      "reference": "mobile/screens/S13-verification.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S13-verification.png",
+      "actual_route": "verification",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.155494,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S13.pending",
+      "route": "verification-review",
+      "reference": "mobile/screens/S13.pending-verification-review.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S13.pending-verification-review.png",
+      "actual_route": "verification",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.149604,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S13.resubmit",
+      "route": "verification-resubmit",
+      "reference": "mobile/screens/S13.resubmit-verification-resubmit.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S13.resubmit-verification-resubmit.png",
+      "actual_route": "verification",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.036617,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S13.status",
+      "route": "verification-status",
+      "reference": "mobile/screens/S13.status-verification-status.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S13.status-verification-status.png",
+      "actual_route": "verification",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.117453,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S14",
+      "route": "reviews",
+      "reference": "mobile/screens/S14-reviews.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S14-reviews.png",
+      "actual_route": "reviews",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.061381,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S15",
+      "route": "security",
+      "reference": "mobile/screens/S15-security.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S15-security.png",
+      "actual_route": "security",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.144788,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S15.biometric",
+      "route": "biometric",
+      "reference": "mobile/screens/S15.biometric-biometric.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S15.biometric-biometric.png",
+      "actual_route": "biometric",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.061556,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S15.password",
+      "route": "password",
+      "reference": "mobile/screens/S15.password-password.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S15.password-password.png",
+      "actual_route": "password",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.163004,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S15.pin",
+      "route": "pin-setup",
+      "reference": "mobile/screens/S15.pin-pin-setup.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S15.pin-pin-setup.png",
+      "actual_route": "pin-setup",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.072402,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S15.revoke",
+      "route": "revoke-session",
+      "reference": "mobile/screens/S15.revoke-revoke-session.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S15.revoke-revoke-session.png",
+      "actual_route": "revoke-session",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.025616,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S15.sessions",
+      "route": "sessions",
+      "reference": "mobile/screens/S15.sessions-sessions.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S15.sessions-sessions.png",
+      "actual_route": "sessions",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.058852,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S16",
+      "route": "create",
+      "reference": "mobile/screens/S16-create.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S16-create.png",
+      "actual_route": "create",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.066528,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S17",
+      "route": "publish",
+      "reference": "mobile/screens/S17-publish.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S17-publish.png",
+      "actual_route": "publish",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.167782,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S17.success",
+      "route": "published",
+      "reference": "mobile/screens/S17.success-published.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S17.success-published.png",
+      "actual_route": "published",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.081075,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S18",
+      "route": "orders",
+      "reference": "mobile/screens/S18-orders.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S18-orders.png",
+      "actual_route": "orders",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.075736,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S18.empty",
+      "route": "empty-orders",
+      "reference": "mobile/screens/S18.empty-empty-orders.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S18.empty-empty-orders.png",
+      "actual_route": "orders",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.043761,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S19",
+      "route": "invite",
+      "reference": "mobile/screens/S19-invite.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S19-invite.png",
+      "actual_route": "invite",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.13947,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S19.sent",
+      "route": "invited",
+      "reference": "mobile/screens/S19.sent-invited.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S19.sent-invited.png",
+      "actual_route": "invited",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.031262,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S20",
+      "route": "invitations",
+      "reference": "mobile/screens/S20-invitations.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S20-invitations.png",
+      "actual_route": "invitations",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.08056,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S21",
+      "route": "offer",
+      "reference": "mobile/screens/S21-offer.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S21-offer.png",
+      "actual_route": "offer",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.075881,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S21.revision",
+      "route": "offer-revision",
+      "reference": "mobile/screens/S21.revision-offer-revision.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S21.revision-offer-revision.png",
+      "actual_route": "offer-revision",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.106776,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S21.sent",
+      "route": "offer-sent",
+      "reference": "mobile/screens/S21.sent-offer-sent.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S21.sent-offer-sent.png",
+      "actual_route": "offer-sent",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.014865,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S22",
+      "route": "offers",
+      "reference": "mobile/screens/S22-offers.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S22-offers.png",
+      "actual_route": "offers",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.107631,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S23",
+      "route": "select-contractor",
+      "reference": "mobile/screens/S23-select-contractor.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S23-select-contractor.png",
+      "actual_route": "select-contractor",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.195328,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S24",
+      "route": "work",
+      "reference": "mobile/screens/S24-work.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S24-work.png",
+      "actual_route": "work",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.143965,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S24.amendment",
+      "route": "amendment",
+      "reference": "mobile/screens/S24.amendment-amendment.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S24.amendment-amendment.png",
+      "actual_route": "amendment",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.056179,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S25",
+      "route": "chat",
+      "reference": "mobile/screens/S25-chat.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S25-chat.png",
+      "actual_route": "chat",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.216579,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S25.frozen",
+      "route": "frozen-chat",
+      "reference": "mobile/screens/S25.frozen-frozen-chat.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S25.frozen-frozen-chat.png",
+      "actual_route": "frozen-chat",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.13192,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S25.inbox",
+      "route": "messages",
+      "reference": "mobile/screens/S25.inbox-messages.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S25.inbox-messages.png",
+      "actual_route": "messages",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.062877,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S26",
+      "route": "complete",
+      "reference": "mobile/screens/S26-complete.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S26-complete.png",
+      "actual_route": "complete",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.203645,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S26.rework",
+      "route": "rework",
+      "reference": "mobile/screens/S26.rework-rework.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S26.rework-rework.png",
+      "actual_route": "rework",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.081588,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S27",
+      "route": "cancel",
+      "reference": "mobile/screens/S27-cancel.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S27-cancel.png",
+      "actual_route": "cancel",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.182758,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S27.pending",
+      "route": "cancel-pending",
+      "reference": "mobile/screens/S27.pending-cancel-pending.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S27.pending-cancel-pending.png",
+      "actual_route": "cancel-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.061905,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S28",
+      "route": "review",
+      "reference": "mobile/screens/S28-review.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S28-review.png",
+      "actual_route": "review",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.204411,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S28.sent",
+      "route": "review-sent",
+      "reference": "mobile/screens/S28.sent-review-sent.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S28.sent-review-sent.png",
+      "actual_route": "review-sent",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.011276,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S29",
+      "route": "report",
+      "reference": "mobile/screens/S29-report.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S29-report.png",
+      "actual_route": "report",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.078256,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S30",
+      "route": "cases",
+      "reference": "mobile/screens/S30-cases.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S30-cases.png",
+      "actual_route": "cases",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.058193,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S30.appeal",
+      "route": "appeal",
+      "reference": "mobile/screens/S30.appeal-appeal.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S30.appeal-appeal.png",
+      "actual_route": "case",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.062853,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S30.appeal-sent",
+      "route": "appeal-sent",
+      "reference": "mobile/screens/S30.appeal-sent-appeal-sent.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S30.appeal-sent-appeal-sent.png",
+      "actual_route": "case",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.092133,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S30.restricted",
+      "route": "banned",
+      "reference": "mobile/screens/S30.restricted-banned.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S30.restricted-banned.png",
+      "actual_route": "banned",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.050713,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S31",
+      "route": "notifications",
+      "reference": "mobile/screens/S31-notifications.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S31-notifications.png",
+      "actual_route": "notifications",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.055521,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S32",
+      "route": "my-access",
+      "reference": "mobile/screens/S32-my-access.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S32-my-access.png",
+      "actual_route": "my-access",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.094755,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile",
+      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
+    },
+    {
+      "id": "S32.canceled",
+      "route": "subscription-canceled",
+      "reference": "mobile/screens/S32.canceled-subscription-canceled.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S32.canceled-subscription-canceled.png",
+      "actual_route": "subscription-canceled",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.127116,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S32.manage",
+      "route": "manage-subscription",
+      "reference": "mobile/screens/S32.manage-manage-subscription.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S32.manage-manage-subscription.png",
+      "actual_route": "manage-subscription",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.145157,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S32.pending",
+      "route": "payment-pending",
+      "reference": "mobile/screens/S32.pending-payment-pending.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S32.pending-payment-pending.png",
+      "actual_route": "payment-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.064912,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S32.restore",
+      "route": "restore",
+      "reference": "mobile/screens/S32.restore-restore.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S32.restore-restore.png",
+      "actual_route": "restore",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.030329,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S33",
+      "route": "reward",
+      "reference": "mobile/screens/S33-reward.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S33-reward.png",
+      "actual_route": "reward",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.208939,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S33.granted",
+      "route": "reward-granted",
+      "reference": "mobile/screens/S33.granted-reward-granted.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S33.granted-reward-granted.png",
+      "actual_route": "reward-granted",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.060431,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S33.nofill",
+      "route": "reward-nofill",
+      "reference": "mobile/screens/S33.nofill-reward-nofill.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S33.nofill-reward-nofill.png",
+      "actual_route": "reward-nofill",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.015334,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S33.pending",
+      "route": "reward-pending",
+      "reference": "mobile/screens/S33.pending-reward-pending.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S33.pending-reward-pending.png",
+      "actual_route": "reward-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.063818,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S34",
+      "route": "privacy",
+      "reference": "mobile/screens/S34-privacy.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S34-privacy.png",
+      "actual_route": "privacy",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.133644,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S34.consents",
+      "route": "consents",
+      "reference": "mobile/screens/S34.consents-consents.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S34.consents-consents.png",
+      "actual_route": "consents",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.107444,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S34.delete",
+      "route": "delete-account",
+      "reference": "mobile/screens/S34.delete-delete-account.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S34.delete-delete-account.png",
+      "actual_route": "delete-account",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.229216,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S34.delete-confirm",
+      "route": "delete-confirm",
+      "reference": "mobile/screens/S34.delete-confirm-delete-confirm.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S34.delete-confirm-delete-confirm.png",
+      "actual_route": "delete-confirm",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.195462,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S34.delete-status",
+      "route": "delete-scheduled",
+      "reference": "mobile/screens/S34.delete-status-delete-scheduled.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S34.delete-status-delete-scheduled.png",
+      "actual_route": "delete-scheduled",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.091286,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S34.export",
+      "route": "export",
+      "reference": "mobile/screens/S34.export-export.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S34.export-export.png",
+      "actual_route": "export",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.048203,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S34.export-pending",
+      "route": "export-pending",
+      "reference": "mobile/screens/S34.export-pending-export-pending.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S34.export-pending-export-pending.png",
+      "actual_route": "export-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.011204,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S35",
+      "route": "settings",
+      "reference": "mobile/screens/S35-settings.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S35-settings.png",
+      "actual_route": "settings",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.074068,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S35.languages",
+      "route": "languages",
+      "reference": "mobile/screens/S35.languages-languages.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S35.languages-languages.png",
+      "actual_route": "languages",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.04754,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S35.logout",
+      "route": "logout-confirm",
+      "reference": "mobile/screens/S35.logout-logout-confirm.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S35.logout-logout-confirm.png",
+      "actual_route": "logout-confirm",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.018317,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S35.notifications",
+      "route": "notification-settings",
+      "reference": "mobile/screens/S35.notifications-notification-settings.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S35.notifications-notification-settings.png",
+      "actual_route": "notification-settings",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.100193,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S36",
+      "route": "unlock",
+      "reference": "mobile/screens/S36-unlock.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S36-unlock.png",
+      "actual_route": "unlock",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.106437,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S36.limit",
+      "route": "pin-limit",
+      "reference": "mobile/screens/S36.limit-pin-limit.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S36.limit-pin-limit.png",
+      "actual_route": "pin-limit",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.014878,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S37",
+      "route": "referrals",
+      "reference": "mobile/screens/S37-referrals.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S37-referrals.png",
+      "actual_route": "referrals",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.069627,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Prototype CSS hero contour, progress badge right alignment, two-line actual counters and local menu height implemented. Issued rewards, long text/locales and exact typography still require acceptance.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S37.redeem",
+      "route": "redeem",
+      "reference": "mobile/screens/S37.redeem-redeem.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S37.redeem-redeem.png",
+      "actual_route": "referrals",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.026715,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dedicated code entry screen: sticky submit, below-field explanation card, prototype canvas/back icon/title offset and 52px input. Validation, API rejection/retained input and retry tested. Demo text intentionally replaced; exact visual acceptance remains pending.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S37.rules",
+      "route": "referral-rules",
+      "reference": "mobile/screens/S37.rules-referral-rules.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S37.rules-referral-rules.png",
+      "actual_route": "referral-rules",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.123463,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Three-step timeline, prototype title position and warning styling. Actual campaign policy remains visible, so text/height differ from demo. Empty and narrow large-text cases tested; visual acceptance remains pending.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S38",
+      "route": "portfolio",
+      "reference": "mobile/screens/S38-portfolio.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S38-portfolio.png",
+      "actual_route": "portfolio",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.198216,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S38.edit",
+      "route": "portfolio-edit",
+      "reference": "mobile/screens/S38.edit-portfolio-edit.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S38.edit-portfolio-edit.png",
+      "actual_route": "portfolio-edit",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.083402,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S38.pending",
+      "route": "portfolio-pending",
+      "reference": "mobile/screens/S38.pending-portfolio-pending.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S38.pending-portfolio-pending.png",
+      "actual_route": "portfolio-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.013838,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S38.photos",
+      "route": "portfolio-photos",
+      "reference": "mobile/screens/S38.photos-portfolio-photos.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S38.photos-portfolio-photos.png",
+      "actual_route": "portfolio-photos",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.106609,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S39",
+      "route": "portfolio-project",
+      "reference": "mobile/screens/S39-portfolio-project.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S39-portfolio-project.png",
+      "actual_route": "portfolio-project",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.196821,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S39.lightbox",
+      "route": "photo-view",
+      "reference": "mobile/screens/S39.lightbox-photo-view.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S39.lightbox-photo-view.png",
+      "actual_route": "portfolio-project",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.062192,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S40",
+      "route": "support",
+      "reference": "mobile/screens/S40-support.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S40-support.png",
+      "actual_route": "support",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.16799,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S40.chat",
+      "route": "support-chat",
+      "reference": "mobile/screens/S40.chat-support-chat.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S40.chat-support-chat.png",
+      "actual_route": "support-chat",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.148384,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S40.new",
+      "route": "support-new",
+      "reference": "mobile/screens/S40.new-support-new.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S40.new-support-new.png",
+      "actual_route": "support-new",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.056862,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S40.prelogin",
+      "route": "recovery",
+      "reference": "mobile/screens/S40.prelogin-recovery.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S40.prelogin-recovery.png",
+      "actual_route": "recovery",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.192016,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S40.recovery",
+      "route": "recovery-chat",
+      "reference": "mobile/screens/S40.recovery-recovery-chat.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S40.recovery-recovery-chat.png",
+      "actual_route": "recovery-chat",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.120371,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S41",
+      "route": "top",
+      "reference": "mobile/screens/S41-top.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S41-top.png",
+      "actual_route": "top",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.198287,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S41.orders",
+      "route": "top-orders",
+      "reference": "mobile/screens/S41.orders-top-orders.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S41.orders-top-orders.png",
+      "actual_route": "top",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.109736,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S42",
+      "route": "promotion",
+      "reference": "mobile/screens/S42-promotion.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S42-promotion.png",
+      "actual_route": "promotion",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.090198,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S42.checkout",
+      "route": "promotion-checkout",
+      "reference": "mobile/screens/S42.checkout-promotion-checkout.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S42.checkout-promotion-checkout.png",
+      "actual_route": "promotion-checkout",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.14078,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S42.history",
+      "route": "promotion-history",
+      "reference": "mobile/screens/S42.history-promotion-history.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S42.history-promotion-history.png",
+      "actual_route": "promotion-history",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.160083,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S42.no-slots",
+      "route": "promotion-no-slots",
+      "reference": "mobile/screens/S42.no-slots-promotion-no-slots.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S42.no-slots-promotion-no-slots.png",
+      "actual_route": "promotion-no-slots",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.014219,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S42.pending",
+      "route": "promotion-pending",
+      "reference": "mobile/screens/S42.pending-promotion-pending.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S42.pending-promotion-pending.png",
+      "actual_route": "promotion-pending",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.019665,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S42.resolution",
+      "route": "promotion-resolution",
+      "reference": "mobile/screens/S42.resolution-promotion-resolution.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S42.resolution-promotion-resolution.png",
+      "actual_route": "promotion-resolution",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.023629,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "S42.terms",
+      "route": "promotion-terms",
+      "reference": "mobile/screens/S42.terms-promotion-terms.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "S42.terms-promotion-terms.png",
+      "actual_route": "promotion-terms",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.066309,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "X01",
+      "route": "session-expired",
+      "reference": "mobile/screens/X01-session-expired.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "X01-session-expired.png",
+      "actual_route": "session-expired",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.011867,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "X02",
+      "route": "offline",
+      "reference": "mobile/screens/X02-offline.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "X02-offline.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.093442,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "X03",
+      "route": "error",
+      "reference": "mobile/screens/X03-error.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "X03-error.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.063113,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "X04",
+      "route": "loading",
+      "reference": "mobile/screens/X04-loading.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "X04-loading.png",
+      "actual_route": "catalog",
+      "errors": [],
+      "reference_size": [
+        780,
+        1688
+      ],
+      "capture_size": [
+        780,
+        1688
+      ],
+      "different_pixels_ratio": 0.144204,
+      "excluded_system_rows": {
+        "top": 86,
+        "bottom": 44
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "mobile"
+    },
+    {
+      "id": "A01",
+      "route": "login",
+      "reference": "admin/screens/login.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A01-login.png",
+      "actual_route": "login",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.04413,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A01.1",
+      "route": "mfa",
+      "reference": "admin/screens/mfa.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A01.1-mfa.png",
+      "actual_route": "mfa",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.0617,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A02",
+      "route": "dashboard",
+      "reference": "admin/screens/dashboard.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A02-dashboard.png",
+      "actual_route": "dashboard",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.088778,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A02.analytics",
+      "route": "analytics",
+      "reference": "admin/screens/analytics.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A02.analytics-analytics.png",
+      "actual_route": "analytics",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.106697,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A02.revenue / FR-033",
+      "route": "revenue",
+      "reference": "admin/screens/revenue.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A02.revenue---FR-033-revenue.png",
+      "actual_route": "revenue",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.179891,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03",
+      "route": "users",
+      "reference": "admin/screens/users.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03-users.png",
+      "actual_route": "users",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.075478,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.2 / A12",
+      "route": "user-security",
+      "reference": "admin/screens/user-security.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.2---A12-user-security.png",
+      "actual_route": "user-security?user_id=aab2892a-b304-4231-998b-ce4ede5708a6",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.105299,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.RBAC",
+      "route": "settings",
+      "reference": "admin/screens/settings.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.RBAC-settings.png",
+      "actual_route": "settings",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.12287,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.blacklist / FR-042",
+      "route": "blacklist",
+      "reference": "admin/screens/blacklist.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.blacklist---FR-042-blacklist.png",
+      "actual_route": "blacklist",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.069777,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.blacklist.detail",
+      "route": "blacklist-detail",
+      "reference": "admin/screens/blacklist-detail.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.blacklist.detail-blacklist-detail.png",
+      "actual_route": "blacklist-detail",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.0719,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.cases",
+      "route": "user-cases",
+      "reference": "admin/screens/user-cases.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.cases-user-cases.png",
+      "actual_route": "user-cases?user_id=aab2892a-b304-4231-998b-ce4ede5708a6",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.123987,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.delete / A11.review",
+      "route": "deletion",
+      "reference": "admin/screens/deletion.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.delete---A11.review-deletion.png",
+      "actual_route": "deletion",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.087326,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.detail",
+      "route": "user-detail",
+      "reference": "admin/screens/user-detail.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.detail-user-detail.png",
+      "actual_route": "record-live/users/aab2892a-b304-4231-998b-ce4ede5708a6",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.092913,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.history",
+      "route": "user-decisions",
+      "reference": "admin/screens/user-decisions.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.history-user-decisions.png",
+      "actual_route": "user-decisions?user_id=1e1f0cd8-e032-48cd-a46a-fd8df28ac5d1",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.098055,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A03.orders",
+      "route": "user-orders",
+      "reference": "admin/screens/user-orders.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A03.orders-user-orders.png",
+      "actual_route": "user-orders?user_id=1e1f0cd8-e032-48cd-a46a-fd8df28ac5d1",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.066364,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A04",
+      "route": "order-detail",
+      "reference": "admin/screens/order-detail.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A04-order-detail.png",
+      "actual_route": "record-live/orders/39377f4c-6e3e-4ebe-a467-d8f2e7c9838a",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.0725,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A04.list",
+      "route": "orders",
+      "reference": "admin/screens/orders.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A04.list-orders.png",
+      "actual_route": "orders",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.066307,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A05",
+      "route": "moderation",
+      "reference": "admin/screens/moderation.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A05-moderation.png",
+      "actual_route": "moderation",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.075966,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A05.portfolio / FR-040",
+      "route": "portfolio",
+      "reference": "admin/screens/portfolio.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A05.portfolio---FR-040-portfolio.png",
+      "actual_route": "portfolio",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.11842,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A06",
+      "route": "case",
+      "reference": "admin/screens/case.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A06-case.png",
+      "actual_route": "case-live/aae2fd2a-b59d-4ae2-b566-e0d010a94d09",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.181747,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A07",
+      "route": "verification",
+      "reference": "admin/screens/verification.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A07-verification.png",
+      "actual_route": "verification",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.093991,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A07.authorization",
+      "route": "id-auth",
+      "reference": "admin/screens/id-auth.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A07.authorization-id-auth.png",
+      "actual_route": "id-auth?id=ac22a130-b9eb-4f53-b352-34fd1043c2f9",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.070763,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A07.guard",
+      "route": "verification-detail",
+      "reference": "admin/screens/verification-detail.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A07.guard-verification-detail.png",
+      "actual_route": "record-live/verification/ac22a130-b9eb-4f53-b352-34fd1043c2f9",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.106987,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A07.review",
+      "route": "verification-review",
+      "reference": "admin/screens/verification-review.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A07.review-verification-review.png",
+      "actual_route": "verification-review?id=ac22a130-b9eb-4f53-b352-34fd1043c2f9",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.13999,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A08",
+      "route": "categories",
+      "reference": "admin/screens/categories.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A08-categories.png",
+      "actual_route": "categories",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.136315,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Structured category tree/translations/schema editor and real version lifecycle. Shared shell, icons, field table/editor states and exact spacing still require acceptance; no staged catalog data used.",
+      "surface": "admin"
+    },
+    {
+      "id": "A08.languages",
+      "route": "languages",
+      "reference": "admin/screens/languages.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A08.languages-languages.png",
+      "actual_route": "languages",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.105219,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A09 / A22.prices",
+      "route": "pricing",
+      "reference": "admin/screens/pricing.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A09---A22.prices-pricing.png",
+      "actual_route": "pricing",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.105596,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Structured price fields, real product/status/SKU filters and published promotion. Shared shell, badges, exact layout and data states still require acceptance. Country/role changes follow owner instructions.",
+      "surface": "admin"
+    },
+    {
+      "id": "A09.preview",
+      "route": "promo-preview",
+      "reference": "admin/screens/promo-preview.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A09.preview-promo-preview.png",
+      "actual_route": "promo-preview",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.170593,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A09.promo",
+      "route": "promo",
+      "reference": "admin/screens/promo.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A09.promo-promo.png",
+      "actual_route": "promo",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.140591,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A10",
+      "route": "campaigns",
+      "reference": "admin/screens/campaigns.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A10-campaigns.png",
+      "actual_route": "campaigns",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.107559,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Separate banner form and creative/review API implemented; shared shell, real empty states and additional controls still require acceptance. Metric is diagnostic only.",
+      "surface": "admin"
+    },
+    {
+      "id": "A10.archive / A17.archive",
+      "route": "archive",
+      "reference": "admin/screens/archive.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A10.archive---A17.archive-archive.png",
+      "actual_route": "archive",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.056925,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A10.creative",
+      "route": "banner-detail",
+      "reference": "admin/screens/banner-detail.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A10.creative-banner-detail.png",
+      "actual_route": "banner-detail",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.0737,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Separate banner form and creative/review API implemented; shared shell, real empty states and additional controls still require acceptance. Metric is diagnostic only.",
+      "surface": "admin"
+    },
+    {
+      "id": "A11",
+      "route": "privacy",
+      "reference": "admin/screens/privacy.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A11-privacy.png",
+      "actual_route": "privacy",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.079326,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A12",
+      "route": "security",
+      "reference": "admin/screens/security.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A12-security.png",
+      "actual_route": "security",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.134598,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A12.full",
+      "route": "security-full",
+      "reference": "admin/screens/security-full.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A12.full-security-full.png",
+      "actual_route": "security-full?id=4861e0a4-1a42-4922-afdc-e6becdff130c",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.159373,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A13",
+      "route": "audit",
+      "reference": "admin/screens/audit.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A13-audit.png",
+      "actual_route": "audit",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.098572,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A14",
+      "route": "countries",
+      "reference": "admin/screens/countries.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A14-countries.png",
+      "actual_route": "countries",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.211569,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A14.gate",
+      "route": "country-detail",
+      "reference": "admin/screens/country-detail.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A14.gate-country-detail.png",
+      "actual_route": "country-detail",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.078278,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A15",
+      "route": "jobs",
+      "reference": "admin/screens/jobs.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A15-jobs.png",
+      "actual_route": "jobs",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.123812,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A15.retry",
+      "route": "job-detail",
+      "reference": "admin/screens/job-detail.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A15.retry-job-detail.png",
+      "actual_route": "job-detail?job_id=8142a044-d74c-4e51-b6f6-958f607d3089",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.110992,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A15.schedule",
+      "route": "scheduled",
+      "reference": "admin/screens/scheduled.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A15.schedule-scheduled.png",
+      "actual_route": "scheduled",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.085602,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A16",
+      "route": "monetization",
+      "reference": "admin/screens/monetization.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A16-monetization.png",
+      "actual_route": "monetization",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.11965,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A16.preview",
+      "route": "monetization-preview",
+      "reference": "admin/screens/monetization-preview.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A16.preview-monetization-preview.png",
+      "actual_route": "monetization-preview",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.073609,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A16.rewarded",
+      "route": "rewarded",
+      "reference": "admin/screens/rewarded.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A16.rewarded-rewarded.png",
+      "actual_route": "rewarded",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.096073,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A17",
+      "route": "push",
+      "reference": "admin/screens/push.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A17-push.png",
+      "actual_route": "push",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.090371,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A17.composer",
+      "route": "push-compose",
+      "reference": "admin/screens/push-compose.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A17.composer-push-compose.png",
+      "actual_route": "push-compose",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.092905,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A18",
+      "route": "dictionary",
+      "reference": "admin/screens/dictionary.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A18-dictionary.png",
+      "actual_route": "dictionary",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.143247,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A18.dryrun",
+      "route": "dictionary-dryrun",
+      "reference": "admin/screens/dictionary-dryrun.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A18.dryrun-dictionary-dryrun.png",
+      "actual_route": "dictionary-dryrun?id=8be600f4-1316-4073-a110-4136c05a1abb",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.134726,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A19",
+      "route": "branding",
+      "reference": "admin/screens/branding.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A19-branding.png",
+      "actual_route": "branding",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.152913,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A19.build",
+      "route": "branding-build",
+      "reference": "admin/screens/branding-build.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A19.build-branding-build.png",
+      "actual_route": "branding-build?version=e1004182-62d2-4fe4-a52e-ab2a4dd0615a",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.130464,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A20",
+      "route": "referrals",
+      "reference": "admin/screens/referrals.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A20-referrals.png",
+      "actual_route": "referrals",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.14951,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dedicated referral preview and compact promise-control rows. Default preview capture is selection state; selected-version screenshot is separate evidence. Exact visual acceptance remains pending.",
+      "surface": "admin"
+    },
+    {
+      "id": "A20.preview",
+      "route": "referral-preview",
+      "reference": "admin/screens/referral-preview.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A20.preview-referral-preview.png",
+      "actual_route": "referral-preview",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.089674,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dedicated referral preview and compact promise-control rows. Default preview capture is selection state; selected-version screenshot is separate evidence. Exact visual acceptance remains pending.",
+      "surface": "admin"
+    },
+    {
+      "id": "A21",
+      "route": "support",
+      "reference": "admin/screens/support.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A21-support.png",
+      "actual_route": "support",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.114157,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A21.thread",
+      "route": "support-recovery",
+      "reference": "admin/screens/support-recovery.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A21.thread-support-recovery.png",
+      "actual_route": "support-recovery",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.115955,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A22",
+      "route": "top100",
+      "reference": "admin/screens/top100.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A22-top100.png",
+      "actual_route": "top100",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.157527,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Top page links to structured ranking configuration; organic/paid inventory screen still requires visual acceptance.",
+      "surface": "admin"
+    },
+    {
+      "id": "A22.boosts",
+      "route": "boosts",
+      "reference": "admin/screens/boosts.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A22.boosts-boosts.png",
+      "actual_route": "boosts",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.121807,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A22.grant",
+      "route": "boost-grant",
+      "reference": "admin/screens/boost-grant.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A22.grant-boost-grant.png",
+      "actual_route": "boost-grant",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.130558,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "A22.placements",
+      "route": "placements",
+      "reference": "admin/screens/placements.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "A22.placements-placements.png",
+      "actual_route": "placements",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.120204,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G01",
+      "route": "users--loading",
+      "reference": "admin/screens/users--loading.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G01-users--loading.png",
+      "actual_route": "users--loading",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.226252,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G02",
+      "route": "users--error",
+      "reference": "admin/screens/users--error.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G02-users--error.png",
+      "actual_route": "users--error",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.070247,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G03",
+      "route": "users--empty",
+      "reference": "admin/screens/users--empty.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G03-users--empty.png",
+      "actual_route": "users--empty",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.069411,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G04",
+      "route": "dashboard--offline",
+      "reference": "admin/screens/dashboard--offline.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G04-dashboard--offline.png",
+      "actual_route": "dashboard--offline",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.115502,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G05",
+      "route": "dashboard--expired",
+      "reference": "admin/screens/dashboard--expired.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G05-dashboard--expired.png",
+      "actual_route": "dashboard--expired",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.061939,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G06",
+      "route": "verification-detail--forbidden",
+      "reference": "admin/screens/verification-detail--forbidden.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G06-verification-detail--forbidden.png",
+      "actual_route": "verification-detail--forbidden",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.069778,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G07 / A06.conflict",
+      "route": "revision-conflict",
+      "reference": "admin/screens/revision-conflict.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G07---A06.conflict-revision-conflict.png",
+      "actual_route": "revision-conflict?id=aae2fd2a-b59d-4ae2-b566-e0d010a94d09",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.186616,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G08 / A03.bulk",
+      "route": "bulk-preview",
+      "reference": "admin/screens/bulk-preview.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G08---A03.bulk-bulk-preview.png",
+      "actual_route": "bulk-preview?accounts=1",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.124325,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "G08.success / A15.progress",
+      "route": "bulk-result",
+      "reference": "admin/screens/bulk-result.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "G08.success---A15.progress-bulk-result.png",
+      "actual_route": "bulk-result?accounts=1&id=15a13068-b9e5-42aa-9207-0bfa59f42d73",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.112151,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "surface": "admin"
+    },
+    {
+      "id": "W01",
+      "route": "W01",
+      "reference": "public/previews/W01.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "W01-W01.png",
+      "actual_route": "W01",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.029559,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "surface": "public"
+    },
+    {
+      "id": "W02",
+      "route": "W02",
+      "reference": "public/previews/W02.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "W02-W02.png",
+      "actual_route": "W02",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.036202,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "surface": "public"
+    },
+    {
+      "id": "W03",
+      "route": "W03",
+      "reference": "public/previews/W03.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "W03-W03.png",
+      "actual_route": "W03",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.10631,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "surface": "public"
+    },
+    {
+      "id": "W04",
+      "route": "W04",
+      "reference": "public/previews/W04.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "W04-W04.png",
+      "actual_route": "W04",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.050206,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "surface": "public"
+    },
+    {
+      "id": "W05",
+      "route": "W05",
+      "reference": "public/previews/W05.png",
+      "visual_acceptance": "pending",
+      "status": "review_required",
+      "capture": "W05-W05.png",
+      "actual_route": "W05",
+      "errors": [],
+      "reference_size": [
+        1440,
+        1024
+      ],
+      "capture_size": [
+        1440,
+        1024
+      ],
+      "different_pixels_ratio": 0.046821,
+      "excluded_system_rows": {
+        "top": 0,
+        "bottom": 0
+      },
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "surface": "public"
+    }
+  ],
+  "customer_subscription_policy": "executor_only; customer free; owner instruction 2026-10-15"
+}

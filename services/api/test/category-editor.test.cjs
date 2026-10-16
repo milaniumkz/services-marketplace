@@ -1,0 +1,42 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID,randomBytes}=require('node:crypto');
+const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store'),{totp}=require('../dist/totp'),{categoryPayload}=require('../dist/category-payload');
+const base={labels:{ru:'Сборка мебели',kk:'Жиһаз жинау'},icon:'briefcase',schema:{properties:{count:{type:'integer',title:'Количество',minimum:1,maximum:100}},required:['count']}};
+const call=(a,u,m,p,b={})=>a.handle(m,p,b,'Bearer '+u.access_token,randomUUID());
+test('category fields reject missing translations, unsafe keys, arbitrary regex, invalid constraints and required fields',()=>{
+ assert.equal(categoryPayload(base,'KZ',randomUUID()).schema.properties.count.maximum,100);
+ for(const payload of [{...base,labels:{ru:'Мебель'}},{...base,icon:'external-url'},{...base,schema:{properties:{text:{type:'string',title:'Описание',minLength:1500}}}},{...base,schema:{properties:{bad:{type:'string',title:'Поле',pattern:'.*'}}}},{...base,schema:{properties:{count:{type:'integer',title:'Поле',minimum:10,maximum:1}}}},{...base,schema:{properties:{},required:['missing']}},{...base,schema:{properties:{constructor:{type:'string',title:'Поле'}}}}])assert.throws(()=>categoryPayload(payload,'KZ',randomUUID()));
+});
+test('category publication keeps public IDs and order snapshots; cycles, foreign parents, stale edits and orphaning are rejected',async()=>{
+ const a=new Marketplace(new Store('memory://'));await a.initialize();
+ try{
+  const password='Isolated category editor password!',users=[];for(const [i,phone] of ['+77000000871','+77000000872','+77000000873'].entries()){
+   const u=await a.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID());if(i<2){const secret=randomBytes(20).toString('hex');await a.store.put({...await a.store.get(u.user.id),staff_permissions:['content'],totp_secret:secret});users.push(await a.handle('POST','/auth/staff-login',{country:'KZ',phone,password,mfa_code:totp(secret)},undefined,randomUUID()));}else users.push(u);
+  }
+  const [author,approver,customer]=users,reason='Проверка версии и дерева категорий';
+  let r=await call(a,author,'POST','/admin/categories',{title:'Категория мебели',reason,payload:base});const stable=r.payload.category_id;assert.equal(stable,r.id);
+  await assert.rejects(()=>call(a,customer,'GET','/admin/category-tree'),e=>e.getStatus()===403);
+  await assert.rejects(()=>call(a,approver,'PATCH','/admin/categories/'+r.id,{title:r.title,reason,payload:base,expected_version:1}),e=>e.getStatus()===409);
+  await assert.rejects(()=>call(a,author,'POST','/admin/categories/'+r.id+'/publish',{reason,expected_version:1}),e=>e.getStatus()===403);
+  r=await call(a,approver,'POST','/admin/categories/'+r.id+'/publish',{reason,expected_version:1});assert.equal(r.status,'effective');
+  const catalog=()=>call(a,customer,'GET','/catalog/categories');assert.equal((await catalog()).items.find(c=>c.id===stable).version_id,r.id);
+  await assert.rejects(()=>call(a,customer,'POST','/orders',{title:'Заказ с лишним полем',description:'Проверка отклонения системного ключа вне схемы категории.',category_id:stable,city:'Алматы',attributes:{count:2,constructor:'not-in-schema'}}),e=>e.getStatus()===400);
+  const order=await call(a,customer,'POST','/orders',{title:'Сборка шкафа дома',description:'Нужно собрать шкаф по инструкции и проверить крепления.',category_id:stable,city:'Алматы',attributes:{count:2}});assert.equal(order.category_snapshot.labels.ru,base.labels.ru);
+  const revised={...base,category_id:stable,labels:{...base.labels,ru:'Мебель и кухня'},schema:{properties:{type:{type:'string',title:'Тип мебели',enum:['Шкаф','Кухня']}},required:['type']}};
+  let draft=await call(a,author,'POST','/admin/categories',{title:'Обновлённая мебель',reason,payload:revised});const newVersion=draft.id;
+  draft=await call(a,author,'PATCH','/admin/categories/'+draft.id,{title:draft.title,reason,payload:revised,expected_version:1});assert.equal(draft.version,2);
+  await assert.rejects(()=>call(a,author,'PATCH','/admin/categories/'+draft.id,{title:draft.title,reason,payload:revised,expected_version:1}),e=>e.getStatus()===409);
+  await call(a,approver,'POST','/admin/categories/'+draft.id+'/publish',{reason,expected_version:2});assert.equal((await a.store.get(stable)).status,'superseded');assert.equal((await catalog()).items.filter(c=>c.id===stable).length,1);assert.equal((await catalog()).items.find(c=>c.id===stable).version_id,newVersion);
+  const saved=await call(a,customer,'PATCH','/orders/'+order.id,{expected_version:1,title:'Обновлённое описание задачи'});assert.deepEqual(saved.attributes,{count:2});assert.equal(saved.category_snapshot.labels.ru,base.labels.ru);
+  await assert.rejects(()=>call(a,customer,'POST','/orders',{title:'Новая сборка кухни',description:'Нужно собрать кухню по чертежу и проверить фурнитуру.',category_id:stable,city:'Алматы',attributes:{count:2}}),e=>e.getStatus()===400);
+  let cloned=await call(a,customer,'POST','/orders/'+order.id+'/clone',{expected_version:saved.version});assert.equal(cloned.category_snapshot.labels.ru,revised.labels.ru);await assert.rejects(()=>call(a,customer,'POST','/orders/'+cloned.id+'/publish',{expected_version:1}),e=>e.getStatus()===400);cloned=await call(a,customer,'PATCH','/orders/'+cloned.id,{expected_version:1,attributes:{type:'Шкаф'}});assert.equal((await call(a,customer,'POST','/orders/'+cloned.id+'/publish',{expected_version:cloned.version})).status,'open');
+  const child=await call(a,author,'POST','/admin/categories',{title:'Дочерняя категория',reason,payload:{...base,parent_id:stable}});await call(a,approver,'POST','/admin/categories/'+child.id+'/publish',{reason,expected_version:1});
+  const cycle=await call(a,author,'POST','/admin/categories',{title:'Недопустимый цикл',reason,payload:{...revised,parent_id:child.id}});await assert.rejects(()=>call(a,approver,'POST','/admin/categories/'+cycle.id+'/publish',{reason,expected_version:1}),e=>e.getStatus()===422);
+  const foreign=(await a.store.all('category','KG'))[0];const foreignDraft=await call(a,author,'POST','/admin/categories',{title:'Чужой родитель',reason,payload:{...base,parent_id:foreign.id}});await assert.rejects(()=>call(a,approver,'POST','/admin/categories/'+foreignDraft.id+'/publish',{reason,expected_version:1}),e=>e.getStatus()===422);
+  await assert.rejects(()=>call(a,approver,'POST','/admin/categories/'+newVersion+'/stop',{reason,expected_version:3}),e=>e.getResponse().error.code==='CATEGORY_HAS_CHILDREN');
+  await call(a,approver,'POST','/admin/categories/'+child.id+'/stop',{reason,expected_version:2});await call(a,approver,'POST','/admin/categories/'+newVersion+'/stop',{reason,expected_version:3});assert.equal((await catalog()).items.some(c=>c.id===stable),false);
+  const afterArchive=await call(a,customer,'PATCH','/orders/'+order.id,{expected_version:saved.version,title:'Сохранённая историческая задача'});assert.equal(afterArchive.category_snapshot.labels.ru,base.labels.ru);
+  await assert.rejects(()=>call(a,customer,'POST','/orders/'+order.id+'/publish',{expected_version:afterArchive.version}),e=>e.getResponse().error.code==='CATEGORY_UNAVAILABLE');
+  const reference=(await a.store.all('category','KZ')).find(x=>x.legacy_id==='1'),refDraft=await call(a,author,'POST','/admin/categories',{title:'Версия справочной категории',reason,payload:{...base,category_id:reference.id}});const refPublished=await call(a,approver,'POST','/admin/categories/'+refDraft.id+'/publish',{reason,expected_version:1});const refRollback=await call(a,author,'POST','/admin/categories/'+refDraft.id+'/rollback',{reason,expected_version:refPublished.version});assert.equal(refRollback.legacy_id,'1');assert.equal(refRollback.payload.category_id,reference.id);
+  const competing=[];for(const title of ['Первый конкурирующий черновик','Второй конкурирующий черновик'])competing.push(await call(a,author,'POST','/admin/categories',{title,reason,payload:{...base,category_id:reference.id}}));await call(a,approver,'POST','/admin/categories/'+competing[0].id+'/publish',{reason,expected_version:1});await assert.rejects(()=>call(a,approver,'POST','/admin/categories/'+competing[1].id+'/publish',{reason,expected_version:1}),e=>e.getResponse().error.code==='CATEGORY_BASE_CHANGED');assert.equal((await a.store.get(competing[1].id)).status,'draft');
+ }finally{await a.store.close();}
+});
