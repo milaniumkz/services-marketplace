@@ -4156,12 +4156,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.159522,
+      "different_pixels_ratio": 0.157922,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Structured referral editor with actual regional campaign metrics and versioned commands. Layout and dedicated preview still require visual acceptance; no automatic pass.",
+      "note": "Dedicated referral preview and compact promise-control rows. Default preview capture is selection state; selected-version screenshot is separate evidence. Exact visual acceptance remains pending.",
       "surface": "admin"
     },
     {
@@ -4181,12 +4181,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.147866,
+      "different_pixels_ratio": 0.089674,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Structured referral editor with actual regional campaign metrics and versioned commands. Layout and dedicated preview still require visual acceptance; no automatic pass.",
+      "note": "Dedicated referral preview and compact promise-control rows. Default preview capture is selection state; selected-version screenshot is separate evidence. Exact visual acceptance remains pending.",
       "surface": "admin"
     },
     {
