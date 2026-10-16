@@ -1,3 +1,4 @@
+import 'referral_reward_card.dart';
 import 'referral_hero_decoration.dart';
 import 'referral_terms.dart';
 import 'service_area.dart';
@@ -4770,20 +4771,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   ])),
           const SizedBox(height: 16),
           for (final reward in rewards)
-            DataCard('Награда',
-                translateTitle: true,
-                subtitle: referralTerms(context, (reward['policy_snapshot'] as Json?) ?? {}) + '\n' + localize(context, 'Активировать до') + ': ' + (DateTime.tryParse('${reward['expires_at']}') == null ? '—' : DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse('${reward['expires_at']}').toLocal())),
-                status: reward['status'] == 'available' && !referralRewardAvailable(reward, DateTime.now()) ? localize(context, 'Срок истёк') : status(reward),
-                footer: referralRewardAvailable(reward, DateTime.now())
-                    ? button(
-                        'Активировать',
-                        () => act(() async {
-                              await api.request(
-                                  '/me/referral-rewards/${reward['id']}/redeem',
-                                  method: 'POST');
-                              reload();
-                            }))
-                    : null),
+            ReferralRewardCard(
+                key: ValueKey('referral-reward:${reward['id']}'),
+                reward: reward,
+                onActivate: () async {
+                  await api.request('/me/referral-rewards/${reward['id']}/redeem', method: 'POST');
+                  reload();
+                }),
           JobaMenu([
             JobaMenuEntry(
                 'Как начисляются бонусы', 'info', () => go('referral-rules'),

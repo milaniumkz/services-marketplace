@@ -983,7 +983,11 @@
         "DEMO-условия макета не заменяют опубликованные условия API."
       ],
       "evidence": [
-        "mobile-referral-terms-update.md"
+        "mobile-referral-terms-update.md",
+        "mobile/reward-states/available.png",
+        "mobile/reward-states/expired.png",
+        "mobile/reward-states/redeemed.png",
+        "mobile/reward-states/narrow-long.png"
       ]
     },
     {
@@ -996,7 +1000,11 @@
       "diagnostic_difference": 0.204967,
       "known_gaps": [],
       "evidence": [
-        "mobile-referral-terms-update.md"
+        "mobile-referral-terms-update.md",
+        "mobile/reward-states/available.png",
+        "mobile/reward-states/expired.png",
+        "mobile/reward-states/redeemed.png",
+        "mobile/reward-states/narrow-long.png"
       ]
     },
     {
