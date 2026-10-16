@@ -6,9 +6,14 @@ export function liveFileReferences(value:any):string[]{
  const walk=(node:any)=>{if(!node||typeof node!=='object')return;if(Array.isArray(node)){for(const item of node)walk(item);return;}for(const [key,v] of Object.entries(node)){if(key==='retention_file_ids')continue;if(referenceFields.has(key)){for(const id of Array.isArray(v)?v:[v])if(typeof id==='string')found.add(id);}walk(v);}};walk(value);return [...found];
 }
 export async function eligibleWorkFiles(store:Store,now=new Date()){
- const rows=await store.db.query<{data:RecordData,policy:RecordData}>("SELECT r.data,p.data AS policy FROM records r JOIN records p ON p.id::text=r.data->>'retention_policy_id' AND p.country=r.country AND p.kind='retention_policy' AND p.data->>'status' IN ('effective','superseded') WHERE r.data->>'retention_minimized_at' IS NOT NULL AND jsonb_typeof(r.data->'retention_file_ids')='array'");
- const candidates=new Map<string,{owner:string,country:string,source_id:string,policy_id:string}>();
- for(const {data:r} of rows.rows.filter(({data:r,policy:p})=>Number.isSafeInteger(p.payload?.chat_days)&&p.payload.chat_days>0&&Number.isFinite(Date.parse(r.retention_minimized_at))&&Date.parse(r.retention_minimized_at)<=now.getTime()))for(const id of r.retention_file_ids)if(typeof id==='string')candidates.set(r.country+':'+id,{owner:r.owner,country:r.country,source_id:r.id,policy_id:r.retention_policy_id});
+ const rows=await store.db.query<{data:RecordData,policy:RecordData}>("SELECT r.data,p.data AS policy FROM records r JOIN records p ON p.id::text=r.data->>'retention_policy_id' AND p.country=r.country AND p.kind='retention_policy' AND p.data->>'status' IN ('effective','superseded') WHERE COALESCE(r.data->>'retention_minimized_at',r.data->>'evidence_minimized_at') IS NOT NULL AND jsonb_typeof(r.data->'retention_file_ids')='array'");
+ const candidates=new Map<string,{owners:string[],country:string,source_id:string,policy_id:string}>();
+ for(const {data:r,policy:p} of rows.rows){
+  const field=['case','support','support_message','support_note'].includes(r.kind)?'audit_days':'chat_days',stamp=r.retention_minimized_at??r.evidence_minimized_at;
+  if(!Number.isSafeInteger(p.payload?.[field])||p.payload[field]<1||!Number.isFinite(Date.parse(stamp))||Date.parse(stamp)>now.getTime())continue;
+  const owners=r.kind==='case'?[...(r.reporter_evidence_minimized_at?[r.owner]:[]),...(r.subject_evidence_minimized_at?[r.subject_user_id]:[])]:[r.owner];
+  for(const id of r.retention_file_ids)if(typeof id==='string'){const key=r.country+':'+id,previous=candidates.get(key);candidates.set(key,{owners:[...new Set([...(previous?.owners??[]),...owners])],country:r.country,source_id:r.id,policy_id:r.retention_policy_id});}
+ }
  if(!candidates.size)return candidates;
  const countries=[...new Set([...candidates.values()].map(x=>x.country))];
  const references=await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE country=ANY($1::text[]) AND kind NOT IN ('audit','security_event','payment_transaction','privacy','notification','outbox','download_ticket')",[countries]);

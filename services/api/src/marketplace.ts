@@ -1252,7 +1252,7 @@ export class Marketplace {
       if(supportNote) {
         await this.staff(a,'support_internal');const t=await this.object(supportNote[1],a,'support');
         if(method==='GET')return this.list((await this.store.all('support_note',a.country)).filter(n=>n.thread_id===t.id),q);
-        if(method==='POST'){const r=this.record('support_note',a,{thread_id:t.id,text:text(b,'text',1,3000)});await this.store.put(r);await this.audit(a,'support.internal_note',t.id,'Добавлена внутренняя заметка');return r;}
+        if(method==='POST'){if(t.retention_minimized_at)fail(409,'STATE_CONFLICT','Данные обращения очищены. Создайте новое обращение');const r=this.record('support_note',a,{thread_id:t.id,text:text(b,'text',1,3000)});await this.store.put(r);await this.audit(a,'support.internal_note',t.id,'Добавлена внутренняя заметка');return r;}
       }
       const supportCommand=path.match(/^\/admin\/support-threads\/([^/]+)\/(messages|commands)$/);
       if(supportCommand) {
@@ -1264,12 +1264,13 @@ export class Marketplace {
         }
         if(method==='POST') {
           this.version(t,b);
+          if(t.retention_minimized_at)fail(409,'STATE_CONFLICT','Данные обращения очищены. Создайте новое обращение');
           const states:Record<string,string>={assign:'assigned',resolve:'resolved',wait_user:'waiting_user',wait_support:'waiting_support',reopen:'assigned'};
           if(!states[b.command])fail(400,'VALIDATION_ERROR','Недопустимая команда');
           if(b.command!=='assign'&&t.assignee_id!==a.id)fail(403,'FORBIDDEN','Обращение не назначено вам');
           if(b.command==='reopen'&&t.status!=='resolved')fail(409,'STATE_CONFLICT','Обращение не закрыто');
           if(b.command==='resolve'&&b.reopen_until!==undefined&&(!Number.isFinite(Date.parse(b.reopen_until))||Date.parse(b.reopen_until)<=Date.now()))fail(400,'VALIDATION_ERROR','Проверьте срок повторного открытия');
-          const result=await this.store.put({...t,status:states[b.command],assignee_id:a.id,...(b.command==='resolve'?{resolved_at:new Date().toISOString(),reopen_until:b.reopen_until??null}:{}),version:t.version+1});await this.audit(a,'support.'+b.command,t.id,text(b,'reason',5,1000));return result;
+          const result=await this.store.put({...t,status:states[b.command],assignee_id:a.id,...(b.command==='resolve'?{resolved_at:new Date().toISOString(),reopen_until:b.reopen_until?new Date(b.reopen_until).toISOString():null}:{}),version:t.version+1});await this.audit(a,'support.'+b.command,t.id,text(b,'reason',5,1000));return result;
         }
       }
       const blacklist=path.match(/^\/admin\/users\/([^/]+)\/blacklist$/);
@@ -1436,13 +1437,13 @@ export class Marketplace {
         if(caseDecision[2]==='appeal-decision'&&c.status!=='appealed'||caseDecision[2]==='resolve'&&['resolved','closed','dismissed','appealed'].includes(c.status))fail(409,'STATE_CONFLICT','Решение недоступно в текущем состоянии');
         const reason=text(b,'reason',10,1000);if(!['no_violation','content_removed','sanction_upheld','overturned'].includes(b.decision)||caseDecision[2]==='resolve'&&b.decision==='overturned'||caseDecision[2]==='appeal-decision'&&!['sanction_upheld','overturned'].includes(b.decision))fail(400,'VALIDATION_ERROR','Недопустимое решение');
         const effects=await resolveEffects(this.store,c,b.decision,b.expected_target_version);
-        const r=await this.store.put({...c,status:'resolved',decision:b.decision,decision_actor:a.id,initial_decision_actor:c.initial_decision_actor??c.decision_actor??a.id,reason,effects,version:c.version+1});
+        const r=await this.store.put({...c,status:'resolved',resolved_at:new Date().toISOString(),decision:b.decision,decision_actor:a.id,initial_decision_actor:c.initial_decision_actor??c.decision_actor??a.id,reason,effects,version:c.version+1});
         await this.store.put(this.record('case_decision',a,{case_id:c.id,decision:b.decision,target_version:effects.target_version,reason,status:'applied'}));
         if(c.reporter_private&&c.subject_user_id&&c.subject_user_id!==c.owner&&['content_removed','sanction_upheld'].includes(b.decision)){
-          const notice=this.record('case',{id:c.subject_user_id,country:a.country},{subject_user_id:c.subject_user_id,source_private_case_id:c.id,target_type:c.target_type,target_id:c.target_id,target_scope:c.target_scope,target_snapshot:c.target_snapshot,target_content_hash:c.target_content_hash,target_version:c.target_version,previous_target_status:c.previous_target_status,reason_code:c.reason_code,description:b.public_reason===undefined?'Материал ограничен после проверки. Вы можете обратиться за объяснением и подать апелляцию.':text(b,'public_reason',10,3000),status:'resolved',decision:b.decision,decision_actor:a.id,initial_decision_actor:a.id,effects,upload_ids:[]});
+          const notice=this.record('case',{id:c.subject_user_id,country:a.country},{subject_user_id:c.subject_user_id,source_private_case_id:c.id,target_type:c.target_type,target_id:c.target_id,target_scope:c.target_scope,target_snapshot:c.target_snapshot,target_content_hash:c.target_content_hash,target_version:c.target_version,previous_target_status:c.previous_target_status,reason_code:c.reason_code,description:b.public_reason===undefined?'Материал ограничен после проверки. Вы можете обратиться за объяснением и подать апелляцию.':text(b,'public_reason',10,3000),status:'resolved',resolved_at:new Date().toISOString(),decision:b.decision,decision_actor:a.id,initial_decision_actor:a.id,effects,upload_ids:[]});
           await this.store.put(notice);await this.notify(c.subject_user_id,a,'case.updated',notice.id);
         }
-        if(c.source_private_case_id){const parent=await this.object(c.source_private_case_id,a,'case');const synced=await this.store.put({...parent,status:'resolved',decision:b.decision,decision_actor:a.id,reason,effects,version:parent.version+1});await this.notify(synced.owner,a,'case.updated',synced.id);}
+        if(c.source_private_case_id){const parent=await this.object(c.source_private_case_id,a,'case');const synced=await this.store.put({...parent,status:'resolved',resolved_at:new Date().toISOString(),decision:b.decision,decision_actor:a.id,reason,effects,version:parent.version+1});await this.notify(synced.owner,a,'case.updated',synced.id);}
 
         await this.audit(a,'case.'+b.decision,c.id,reason);await this.notify(c.owner,a,'case.updated',c.id);if(c.subject_user_id&&['hidden','restored'].includes(effects.target_action))await this.notify(c.subject_user_id,a,'content.moderated',c.target_id);if(c.subject_user_id&&c.subject_user_id!==c.owner&&!c.reporter_private)await this.notify(c.subject_user_id,a,'case.updated',c.id);return r;
       }
@@ -1534,6 +1535,7 @@ export class Marketplace {
       return {items:selected.map(render),updates:updates.slice(0,100).map(render),meta:{server_time:watermark,updates_truncated:updates.length>100,has_more:selected.length>0&&visible.some(m=>m.sequence<selected[0].sequence)}};
     }
     if(method!=='POST')fail(404,'NOT_FOUND','Маршрут не найден');
+    if(c.retention_minimized_at)fail(409,'STATE_CONFLICT','Данные обращения очищены. Создайте новое обращение');
     if(['closed','frozen','restricted'].includes(c.status))fail(409,'STATE_CONFLICT','Чат закрыт для новых сообщений');
     if(c.kind==='support'&&c.status==='resolved'&&(!c.reopen_until||c.reopen_until<=new Date().toISOString()))fail(409,'STATE_CONFLICT','Обращение закрыто. Можно создать новое.');
     if(c.kind==='conversation') {

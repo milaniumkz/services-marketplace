@@ -1,7 +1,7 @@
 import {HttpException} from '@nestjs/common';
 import {RecordData,Store} from './store';
 const fileFields=['file','document_refs','upload_ids','revision_upload_ids','completion_upload_ids','photos','gallery_ids','avatar_id','cover_id'];
-export const holdFields:Record<string,string[]>={upload:['file'],user:['display_name','avatar_id'],verification:['document_refs'],order:['title','description','completion_note','upload_ids','revision_upload_ids','completion_upload_ids'],message:['text','upload_ids'],support_message:['text','upload_ids'],review:['text'],portfolio:['title','description','photos','cover_id'],contractor:['title','description','gallery_ids']};
+export const holdFields:Record<string,string[]>={upload:['file'],support:['subject'],support_note:['text'],case:['description','upload_ids','appeal_reason','appeal_upload_ids'],user:['display_name','avatar_id'],verification:['document_refs'],order:['title','description','completion_note','upload_ids','revision_upload_ids','completion_upload_ids'],message:['text','upload_ids'],support_message:['text','upload_ids'],review:['text'],portfolio:['title','description','photos','cover_id'],contractor:['title','description','gallery_ids']};
 function invalid(message:string):never{throw new HttpException({error:{code:'VALIDATION_ERROR',message,retryable:false}},400);}
 export async function holdSnapshot(store:Store,target:RecordData,fields:any){
  if(!Array.isArray(fields)||!fields.length||fields.some(f=>typeof f!=='string'||!holdFields[target.kind]?.includes(f)))invalid('Укажите конкретные разрешённые поля удержания');

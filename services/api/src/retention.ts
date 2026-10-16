@@ -1,15 +1,15 @@
-import {eligibleWorkFiles} from './work-file-retention';
+import {eligibleWorkFiles,liveFileReferences} from './work-file-retention';
 import {heldFileIds} from './legal-holds';
 import {Store,RecordData} from './store';
 /** Runs inside the maintenance transaction; bytes are removed only after commit. */
 export async function planFileRetention(store:Store,now:Date,onExpired?:(verification:RecordData)=>Promise<void>):Promise<string[]> {
  const policies=(await store.all('retention_policy')).filter(r=>r.status==='effective');
  const holds=(await store.all('legal_hold')).filter(r=>r.status==='active');
- const cases=(await store.all('case')).filter(r=>!['resolved','closed','dismissed'].includes(r.status));
+ const cases=await store.all('case');
  const verifications=await store.all('verification');
  const protectedFiles=new Set<string>();
- for(const incident of cases)for(const id of [...incident.upload_ids??[],...incident.appeal_upload_ids??[],...incident.target_snapshot?.upload_ids??[],...incident.target_snapshot?.completion_upload_ids??[],...incident.target_snapshot?.gallery_ids??[],...incident.target_snapshot?.photos??[],...incident.target_snapshot?.document_refs??[]])protectedFiles.add(incident.country+':'+id);
- for(const incident of cases)for(const field of ['avatar_id','cover_id']){const id=incident.target_snapshot?.[field];if(typeof id==='string')protectedFiles.add(incident.country+':'+id);}
+ // A closed case may still be appealable or within its audit retention period.
+ for(const incident of cases)for(const id of liveFileReferences(incident))protectedFiles.add(incident.country+':'+id);
  const deleted=new Set((await store.db.query<{id:string,country:string}>("SELECT id::text AS id,country FROM records WHERE kind='user' AND data->>'status'='deleted'")).rows.map(u=>u.country+':'+u.id));
  for(const hold of holds){
   for(const id of heldFileIds(hold.field_snapshot??{}))protectedFiles.add(hold.country+':'+id);
@@ -28,7 +28,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
   if(deleted.has(file.country+':'+file.owner)&&['avatar','portfolio','export'].includes(file.purpose))reason='account_deleted_personal_media';
   if(['initiated','uploaded','rejected','infected','failed'].includes(file.status)&&Date.parse(file.created_at)+86400000<=now.getTime())reason='abandoned_upload_24h';
   const work=workFiles.get(file.country+':'+file.id);
-  if(workQueued<50&&work&&work.owner===file.owner&&deleted.has(file.country+':'+file.owner)&&['order','chat'].includes(file.purpose)){reason='closed_work_unreferenced';workQueued++;}
+  if(workQueued<50&&work&&work.owners.includes(file.owner)&&deleted.has(file.country+':'+file.owner)&&['order','chat'].includes(file.purpose)){reason='closed_work_unreferenced';workQueued++;}
   if(file.purpose==='export'&&file.expires_at<=now.toISOString())reason='export_link_expired';
   if(file.purpose==='identity'){
    const verification=verifications.find(v=>v.id===file.verification_id&&v.country===file.country);
