@@ -1927,9 +1927,11 @@
       "reference": "admin/screens/top100.png",
       "status": "unreviewed",
       "acceptance": "pending",
-      "diagnostic_difference": 0.157121,
+      "diagnostic_difference": 0.157527,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "ranking-editor-update.md"
+      ]
     },
     {
       "id": "A22.boosts",

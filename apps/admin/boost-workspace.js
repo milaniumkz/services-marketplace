@@ -1,5 +1,5 @@
 const states={reserved:'Резерв',payment_pending:'Ожидает оплаты',scheduled:'Запланировано',active:'Активно',paused:'Приостановлено',expired:'Истекло',revoked:'Отозвано',resolution_required:'Требуется решение'};
-const tabs=key=>`<div class="tabs"><a href="#top100">Органический Топ</a><a href="#placements">Места и емкость</a><a class="${key==='boosts'?'active':''}" href="#boosts">Продвижение</a><a class="${key==='boost-grant'?'active':''}" href="#boost-grant">Бесплатный grant</a></div>`;
+const tabs=key=>`<div class="tabs"><a href="#top100">Органический Топ</a><a href="#placements">Места и емкость</a><a href="#ranking">Настройки рейтинга</a><a class="${key==='boosts'?'active':''}" href="#boosts">Продвижение</a><a class="${key==='boost-grant'?'active':''}" href="#boost-grant">Бесплатный grant</a></div>`;
 const date=value=>value?new Intl.DateTimeFormat('ru',{dateStyle:'medium',timeStyle:'short',timeZone:'UTC'}).format(new Date(value))+' UTC':'—';
 export async function boostWorkspace({key,api,esc,card,tablecard,note,badge,onRefresh}){
  if(key==='boosts'){

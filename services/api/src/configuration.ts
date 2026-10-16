@@ -96,7 +96,7 @@ export class Configuration {
       const active=(await this.store.all('boost',r.country)).filter(x=>x.placement_id===r.payload.placement_id&&['active','scheduled'].includes(x.status));
       if(active.length>r.payload.capacity)fail('CAPACITY_PROMISE_CONFLICT','Нельзя уменьшить ёмкость ниже выданных обещаний',409);
     }
-    const scope=(x:RecordData)=>JSON.stringify(x.kind==='referral_campaign'?{country:x.country}:x.kind==='category'?{category:x.payload?.category_id??x.id}:x.kind==='price_version'?{provider:x.payload.provider,product:x.payload.product_id,audience:x.payload.audience}:x.kind==='placement_policy'?{placement:x.payload.placement_id}:{scope:x.payload?.scope,role:x.payload?.role,platform:x.payload?.platform});
+    const scope=(x:RecordData)=>JSON.stringify(['referral_campaign','ranking_config'].includes(x.kind)?{country:x.country}:x.kind==='category'?{category:x.payload?.category_id??x.id}:x.kind==='price_version'?{provider:x.payload.provider,product:x.payload.product_id,audience:x.payload.audience}:x.kind==='placement_policy'?{placement:x.payload.placement_id}:{scope:x.payload?.scope,role:x.payload?.role,platform:x.payload?.platform});
     for(const old of await this.store.all(r.kind,r.country))if(old.status==='effective'&&scope(old)===scope(r))await this.store.put({...old,status:'superseded',version:old.version+1});
     return this.store.put({...r,status:'effective',preview,published_by:actor,published_at:new Date().toISOString(),version:r.version+1});
   }

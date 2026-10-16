@@ -10,7 +10,7 @@ import {planFileRetention,purgedUpload} from './retention';
 import {adminReports} from './admin-reports';
 import {boostPresentation} from './boost-presentation';
 import {productAnalytics} from './product-analytics';
-import {rankingParameters} from './ranking';
+import {rankingParameters,rankingPayload} from './ranking';
 import {accountDecisions,securityEventSummary} from './staff-account';
 import {currentLegalDocuments} from './legal-documents';
 import {freezeTarget,visibleCase,resolveEffects,contentHash,targetSnapshot} from './case-evidence';
@@ -1288,7 +1288,7 @@ export class Marketplace {
           if(b.payload?.category_id){const original=await this.object(String(b.payload.category_id),a,'category');stable=categoryId(original);r.legacy_id=original.legacy_id;}
           r.payload=categoryPayload(b.payload,a.country,stable);r.base_version_id=(await this.categories(a.country)).find(x=>x.id===stable)?.record_id??null;await this.store.put(r);await this.audit(a,'categories.draft',r.id,text(b,'reason',5,1000));return r;
         }
-        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='referral-campaigns'?referralPolicy(b.payload):section==='price-versions'?pricePayload(b.payload,a.country):section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
+        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='ranking-configs'?rankingPayload(b.payload):section==='referral-campaigns'?referralPolicy(b.payload):section==='price-versions'?pricePayload(b.payload,a.country):section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
       }
       const editReferral=path.match(/^\/admin\/referral-campaigns\/([^/]+)$/);
@@ -1307,6 +1307,12 @@ export class Marketplace {
         if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новую версию категории');
         if(b.payload?.category_id&&b.payload.category_id!==categoryId(r))fail(422,'VALIDATION_ERROR','Стабильный ID изменять нельзя');
         const result=await this.store.put({...r,title:text(b,'title',3,120),payload:categoryPayload(b.payload,a.country,categoryId(r)),preview:undefined,version:r.version+1});await this.audit(a,'categories.edited',r.id,text(b,'reason',5,1000));return result;
+      }
+      const editRanking=path.match(/^\/admin\/ranking-configs\/([^/]+)$/);
+      if(editRanking&&['GET','PATCH'].includes(method)){
+        const r=await this.object(editRanking[1],a,'ranking_config');if(method==='GET')return r;
+        this.version(r,b);if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новую версию рейтинга');
+        const result=await this.store.put({...r,title:text(b,'title',3,120),payload:rankingPayload(b.payload),preview:undefined,version:r.version+1});await this.audit(a,'ranking.edited',r.id,text(b,'reason',5,1000));return result;
       }
       const editPrice=path.match(/^\/admin\/price-versions\/([^/]+)$/);
       if(editPrice&&['GET','PATCH'].includes(method)){
@@ -1392,7 +1398,7 @@ export class Marketplace {
       if(configurationCommand&&configKinds.includes(section)&&method==='POST') {
         const r=await this.object(configurationCommand[2],a,kinds[section]);
         if(configurationCommand[3]==='preview'){this.version(r,b);const reason=text(b,'reason',10,1000);const preview=await this.configuration.preview(r);await this.audit(a,'configuration.preview',r.id,reason);return preview;}
-        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy','price_version','category','referral_campaign'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
+        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy','price_version','category','referral_campaign','ranking_config'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
         const result=await this.configuration.publish(r,a.id,b.expected_version);await this.audit(a,section+'.published',r.id,text(b,'reason',10,1000));return result;
       }
       const configurationStop=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(stop|cancel|rollback)$/);

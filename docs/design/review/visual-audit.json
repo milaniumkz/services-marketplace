@@ -4256,12 +4256,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.157121,
+      "different_pixels_ratio": 0.157527,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Top page links to structured ranking configuration; organic/paid inventory screen still requires visual acceptance.",
       "surface": "admin"
     },
     {

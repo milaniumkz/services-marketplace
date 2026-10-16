@@ -5,3 +5,8 @@ export function rankingParameters(payload:any){
   throw new HttpException({error:{code:'VALIDATION_ERROR',message:'Проверьте окно, вес отрицательной реакции и срок затухания рейтинга',details:{},retryable:false}},400);
  return {windowDays,dislikeWeight,ageDays};
 }
+
+export function rankingPayload(payload:any){
+ const p=rankingParameters(payload);
+ return {formula:'log_likes_decay_v1',window_days:p.windowDays,dislike_weight:p.dislikeWeight,age_days:p.ageDays};
+}
