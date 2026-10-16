@@ -481,7 +481,17 @@ async function main(){
   await page.locator('.legal-paper').filter({hasText:'Опубликованная политика'}).waitFor();
   assert.equal(await page.evaluate(()=>window.untrustedLegal),undefined);
   await page.getByRole('link',{name:'Условия использования',exact:true}).click();
-  await page.locator('.legal-paper').filter({hasText:'пока не опубликован'}).waitFor();
+  await page.locator('.legal-paper').filter({hasText:'ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ JOBA'}).waitFor();
+  for(const [file,heading,marker] of [['W06.html','Условия оплаты','Что оплачивается'],['W07.html','Возврат и отмена','Как возвращаются деньги'],['W08.html','Публичная оферта','Стороны и предмет'],['W09.html','Реквизиты и контакты','БИН/ИИН']]){
+    await page.goto(web+'/'+file);await page.locator('.legal-paper').filter({hasText:marker}).waitFor();assert.equal(await page.locator('.page-title').textContent(),heading);await page.waitForFunction(()=>!document.querySelector('.legal-paper').hasAttribute('aria-busy'));assert.equal(await page.locator('.footer-links a[href="W07.html"]').count(),1);await capture('commerce-'+file.replace('.html',''));
+  }
+  await page.goto(web+'/W06.html');await page.waitForFunction(()=>!document.querySelector('.legal-paper').hasAttribute('aria-busy'));
+  const legalDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Скачать документ',exact:true}).click();assert.match((await legalDownload).suggestedFilename(),/JOBA-payments-KZ-ru/);
+  const noScript=await browser.newContext({javaScriptEnabled:false});const readable=await noScript.newPage();await readable.goto(web+'/W07.html');assert.match(await readable.locator('.legal-content').textContent(),/Как возвращаются деньги/);await noScript.close();
+  const commercialLegal={...legal,id:randomUUID(),type:'payments',locale:'ru',status:'published',published_at:new Date().toISOString(),content:'Изменённые условия оплаты из админки: только опубликованная версия. <img src=x onerror="window.unsafeCommerce=true">'};await marketplace.store.put(commercialLegal);
+  await page.goto(web+'/W06.html');await page.locator('.legal-paper').filter({hasText:'Изменённые условия оплаты из админки'}).waitFor();assert.equal(await page.evaluate(()=>window.unsafeCommerce),undefined);
+  await page.getByLabel('Страна',{exact:true}).selectOption({label:'Кыргызстан'});await page.locator('.legal-paper').filter({hasText:'пока не опубликован'}).waitFor();assert.equal(await page.locator('.legal-paper').filter({hasText:'УСЛОВИЯ ОПЛАТЫ УСЛУГ JOBA'}).count(),0);
+  await page.setViewportSize({width:390,height:844});for(const file of ['W03.html','W06.html','W07.html','W08.html','W09.html']){await page.goto(web+'/'+file);await page.waitForFunction(()=>!document.querySelector('.legal-paper').hasAttribute('aria-busy'));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile legal page overflows: '+file);}await page.setViewportSize({width:1440,height:1024});
   await page.goto(web+'/W05.html');
   await page.locator('.status-history').filter({hasText:'Конфигурация получена'}).waitFor();
   assert.equal(await page.locator('.status-row').count(),4);

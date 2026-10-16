@@ -109,6 +109,14 @@ import json
 from pathlib import Path
 print(json.dumps([{'type':kind,'locale':'ru','content':Path('docs/legal/kz/'+name+'.ru.txt').read_text()} for kind,name in [('terms','terms'),('privacy','privacy')]]))
 PYLEGAL
+# Initial commerce information requested by the owner on 2026-10-16; preserve admin revisions.
+"${joba_compose[@]}" cp scripts/publish-kz-commerce-legal.cjs api:/tmp/joba-publish-commerce-legal.cjs
+"${joba_compose[@]}" exec -T -u root api chmod 0644 /tmp/joba-publish-commerce-legal.cjs
+python3 - <<'PYCOMMERCE' | "${joba_compose[@]}" exec -T -e JOBA_KZ_COMMERCE_LEGAL=owner-authorized-2026-10-16 -e JOBA_LEGAL_STORE_MODULE=/app/services/api/dist/store api node /tmp/joba-publish-commerce-legal.cjs
+import json
+from pathlib import Path
+print(json.dumps([{'type':kind,'locale':'ru','content':Path('docs/legal/kz/'+kind+'.ru.txt').read_text()} for kind in ['payments','refunds','public_offer','contacts']]))
+PYCOMMERCE
 # This verifies a trusted public certificate; no -k/self-signed fallback.
 curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors --max-time 15 "https://$joba_domain/health"
 curl --fail --silent --show-error --max-time 15 "https://$joba_domain/" -o /dev/null

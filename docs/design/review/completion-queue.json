@@ -2072,9 +2072,11 @@
       "reference": "public/previews/W01.png",
       "status": "unreviewed",
       "acceptance": "pending",
-      "diagnostic_difference": 0.027447,
+      "diagnostic_difference": 0.029559,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "web-commerce-update.md"
+      ]
     },
     {
       "id": "W02",
@@ -2085,7 +2087,9 @@
       "acceptance": "pending",
       "diagnostic_difference": 0.036202,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "web-commerce-update.md"
+      ]
     },
     {
       "id": "W03",
@@ -2094,9 +2098,11 @@
       "reference": "public/previews/W03.png",
       "status": "unreviewed",
       "acceptance": "pending",
-      "diagnostic_difference": 0.09398,
+      "diagnostic_difference": 0.10631,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "web-commerce-update.md"
+      ]
     },
     {
       "id": "W04",
@@ -2105,9 +2111,11 @@
       "reference": "public/previews/W04.png",
       "status": "unreviewed",
       "acceptance": "pending",
-      "diagnostic_difference": 0.049049,
+      "diagnostic_difference": 0.050206,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "web-commerce-update.md"
+      ]
     },
     {
       "id": "W05",
@@ -2116,9 +2124,11 @@
       "reference": "public/previews/W05.png",
       "status": "unreviewed",
       "acceptance": "pending",
-      "diagnostic_difference": 0.047529,
+      "diagnostic_difference": 0.046821,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "web-commerce-update.md"
+      ]
     }
   ]
 }

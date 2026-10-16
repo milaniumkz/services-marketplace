@@ -8,3 +8,8 @@ html{scroll-behavior:smooth}body{background:#fff}.public-header{height:88px;bord
 
 /* Desktop geometry from the supplied 1440 px design proofs. */
 @media(min-width:1200px){.page{padding:48px 0 36px;min-height:822px}.public-footer{height:94px}.hero-title{font-size:58px;line-height:66px}.hero-art{height:418px}.brand-card{height:302px}.hero-actions{gap:12px}.hero-actions .btn{width:280px}.public-header .header-links{width:520px;align-items:center}.header-links>a:first-child{width:125px}.header-links>a{display:block}.public-header .btn{display:flex;width:164px}.section-title h2{white-space:nowrap}}
+
+.legal-content{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}.footer-links{flex-wrap:wrap;row-gap:10px}.legal-menu a:focus-visible{outline:2px solid #245BDB;outline-offset:3px}@media(max-width:760px){.public-footer{flex-direction:column;align-items:flex-start;gap:18px}.footer-links{display:flex;gap:12px;flex-wrap:wrap}.legal-paper{min-width:0}}
+
+.public-footer{height:auto;min-height:104px;padding-top:24px;padding-bottom:24px;gap:20px;flex-wrap:wrap}.footer-links{max-width:100%;justify-content:flex-start}
+[data-legal-type] .page-title{overflow-wrap:anywhere}@media(max-width:760px){[data-legal-type] .page-title{font-size:clamp(26px,7vw,32px);line-height:1.25}}

@@ -4581,12 +4581,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.027447,
+      "different_pixels_ratio": 0.029559,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
       "surface": "public"
     },
     {
@@ -4611,7 +4611,7 @@
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
       "surface": "public"
     },
     {
@@ -4631,12 +4631,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.09398,
+      "different_pixels_ratio": 0.10631,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
       "surface": "public"
     },
     {
@@ -4656,12 +4656,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.049049,
+      "different_pixels_ratio": 0.050206,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
       "surface": "public"
     },
     {
@@ -4681,12 +4681,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.047529,
+      "different_pixels_ratio": 0.046821,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
       "surface": "public"
     }
   ],

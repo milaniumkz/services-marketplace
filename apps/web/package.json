@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "vite build"
+    "build": "node ../../scripts/build-public-legal.cjs && vite build"
   },
   "devDependencies": {
     "vite": "^7.1.0"
