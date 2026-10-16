@@ -979,7 +979,9 @@
       "acceptance": "pending",
       "diagnostic_difference": 0.10486,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "mobile-referral-terms-update.md"
+      ]
     },
     {
       "id": "S37.redeem",
@@ -990,7 +992,9 @@
       "acceptance": "pending",
       "diagnostic_difference": 0.204967,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "mobile-referral-terms-update.md"
+      ]
     },
     {
       "id": "S37.rules",
@@ -1001,7 +1005,9 @@
       "acceptance": "pending",
       "diagnostic_difference": 0.143419,
       "known_gaps": [],
-      "evidence": []
+      "evidence": [
+        "mobile-referral-terms-update.md"
+      ]
     },
     {
       "id": "S38",

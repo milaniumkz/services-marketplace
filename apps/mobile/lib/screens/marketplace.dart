@@ -1,3 +1,4 @@
+import 'referral_terms.dart';
 import 'service_area.dart';
 import '../core/design_states.dart';
 import 'search_filters.dart';
@@ -4648,8 +4649,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 for (final campaign in (data['campaigns'] as List).cast<Json>())
                   DataCard('Условия программы',
                       translateTitle: true,
-                      subtitle:
-                          '${localize(context, 'Приглашений для награды')}: ${campaign['threshold']}\n${localize(context, 'Условие')}: ${localize(context, campaign['qualifying_event'] == 'executor_verified' ? 'Проверка исполнителя' : 'Завершённый заказ')}\n${localize(context, 'Срок доступа, мин')}: ${(campaign['reward_duration_seconds'] as num).toInt() ~/ 60}'),
+                      subtitle: referralTerms(context, campaign)),
                 const Notice(
                     'Самоприглашение недопустимо. Бонус не превращается в деньги и не меняет рейтинг.')
               ])));
@@ -4756,8 +4756,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           for (final reward in rewards)
             DataCard('Награда',
                 translateTitle: true,
-                status: status(reward),
-                footer: reward['status'] == 'available'
+                subtitle: referralTerms(context, (reward['policy_snapshot'] as Json?) ?? {}) + '\n' + localize(context, 'Активировать до') + ': ' + (DateTime.tryParse('${reward['expires_at']}') == null ? '—' : DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse('${reward['expires_at']}').toLocal())),
+                status: reward['status'] == 'available' && !referralRewardAvailable(reward, DateTime.now()) ? localize(context, 'Срок истёк') : status(reward),
+                footer: referralRewardAvailable(reward, DateTime.now())
                     ? button(
                         'Активировать',
                         () => act(() async {

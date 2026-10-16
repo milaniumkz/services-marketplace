@@ -2236,7 +2236,7 @@
         "top": 86,
         "bottom": 44
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Referral policy snapshot/attribution window and reward expiry display implemented. Visual fixture has no issued rewards or window; widget tests verify those branches. Exact layout acceptance remains open.",
       "surface": "mobile"
     },
     {
@@ -2261,7 +2261,7 @@
         "top": 86,
         "bottom": 44
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Referral policy snapshot/attribution window and reward expiry display implemented. Visual fixture has no issued rewards or window; widget tests verify those branches. Exact layout acceptance remains open.",
       "surface": "mobile"
     },
     {
@@ -2286,7 +2286,7 @@
         "top": 86,
         "bottom": 44
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Referral policy snapshot/attribution window and reward expiry display implemented. Visual fixture has no issued rewards or window; widget tests verify those branches. Exact layout acceptance remains open.",
       "surface": "mobile"
     },
     {
