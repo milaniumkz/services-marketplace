@@ -1,3 +1,4 @@
+import {placementPolicyPayload,placementPromises} from './placement-policy';
 import {referralPolicy} from './referral-policy';
 import {categoryId,validateCategory} from './category-payload';
 import {pricePayload} from './price-payload';
@@ -66,7 +67,7 @@ export class Configuration {
     if(r.kind==='category')return validateCategory(this.store,r);
     if(r.kind==='referral_campaign')referralPolicy(p);
     if(r.kind==='ranking_config')rankingParameters(p);
-    if(r.kind==='placement_policy'&&(!Number.isInteger(p.capacity)||p.capacity<1||p.capacity>100))fail('VALIDATION_ERROR','Проверьте ёмкость размещения');
+    if(r.kind==='placement_policy'){const policy=placementPolicyPayload(p);return {valid:true,...policy,...await placementPromises(this.store,r.country,policy.placement_id)};}
     if(['verification_policy','retention_policy'].includes(r.kind)) {
       const document=await this.store.get(p.document_id);if(!document||document.kind!=='legal_document'||document.country!==r.country||document.status!=='published')fail('LEGAL_VERSION_UNAPPROVED','Нужно опубликованное правовое основание');
       if(r.kind==='verification_policy'&&(!Array.isArray(p.document_types)||!p.document_types.length||p.document_types.some((t:string)=>!['passport','id_card'].includes(t))))fail('VALIDATION_ERROR','Укажите допустимые типы документа');
@@ -91,10 +92,15 @@ export class Configuration {
       const head=(await this.store.all('category',r.country)).find(x=>x.status==='effective'&&categoryId(x)===categoryId(r));
       if(Object.hasOwn(r,'base_version_id')&&(head?.id??null)!==r.base_version_id)fail('CATEGORY_BASE_CHANGED','Каталог изменился. Откройте актуальную категорию и создайте новую версию',409);
     }
+    if(r.kind==='placement_policy'){
+      placementPolicyPayload(r.payload);
+      await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-capacity:'+r.country+':'+r.payload.placement_id]);
+      const fresh=await this.store.get(r.id);if(!fresh||fresh.version!==version)fail('STATE_CONFLICT','Версия размещения изменилась',409);
+    }
     const preview=await this.validate(r);
     if(r.kind==='placement_policy') {
-      const active=(await this.store.all('boost',r.country)).filter(x=>x.placement_id===r.payload.placement_id&&['active','scheduled'].includes(x.status));
-      if(active.length>r.payload.capacity)fail('CAPACITY_PROMISE_CONFLICT','Нельзя уменьшить ёмкость ниже выданных обещаний',409);
+      const promises=await placementPromises(this.store,r.country,r.payload.placement_id);
+      if(promises.promised_peak>r.payload.capacity)fail('CAPACITY_PROMISE_CONFLICT','Нельзя уменьшить ёмкость ниже выданных обещаний',409);
     }
     const scope=(x:RecordData)=>JSON.stringify(['referral_campaign','ranking_config'].includes(x.kind)?{country:x.country}:x.kind==='category'?{category:x.payload?.category_id??x.id}:x.kind==='price_version'?{provider:x.payload.provider,product:x.payload.product_id,audience:x.payload.audience}:x.kind==='placement_policy'?{placement:x.payload.placement_id}:{scope:x.payload?.scope,role:x.payload?.role,platform:x.payload?.platform});
     for(const old of await this.store.all(r.kind,r.country))if(old.status==='effective'&&scope(old)===scope(r))await this.store.put({...old,status:'superseded',version:old.version+1});

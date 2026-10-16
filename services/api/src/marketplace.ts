@@ -1,3 +1,4 @@
+import {placementPolicyPayload,placementPromises} from './placement-policy';
 import {referralPolicy} from './referral-policy';
 import {categoryId,categoryPayload} from './category-payload';
 import {pricePayload} from './price-payload';
@@ -1288,7 +1289,7 @@ export class Marketplace {
           if(b.payload?.category_id){const original=await this.object(String(b.payload.category_id),a,'category');stable=categoryId(original);r.legacy_id=original.legacy_id;}
           r.payload=categoryPayload(b.payload,a.country,stable);r.base_version_id=(await this.categories(a.country)).find(x=>x.id===stable)?.record_id??null;await this.store.put(r);await this.audit(a,'categories.draft',r.id,text(b,'reason',5,1000));return r;
         }
-        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='ranking-configs'?rankingPayload(b.payload):section==='referral-campaigns'?referralPolicy(b.payload):section==='price-versions'?pricePayload(b.payload,a.country):section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
+        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='placement-policies'?placementPolicyPayload(b.payload):section==='ranking-configs'?rankingPayload(b.payload):section==='referral-campaigns'?referralPolicy(b.payload):section==='price-versions'?pricePayload(b.payload,a.country):section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
       }
       const editReferral=path.match(/^\/admin\/referral-campaigns\/([^/]+)$/);
@@ -1307,6 +1308,12 @@ export class Marketplace {
         if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новую версию категории');
         if(b.payload?.category_id&&b.payload.category_id!==categoryId(r))fail(422,'VALIDATION_ERROR','Стабильный ID изменять нельзя');
         const result=await this.store.put({...r,title:text(b,'title',3,120),payload:categoryPayload(b.payload,a.country,categoryId(r)),preview:undefined,version:r.version+1});await this.audit(a,'categories.edited',r.id,text(b,'reason',5,1000));return result;
+      }
+      const editPlacement=path.match(/^\/admin\/placement-policies\/([^/]+)$/);
+      if(editPlacement&&['GET','PATCH'].includes(method)){
+        const r=await this.object(editPlacement[1],a,'placement_policy');if(method==='GET')return {...r,metrics:await placementPromises(this.store,a.country,r.payload.placement_id)};
+        this.version(r,b);if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новую версию размещения');
+        const result=await this.store.put({...r,title:text(b,'title',3,120),payload:placementPolicyPayload(b.payload),preview:undefined,version:r.version+1});await this.audit(a,'placements.edited',r.id,text(b,'reason',5,1000));return result;
       }
       const editRanking=path.match(/^\/admin\/ranking-configs\/([^/]+)$/);
       if(editRanking&&['GET','PATCH'].includes(method)){
@@ -1398,7 +1405,7 @@ export class Marketplace {
       if(configurationCommand&&configKinds.includes(section)&&method==='POST') {
         const r=await this.object(configurationCommand[2],a,kinds[section]);
         if(configurationCommand[3]==='preview'){this.version(r,b);const reason=text(b,'reason',10,1000);const preview=await this.configuration.preview(r);await this.audit(a,'configuration.preview',r.id,reason);return preview;}
-        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy','price_version','category','referral_campaign','ranking_config'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
+        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy','price_version','category','referral_campaign','ranking_config','placement_policy'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
         const result=await this.configuration.publish(r,a.id,b.expected_version);await this.audit(a,section+'.published',r.id,text(b,'reason',10,1000));return result;
       }
       const configurationStop=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(stop|cancel|rollback)$/);
@@ -1408,6 +1415,10 @@ export class Marketplace {
         if(r.kind==='category'&&configurationStop[3]!=='rollback'&&(await this.categories(a.country)).some(child=>child.payload.parent_id===categoryId(r)))fail(409,'CATEGORY_HAS_CHILDREN','Сначала перенесите или архивируйте дочерние категории');
         if(r.kind==='country_control'&&configurationStop[3]!=='rollback')fail(409,'SECOND_APPROVAL_REQUIRED','Для изменения состояния страны опубликуйте новый черновик с независимым подтверждением');
         if(configurationStop[3]==='rollback'){const draft=this.record(r.kind,a,{title:r.title,payload:r.payload,status:'draft',rollback_of:r.id,...(r.kind==='category'?{legacy_id:r.legacy_id,base_version_id:(await this.categories(a.country)).find(x=>x.id===categoryId(r))?.record_id??null}:{})});await this.store.put(draft);await this.audit(a,section+'.rollback_draft',draft.id,reason);return draft;}
+        if(r.kind==='placement_policy'&&r.status==='effective'){
+          await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-capacity:'+a.country+':'+r.payload.placement_id]);
+          if((await placementPromises(this.store,a.country,r.payload.placement_id)).promised_peak>0)fail(409,'PLACEMENT_PROMISES_ACTIVE','Сначала завершите действующие размещения и резервы');
+        }
         const result=await this.store.put({...r,status:'stopped',version:r.version+1});await this.audit(a,section+'.stopped',r.id,reason);return result;
       }
       fail(404,'NOT_FOUND','Команда ещё не реализована');
