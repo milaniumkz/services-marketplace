@@ -1,3 +1,4 @@
+import 'referral_hero_decoration.dart';
 import 'referral_terms.dart';
 import 'service_area.dart';
 import '../core/design_states.dart';
@@ -4665,8 +4666,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               constraints: const BoxConstraints(minHeight: 165),
               width: double.infinity,
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                  color: navy, borderRadius: BorderRadius.circular(18)),
+              decoration: const ReferralHeroDecoration(),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -4740,10 +4740,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           Flexible(child: UiText('Поделиться приглашением', textAlign: TextAlign.center))
                         ]))
                   ])),
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
           const UiText('Ваш прогресс',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -4758,15 +4758,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         '${localize(context, 'Приглашения')}: ${attributions.length}',
                         style: const TextStyle(fontWeight: FontWeight.w700))),
                       const SizedBox(width: 8),
-                      if (attributions.isNotEmpty) Flexible(child: JobaBadge(
+                      if (attributions.isNotEmpty) Flexible(child: Align(alignment: Alignment.centerRight, child: JobaBadge(
                         qualified > 0 ? 'Выполнены условия' : 'Ожидает условия',
                         background: qualified > 0 ? const Color(0xFFEAF5EE) : const Color(0xFFFFF4D1),
-                        foreground: qualified > 0 ? const Color(0xFF327453) : const Color(0xFF785800))),
+                        foreground: qualified > 0 ? const Color(0xFF327453) : const Color(0xFF785800)))),
                     ]),
                     const SizedBox(height: 12),
                     Text(
-                        '${localize(context, 'Выполнены условия')}: $qualified · ${localize(context, 'Ожидает условия')}: ${attributions.length - qualified}',
-                        style: const TextStyle(color: muted, fontSize: 12))
+                        '${localize(context, 'Выполнены условия')}: $qualified\n${localize(context, 'Ожидает условия')}: ${attributions.length - qualified}',
+                        style: const TextStyle(color: muted, fontSize: 12, height: 1.5))
                   ])),
           const SizedBox(height: 16),
           for (final reward in rewards)
@@ -4787,7 +4787,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           JobaMenu([
             JobaMenuEntry(
                 'Как начисляются бонусы', 'info', () => go('referral-rules'),
-                subtitle: 'Условия, сроки и ограничения'),
+                subtitle: 'Условия, сроки и ограничения', minHeight: 81),
             JobaMenuEntry('У меня есть код', 'gift', enterReferralCode,
                 subtitle: 'Ввести приглашение друга')
           ])

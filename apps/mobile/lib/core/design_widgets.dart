@@ -49,9 +49,10 @@ class JobaMenuEntry {
   final String title, icon;
   final String? subtitle;
   final bool translateSubtitle;
+  final double minHeight;
   final VoidCallback onTap;
   const JobaMenuEntry(this.title, this.icon, this.onTap,
-      {this.subtitle, this.translateSubtitle = true});
+      {this.subtitle, this.translateSubtitle = true, this.minHeight = 64});
 }
 
 class JobaMenu extends StatelessWidget {
@@ -72,7 +73,7 @@ class JobaMenu extends StatelessWidget {
               child: InkWell(
                   onTap: entries[index].onTap,
                   child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 64),
+                      constraints: BoxConstraints(minHeight: entries[index].minHeight),
                       child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 15, vertical: 12),

@@ -2231,12 +2231,12 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.083954,
+      "different_pixels_ratio": 0.069627,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
-      "note": "S37 copy tile, share icon/spacing, uppercase eyebrow, title offset and live progress badge aligned further with prototype. Hero ornament, progress/menu geometry, typography and issued-reward states still require acceptance.",
+      "note": "Prototype CSS hero contour, progress badge right alignment, two-line actual counters and local menu height implemented. Issued rewards, long text/locales and exact typography still require acceptance.",
       "surface": "mobile"
     },
     {
