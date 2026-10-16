@@ -3506,12 +3506,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.133872,
+      "different_pixels_ratio": 0.136315,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Structured category tree/translations/schema editor and real version lifecycle. Shared shell, icons, field table/editor states and exact spacing still require acceptance; no staged catalog data used.",
       "surface": "admin"
     },
     {

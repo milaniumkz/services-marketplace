@@ -15,7 +15,7 @@ test('customer searches, publishes, extends and selects without a subscription; 
   assert.deepEqual((await call(customer,'GET','/billing/offers')).items,[]);
   assert.equal((await call(customer,'GET','/me/monetization-config')).subscription_enabled,false);
   await assert.rejects(()=>call(customer,'POST','/billing/verify-purchase',{provider:'fake',transaction_reference:'no charge'}),e=>e.getResponse().error.code==='EXECUTOR_ROLE_REQUIRED');
-  const draft=rec('order',customer.user.id,{status:'draft',revision:1,title:'Реальный сценарий заказа',description:'Описание заказа для проверки бесплатного доступа.',city:'Алматы'});await app.store.put(draft);
+  const draft=rec('order',customer.user.id,{category_id:(await app.store.all('category','KZ'))[0].id,status:'draft',revision:1,title:'Реальный сценарий заказа',description:'Описание заказа для проверки бесплатного доступа.',city:'Алматы'});await app.store.put(draft);
   let order=await call(customer,'POST','/orders/'+draft.id+'/publish',{expected_version:1});assert.equal(order.status,'open');
   order=await call(customer,'POST','/orders/'+draft.id+'/extend',{expected_version:order.version,expires_at:new Date(Date.now()+86400000*14).toISOString()});
   const offer=rec('offer',executor.user.id,{order_id:order.id,status:'active',acknowledged_revision:order.revision});await app.store.put(offer);

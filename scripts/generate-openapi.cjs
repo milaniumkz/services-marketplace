@@ -4,6 +4,7 @@ const root=resolve(__dirname,'..');
 const routes=[];
 
 const add=(method,path,access='user',schema)=>routes.push({method,path,access,schema});
+add('GET','/admin/category-tree','staff');add('GET','/admin/categories/{id}','staff');add('PATCH','/admin/categories/{id}','staff','VersionedCommand');
 add('GET','/me/restrictions');
 add('GET','/admin/analytics','staff');add('POST','/admin/boost-grants/preview','staff');add('GET','/me/boosts/{id}');
 add('GET','/contractors/{id}/portfolio/{project_id}');

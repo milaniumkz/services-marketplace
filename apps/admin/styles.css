@@ -17,3 +17,7 @@
 #document-policy-editor input[type=checkbox]{width:auto;margin-right:6px}
 
 .price-primary{display:inline-flex;align-items:center;padding:10px 14px;background:#245BDB;color:white;border-radius:8px;font-size:11px;font-weight:700}.price-list table{table-layout:fixed}.price-list th:nth-child(1){width:19%}.price-list th:nth-child(2){width:8%}.price-list th:nth-child(3){width:11%}.price-list th:nth-child(4){width:16%}.price-list th:nth-child(5){width:19%}.price-list td{overflow-wrap:anywhere}.price-list .cardhead{padding:15px 18px}.price-list .cardhead h2{font-size:14px}
+
+.category-schema-field{border:1px solid #D9E1EC;border-radius:8px;margin:12px 0;padding:14px}.category-schema-field label{display:flex;flex-direction:column;gap:6px;font-size:11px}.category-schema-field input[type=checkbox]{width:auto;align-self:flex-start}.category-schema-field button{margin-top:10px}
+
+.category-workspace{column-gap:14px}.category-workspace .cardhead{padding:15px 18px}.category-workspace .cardhead h2{font-size:14px}.category-workspace .cardbody{padding:16px 18px}.category-workspace .formfield input,.category-workspace .formfield select{font-size:11px}.category-workspace .formgrid{gap:17px 12px}.category-workspace .treeitem{color:#53627A}.category-workspace .treeitem.selected{color:#245BDB;background:#EAF0FE}

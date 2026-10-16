@@ -5,7 +5,7 @@ export function attributes(schema:any,value:any={}) {
   if(!value||Array.isArray(value)||typeof value!=='object'||Object.keys(value).length>50)invalid('attributes','Проверьте дополнительные поля');
   const fields=schema?.properties??{};
   for(const key of Object.keys(value)) {
-    const spec=fields[key];if(!spec)invalid('attributes.'+key,'Поле не входит в схему категории');
+    const spec=Object.hasOwn(fields,key)?fields[key]:undefined;if(!spec)invalid('attributes.'+key,'Поле не входит в схему категории');
     const v=value[key];if(spec.type==='string'&&(typeof v!=='string'||v.length>(spec.maxLength??1000)||v.length<(spec.minLength??0)))invalid('attributes.'+key,'Проверьте текст');
     if(spec.type==='number'&&(typeof v!=='number'||!Number.isFinite(v)||v<(spec.minimum??-Infinity)||v>(spec.maximum??Infinity)))invalid('attributes.'+key,'Проверьте число');
     if(spec.type==='integer'&&(!Number.isSafeInteger(v)||v<(spec.minimum??-Infinity)||v>(spec.maximum??Infinity)))invalid('attributes.'+key,'Проверьте целое число');

@@ -1536,11 +1536,17 @@
       "surface": "admin",
       "route": "categories",
       "reference": "admin/screens/categories.png",
-      "status": "unreviewed",
+      "status": "reviewed_changes_required",
       "acceptance": "pending",
-      "diagnostic_difference": 0.133872,
-      "known_gaps": [],
-      "evidence": []
+      "diagnostic_difference": 0.136315,
+      "known_gaps": [
+        "Общий shell, иконки дерева, таблица/состояния редактора полей и отступы требуют дальнейшей визуальной сверки.",
+        "Исторические данные не мигрируются массово автоматически."
+      ],
+      "evidence": [
+        "category-editor-update.md",
+        "visual-audit.json"
+      ]
     },
     {
       "id": "A08.languages",

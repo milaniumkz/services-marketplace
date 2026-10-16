@@ -1,3 +1,4 @@
+import {categoryId,validateCategory} from './category-payload';
 import {pricePayload} from './price-payload';
 import {validatePushCampaign} from './push-campaigns';
 import {rankingParameters} from './ranking';
@@ -61,10 +62,7 @@ export class Configuration {
       return {valid_from:p.valid_from??null,audience:p.audience??'all',role:'executor',user_terms:p.user_terms??null,promo_end_exclusive:end!,next_price:{id:next.id,...next.payload},amount_minor:0};
     }
     if(r.kind==='dictionary'){try{validateRules(p.rules);}catch(e:any){fail('VALIDATION_ERROR',e.message);}}
-    if(r.kind==='category') {
-      const schema=p.schema??{};if(Object.keys(schema.properties??{}).length>50)fail('VALIDATION_ERROR','Слишком много полей категории');
-      for(const definition of Object.values(schema.properties??{}) as any[])if(!['string','number','integer','boolean'].includes(definition.type)||definition.pattern)fail('VALIDATION_ERROR','Тип поля не поддерживается или использует произвольный regex');
-    }
+    if(r.kind==='category')return validateCategory(this.store,r);
     if(r.kind==='referral_campaign') {
       if(!Number.isInteger(p.threshold)||p.threshold<1||p.threshold>100||!Number.isInteger(p.budget_units)||p.budget_units<1||!Number.isInteger(p.reward_duration_seconds)||p.reward_duration_seconds<60)fail('VALIDATION_ERROR','Проверьте порог, бюджет и длительность');
       if(!['completed_order','executor_verified'].includes(p.qualifying_event))fail('VALIDATION_ERROR','Укажите подтверждаемое событие');
@@ -90,6 +88,12 @@ export class Configuration {
     if(r.version!==version)fail('STATE_CONFLICT','Настройка изменилась',409);
     if(r.owner===actor)fail('SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника',403);
     if(!['draft','validated','approved'].includes(r.status))fail('STATE_CONFLICT','Версия уже опубликована',409);
+    if(r.kind==='category'){
+      await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['category-publish:'+r.country]);
+      const fresh=await this.store.get(r.id);if(!fresh||fresh.version!==version)fail('STATE_CONFLICT','Версия категории изменилась',409);
+      const head=(await this.store.all('category',r.country)).find(x=>x.status==='effective'&&categoryId(x)===categoryId(r));
+      if(Object.hasOwn(r,'base_version_id')&&(head?.id??null)!==r.base_version_id)fail('CATEGORY_BASE_CHANGED','Каталог изменился. Откройте актуальную категорию и создайте новую версию',409);
+    }
     const preview=await this.validate(r);
     if(r.kind==='placement_policy') {
       const active=(await this.store.all('boost',r.country)).filter(x=>x.placement_id===r.payload.placement_id&&['active','scheduled'].includes(x.status));

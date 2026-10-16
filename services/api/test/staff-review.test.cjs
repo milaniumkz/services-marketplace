@@ -68,7 +68,7 @@ test('new business commands require current consent and honor withdrawal without
   const document={id:randomUUID(),kind:'legal_document',owner:'system',country:'KZ',version:2,created_at:new Date().toISOString(),published_at:new Date().toISOString(),status:'published',type:'privacy',locale:'ru',content:'Approved privacy text',hash:'current-legal-hash'};
   await api.store.put(document);
   await api.store.put({id:randomUUID(),kind:'grant',owner:session.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['publish_order'],source:'isolated_legal_fixture'});
-  const order={id:randomUUID(),kind:'order',owner:session.user.id,country:'KZ',version:1,revision:1,created_at:new Date().toISOString(),status:'draft',title:'Isolated legal draft'};
+  const order={id:randomUUID(),kind:'order',owner:session.user.id,country:'KZ',version:1,revision:1,created_at:new Date().toISOString(),status:'draft',category_id:(await api.store.all('category','KZ'))[0].id,title:'Isolated legal draft'};
   await api.store.put(order);
   const publish=()=>command('POST','/orders/'+order.id+'/publish',{expected_version:1});
   await assert.rejects(publish,error=>error.getResponse().error.code==='CONSENT_REQUIRED');

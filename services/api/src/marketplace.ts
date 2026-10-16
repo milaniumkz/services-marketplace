@@ -1,3 +1,4 @@
+import {categoryId,categoryPayload} from './category-payload';
 import {pricePayload} from './price-payload';
 import {countryEnabled} from './country-access';
 import {bannerCampaigns} from './banner-campaigns';
@@ -114,6 +115,8 @@ export class Marketplace {
   private version(r: RecordData, b: any) {
     if(b.expected_version!==r.version)fail(409,'STATE_CONFLICT','Данные изменились. Обновите экран.',{current_version:r.version});
   }
+  private async categories(country:string):Promise<RecordData[]>{return (await this.store.all('category',country)).filter(r=>r.status==='effective').map((r):RecordData=>({...r,record_id:r.id,id:categoryId(r)}));}
+  private categorySnapshot(category:RecordData,locale='ru'){return {id:category.id,version_id:category.record_id??category.id,title:category.payload.labels?.[locale]??category.payload.labels?.ru??category.title,labels:category.payload.labels,schema:category.payload.schema??{properties:{},required:[]}};}
   private async entitlement(a: Actor, capability: string, verified=false, consume=true) {
     if(['publish_order','select_offer','send_offer','publish_profile'].includes(capability)) {
       const control=(await this.store.all('country_control',a.country)).find(r=>r.status==='effective');
@@ -345,7 +348,7 @@ export class Marketplace {
     }
     const unblock=path.match(/^\/me\/blocks\/([^/]+)$/);
     if(unblock&&method==='DELETE'){const old=(await this.store.all('pair_block',a.country)).find(x=>x.owner===a.id&&x.target_id===unblock[1]&&x.status==='active');if(old)await this.store.put({...old,status:'released',version:old.version+1});return {released:true};}
-    if(path==='/catalog/categories'&&method==='GET')return {items:(await this.store.all('category',a.country)).filter(x=>x.status==='effective').map(x=>({id:x.id,name:x.payload.labels?.[q.locale??a.user.locale??'ru']??x.title,labels:x.payload.labels,schema:x.payload.schema??{properties:{},required:[]},version:x.version}))};
+    if(path==='/catalog/categories'&&method==='GET')return {items:(await this.categories(a.country)).map(x=>({id:x.id,name:x.payload.labels?.[q.locale??a.user.locale??'ru']??x.payload.labels?.ru??x.title,labels:x.payload.labels,schema:x.payload.schema??{properties:{},required:[]},parent_id:x.payload.parent_id??null,icon:x.payload.icon??'briefcase',version_id:x.record_id,version:x.version}))};
     if(path==='/contractors/map'&&method==='GET'){
       await this.entitlement(a,'search_full');const near=q.near_lat!==undefined||q.near_lon!==undefined?{latitude:Number(q.near_lat),longitude:Number(q.near_lon),radius:Number(q.radius_km??50)}:undefined;if(near&&(!Number.isFinite(near.latitude)||Math.abs(near.latitude)>90||!Number.isFinite(near.longitude)||Math.abs(near.longitude)>180||!Number.isFinite(near.radius)||near.radius<=0||near.radius>500))fail(400,'VALIDATION_ERROR','Проверьте координаты и радиус');const candidates=await this.store.select('contractor',a.country,{publicActor:a.id,statuses:['published'],city:near?undefined:q.city,category:q.category_id,near,limit:100});
       const rows=candidates.filter(r=>r.public_location&&Number.isFinite(r.public_location.latitude)&&Number.isFinite(r.public_location.longitude));
@@ -415,7 +418,7 @@ export class Marketplace {
     if(path==='/me/contractor-profile'&&method==='PUT') {
       const old=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(old)this.version(old,b);
       const title=text(b,'title',5,100),description=text(b,'description',20,3000),city=text(b,'city',2,100);
-      const categories=(await this.store.all('category',a.country)).filter(c=>c.status==='effective');
+      const categories=(await this.categories(a.country));
       const category=categories.find(c=>c.id===b.category_id||c.legacy_id===b.category_id);if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
       let fields:any;try{fields=profileFields({...b,category_id:category!.id},old?editableContent(old):old,countries[a.country].currency,new Set(categories.map(c=>c.id)));}catch(e:any){fail(400,'VALIDATION_ERROR','Проверьте поле '+e.message,{field:e.message});}
       const uploads=b.gallery_ids===undefined?(old?editableContent(old).gallery_ids??[]:[]):await this.safeUploads(a,b.gallery_ids,'portfolio',20);
@@ -450,7 +453,7 @@ export class Marketplace {
     if(path==='/me/portfolio-projects'&&method==='POST') {
       const projects=(await this.store.all('portfolio',a.country)).filter(x=>x.owner===a.id&&x.status!=='archived');if(projects.length>=settings.portfolio_projects)fail(422,'LIMIT_EXCEEDED','Максимум 20 проектов');
       if(b.rights_confirmed!==undefined&&typeof b.rights_confirmed!=='boolean')fail(400,'VALIDATION_ERROR','Проверьте подтверждение прав');
-      const category=(await this.store.all('category',a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
+      const category=(await this.categories(a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
       let orderId:string|null=null;if(b.order_id){const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||order.executor_id!==a.id)fail(422,'POLICY_REJECTED','Можно связать только заказ, выполненный вами');orderId=order.id;}
       return this.store.put(this.record('portfolio',a,{title:text(b,'title',5,120),description:text(b,'description',0,3000),category_id:category!.id,order_id:orderId,rights_confirmed:b.rights_confirmed===true,status:'draft',position:projects.length,photos:[]}));
     }
@@ -462,7 +465,7 @@ export class Marketplace {
         const photos=b.upload_ids?await this.safeUploads(a,b.upload_ids,'portfolio'):p.photos;
         if(photos.length>settings.portfolio_photos)fail(422,'LIMIT_EXCEEDED','Превышен лимит фотографий');
         if(b.cover_id&&!photos.includes(b.cover_id))fail(400,'VALIDATION_ERROR','Обложка должна быть фотографией проекта');
-        const category=(await this.store.all('category',a.country)).find(c=>(c.id===(b.category_id??p.category_id)||c.legacy_id===(b.category_id??p.category_id))&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
+        const category=(await this.categories(a.country)).find(c=>(c.id===(b.category_id??p.category_id)||c.legacy_id===(b.category_id??p.category_id))&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
         const cover=b.cover_id??(photos.includes(p.cover_id)?p.cover_id:photos[0]),extra:any={};
         if(b.rights_confirmed!==undefined){if(typeof b.rights_confirmed!=='boolean')fail(400,'VALIDATION_ERROR','Подтвердите права на материалы');extra.rights_confirmed=b.rights_confirmed;}
         if(b.order_id!==undefined){if(b.order_id===null)extra.order_id=null;else{const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||order.executor_id!==a.id)fail(422,'POLICY_REJECTED','Можно связать только заказ, выполненный вами');extra.order_id=order.id;}}
@@ -500,10 +503,10 @@ export class Marketplace {
       if(budget!==null && (!Number.isSafeInteger(budget)||budget<0))fail(400,'VALIDATION_ERROR','Бюджет должен быть целым числом в минимальных единицах валюты либо null');
       if(b.country&&b.country!==a.country||b.budget?.currency&&b.budget.currency!==countries[a.country].currency)fail(400,'VALIDATION_ERROR','Страна и валюта не совпадают с регионом');
       if(!['onsite','remote','hybrid'].includes(b.work_mode??'onsite'))fail(400,'VALIDATION_ERROR','Проверьте формат работы');
-      const category=(await this.store.all('category',a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
+      const category=(await this.categories(a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
       const city=b.city??countries[a.country].cities.find(name=>referenceId(`joba:city:${a.country}:${name}`)===b.city_id);if(typeof city!=='string'||city.length<2||city.length>100)fail(400,'VALIDATION_ERROR','Город недоступен');
       const uploads=b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[];
-      return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
+      return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}},city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
     }
     if(path==='/me/orders'&&method==='GET'){
       const page=await this.page('order',a,q,{owner:a.id,statuses:orderBucket(q.bucket)});
@@ -566,13 +569,13 @@ export class Marketplace {
         const r=this.record(kind,a,data);await this.store.put(r);await this.notify(data.recipient_id,a,kind+'.created',r.id);return r;
       }
       if(o.owner!==a.id && !['complete','start'].includes(action??''))fail(404,'NOT_FOUND','Заказ не найден');this.version(o,b);
-      if(action==='publish'&&method==='POST'){await this.entitlement(a,'publish_order');if(o.status!=='draft')fail(409,'STATE_CONFLICT','Заказ уже опубликован');return this.store.put({...o,status:'open',revision:o.revision+1,version:o.version+1,published_at:new Date().toISOString(),expires_at:new Date(Date.now()+settings.order_expiry_days*86400000).toISOString()});}
+      if(action==='publish'&&method==='POST'){await this.entitlement(a,'publish_order');if(o.status!=='draft')fail(409,'STATE_CONFLICT','Заказ уже опубликован');const category=(await this.categories(a.country)).find(c=>c.id===o.category_id);if(!category)fail(422,'CATEGORY_UNAVAILABLE','Выберите доступную категорию');const snapshot=o.category_snapshot??this.categorySnapshot(category!,a.user.locale);attributes(snapshot.schema,o.attributes??{});return this.store.put({...o,category_snapshot:snapshot,status:'open',revision:o.revision+1,version:o.version+1,published_at:new Date().toISOString(),expires_at:new Date(Date.now()+settings.order_expiry_days*86400000).toISOString()});}
       if(action==='extend'&&method==='POST'){await this.entitlement(a,'publish_order');const expires=Date.parse(String(b.expires_at));if(o.status!=='open'||Date.parse(o.expires_at)<=Date.now()||!Number.isFinite(expires)||expires<=Date.now()||expires>Date.now()+settings.order_expiry_max_days*86400000)fail(409,'STATE_CONFLICT','Недопустимый срок продления');return this.store.put({...o,expires_at:new Date(expires).toISOString(),version:o.version+1});}
-      if(action==='clone'&&method==='POST'){await this.entitlement(a,'publish_order');return this.store.put(this.record('order',a,{title:o.title,description:o.description,category_id:o.category_id,city:o.city,budget_amount:o.budget_amount,currency:o.currency,status:'draft',revision:1,upload_ids:[]}));}
+      if(action==='clone'&&method==='POST'){await this.entitlement(a,'publish_order');const category=(await this.categories(a.country)).find(c=>c.id===o.category_id);if(!category)fail(422,'CATEGORY_UNAVAILABLE','Выберите доступную категорию');return this.store.put(this.record('order',a,{title:o.title,description:o.description,category_id:o.category_id,category_snapshot:this.categorySnapshot(category!,a.user.locale),attributes:o.attributes??{},work_mode:o.work_mode??'onsite',time_window:o.time_window,city:o.city,budget_amount:o.budget_amount,currency:o.currency,status:'draft',revision:1,upload_ids:[]}));}
       if(method==='PATCH'&&!action) {
         if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Редактирование недоступно');
-        const category=(await this.store.all('category',a.country)).find(c=>c.id===(b.category_id??o.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
-        const changes:any={title:b.title===undefined?o.title:text(b,'title',5,120),description:b.description===undefined?o.description:text(b,'description',20,5000),category_id:category!.id,attributes:attributes(category!.payload.schema,b.attributes??o.attributes)};
+        const unchangedCategory=b.category_id===undefined||b.category_id===o.category_id,originalCategory=unchangedCategory?await this.store.get(o.category_id):undefined;const category=(await this.categories(a.country)).find(c=>c.id===(b.category_id??o.category_id))??(unchangedCategory&&originalCategory?.country===a.country&&originalCategory.kind==='category'?{...originalCategory,id:categoryId(originalCategory),record_id:originalCategory.id}:undefined);if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');const snapshot=unchangedCategory?(o.category_snapshot??{id:category!.id,version_id:originalCategory?.id??category!.record_id,title:originalCategory?.payload.labels?.ru??originalCategory?.title??category!.title,labels:originalCategory?.payload.labels??category!.payload.labels,schema:originalCategory?.payload.schema??category!.payload.schema??{properties:{},required:[]}}):{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}};
+        const changes:any={title:b.title===undefined?o.title:text(b,'title',5,120),description:b.description===undefined?o.description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:snapshot,attributes:attributes(snapshot.schema,b.attributes??o.attributes)};
         if(b.budget_amount!==undefined){if(b.budget_amount!==null&&(!Number.isSafeInteger(b.budget_amount)||b.budget_amount<0))fail(400,'VALIDATION_ERROR','Проверьте бюджет');changes.budget_amount=b.budget_amount;}
         if(b.city!==undefined)changes.city=text(b,'city',2,100);
         if(b.city_id!==undefined){const city=countries[a.country].cities.find(name=>referenceId(`joba:city:${a.country}:${name}`)===b.city_id);if(!city)fail(400,'VALIDATION_ERROR','Город недоступен');changes.city=city;}
@@ -982,10 +985,11 @@ export class Marketplace {
         await this.audit(a,'brand.bundle_read',record.id,text(q,'reason',10,1000));
         return {download_stream:await this.files.readStream(record.bundle_file_id),download_size:record.bundle_size,download_filename:'joba-icons.zip',mime:'application/zip'};
       }
-      const permission=({'banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
       if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,id)=>this.notify(user,a,'case.updated',id)});if(result!==undefined)return result;}
       if(section==='banner-campaigns'){if(path==='/admin/banner-campaigns'&&method==='GET')return this.page('banner_campaign',a,q,{statuses:q.status?[String(q.status)]:undefined});const result=await bannerCampaigns(this.store,a,method,path,b,{object:id=>this.object(id,a,'banner_campaign'),record:data=>this.record('banner_campaign',a,data),audit:(action,id,reason)=>this.audit(a,action,id,reason)});if(result!==undefined)return result;}
+      if(path==='/admin/category-tree'&&method==='GET')return {items:(await this.categories(a.country)).map(r=>({id:r.id,version_id:r.record_id,title:r.title,parent_id:r.payload.parent_id??null,labels:r.payload.labels,icon:r.payload.icon??'briefcase'}))};
       const report=await adminReports(this.store,a.country,method,path,q);if(report!==undefined)return report;
       if(path==='/admin/bulk/preview'&&method==='POST'){
         if(!['pause_contractors','resume_contractors'].includes(b.action)||!Array.isArray(b.ids)||b.ids.length<1||b.ids.length>100||new Set(b.ids).size!==b.ids.length||b.ids.some((id:any)=>typeof id!=='string'||!/^[0-9a-f-]{36}$/i.test(id)))fail(400,'VALIDATION_ERROR','Выберите от 1 до 100 уникальных профилей и действие');
@@ -1278,8 +1282,20 @@ export class Marketplace {
       const configKinds=['monetization-configs','price-versions','categories','push-campaigns','referral-campaigns','moderation-dictionaries','ranking-configs','promotions','placement-policies','verification-policies','retention-policies','country-controls'];
       if(configKinds.includes(section)&&method==='POST'&&path.split('/').length===3) {
         if(section==='moderation-dictionaries'){try{validateRules(b.payload?.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}}
+        if(section==='categories'){
+          const r=this.record('category',a,{title:text(b,'title',3,120),status:'draft'});let stable=r.id;
+          if(b.payload?.category_id){const original=await this.object(String(b.payload.category_id),a,'category');stable=categoryId(original);r.legacy_id=original.legacy_id;}
+          r.payload=categoryPayload(b.payload,a.country,stable);r.base_version_id=(await this.categories(a.country)).find(x=>x.id===stable)?.record_id??null;await this.store.put(r);await this.audit(a,'categories.draft',r.id,text(b,'reason',5,1000));return r;
+        }
         const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='price-versions'?pricePayload(b.payload,a.country):section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
+      }
+      const editCategory=path.match(/^\/admin\/categories\/([^/]+)$/);
+      if(editCategory&&['GET','PATCH'].includes(method)){
+        const r=await this.object(editCategory[1],a,'category');if(method==='GET')return r;this.version(r,b);
+        if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новую версию категории');
+        if(b.payload?.category_id&&b.payload.category_id!==categoryId(r))fail(422,'VALIDATION_ERROR','Стабильный ID изменять нельзя');
+        const result=await this.store.put({...r,title:text(b,'title',3,120),payload:categoryPayload(b.payload,a.country,categoryId(r)),preview:undefined,version:r.version+1});await this.audit(a,'categories.edited',r.id,text(b,'reason',5,1000));return result;
       }
       const editPrice=path.match(/^\/admin\/price-versions\/([^/]+)$/);
       if(editPrice&&['GET','PATCH'].includes(method)){
@@ -1365,14 +1381,16 @@ export class Marketplace {
       if(configurationCommand&&configKinds.includes(section)&&method==='POST') {
         const r=await this.object(configurationCommand[2],a,kinds[section]);
         if(configurationCommand[3]==='preview'){this.version(r,b);const reason=text(b,'reason',10,1000);const preview=await this.configuration.preview(r);await this.audit(a,'configuration.preview',r.id,reason);return preview;}
-        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy','price_version'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
+        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy','price_version','category'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
         const result=await this.configuration.publish(r,a.id,b.expected_version);await this.audit(a,section+'.published',r.id,text(b,'reason',10,1000));return result;
       }
       const configurationStop=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(stop|cancel|rollback)$/);
       if(configurationStop&&configKinds.includes(section)&&method==='POST') {
+        if(section==='categories')await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['category-publish:'+a.country]);
         const r=await this.object(configurationStop[2],a,kinds[section]);this.version(r,b);const reason=text(b,'reason',10,1000);
+        if(r.kind==='category'&&configurationStop[3]!=='rollback'&&(await this.categories(a.country)).some(child=>child.payload.parent_id===categoryId(r)))fail(409,'CATEGORY_HAS_CHILDREN','Сначала перенесите или архивируйте дочерние категории');
         if(r.kind==='country_control'&&configurationStop[3]!=='rollback')fail(409,'SECOND_APPROVAL_REQUIRED','Для изменения состояния страны опубликуйте новый черновик с независимым подтверждением');
-        if(configurationStop[3]==='rollback'){const draft=this.record(r.kind,a,{title:r.title,payload:r.payload,status:'draft',rollback_of:r.id});await this.store.put(draft);await this.audit(a,section+'.rollback_draft',draft.id,reason);return draft;}
+        if(configurationStop[3]==='rollback'){const draft=this.record(r.kind,a,{title:r.title,payload:r.payload,status:'draft',rollback_of:r.id,...(r.kind==='category'?{legacy_id:r.legacy_id,base_version_id:(await this.categories(a.country)).find(x=>x.id===categoryId(r))?.record_id??null}:{})});await this.store.put(draft);await this.audit(a,section+'.rollback_draft',draft.id,reason);return draft;}
         const result=await this.store.put({...r,status:'stopped',version:r.version+1});await this.audit(a,section+'.stopped',r.id,reason);return result;
       }
       fail(404,'NOT_FOUND','Команда ещё не реализована');
