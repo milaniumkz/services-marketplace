@@ -15,14 +15,37 @@ export class Growth {
     return {code:code.code,campaigns:(await this.store.all('referral_campaign',country)).filter(x=>x.status==='effective').map(x=>({id:x.id,...x.payload})),attributions:(await this.store.all('referral_attribution',country)).filter(x=>x.referrer_id===owner).map(x=>({id:x.id,status:x.status})),rewards:(await this.store.all('referral_reward',country)).filter(x=>x.owner===owner)};
   }
   async attribute(owner:string,country:string,code:string) {
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+country]);
     const previous=(await this.store.all('referral_attribution',country)).find(x=>x.owner===owner);if(previous)fail('ATTRIBUTION_ALREADY_SET','Пригласивший уже закреплён');
     const referrer=(await this.store.all('referral_code',country)).find(x=>x.code===code);if(!referrer||referrer.owner===owner)fail('REFERRAL_INELIGIBLE','Код недоступен',422);
     const campaign=(await this.store.all('referral_campaign',country)).find(x=>x.status==='effective');if(!campaign)fail('CAMPAIGN_UNAVAILABLE','Активной реферальной кампании нет',422);
-    return this.store.put(this.record('referral_attribution',owner,country,{referrer_id:referrer.owner,campaign_id:campaign.id,campaign_snapshot:campaign.payload,status:'pending'}));
+    // Reserve one complete reward before accepting the first invitation in its group.
+    // Reservations survive campaign stop and never borrow another inviter's budget.
+    const reservations=(await this.store.all('referral_reservation',country)).filter(x=>x.campaign_id===campaign.id);
+    const attributions=await this.store.all('referral_attribution',country);
+    let reservation=reservations.find(x=>x.owner===referrer.owner&&x.status==='reserved'&&attributions.filter(a=>a.reservation_id===x.id).length<x.policy_snapshot.threshold);
+    if(!reservation){
+      const legacyRewards=(await this.store.all('referral_reward',country)).filter(x=>x.campaign_id===campaign.id&&!x.reservation_id);
+      if(reservations.length+legacyRewards.length>=campaign.payload.budget_units)fail('REFERRAL_BUDGET_EXHAUSTED','Бюджет новых приглашений исчерпан');
+      reservation=this.record('referral_reservation',referrer.owner,country,{campaign_id:campaign.id,policy_snapshot:campaign.payload,status:'reserved'});
+      await this.store.put(reservation);
+    }
+    return this.store.put(this.record('referral_attribution',owner,country,{referrer_id:referrer.owner,campaign_id:campaign.id,reservation_id:reservation.id,campaign_snapshot:reservation.policy_snapshot,status:'pending'}));
   }
   async qualify(owner:string,country:string,event:string,eventId:string) {
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+country]);
     const attribution=(await this.store.all('referral_attribution',country)).find(x=>x.owner===owner&&x.status==='pending'&&x.campaign_snapshot.qualifying_event===event);if(!attribution)return;
     await this.store.put({...attribution,status:'qualified',qualifying_event_id:eventId,version:attribution.version+1});
+    if(attribution.reservation_id){
+      const reservation=await this.store.get(attribution.reservation_id);
+      if(!reservation||reservation.status!=='reserved')return;
+      const qualified=(await this.store.all('referral_attribution',country)).filter(x=>x.reservation_id===reservation.id&&x.status==='qualified');
+      if(qualified.length<reservation.policy_snapshot.threshold)return;
+      const reward=this.record('referral_reward',attribution.referrer_id,country,{campaign_id:attribution.campaign_id,reservation_id:reservation.id,policy_snapshot:reservation.policy_snapshot,status:'available',expires_at:new Date(Date.now()+30*86400000).toISOString(),qualifying_attributions:qualified.map(x=>x.id)});
+      await this.store.put(reward);
+      await this.store.put({...reservation,status:'issued',reward_id:reward.id,version:reservation.version+1});
+      return;
+    }
     const all=(await this.store.all('referral_attribution',country)).filter(x=>x.referrer_id===attribution.referrer_id&&x.campaign_id===attribution.campaign_id&&x.status==='qualified');
     const rewards=(await this.store.all('referral_reward',country)).filter(x=>x.campaign_id===attribution.campaign_id);
     const own=rewards.filter(x=>x.owner===attribution.referrer_id);
@@ -31,6 +54,7 @@ export class Growth {
     await this.store.put(this.record('referral_reward',attribution.referrer_id,country,{campaign_id:attribution.campaign_id,policy_snapshot:policy,status:'available',expires_at:new Date(Date.now()+30*86400000).toISOString(),qualifying_attributions:all.map(x=>x.id)}));
   }
   async redeem(owner:string,country:string,id:string) {
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+country]);
     const r=await this.store.get(id);if(!r||r.kind!=='referral_reward'||r.owner!==owner||r.country!==country)fail('NOT_FOUND','Награда не найдена',404);
     if(r.status==='redeemed')return r;if(r.status!=='available'||r.expires_at<=new Date().toISOString())fail('REWARD_EXPIRED','Награда больше не доступна');
     const grant=this.record('grant',owner,country,{source:'referral_privilege',source_id:r.id,valid_until:new Date(Date.now()+r.policy_snapshot.reward_duration_seconds*1000).toISOString(),capabilities:r.policy_snapshot.capabilities});
