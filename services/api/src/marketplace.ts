@@ -1279,6 +1279,12 @@ export class Marketplace {
         const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
       }
+      const editDocumentPolicy=path.match(/^\/admin\/(verification-policies|retention-policies)\/([^/]+)$/);
+      if(editDocumentPolicy&&['GET','PATCH'].includes(method)){
+        const r=await this.object(editDocumentPolicy[2],a,kinds[section]);if(method==='GET')return r;
+        this.version(r,b);if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новый черновик политики');
+        const result=await this.store.put({...r,title:text(b,'title',3,120),payload:b.payload??{},preview:undefined,version:r.version+1});await this.audit(a,section+'.edited',r.id,text(b,'reason',5,1000));return result;
+      }
       const editPromotion=path.match(/^\/admin\/promotions\/([^/]+)$/);
       if(editPromotion&&method==='GET')return this.object(editPromotion[1],a,'promotion');
       if(editPromotion&&method==='PATCH'){
@@ -1351,7 +1357,7 @@ export class Marketplace {
       if(configurationCommand&&configKinds.includes(section)&&method==='POST') {
         const r=await this.object(configurationCommand[2],a,kinds[section]);
         if(configurationCommand[3]==='preview'){this.version(r,b);const reason=text(b,'reason',10,1000);const preview=await this.configuration.preview(r);await this.audit(a,'configuration.preview',r.id,reason);return preview;}
-        if(configurationCommand[3]==='validate')return this.configuration.validate(r);
+        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy'].includes(r.kind))this.version(r,b);return this.configuration.validate(r);}
         const result=await this.configuration.publish(r,a.id,b.expected_version);await this.audit(a,section+'.published',r.id,text(b,'reason',10,1000));return result;
       }
       const configurationStop=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(stop|cancel|rollback)$/);
