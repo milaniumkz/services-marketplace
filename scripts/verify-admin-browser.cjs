@@ -328,6 +328,9 @@ async function main(){
   await page.waitForFunction(()=>!document.querySelector('#banner-command'));assert.equal((await marketplace.store.get(bannerId)).status,'stopped');
   await page.goto(frontend+'/#campaigns');await page.locator('#banner-filter').waitFor();await page.getByLabel('Поиск кампаний',{exact:true}).fill('Баннер браузерной проверки');await page.getByLabel('Состояние кампании',{exact:true}).selectOption('stopped');await page.getByRole('button',{name:'Применить',exact:true}).click();
   await page.waitForFunction(()=>!document.querySelector('[aria-busy=true]')&&document.querySelectorAll('tbody a[href^="#banner-detail"]').length===1);
+  await page.getByRole('heading',{name:'Разрешённые inline-размещения',exact:true}).waitFor();await page.getByRole('heading',{name:'Исключённые экраны',exact:true}).waitFor();assert.equal(await page.locator('.banner-campaign-list tbody .badge').textContent(),'Остановлена');assert.equal((await page.locator('.banner-campaign-list .cardfoot').first().innerText()).includes('демонстрационные'),false);assert.ok((await page.locator('.banner-campaign-list tbody').innerText()).includes('Каталог · нижний блок'));
+  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await capture('banner-list-narrow');await page.setViewportSize({width:1440,height:1000});
+
 
   await page.goto(frontend+'/#contractors');
   await page.getByRole('link',{name:'Открыть →',exact:true}).click();

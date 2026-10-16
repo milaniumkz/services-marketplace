@@ -1626,16 +1626,17 @@
       "surface": "admin",
       "route": "campaigns",
       "reference": "admin/screens/campaigns.png",
-      "status": "reviewed_changes_required",
+      "status": "review_in_progress",
       "acceptance": "pending",
-      "diagnostic_difference": 0.074167,
+      "diagnostic_difference": 0.107559,
       "known_gaps": [
-        "Общий shell и данные отличаются от демонстрационного макета; визуальная приёмка открыта.",
-        "Нужна дальнейшая сверка списка, панели лимитов, дополнительных состояний и адаптации."
+        "Общий shell и типографика административной панели ещё отличаются от эталона.",
+        "Компоновка фильтров и блок разрешённых размещений требуют дальнейшей визуальной сверки."
       ],
       "evidence": [
-        "banner-campaigns-update.md",
-        "visual-audit.json"
+        "docs/banner-layout-update.md",
+        "scripts/verify-admin-browser.cjs",
+        "docs/design/review/admin/A10-campaigns.png"
       ]
     },
     {
@@ -1654,16 +1655,17 @@
       "surface": "admin",
       "route": "banner-detail",
       "reference": "admin/screens/banner-detail.png",
-      "status": "reviewed_changes_required",
+      "status": "review_in_progress",
       "acceptance": "pending",
-      "diagnostic_difference": 0.075683,
+      "diagnostic_difference": 0.0737,
       "known_gaps": [
-        "Общий shell и данные отличаются от демонстрационного макета; визуальная приёмка открыта.",
-        "Нужна дальнейшая сверка списка, панели лимитов, дополнительных состояний и адаптации."
+        "Общий shell и типографика административной панели ещё отличаются от эталона.",
+        "Нативные поля даты и дополнительные служебные действия требуют дальнейшей визуальной сверки."
       ],
       "evidence": [
-        "banner-campaigns-update.md",
-        "visual-audit.json"
+        "docs/banner-layout-update.md",
+        "scripts/verify-admin-browser.cjs",
+        "docs/design/review/admin/A10.creative-banner-detail.png"
       ]
     },
     {
