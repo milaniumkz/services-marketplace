@@ -529,11 +529,24 @@
         5,
         13
       ],
-      "review_status": "pending",
+      "review_status": "partial_functional_verified_visual_pending",
       "test_candidates": [],
-      "verified_api_operations": [],
+      "verified_api_operations": [
+        "GET /admin/monetization-configs/{id}",
+        "PATCH /admin/monetization-configs/{id}",
+        "POST /admin/monetization-configs",
+        "POST /admin/monetization-configs/{id}/validate",
+        "POST /admin/monetization-configs/{id}/preview",
+        "POST /admin/monetization-configs/{id}/publish",
+        "GET /me/monetization-config"
+      ],
       "verified_controls": [],
-      "evidence": []
+      "evidence": [
+        "docs/monetization-editor-update.md",
+        "services/api/test/monetization-editor.test.cjs",
+        "services/api/test/banner-config.test.cjs",
+        "scripts/verify-admin-browser.cjs"
+      ]
     },
     {
       "id": "FR-024",

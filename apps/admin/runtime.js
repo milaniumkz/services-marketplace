@@ -126,7 +126,7 @@ async function draw(reload=true) {
       if(key==='ranking')routes[key]=await rankingWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
       if(['referrals','referral-preview'].includes(key))routes[key]=await referralWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
       if(['pricing','prices'].includes(key))routes[key]=await priceWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
-      if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,onRefresh:()=>draw()});
+      if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,actorId:session.user.id,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
       if(userRoutes.has(key)||key.startsWith('record-live/users/'))routes[key]=await userWorkspace({key,api:request,esc,card,tablecard,note,badge,namedField,sections,onRefresh:()=>draw()});
       if(key.startsWith('record-live/')&&!key.startsWith('record-live/users/')){

@@ -1,3 +1,4 @@
+import {monetizationPayload} from './monetization-payload';
 import {placementPolicyPayload,placementPromises} from './placement-policy';
 import {referralPolicy} from './referral-policy';
 import {categoryId,validateCategory} from './category-payload';
@@ -51,6 +52,7 @@ export class Configuration {
         if(reward.kind==='action_credits'&&reward.capabilities.some((capability:string)=>!['publish_order','send_offer','select_offer','publish_profile'].includes(capability)))fail('VALIDATION_ERROR','Для чтения поиска используйте временный доступ, а не кредиты действий');
         if(reward.duration_seconds!==undefined&&(!Number.isInteger(reward.duration_seconds)||reward.duration_seconds<60||reward.duration_seconds>30*86400))fail('VALIDATION_ERROR','Проверьте срок награды или кредитов');
       }
+      monetizationPayload({...p,subscription_enabled:p.subscription_enabled??true});
     }
     if(r.kind==='promotion') {
       if(typeof p.end_date!=='string'||typeof p.time_zone!=='string')fail('VALIDATION_ERROR','Дата и часовой пояс обязательны');
@@ -86,6 +88,10 @@ export class Configuration {
     if(r.version!==version)fail('STATE_CONFLICT','Настройка изменилась',409);
     if(r.owner===actor)fail('SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника',403);
     if(!['draft','validated','approved'].includes(r.status))fail('STATE_CONFLICT','Версия уже опубликована',409);
+    if(r.kind==='monetization_config'){
+      await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['monetization-publish:'+r.country]);
+      const fresh=await this.store.get(r.id);if(!fresh||fresh.version!==version)fail('STATE_CONFLICT','Версия монетизации изменилась',409);
+    }
     if(r.kind==='category'){
       await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['category-publish:'+r.country]);
       const fresh=await this.store.get(r.id);if(!fresh||fresh.version!==version)fail('STATE_CONFLICT','Версия категории изменилась',409);
@@ -102,7 +108,7 @@ export class Configuration {
       const promises=await placementPromises(this.store,r.country,r.payload.placement_id);
       if(promises.promised_peak>r.payload.capacity)fail('CAPACITY_PROMISE_CONFLICT','Нельзя уменьшить ёмкость ниже выданных обещаний',409);
     }
-    const scope=(x:RecordData)=>JSON.stringify(['referral_campaign','ranking_config'].includes(x.kind)?{country:x.country}:x.kind==='category'?{category:x.payload?.category_id??x.id}:x.kind==='price_version'?{provider:x.payload.provider,product:x.payload.product_id,audience:x.payload.audience}:x.kind==='placement_policy'?{placement:x.payload.placement_id}:{scope:x.payload?.scope,role:x.payload?.role,platform:x.payload?.platform});
+    const scope=(x:RecordData)=>JSON.stringify(['monetization_config','referral_campaign','ranking_config'].includes(x.kind)?{country:x.country}:x.kind==='category'?{category:x.payload?.category_id??x.id}:x.kind==='price_version'?{provider:x.payload.provider,product:x.payload.product_id,audience:x.payload.audience}:x.kind==='placement_policy'?{placement:x.payload.placement_id}:{scope:x.payload?.scope,role:x.payload?.role,platform:x.payload?.platform});
     for(const old of await this.store.all(r.kind,r.country))if(old.status==='effective'&&scope(old)===scope(r))await this.store.put({...old,status:'superseded',version:old.version+1});
     return this.store.put({...r,status:'effective',preview,published_by:actor,published_at:new Date().toISOString(),version:r.version+1});
   }

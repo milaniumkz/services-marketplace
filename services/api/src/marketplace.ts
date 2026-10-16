@@ -1,3 +1,4 @@
+import {monetizationPayload} from './monetization-payload';
 import {placementPolicyPayload,placementPromises} from './placement-policy';
 import {referralPolicy} from './referral-policy';
 import {categoryId,categoryPayload} from './category-payload';
@@ -1289,8 +1290,14 @@ export class Marketplace {
           if(b.payload?.category_id){const original=await this.object(String(b.payload.category_id),a,'category');stable=categoryId(original);r.legacy_id=original.legacy_id;}
           r.payload=categoryPayload(b.payload,a.country,stable);r.base_version_id=(await this.categories(a.country)).find(x=>x.id===stable)?.record_id??null;await this.store.put(r);await this.audit(a,'categories.draft',r.id,text(b,'reason',5,1000));return r;
         }
-        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='placement-policies'?placementPolicyPayload(b.payload):section==='ranking-configs'?rankingPayload(b.payload):section==='referral-campaigns'?referralPolicy(b.payload):section==='price-versions'?pricePayload(b.payload,a.country):section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
+        const r=this.record(kinds[section],a,{title:text(b,'title',3,120),status:'draft',payload:section==='monetization-configs'?monetizationPayload(b.payload):section==='placement-policies'?placementPolicyPayload(b.payload):section==='ranking-configs'?rankingPayload(b.payload):section==='referral-campaigns'?referralPolicy(b.payload):section==='price-versions'?pricePayload(b.payload,a.country):section==='push-campaigns'?normalizePushPayload(b.payload??{}):section==='promotions'?normalizePromotionPayload(b.payload??{}):b.payload??{}});
         await this.store.put(r);await this.audit(a,section+'.draft',r.id,text(b,'reason',5,1000));return r;
+      }
+      const editMonetization=path.match(/^\/admin\/monetization-configs\/([^/]+)$/);
+      if(editMonetization&&['GET','PATCH'].includes(method)){
+        const r=await this.object(editMonetization[1],a,'monetization_config');if(method==='GET')return r;
+        this.version(r,b);if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Изменять можно только собственный черновик монетизации');
+        const result=await this.store.put({...r,title:text(b,'title',3,120),payload:monetizationPayload(b.payload),preview:undefined,version:r.version+1});await this.audit(a,'monetization.edited',r.id,text(b,'reason',10,1000));return result;
       }
       const editReferral=path.match(/^\/admin\/referral-campaigns\/([^/]+)$/);
       if(editReferral&&['GET','PATCH'].includes(method)){
@@ -1413,7 +1420,7 @@ export class Marketplace {
       if(configurationCommand&&configKinds.includes(section)&&method==='POST') {
         const r=await this.object(configurationCommand[2],a,kinds[section]);
         if(configurationCommand[3]==='preview'){this.version(r,b);const reason=text(b,'reason',10,1000);const preview=await this.configuration.preview(r);await this.audit(a,'configuration.preview',r.id,reason);return preview;}
-        if(configurationCommand[3]==='validate'){if(['verification_policy','retention_policy','price_version','category','referral_campaign','ranking_config','placement_policy'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
+        if(configurationCommand[3]==='validate'){if(['monetization_config','verification_policy','retention_policy','price_version','category','referral_campaign','ranking_config','placement_policy'].includes(r.kind))this.version(r,b);const result=await this.configuration.validate(r);if(r.kind==='price_version')await this.audit(a,'prices.validated',r.id,text(b,'reason',10,1000));return result;}
         const result=await this.configuration.publish(r,a.id,b.expected_version);await this.audit(a,section+'.published',r.id,text(b,'reason',10,1000));return result;
       }
       const configurationStop=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(stop|cancel|rollback)$/);
