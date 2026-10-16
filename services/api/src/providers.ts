@@ -6,8 +6,11 @@ export interface VerifiedPurchase {
   state: 'pending' | 'active' | 'grace' | 'billing_retry' | 'paused' | 'expired' | 'revoked' | 'canceled_at_period_end';
   revision: number;
 }
+export interface VerifiedRefund { environment:'sandbox'|'production';provider:string;request_id:string;refund_id:string;transaction_id:string;user_id:string;country:string;amount_minor:number;currency:string;status:'pending'|'succeeded'|'failed'; }
 export interface BillingProvider {
   readonly name: string;
+  requestRefund?(request:{request_id:string;transaction_id:string;user_id:string;country:string;amount_minor:number;currency:string}):Promise<{reference:string}>;
+  verifyRefund?(requestId:string,accountId:string):Promise<VerifiedRefund>;
   verifyPurchase(reference: string, accountId: string): Promise<VerifiedPurchase>;
   verifyWebhook(rawBody: Buffer, headers: Record<string,string>): Promise<{event_id:string;purchase:VerifiedPurchase}>;
   validateProduct(productId: string, country: string): Promise<{product_id:string;amount_minor:number;currency:string}>;

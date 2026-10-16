@@ -1,3 +1,4 @@
+import {Refunds} from './refunds';
 import {monetizationPayload} from './monetization-payload';
 import {placementPolicyPayload,placementPromises} from './placement-policy';
 import {referralPolicy} from './referral-policy';
@@ -70,13 +71,14 @@ export class Marketplace {
   store: Store;
   readonly providers: Providers;
   readonly commerce: Commerce;
+  readonly refunds:Refunds;
   readonly files: PrivateFiles;
   readonly configuration:Configuration;
   readonly growth:Growth;
   readonly branding:Branding;
   private queue: Promise<any> = Promise.resolve();
   constructor(store = new Store(), providers = new Providers(), files = new PrivateFiles()) {
-    this.store=store;this.providers=providers;this.commerce=new Commerce(store,providers);this.files=files;
+    this.store=store;this.providers=providers;this.commerce=new Commerce(store,providers);this.refunds=new Refunds(store,providers);this.files=files;
     this.configuration=new Configuration(store,providers);this.growth=new Growth(store,providers);this.branding=new Branding(store,files);
     const moderation=new Moderation(store);store.contentHook=data=>moderation.check(data);
     if(process.env.JOBA_CLAMSCAN_PATH)providers.scanner=new ClamAvScanner();
@@ -888,7 +890,19 @@ export class Marketplace {
     const purchaseCheck=path.match(/^\/me\/purchase-checks\/([^/]+)$/);if(purchaseCheck&&method==='GET'){const r=await this.object(purchaseCheck[1],a,'purchase_check',true);return {id:r.id,status:r.status,subscription_id:r.subscription_id??null};}
     const ownSubscription=path.match(/^\/me\/subscriptions\/([^/]+)$/);if(ownSubscription&&method==='GET'){const r=await this.object(ownSubscription[1],a,'subscription',true);return {id:r.id,provider:r.provider,product_id:r.product_id,status:r.status,valid_until:r.valid_until,price:r.price_snapshot?{amount_minor:r.price_snapshot.amount_minor,currency:r.price_snapshot.currency,period:r.price_snapshot.period}:null};}
     if(path==='/me/subscriptions'&&method==='GET')return {items:(await this.store.all('subscription',a.country)).filter(x=>x.owner===a.id).map(r=>({id:r.id,provider:r.provider,product_id:r.product_id,status:r.status,valid_until:r.valid_until,price:r.price_snapshot?{amount_minor:r.price_snapshot.amount_minor,currency:r.price_snapshot.currency,period:r.price_snapshot.period}:null}))};
+    if(path==='/billing/refundable-payments'&&method==='GET'){
+      const limit=this.pageLimit(q),after=await this.cursor(q);
+      const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND country=$1 AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
+      const batch=rows.rows.slice(0,limit).map(x=>x.data),balances=await this.refunds.balances(batch);
+      return {items:batch.map((p,i)=>({id:p.id,created_at:p.created_at,amount_minor:p.amount_minor,currency:p.currency,benefit:p.benefit,balance:balances[i]})),meta:{next_cursor:rows.rows.length>limit?await this.nextCursor(batch.at(-1)!.id,q):null}};
+    }
+    if(path==='/billing/refund-requests'&&method==='GET'){
+      const page=await this.page('refund_request',a,q,{owner:a.id});return {...page,items:page.items.map((r:any)=>({id:r.id,payment_id:r.payment_id??null,subscription_id:r.subscription_id??null,amount_minor:r.amount_minor??null,currency:r.currency??null,status:r.status,reason:r.reason,created_at:r.created_at,version:r.version,access_action:r.access_action??null}))};
+    }
+    const ownRefund=path.match(/^\/billing\/refund-requests\/([^/]+)\/cancel$/);
+    if(ownRefund&&method==='POST'){const r=await this.object(ownRefund[1],a,'refund_request',true);this.version(r,b);return this.refunds.command(r,a.id,'cancel',text(b,'reason',5,1000));}
     if(path==='/billing/refund-requests'&&method==='POST'){
+      if(b.payment_id)return this.refunds.create(a.id,a.country,text(b,'payment_id',36,36),b.amount_minor,text(b,'reason',5,1000));
       const subscription=await this.object(text(b,'subscription_id',36,36),a,'subscription',true);
       return this.store.put(this.record('refund_request',a,{subscription_id:subscription.id,reason:text(b,'reason',5,1000),status:'requested'}));
     }
@@ -991,7 +1005,7 @@ export class Marketplace {
         await this.audit(a,'brand.bundle_read',record.id,text(q,'reason',10,1000));
         return {download_stream:await this.files.readStream(record.bundle_file_id),download_size:record.bundle_size,download_filename:'joba-icons.zip',mime:'application/zip'};
       }
-      const permission=({categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing','payment-transactions':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing','payment-transactions':'billing','refund-requests':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
       if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,id)=>this.notify(user,a,'case.updated',id)});if(result!==undefined)return result;}
       if(section==='banner-campaigns'){if(path==='/admin/banner-campaigns'&&method==='GET')return this.page('banner_campaign',a,q,{statuses:q.status?[String(q.status)]:undefined});const result=await bannerCampaigns(this.store,a,method,path,b,{object:id=>this.object(id,a,'banner_campaign'),record:data=>this.record('banner_campaign',a,data),audit:(action,id,reason)=>this.audit(a,action,id,reason)});if(result!==undefined)return result;}
@@ -1082,9 +1096,15 @@ export class Marketplace {
       if(path==='/admin/boost-grants/preview'&&method==='POST'){await this.staff(a,'promotion');return (await this.growth.previewAdminBoost(a.country,b)).preview;}
       if(path==='/admin/boost-grants'&&method==='POST'){await this.staff(a,'promotion');const reason=text(b,'reason',10,1000);const result=await this.growth.adminBoost(a.id,a.country,{...b,reason});await this.audit(a,'boost.admin_grant',result.id,reason);return result;}
       if(path==='/admin/boost-reports'&&method==='GET'){await this.staff(a,'promotion');return this.list(await this.store.all('boost',a.country),q);}
+      if(path==='/admin/refund-requests'&&method==='GET')return this.page('refund_request',a,q);
+      const adminRefund=path.match(/^\/admin\/refund-requests\/([^/]+)(?:\/(approve|reject|submit|reconcile))?$/);
+      if(adminRefund){const r=await this.object(adminRefund[1],a,'refund_request');
+        if(method==='GET'&&!adminRefund[2]){const payment=r.payment_id?await this.refunds.payment(r.payment_id,a.country):undefined;return {...r,balance:payment?await this.refunds.balance(payment,r.id):null};}
+        if(method==='POST'&&adminRefund[2]){this.version(r,b);const reason=text(b,'reason',10,1000),result=await this.refunds.command(r,a.id,adminRefund[2],reason);await this.audit(a,'refund.'+adminRefund[2],r.id,reason);return result;}
+      }
       if(path==='/admin/payment-transactions'&&method==='GET'){
         const result=await this.page('payment_transaction',a,q);
-        return {...result,items:result.items.map((x:any)=>({id:x.id,owner:x.owner,country:x.country,created_at:x.created_at,provider:x.provider,transaction_id:x.transaction_id,amount_minor:x.amount_minor,currency:x.currency,state:x.state,benefit:x.benefit??'subscription',source_id:x.source_id??x.boost_id??null,operation:x.operation??null,cash_amount_minor:x.cash_amount_minor??null,legacy:x.operation===undefined}))};
+        return {...result,items:result.items.map((x:any)=>({id:x.id,owner:x.owner,country:x.country,created_at:x.created_at,provider:x.provider,transaction_id:x.transaction_id,amount_minor:x.amount_minor,currency:x.currency,state:x.state,benefit:x.benefit??'subscription',source_id:x.source_id??x.boost_id??null,original_payment_id:x.original_payment_id??null,refund_request_id:x.refund_request_id??null,operation:x.operation??null,cash_amount_minor:x.cash_amount_minor??null,legacy:x.operation===undefined}))};
       }
       if(path==='/admin/monetization-summary'&&method==='GET') {
         const now=new Date().toISOString();

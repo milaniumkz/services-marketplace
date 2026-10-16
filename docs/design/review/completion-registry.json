@@ -559,22 +559,34 @@
         7,
         13
       ],
-      "review_status": "partial_integrity_verified_refunds_and_provider_pending",
+      "review_status": "partial_refund_lifecycle_verified_provider_client_visual_pending",
       "test_candidates": [
-        "services/api/test/commerce-legal.test.cjs"
+        "services/api/test/commerce-legal.test.cjs",
+        "services/api/test/refunds.test.cjs"
       ],
       "verified_api_operations": [
         "POST /billing/verify-purchase",
         "POST /billing/restore",
         "GET /admin/payment-transactions",
-        "POST /billing/refund-requests"
+        "POST /billing/refund-requests",
+        "GET /billing/refundable-payments",
+        "GET /billing/refund-requests",
+        "POST /billing/refund-requests/{id}/cancel",
+        "GET /admin/refund-requests",
+        "GET /admin/refund-requests/{id}",
+        "POST /admin/refund-requests/{id}/approve",
+        "POST /admin/refund-requests/{id}/reject",
+        "POST /admin/refund-requests/{id}/submit",
+        "POST /admin/refund-requests/{id}/reconcile"
       ],
       "verified_controls": [],
       "evidence": [
         "docs/financial-journal-update.md",
         "services/api/test/financial-journal.test.cjs",
         "services/api/test/trust-and-providers.test.cjs",
-        "scripts/verify-admin-browser.cjs"
+        "scripts/verify-admin-browser.cjs",
+        "docs/refunds-update.md",
+        "services/api/test/refunds.test.cjs"
       ]
     },
     {
@@ -43210,6 +43222,19 @@
       "route": "financial-journal",
       "source": "docs/financial-journal-update.md",
       "capture": "docs/design/review/admin/financial-journal.png",
+      "reference": null,
+      "visual_acceptance": "pending",
+      "control_inventory": "pending",
+      "blocks": [
+        6,
+        7,
+        16
+      ]
+    },
+    {
+      "route": "refunds",
+      "source": "docs/refunds-update.md",
+      "capture": "docs/design/review/admin/refund-confirmed.png",
       "reference": null,
       "visual_acceptance": "pending",
       "control_inventory": "pending",

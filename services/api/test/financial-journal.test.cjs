@@ -13,7 +13,7 @@ test('payment identity cannot cross owners, chains or products; immutable journa
   await a.store.put({id:randomUUID(),kind:'price_version',owner:'system',country:'KZ',version:1,created_at:new Date().toISOString(),status:'effective',payload:{provider:'isolated',product_id:'subscription',product_type:'subscription',amount_minor:12345,currency:'KZT'}});
   const verify=u=>call(a,u,'POST','/billing/verify-purchase',{provider:'isolated',transaction_reference:'verified-reference'});
   const first=await verify(member),original={...proof};await verify(member);assert.equal((await a.store.all('payment_transaction','KZ')).length,1);
-  for(const altered of [{user_id:other.user.id,original_transaction_id:'other-chain'},{original_transaction_id:'other-chain'},{product_id:'other-product'},{amount_minor:999}]){proof={...original,...altered,revision:2};await assert.rejects(()=>verify(altered.user_id?other:member),e=>e.getResponse().error.code==='TRANSACTION_ALREADY_USED');}
+  for(const altered of [{user_id:other.user.id,original_transaction_id:'other-chain'},{original_transaction_id:'other-chain'},{product_id:'other-product'},{amount_minor:999},{environment:'production'}]){proof={...original,...altered,revision:2};await assert.rejects(()=>verify(altered.user_id?other:member),e=>e.getResponse().error.code==='TRANSACTION_ALREADY_USED');}
   proof={...original,state:'grace',revision:2};await verify(member);
   proof={...original,transaction_id:'two',revision:3};await verify(member);
   proof={...proof,state:'revoked',revision:4};await verify(member);

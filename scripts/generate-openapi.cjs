@@ -53,6 +53,7 @@ for(const path of ['/order-invites/{id}','/cancel-requests/{id}','/amendments/{i
 for(const path of ['/uploads/{id}/crop','/ads/reward-sessions/{id}/outcome','/me/processing-consents'])add('POST',path);
 for(const path of ['/promoted-listings','/me/legal-holds','/admin/legal-holds','/admin/languages','/admin/revenue','/admin/blacklist/{id}','/admin/bulk/{id}'])add('GET',path,path.startsWith('/admin/')?'staff':'user');
 add('PATCH','/me/contractor-profile/public-location');
+add('GET','/billing/refundable-payments');add('GET','/billing/refund-requests');add('POST','/billing/refund-requests/{id}/cancel');add('GET','/admin/refund-requests','staff');add('GET','/admin/refund-requests/{id}','staff');for(const action of ['approve','reject','submit','reconcile'])add('POST','/admin/refund-requests/{id}/'+action,'staff','VersionedCommand');
 add('GET','/admin/payment-transactions','staff');
 add('GET','/admin/monetization-configs/{id}','staff');add('PATCH','/admin/monetization-configs/{id}','staff','VersionedCommand');
 add('GET','/admin/moderation-dictionaries/{id}','staff');add('PATCH','/admin/moderation-dictionaries/{id}','staff','VersionedCommand');
