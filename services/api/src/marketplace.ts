@@ -1,3 +1,4 @@
+import {bannerCampaigns} from './banner-campaigns';
 import {accountRestrictionJobs} from './account-restriction-jobs';
 import {normalizePushPayload,validatePushCampaign,pushPreview,queuePushCampaigns,cancelPushCampaign,claimCampaignMessage,testCampaign,refreshPushCampaign} from './push-campaigns';
 import {promotedListings,promotedPlacements} from './promoted-listings';
@@ -905,7 +906,8 @@ export class Marketplace {
       try{await this.files.write(file.id,cropped);return await this.store.put(file);}catch(e){await this.files.remove(file.id);throw e;}
     }
     if(path==='/uploads/initiate'&&method==='POST') {
-      if(!['avatar','portfolio','order','chat','identity','brand'].includes(b.purpose))fail(400,'VALIDATION_ERROR','Недопустимая цель загрузки');
+      if(!['avatar','portfolio','order','chat','identity','brand','banner'].includes(b.purpose))fail(400,'VALIDATION_ERROR','Недопустимая цель загрузки');
+      if(b.purpose==='banner'){await this.staff(a,'campaign');if(!['image/png','image/jpeg'].includes(b.mime)||b.size>5*1024*1024)fail(422,'POLICY_REJECTED','Нужен PNG или JPEG до 5 MB');}
       if(b.purpose==='brand'){await this.staff(a,'content');if(b.mime!=='image/png'||b.size>5*1024*1024)fail(422,'POLICY_REJECTED','Нужен PNG до 5 MB');}
       if(b.purpose==='identity'){const verification=await this.object(String(b.verification_id),a,'verification',true);if(!['draft','rejected'].includes(verification.status))fail(409,'STATE_CONFLICT','Заявка не принимает файлы');}
       const limit=(b.purpose==='chat'?settings.upload_chat_mb:settings.upload_image_mb)*1024*1024;
@@ -978,9 +980,10 @@ export class Marketplace {
         await this.audit(a,'brand.bundle_read',record.id,text(q,'reason',10,1000));
         return {download_stream:await this.files.readStream(record.bundle_file_id),download_size:record.bundle_size,download_filename:'joba-icons.zip',mime:'application/zip'};
       }
-      const permission=({'account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({'banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
       if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,id)=>this.notify(user,a,'case.updated',id)});if(result!==undefined)return result;}
+      if(section==='banner-campaigns'){if(path==='/admin/banner-campaigns'&&method==='GET')return this.page('banner_campaign',a,q,{statuses:q.status?[String(q.status)]:undefined});const result=await bannerCampaigns(this.store,a,method,path,b,{object:id=>this.object(id,a,'banner_campaign'),record:data=>this.record('banner_campaign',a,data),audit:(action,id,reason)=>this.audit(a,action,id,reason)});if(result!==undefined)return result;}
       const report=await adminReports(this.store,a.country,method,path,q);if(report!==undefined)return report;
       if(path==='/admin/bulk/preview'&&method==='POST'){
         if(!['pause_contractors','resume_contractors'].includes(b.action)||!Array.isArray(b.ids)||b.ids.length<1||b.ids.length>100||new Set(b.ids).size!==b.ids.length||b.ids.some((id:any)=>typeof id!=='string'||!/^[0-9a-f-]{36}$/i.test(id)))fail(400,'VALIDATION_ERROR','Выберите от 1 до 100 уникальных профилей и действие');
@@ -1504,6 +1507,7 @@ export class Marketplace {
   }
   private async authorizeFile(u:RecordData,a:Actor,q:any) {
     if(u.status!=='clean'||u.purpose==='export'&&u.expires_at<=new Date().toISOString())fail(404,'NOT_FOUND','Файл недоступен');
+    if(u.purpose==='banner'){await this.staff(a,'campaign');return;}
     if(u.purpose==='brand'){if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.some((p:string)=>['content','brand_owner','release','administrator'].includes(p)))fail(403,'FORBIDDEN','Нужны служебные права брендинга и MFA');return;}
     if(u.purpose==='identity') {
       await this.staff(a,'identity_view');if(!q.reason||String(q.reason).length<10)fail(400,'VALIDATION_ERROR','Требуется служебная причина просмотра');await this.audit(a,'identity.sensitive_read',u.id,String(q.reason));
@@ -1587,7 +1591,7 @@ export class Marketplace {
         else if(upload.mime==='application/pdf'){
           if(!this.providers.pdfSanitizer)throw Error('PDF_SANITIZER_UNAVAILABLE');
           try{clean=await this.providers.pdfSanitizer.sanitize(raw);}catch{throw Error('PDF_POLICY_REJECTED');}
-        }else{try{const image=sharp(raw,{limitInputPixels:25000000}),metadata=await image.metadata();if(metadata.format!==(upload.mime==='image/png'?'png':'jpeg'))throw Error('Unexpected image format');if(upload.purpose==='brand'){if(!metadata.width||!metadata.height||metadata.width<1024||metadata.height<1024||metadata.width>4096||metadata.height>4096)throw Error('IMAGE_POLICY_REJECTED');clean=await image.rotate().png().toBuffer();}else clean=await image.rotate().jpeg().toBuffer();}catch{throw Error('IMAGE_POLICY_REJECTED');}}
+        }else{try{const image=sharp(raw,{limitInputPixels:25000000}),metadata=await image.metadata();if(metadata.format!==(upload.mime==='image/png'?'png':'jpeg'))throw Error('Unexpected image format');const bannerWidth=[5,6,7,8].includes(metadata.orientation??0)?metadata.height:metadata.width,bannerHeight=[5,6,7,8].includes(metadata.orientation??0)?metadata.width:metadata.height;if(upload.purpose==='banner'&&(!bannerWidth||!bannerHeight||bannerWidth<320||bannerHeight<50||bannerWidth>4096||bannerHeight>4096))throw Error('IMAGE_POLICY_REJECTED');if(upload.purpose==='brand'){if(!metadata.width||!metadata.height||metadata.width<1024||metadata.height<1024||metadata.width>4096||metadata.height>4096)throw Error('IMAGE_POLICY_REJECTED');clean=await image.rotate().png().toBuffer();}else clean=await image.rotate().jpeg().toBuffer();}catch{throw Error('IMAGE_POLICY_REJECTED');}}
         if(clean){await this.files.write(id,clean);if(upload.mime!=='application/pdf'){const preview=upload.purpose==='brand'?await sharp(clean).resize({width:960,withoutEnlargement:true}).png().toBuffer():await sharp(clean).resize({width:960,withoutEnlargement:true}).jpeg({quality:80}).toBuffer();previewId=randomUUID();await this.files.write(previewId,preview);}}
       }catch(error:any){failure=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','PDF_POLICY_REJECTED','IMAGE_POLICY_REJECTED'].includes(error.message)?error.message:'FILE_PROCESSING_UNAVAILABLE';state=['SCANNER_UNAVAILABLE','PDF_SANITIZER_UNAVAILABLE','FILE_PROCESSING_UNAVAILABLE'].includes(failure!)?'processing':'rejected';}
       return this.exclusive(async()=>{

@@ -1,5 +1,5 @@
 {
-  "generated_on": "2026-10-15",
+  "generated_on": "2026-10-16",
   "scenario": "Isolated fixtures; native and browser clients use real API contracts.",
   "acceptance_rule": "A capture, route or pixel metric does not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
@@ -3631,12 +3631,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.168899,
+      "different_pixels_ratio": 0.074167,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Separate banner form and creative/review API implemented; shared shell, real empty states and additional controls still require acceptance. Metric is diagnostic only.",
       "surface": "admin"
     },
     {
@@ -3681,12 +3681,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.05741,
+      "different_pixels_ratio": 0.075683,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Separate banner form and creative/review API implemented; shared shell, real empty states and additional controls still require acceptance. Metric is diagnostic only.",
       "surface": "admin"
     },
     {

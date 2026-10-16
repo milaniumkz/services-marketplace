@@ -230,6 +230,40 @@ async function main(){
   const rollbackPromoId=new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('id');
   assert.equal((await marketplace.store.get(rollbackPromoId)).rollback_of,promoId);assert.equal((await marketplace.store.get(rollbackPromoId)).status,'draft');assert.equal((await marketplace.store.get(promoId)).status,'effective');
 
+  await page.goto(frontend+'/#campaigns');await page.locator('#banner-filter').waitFor();
+  assert.equal(await page.locator('#promo-editor').count(),0);
+  await page.getByRole('link',{name:'Новая кампания',exact:true}).click();await page.locator('#banner-editor').waitFor();
+  await page.getByLabel('Название',{exact:true}).fill('Баннер браузерной проверки');
+  await page.getByLabel('Заголовок',{exact:true}).fill('Настоящий креатив');
+  await page.getByLabel('Подпись',{exact:true}).fill('Проверка загрузки и согласования');
+  await page.getByLabel('Начало — местное время',{exact:true}).fill('2027-01-01T09:00');
+  await page.getByLabel('Окончание — местное время',{exact:true}).fill('2027-01-10T18:00');
+  await page.getByLabel('Бюджет · ₸',{exact:true}).fill('1234,56');await page.locator('.banner-options summary').click();
+  await page.getByLabel('Причина изменения',{exact:true}).fill('Создание изолированной баннерной кампании');
+  const bannerBytes=await sharp({create:{width:640,height:160,channels:3,background:'#245BDB'}}).png().toBuffer();
+  await page.locator('#banner-file').setInputFiles({name:'isolated-banner.png',mimeType:'image/png',buffer:bannerBytes});
+  await page.getByRole('button',{name:'Сохранить черновик',exact:true}).click();await page.locator('#banner-image-error').filter({hasText:'Сначала загрузите выбранный креатив.'}).waitFor();assert.equal(new URLSearchParams(new URL(page.url()).hash.split('?')[1]).has('id'),false);
+  await page.locator('#banner-upload').click();
+  await page.waitForFunction(()=>document.querySelector('#banner-image')?.naturalWidth===640);
+  await page.getByRole('button',{name:'Сохранить черновик',exact:true}).click();
+  await page.waitForFunction(()=>new URLSearchParams(location.hash.split('?')[1]).has('id'));await page.locator('#banner-command').waitFor();
+  const bannerId=new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('id');let bannerRecord=await marketplace.store.get(bannerId);
+  assert.equal(bannerRecord.payload.budget_minor,123456);assert.equal((await marketplace.store.get(bannerRecord.payload.creative_id)).purpose,'banner');
+  await page.getByLabel('Основание действия',{exact:true}).fill('Проверка сохранённого креатива');
+  await page.getByRole('button',{name:'Проверить',exact:true}).click();await page.locator('#banner-command [role=status]').filter({hasText:'Сохранённая версия проверена.'}).waitFor();
+  await page.getByRole('button',{name:'Отправить на проверку',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('#banner-command button[value=approve]')?.disabled===true);
+  bannerRecord=await marketplace.store.get(bannerId);assert.equal(bannerRecord.status,'pending_review');
+  const bannerApprover=await marketplace.store.get(approvalSession.user.id);await marketplace.store.put({...bannerApprover,staff_permissions:[...bannerApprover.staff_permissions,'campaign']});
+  await marketplace.handle('POST','/admin/banner-campaigns/'+bannerId+'/approve',{expected_version:bannerRecord.version,reason:'Независимая проверка баннерной кампании'},'Bearer '+approvalSession.access_token,randomUUID());
+  await page.locator('#refresh-data').click();await page.locator('#banner-command button[value=publish]').waitFor();
+  await page.getByLabel('Основание действия',{exact:true}).fill('Проверка отсутствующего провайдера');await page.getByRole('button',{name:'Включить показы',exact:true}).click();
+  await page.locator('#banner-command [role=alert]').filter({hasText:'Рекламный провайдер ещё не подключён'}).waitFor();assert.equal((await marketplace.store.get(bannerId)).status,'approved');
+  await page.getByRole('button',{name:'Остановить',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('#banner-command'));assert.equal((await marketplace.store.get(bannerId)).status,'stopped');
+  await page.goto(frontend+'/#campaigns');await page.locator('#banner-filter').waitFor();await page.getByLabel('Поиск кампаний',{exact:true}).fill('Баннер браузерной проверки');await page.getByLabel('Состояние кампании',{exact:true}).selectOption('stopped');await page.getByRole('button',{name:'Применить',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('[aria-busy=true]')&&document.querySelectorAll('tbody a[href^="#banner-detail"]').length===1);
+
   await page.goto(frontend+'/#contractors');
   await page.getByRole('link',{name:'Открыть →',exact:true}).click();
   await page.getByLabel('Причина просмотра фотографий').fill('Проверка фотографии текущей версии профиля');
@@ -292,7 +326,8 @@ async function main(){
   await page.getByText(caseOrder.title,{exact:true}).waitFor();
   await page.getByLabel('Состояние заказа').selectOption('completed');
   await page.getByRole('button',{name:'Найти',exact:true}).click();
-  await page.waitForFunction(()=>!document.querySelector('[aria-busy=true]'));
+  await page.waitForURL(url=>url.hash.includes('status=completed'));
+  await page.getByText(caseOrder.title,{exact:true}).waitFor({state:'hidden'});
   assert.equal(await page.getByText(caseOrder.title,{exact:true}).count(),0);
   await page.getByRole('button',{name:'Сбросить',exact:true}).click();
   await page.getByText(caseOrder.title,{exact:true}).waitFor();
@@ -449,4 +484,4 @@ async function main(){
   console.log('Admin browser: account selection, scoped user orders/status filters/cases/decision timeline/masked security, job details and scheduled queue, logout clears private views, real MFA login, live dashboard, UTC period selection, report export, masked security events, audited job retry, identity, draft save, validation, lost-response retries without duplicate drafts or support messages, real photo download, profile approval and draft rejection, independent approval rejection, verification decision, audited phone disclosure, runtime settings, legal drafts, live availability and public support persistence, live branding upload/crop/preview/independent approval/iconset download, frozen case evidence and actual content hiding passed.');
  }catch(error){if(page){await page.screenshot({path:'/tmp/joba-admin-browser-failure.png',fullPage:true});console.error('Page diagnostics:',await page.locator('[role=alert], .note.danger').allTextContents());}throw error;}finally{await browser?.close();await vite?.close();await webVite?.close();await app.close();await marketplace.store.close();await rm(files,{recursive:true,force:true});}
 }
-main().catch(error=>{console.error(error.message);process.exitCode=1;});
+main().catch(error=>{console.error(error.stack||error.message);process.exitCode=1;});
