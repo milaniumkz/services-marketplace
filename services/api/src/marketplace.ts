@@ -1,3 +1,4 @@
+import {processDeletionCategories} from './deletion-worker';
 import {holdSnapshot} from './legal-holds';
 import {deletionPlan,anonymizeProfile,validateRetentionCategories} from './deletion-plan';
 import {Refunds} from './refunds';
@@ -1794,6 +1795,7 @@ export class Marketplace {
           await this.store.db.query("UPDATE records SET version=version+1,data=data||jsonb_build_object('status','canceled','failure_code','ACCOUNT_DELETED','lease_expires_at',NULL,'version',version+1) WHERE kind='privacy' AND country=$1 AND owner=$2 AND data->>'type'='export' AND data->>'status' IN ('requested','processing','failed')",[r.country,r.owner]);
           await this.store.put({...r,status:'limited_retention',reason:plan.missing_policy_categories.length?'Для части сохранённых данных нужны опубликованные сроки. Полное удаление ещё не завершено.':'Часть данных сохранена по категориям и основаниям. Полное удаление ещё не завершено.',policy_id:policy.id,retention_plan:plan,retention_review_at:undefined,completed_at:now.toISOString(),version:r.version+2});
         }
+        for(const job of await this.store.all('privacy'))if(job.type==='delete'&&job.status==='limited_retention')await processDeletionCategories(this.store,job,(await this.store.all('retention_policy',job.country)).find(p=>p.status==='effective'),now);
         pushRecipients=await queuePushCampaigns(this.store,now);
         purgeFiles=await planFileRetention(this.store,now,async verification=>{await this.notify(verification.owner,{id:verification.owner,country:verification.country},'verification.expired',verification.id);});
         await this.store.db.query("DELETE FROM rate_limits WHERE window_start<CURRENT_TIMESTAMP-INTERVAL '1 day'");

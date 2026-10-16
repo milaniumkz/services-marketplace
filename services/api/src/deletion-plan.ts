@@ -18,7 +18,7 @@ const groups=[
 ];
 /** Classification only: deadlines anchored to another event are never guessed from deletion time. */
 export async function deletionPlan(store:Store,owner:string,country:string,policy:RecordData|undefined,now:Date,phase='preview'){
- const rows=await store.db.query<{kind:string,count:string}>("SELECT kind,count(*)::text AS count FROM records WHERE country=$1 AND (owner=$2 OR data->>'subject_user_id'=$2 OR data->>'executor_id'=$2 OR kind='audit' AND data->>'target_id'=$2 OR COALESCE(data->'members','[]'::jsonb) ? $2) GROUP BY kind",[country,owner]);
+ const rows=await store.db.query<{kind:string,count:string}>("SELECT kind,count(*)::text AS count FROM records WHERE country=$1 AND (owner=$2 OR data->>'subject_user_id'=$2 OR data->>'executor_id'=$2 OR kind='outbox' AND data->>'recipient_id'=$2 OR kind='audit' AND data->>'target_id'=$2 OR COALESCE(data->'members','[]'::jsonb) ? $2) GROUP BY kind",[country,owner]);
  const known=new Set(groups.flatMap(x=>x.kinds));
  const categories=groups.map(g=>{const days=g.policy?policy?.payload?.[g.policy]:undefined;return {category:g.id,label:g.label,count:rows.rows.filter(x=>g.kinds.includes(x.kind)).reduce((sum,x)=>sum+Number(x.count),0),action:g.action,anchor:g.anchor,retention_days:days??null,policy_required:Boolean(g.policy),policy_ready:!g.policy||Number.isSafeInteger(days)&&days>0,execution_state:['anonymize_now','revoke_now'].includes(g.action)?(phase==='account_removed'?'immediate_done':'planned_immediate_step'):'pending_category_worker'};});
  const unknown=rows.rows.filter(x=>!known.has(x.kind));

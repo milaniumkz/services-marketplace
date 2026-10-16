@@ -68,7 +68,7 @@ export async function scenarioWorkspace({key,api,esc,card,tablecard,note,namedFi
  }
  if(['verification-review','id-auth','deletion'].includes(key)){
   const type=key==='deletion'?'privacy-requests':'verifications',s=await selection('/admin/'+type,'Заявка');
-  return result(key==='deletion'?'Запрос удаления':'Проверка документов',s.picker+(s.record?card('Состояние заявки',output({id:s.record.id,status:s.record.status,version:s.record.version,created_at:s.record.created_at})+`<a class="btn primary" href="#record-live/${key==='deletion'?'privacy':'verification'}/${esc(s.record.id)}">${key==='deletion'?'Открыть запрос':'Открыть проверку и разрешение просмотра'}</a>`):''),()=>s.bind());
+  return result(key==='deletion'?'Запрос удаления':'Проверка документов',s.picker+(s.record?card('Состояние заявки',output({id:s.record.id,status:s.record.status,version:s.record.version,created_at:s.record.created_at,...(key==='deletion'?{category_progress:s.record.category_progress??{},fully_erased:false}:{} )})+`<a class="btn primary" href="#record-live/${key==='deletion'?'privacy':'verification'}/${esc(s.record.id)}">${key==='deletion'?'Открыть запрос':'Открыть проверку и разрешение просмотра'}</a>`):''),()=>s.bind());
  }
  if(key==='archive'){
   const [push,promo]=await Promise.all([api('/admin/push-campaigns?status=completed'),api('/admin/promotions?status=expired')]);
