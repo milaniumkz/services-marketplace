@@ -1,3 +1,4 @@
+import {eligibleWorkFiles} from './work-file-retention';
 import {heldFileIds} from './legal-holds';
 import {Store,RecordData} from './store';
 /** Runs inside the maintenance transaction; bytes are removed only after commit. */
@@ -16,6 +17,8 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
   if(target.kind==='upload')protectedFiles.add(hold.country+':'+target.id);
   for(const field of hold.fields)for(const id of Array.isArray(target[field])?target[field]:typeof target[field]==='string'?[target[field]]:[])protectedFiles.add(hold.country+':'+id);
  }
+ const workFiles=await eligibleWorkFiles(store,now);
+ let workQueued=0;
  const removals:string[]=[];
  for(const file of await store.all('upload')){
   if(file.status==='purge_pending'){removals.push(file.id);continue;}
@@ -24,6 +27,8 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
   let reason:string|undefined;
   if(deleted.has(file.country+':'+file.owner)&&['avatar','portfolio','export'].includes(file.purpose))reason='account_deleted_personal_media';
   if(['initiated','uploaded','rejected','infected','failed'].includes(file.status)&&Date.parse(file.created_at)+86400000<=now.getTime())reason='abandoned_upload_24h';
+  const work=workFiles.get(file.country+':'+file.id);
+  if(workQueued<50&&work&&work.owner===file.owner&&deleted.has(file.country+':'+file.owner)&&['order','chat'].includes(file.purpose)){reason='closed_work_unreferenced';workQueued++;}
   if(file.purpose==='export'&&file.expires_at<=now.toISOString())reason='export_link_expired';
   if(file.purpose==='identity'){
    const verification=verifications.find(v=>v.id===file.verification_id&&v.country===file.country);

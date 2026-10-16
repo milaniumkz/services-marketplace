@@ -1,3 +1,4 @@
+import {refreshWorkFileProgress} from './work-file-retention';
 import {processDeletionCategories} from './deletion-worker';
 import {holdSnapshot} from './legal-holds';
 import {deletionPlan,anonymizeProfile,validateRetentionCategories} from './deletion-plan';
@@ -1805,6 +1806,7 @@ export class Marketplace {
     const promise=this.queue.then(run,run);this.queue=promise.catch(()=>{});await promise;
     for(const id of pushRecipients)this.events.emit(id);
     for(const id of purgeFiles){try{const pending=await this.exclusive(()=>this.store.get(id));if(pending?.status!=='purge_pending')continue;await this.files.remove(id);if(pending.preview_file_id)await this.files.remove(pending.preview_file_id);await this.exclusive(async()=>{const file=await this.store.get(id);if(file?.status==='purge_pending')await this.store.put(purgedUpload(file,now));});}catch{/* The pending marker is retried on the next maintenance run. */}}
+    await this.exclusive(async()=>{await this.store.db.exec('BEGIN');try{await refreshWorkFileProgress(this.store,now);await this.store.db.exec('COMMIT');}catch(error){await this.store.db.exec('ROLLBACK');throw error;}});
     for(const job of exportJobs)await this.processExport(job,now);
   }
 }
