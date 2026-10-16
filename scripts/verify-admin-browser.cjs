@@ -37,12 +37,17 @@ async function main(){
   browser=await chromium.launch({executablePath:process.env.JOBA_CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
   page=await browser.newPage({viewport:{width:1440,height:1000}});
   // Redirect transport to an isolated real HTTP API; response data are never mocked.
-  let lostDraftResponse=false,lostReplyResponse=false;
+  let lostDraftResponse=false,lostReplyResponse=false,lostBannerResponse=false,bannerCreateRequests=0,releaseBannerResponse;
+  const bannerResponseGate=new Promise(resolve=>{releaseBannerResponse=resolve;});
+  let holdBannerPreview=false,releaseOldPreview,notifyOldPreviewHeld;
+  const oldPreviewGate=new Promise(resolve=>{releaseOldPreview=resolve;}),oldPreviewHeld=new Promise(resolve=>{notifyOldPreviewHeld=resolve;});
   await page.route('**/api/v1/**',async route=>{
    const request=route.request(),url=new URL(request.url());
    const response=await fetch(origin+url.pathname+url.search,{method:request.method(),headers:request.headers(),body:['GET','HEAD'].includes(request.method())?undefined:request.postDataBuffer()});
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/monetization-configs'&&response.ok&&!lostDraftResponse){lostDraftResponse=true;await response.text();await route.abort('failed');return;}
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/support-threads/'+supportThread.id+'/messages'&&response.ok&&!lostReplyResponse){lostReplyResponse=true;await response.text();await route.abort('failed');return;}
+   if(request.method()==='POST'&&url.pathname==='/api/v1/admin/banner-campaigns'){bannerCreateRequests++;if(response.ok&&!lostBannerResponse){lostBannerResponse=true;await response.text();await bannerResponseGate;await route.abort('failed');return;}}
+   if(holdBannerPreview&&request.method()==='GET'&&url.pathname.startsWith('/api/v1/uploads/')&&url.searchParams.get('variant')==='preview'&&response.ok){holdBannerPreview=false;notifyOldPreviewHeld();await oldPreviewGate;}
    await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')||'application/json'},body:Buffer.from(await response.arrayBuffer())});
   });
   let frontend=process.env.JOBA_ADMIN_TEST_URL;
@@ -297,9 +302,17 @@ async function main(){
   await page.getByRole('button',{name:'Сохранить черновик',exact:true}).click();await page.locator('#banner-image-error').filter({hasText:'Сначала загрузите выбранный креатив.'}).waitFor();assert.equal(new URLSearchParams(new URL(page.url()).hash.split('?')[1]).has('id'),false);
   await page.locator('#banner-upload').click();
   await page.waitForFunction(()=>document.querySelector('#banner-image')?.naturalWidth===640);
+  holdBannerPreview=true;await page.locator('#banner-preview-retry').click();await oldPreviewHeld;
+  const replacementBannerBytes=await sharp({create:{width:800,height:200,channels:3,background:'#149564'}}).png().toBuffer();await page.locator('#banner-file').setInputFiles({name:'replacement-banner.png',mimeType:'image/png',buffer:replacementBannerBytes});await page.locator('#banner-upload').click();await page.waitForFunction(()=>document.querySelector('#banner-image')?.naturalWidth===800);releaseOldPreview();await page.waitForLoadState('networkidle');assert.equal(await page.locator('#banner-image').evaluate(img=>img.naturalWidth),800);await page.locator('#banner-creative-status').filter({hasText:'Загружен'}).waitFor();
+
+  await page.getByRole('button',{name:'Сохранить черновик',exact:true}).click();
+  await page.locator('#banner-editor[aria-busy=true]').waitFor();assert.equal(await page.getByLabel('Название',{exact:true}).isDisabled(),true);assert.equal(await page.locator('#banner-upload').isDisabled(),true);assert.equal(await page.locator('#banner-file').isDisabled(),true);
+  await page.evaluate(()=>document.getElementById('banner-editor').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));releaseBannerResponse();
+  await page.locator('#banner-editor [role=alert]').filter({hasText:'Нет соединения с сервером'}).waitFor();assert.equal(await page.getByLabel('Название',{exact:true}).inputValue(),'Баннер браузерной проверки');assert.equal(await page.getByLabel('Бюджет · ₸',{exact:true}).inputValue(),'1234,56');assert.equal(await page.locator('#banner-upload').isDisabled(),false);assert.equal((await marketplace.store.all('banner_campaign','KZ')).filter(x=>x.title==='Баннер браузерной проверки').length,1);
   await page.getByRole('button',{name:'Сохранить черновик',exact:true}).click();
   await page.waitForFunction(()=>new URLSearchParams(location.hash.split('?')[1]).has('id'));await page.locator('#banner-command').waitFor();
   const bannerId=new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('id');let bannerRecord=await marketplace.store.get(bannerId);
+  assert.equal(bannerCreateRequests,2);assert.equal((await marketplace.store.all('banner_campaign','KZ')).filter(x=>x.title==='Баннер браузерной проверки').length,1);
   assert.equal(bannerRecord.payload.budget_minor,123456);assert.equal((await marketplace.store.get(bannerRecord.payload.creative_id)).purpose,'banner');
   await page.getByLabel('Основание действия',{exact:true}).fill('Проверка сохранённого креатива');
   await page.getByRole('button',{name:'Проверить',exact:true}).click();await page.locator('#banner-command [role=status]').filter({hasText:'Сохранённая версия проверена.'}).waitFor();

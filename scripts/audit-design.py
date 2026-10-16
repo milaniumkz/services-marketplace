@@ -18,12 +18,15 @@ class Controls(HTMLParser):
         attrs = dict(attrs)
         for item in self.stack:
             item['depth'] += 1
-        if tag in ('button', 'a', 'input', 'select', 'textarea'):
+        render_kinds = set(attrs.get('class', '').split()) & {'render-button', 'render-input', 'render-select', 'render-checkbox'}
+        if tag in ('button', 'a', 'input', 'select', 'textarea') or render_kinds or attrs.get('role') in ('button', 'checkbox', 'textbox', 'combobox'):
             item = {'tag': tag, 'attributes': {
                 key: value for key, value in attrs.items()
                 if key in ('type', 'name', 'id', 'href', 'data-action',
-                           'placeholder', 'required', 'disabled', 'aria-label')
+                           'placeholder', 'required', 'disabled', 'aria-label', 'role', 'tabindex')
             }, 'label': '', 'depth': 0}
+            if render_kinds:
+                item['prototype_control_type'] = sorted(render_kinds)[0].removeprefix('render-')
             self.controls.append(item)
             if tag != 'input':
                 self.stack.append(item)
@@ -43,46 +46,50 @@ class Controls(HTMLParser):
                 item['label'] += ' ' + data.strip()
 
 
-mobile = (ROOT / 'apps/mobile/lib/screens/marketplace.dart').read_text()
-routes = set(re.findall(r"case '([^']+)':", mobile))
-aliases = {'executor-home': 'home'}
-catalogue = []
-for package in ('JOBA_Mobile_Prototype', 'JOBA_Admin_Web_Prototype'):
-    with zipfile.ZipFile(ROOT / 'docs/design/packages' / (package + '.zip')) as archive:
-        manifest_name = next(name for name in archive.namelist()
-                             if name.endswith('/screen_manifest.json'))
-        prefix = manifest_name.removesuffix('screen_manifest.json')
-        manifest = json.loads(archive.read(manifest_name))
-        roots = {item['route_key']: item['id'] for item in manifest['roots']}
-        for frame in manifest['frames']:
-            parser = Controls()
-            parser.feed(archive.read(prefix + frame['html']).decode())
-            controls = []
-            for control in parser.controls:
-                control.pop('depth')
-                control['label'] = ' '.join(control['label'].split())
-                controls.append(control)
-            key = frame['route_key']
-            route = aliases.get(key, key) if frame['surface'] == 'mobile' else None
-            catalogue.append({
-                'id': frame['id'], 'surface': frame['surface'],
-                'title': frame['title'], 'design_route': key,
-                'root': key in roots,
-                'reference_html': frame['html'], 'reference_png': frame['png'],
-                'viewport': frame['viewport'],
-                'native_route': route if route in routes else None,
-                'controls': controls,
-                'visual_acceptance': 'pending',
-                'functional_acceptance': 'pending',
-            })
-result = {
-    'source': 'Original repository design ZIP packages',
-    'scope': '42 mobile + 22 admin + 5 public roots, including packaged states',
-    'rule': 'Route detection is inventory only; it does not prove appearance or functionality.',
-    'frames': catalogue,
-}
-target = ROOT / 'docs/design/screen-audit.json'
-target.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
-print(f'Inventoried {len(catalogue)} frames, '
-      f'{sum(len(frame["controls"]) for frame in catalogue)} controls. '
-      'All acceptance results remain pending until verified.')
+def main():
+    mobile = (ROOT / 'apps/mobile/lib/screens/marketplace.dart').read_text()
+    routes = set(re.findall(r"case '([^']+)':", mobile))
+    aliases = {'executor-home': 'home'}
+    catalogue = []
+    for package in ('JOBA_Mobile_Prototype', 'JOBA_Admin_Web_Prototype'):
+        with zipfile.ZipFile(ROOT / 'docs/design/packages' / (package + '.zip')) as archive:
+            manifest_name = next(name for name in archive.namelist()
+                                 if name.endswith('/screen_manifest.json'))
+            prefix = manifest_name.removesuffix('screen_manifest.json')
+            manifest = json.loads(archive.read(manifest_name))
+            roots = {item['route_key']: item['id'] for item in manifest['roots']}
+            for frame in manifest['frames']:
+                parser = Controls()
+                parser.feed(archive.read(prefix + frame['html']).decode())
+                controls = []
+                for control in parser.controls:
+                    control.pop('depth')
+                    control['label'] = ' '.join(control['label'].split())
+                    controls.append(control)
+                key = frame['route_key']
+                route = aliases.get(key, key) if frame['surface'] == 'mobile' else None
+                catalogue.append({
+                    'id': frame['id'], 'surface': frame['surface'],
+                    'title': frame['title'], 'design_route': key,
+                    'root': key in roots,
+                    'reference_html': frame['html'], 'reference_png': frame['png'],
+                    'viewport': frame['viewport'],
+                    'native_route': route if route in routes else None,
+                    'controls': controls,
+                    'visual_acceptance': 'pending',
+                    'functional_acceptance': 'pending',
+                })
+    result = {
+        'source': 'Original repository design ZIP packages',
+        'scope': '42 mobile + 22 admin + 5 public roots, including packaged states',
+        'rule': 'Route detection is inventory only; it does not prove appearance or functionality.',
+        'frames': catalogue,
+    }
+    target = ROOT / 'docs/design/screen-audit.json'
+    target.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
+    print(f'Inventoried {len(catalogue)} frames, '
+          f'{sum(len(frame["controls"]) for frame in catalogue)} controls. '
+          'All acceptance results remain pending until verified.')
+
+if __name__ == '__main__':
+    main()
