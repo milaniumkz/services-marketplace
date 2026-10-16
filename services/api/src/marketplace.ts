@@ -887,7 +887,7 @@ export class Marketplace {
         if(c.subject_user_id!==a.id||!['resolved','restricted'].includes(c.status)||c.status==='resolved'&&!['content_removed','sanction_upheld'].includes(c.decision))fail(409,'STATE_CONFLICT','Апелляция недоступна');
         this.version(c,b);const result=await this.store.put({...c,status:'appealed',appeal_reason:text(b,'reason',10,3000),appeal_upload_ids:b.upload_ids===undefined?[]:await this.safeUploads(a,b.upload_ids,'chat'),appeal_submitted_at:new Date().toISOString(),version:c.version+1});return result;
       }
-      return this.store.put(this.record('case_message',a,{case_id:c.id,text:text(b,'text',1,3000),upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[]}));
+      return this.store.put(this.record('case_message',a,{case_id:c.id,author_type:'participant',text:text(b,'text',1,3000),upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[]}));
     }
     if(path==='/billing/offers'&&method==='GET')return a.user.active_role==='executor'?this.commerce.offers(a.country):{items:[]};
     if(['/billing/verify-purchase','/billing/restore'].includes(path)&&method==='POST'){if(path==='/billing/verify-purchase'&&a.user.active_role!=='executor')fail(403,'EXECUTOR_ROLE_REQUIRED','Подписка доступна только исполнителю');return this.commerce.verify(a.id,a.country,String(b.provider),text(b,'transaction_reference',1,10000));}
@@ -1424,7 +1424,7 @@ export class Marketplace {
         }
         if(staffCase[2]){
           if(method==='GET')return this.list((await this.store.all('case_message',a.country)).filter(m=>m.case_id===c.id),q);
-          const reason=text(b,'reason',10,1000);const m=await this.store.put(this.record('case_message',a,{case_id:c.id,text:text(b,'text',1,3000),internal:false,upload_ids:[]}));
+          const reason=text(b,'reason',10,1000);const m=await this.store.put(this.record('case_message',a,{case_id:c.id,author_type:'staff',text:text(b,'text',1,3000),internal:false,upload_ids:[]}));
           await this.audit(a,'case.message_created',c.id,reason);await this.notify(c.owner,a,'case.message.created',c.id);return m;
         }
       }

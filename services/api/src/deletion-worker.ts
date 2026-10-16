@@ -1,3 +1,4 @@
+import {minimizeCaseText} from './case-text-retention';
 import {minimizeClosedSupport} from './support-retention';
 import {minimizeClosedWork} from './work-retention';
 import {Store,RecordData} from './store';
@@ -23,6 +24,7 @@ export async function processDeletionCategories(store:Store,job:RecordData,polic
   progress[rule.category]={state:Number(remaining.rows[0].count)?'waiting_retention_or_protection':'minimized',processed:(progress[rule.category]?.processed??0)+processed,remaining:Number(remaining.rows[0].count),policy_id:policy!.id,policy_version:policy!.version,last_run_at:now.toISOString()};
  }
  progress.support=await minimizeClosedSupport(store,job,policy,now);
+ progress.case_text=await minimizeCaseText(store,job,policy,now);
  progress.work=await minimizeClosedWork(store,job,policy,now);
  await store.put({...job,...(job.retention_plan?{retention_plan:{...job.retention_plan,categories:job.retention_plan.categories.map((c:any)=>progress[c.category]?{...c,execution_state:progress[c.category].state}:c)}}:{}),category_progress:progress,last_retention_run_at:now.toISOString(),fully_erased:false,version:job.version+1});
 }

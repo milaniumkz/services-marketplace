@@ -9,7 +9,7 @@ export async function eligibleWorkFiles(store:Store,now=new Date()){
  const rows=await store.db.query<{data:RecordData,policy:RecordData}>("SELECT r.data,p.data AS policy FROM records r JOIN records p ON p.id::text=r.data->>'retention_policy_id' AND p.country=r.country AND p.kind='retention_policy' AND p.data->>'status' IN ('effective','superseded') WHERE COALESCE(r.data->>'retention_minimized_at',r.data->>'evidence_minimized_at') IS NOT NULL AND jsonb_typeof(r.data->'retention_file_ids')='array'");
  const candidates=new Map<string,{owners:string[],country:string,source_id:string,policy_id:string}>();
  for(const {data:r,policy:p} of rows.rows){
-  const field=['case','support','support_message','support_note'].includes(r.kind)?'audit_days':'chat_days',stamp=r.retention_minimized_at??r.evidence_minimized_at;
+  const field=['case','case_message','case_decision','support','support_message','support_note'].includes(r.kind)?'audit_days':'chat_days',stamp=r.retention_minimized_at??r.evidence_minimized_at;
   if(!Number.isSafeInteger(p.payload?.[field])||p.payload[field]<1||!Number.isFinite(Date.parse(stamp))||Date.parse(stamp)>now.getTime())continue;
   const owners=r.kind==='case'?[...(r.reporter_evidence_minimized_at?[r.owner]:[]),...(r.subject_evidence_minimized_at?[r.subject_user_id]:[])]:[r.owner];
   for(const id of r.retention_file_ids)if(typeof id==='string'){const key=r.country+':'+id,previous=candidates.get(key);candidates.set(key,{owners:[...new Set([...(previous?.owners??[]),...owners])],country:r.country,source_id:r.id,policy_id:r.retention_policy_id});}

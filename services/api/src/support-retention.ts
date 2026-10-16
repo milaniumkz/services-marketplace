@@ -30,5 +30,5 @@ export async function minimizeClosedSupport(store:Store,job:RecordData,policy:Re
   if(reporter){patch.reporter_evidence_minimized_at=now.toISOString();for(const field of ['upload_ids','appeal_upload_ids'])for(const id of c[field]??[])files.add(id);Object.assign(patch,{description:undefined,appeal_reason:undefined,upload_ids:[],appeal_upload_ids:[]});}
   await store.put({...c,...patch,evidence_minimized_at:now.toISOString(),evidence_scope:subject&&reporter?'subject_and_reporter':subject?'subject':'reporter',...(files.size?{retention_file_ids:[...files]}:{}),retention_policy_id:policy!.id,retention_policy_version:policy!.version,version:c.version+1},{skipContentCheck:true});processed++;
  }
- return {state:'partial_minimization',processed:previous+processed,last_run_at:now.toISOString(),policy_id:policy!.id,policy_version:policy!.version,pending_case_messages_and_decisions:true};
+ return {state:'partial_minimization',processed:previous+processed,last_run_at:now.toISOString(),policy_id:policy!.id,policy_version:policy!.version,case_text_stage:'separate',pending_moderation_and_other_support_records:true};
 }
