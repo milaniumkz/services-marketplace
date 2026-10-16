@@ -614,7 +614,7 @@ export class Marketplace {
       }
       if(action==='confirm-completion'&&method==='POST'){if(o.status!=='completion_requested')fail(409,'STATE_CONFLICT','Исполнитель не запросил завершение');const result=await this.store.put({...o,status:'completed',completed_at:new Date().toISOString(),version:o.version+1});await this.growth.qualify(o.owner,a.country,'completed_order',o.id);await this.growth.qualify(o.executor_id,a.country,'completed_order',o.id);return result;}
       if(action==='request-revision'&&method==='POST'){if(o.status!=='completion_requested')fail(409,'STATE_CONFLICT','Доработка недоступна');return this.store.put({...o,status:'in_progress',revision_reason:text(b,'reason',5,1000),revision_upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[],revision_time_window:b.time_window===undefined?undefined:timeWindow(b.time_window),version:o.version+1});}
-      if(action==='cancel'&&method==='POST'){if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Активный заказ требует разрешения через поддержку');return this.store.put({...o,status:'cancelled',reason:text(b,'reason',5,1000),version:o.version+1});}
+      if(action==='cancel'&&method==='POST'){if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Активный заказ требует разрешения через поддержку');return this.store.put({...o,status:'cancelled',cancelled_at:new Date().toISOString(),reason:text(b,'reason',5,1000),version:o.version+1});}
     }
     const responseCommand=path.match(/^\/(cancel-requests|amendments)\/([^/]+)\/respond$/);
     if(responseCommand&&method==='POST') {
@@ -623,7 +623,7 @@ export class Marketplace {
       if(r.status!=='pending'||r.expires_at<=new Date().toISOString())fail(409,'STATE_CONFLICT','Запрос больше не действует');
       if(!['accept','reject'].includes(b.decision))fail(400,'VALIDATION_ERROR','Выберите accept или reject');
       const o=await this.object(r.order_id,a,'order');if(o.version!==r.order_version)fail(409,'STATE_CONFLICT','Заказ изменился');
-      if(b.decision==='accept')await this.store.put({...o,...(kind==='amendment'?{agreed_amount:r.amount,description:r.description,...(r.time_window?{time_window:r.time_window}:{}),revision:o.revision+1}:{status:'cancelled'}),version:o.version+1});
+      if(b.decision==='accept')await this.store.put({...o,...(kind==='amendment'?{agreed_amount:r.amount,description:r.description,...(r.time_window?{time_window:r.time_window}:{}),revision:o.revision+1}:{status:'cancelled',cancelled_at:new Date().toISOString()}),version:o.version+1});
       const result=await this.store.put({...r,status:b.decision==='accept'?'accepted':'rejected',version:r.version+1});await this.notify(r.owner,a,kind+'.'+result.status,r.id);return result;
     }
     const offerCommand=path.match(/^\/offers\/([^/]+)(?:\/(acknowledge|withdraw))?$/);

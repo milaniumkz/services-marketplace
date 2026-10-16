@@ -1,3 +1,4 @@
+import {minimizeClosedWork} from './work-retention';
 import {Store,RecordData} from './store';
 const rules=[{category:'security',kinds:['security_event'],policy:'security_days'},{category:'notifications',kinds:['notification','outbox'],policy:'logs_days'}];
 /** Bounded, restartable stages. Called inside the maintenance transaction. */
@@ -20,5 +21,6 @@ export async function processDeletionCategories(store:Store,job:RecordData,polic
   const remaining=await store.db.query<{count:string}>(`SELECT count(*)::text AS count FROM records r WHERE ${scope}`,[job.country,rule.kinds,job.owner]);
   progress[rule.category]={state:Number(remaining.rows[0].count)?'waiting_retention_or_protection':'minimized',processed:(progress[rule.category]?.processed??0)+processed,remaining:Number(remaining.rows[0].count),policy_id:policy!.id,policy_version:policy!.version,last_run_at:now.toISOString()};
  }
+ progress.work=await minimizeClosedWork(store,job,policy,now);
  await store.put({...job,...(job.retention_plan?{retention_plan:{...job.retention_plan,categories:job.retention_plan.categories.map((c:any)=>progress[c.category]?{...c,execution_state:progress[c.category].state}:c)}}:{}),category_progress:progress,last_retention_run_at:now.toISOString(),fully_erased:false,version:job.version+1});
 }

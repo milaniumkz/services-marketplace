@@ -5,6 +5,7 @@ export const holdFields:Record<string,string[]>={upload:['file'],user:['display_
 function invalid(message:string):never{throw new HttpException({error:{code:'VALIDATION_ERROR',message,retryable:false}},400);}
 export async function holdSnapshot(store:Store,target:RecordData,fields:any){
  if(!Array.isArray(fields)||!fields.length||fields.some(f=>typeof f!=='string'||!holdFields[target.kind]?.includes(f)))invalid('Укажите конкретные разрешённые поля удержания');
+ if(target.retention_minimized_at)throw new HttpException({error:{code:'STATE_CONFLICT',message:'Данные уже минимизированы',retryable:false}},409);
  if(['purge_pending','purged','deleted','archived','retention_minimized'].includes(target.status))throw new HttpException({error:{code:'STATE_CONFLICT',message:'Данные уже очищены или недоступны для нового удержания',retryable:false}},409);
  const unique=[...new Set<string>(fields)],snapshot:Record<string,any>={};
  for(const field of unique){
