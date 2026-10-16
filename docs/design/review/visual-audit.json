@@ -4056,7 +4056,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.17652,
+      "different_pixels_ratio": 0.143247,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4071,7 +4071,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A18.dryrun-dictionary-dryrun.png",
-      "actual_route": "dictionary-dryrun?id=2d841a6a-33a4-48be-bef3-fc1527c577d4",
+      "actual_route": "dictionary-dryrun?id=8be600f4-1316-4073-a110-4136c05a1abb",
       "errors": [],
       "reference_size": [
         1440,
@@ -4081,7 +4081,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.133859,
+      "different_pixels_ratio": 0.134726,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0

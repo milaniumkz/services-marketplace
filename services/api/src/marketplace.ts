@@ -31,7 +31,7 @@ import { Commerce } from './commerce';
 import { PopplerPdfSanitizer } from './pdf-sanitizer';
 import { PrivateFiles, ClamAvScanner } from './private-files';
 import sharp from 'sharp';
-import { Moderation, validateRules, TEXT_SURFACES, matchesRule } from './moderation';
+import { Moderation, dictionaryPayload,validateRules, TEXT_SURFACES, matchesRule } from './moderation';
 import { Configuration,normalizePromotionPayload } from './configuration';
 import { Growth } from './growth';
 import { Branding } from './branding';
@@ -1283,7 +1283,7 @@ export class Marketplace {
       }
       const configKinds=['monetization-configs','price-versions','categories','push-campaigns','referral-campaigns','moderation-dictionaries','ranking-configs','promotions','placement-policies','verification-policies','retention-policies','country-controls'];
       if(configKinds.includes(section)&&method==='POST'&&path.split('/').length===3) {
-        if(section==='moderation-dictionaries'){try{validateRules(b.payload?.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}}
+        if(section==='moderation-dictionaries'){try{b.payload=dictionaryPayload(b.payload);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}}
         if(section==='categories'){
           const r=this.record('category',a,{title:text(b,'title',3,120),status:'draft'});let stable=r.id;
           if(b.payload?.category_id){const original=await this.object(String(b.payload.category_id),a,'category');stable=categoryId(original);r.legacy_id=original.legacy_id;}
@@ -1341,11 +1341,18 @@ export class Marketplace {
         const result=await this.store.put({...r,title:text(b,'title',3,120),payload:normalizePromotionPayload(b.payload??{}),preview:undefined,version:r.version+1});
         await this.audit(a,'promotions.edited',r.id,text(b,'reason',5,1000));return result;
       }
+      const editDictionary=path.match(/^\/admin\/moderation-dictionaries\/([^/]+)$/);
+      if(editDictionary&&['GET','PATCH'].includes(method)){
+        const r=await this.object(editDictionary[1],a,'dictionary');if(method==='GET')return r;
+        this.version(r,b);if(r.owner!==a.id||r.status!=='draft')fail(409,'STATE_CONFLICT','Создайте новый черновик словаря');
+        let payload;try{payload=dictionaryPayload(b.payload);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}
+        const result=await this.store.put({...r,title:text(b,'title',3,120),payload,preview:undefined,version:r.version+1});await this.audit(a,'dictionary.edited',r.id,text(b,'reason',10,1000));return result;
+      }
       const dictionaryDryRun=path.match(/^\/admin\/moderation-dictionaries\/([^/]+)\/dry-run$/);
       if(dictionaryDryRun&&method==='POST'){
         const d=await this.object(dictionaryDryRun[1],a,'dictionary');this.version(d,b);
         const sample=text(b,'text',1,10000),reason=text(b,'reason',10,1000);
-        try{validateRules(d.payload.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}
+        try{dictionaryPayload(d.payload);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}
         if(!Object.hasOwn(TEXT_SURFACES,String(b.surface)))fail(400,'VALIDATION_ERROR','Неизвестная поверхность текста');
         const hits=d.payload.rules.filter((r:any)=>(!r.surfaces||r.surfaces.includes(b.surface))&&matchesRule(sample,r.value,r.type,d.payload.exceptions??[])).map((r:any)=>({rule_id:r.id??r.value,type:r.type,value:r.value}));
         await this.audit(a,'dictionary.dry_run',d.id,reason);return {dictionary_id:d.id,version:d.version,surface:b.surface,hits,matched:hits.length>0,mutated_content:false};
@@ -1356,8 +1363,9 @@ export class Marketplace {
       if(blacklistDetail&&method==='GET'){const r=await this.object(blacklistDetail[1],a,'blacklist');return {id:r.id,user_id:r.user_id,case_id:r.case_id,status:r.status,scope:r.scope,reason:r.reason,ends_at:r.ends_at,created_at:r.created_at,version:r.version};}
       const dictionaryCommand=path.match(/^\/admin\/moderation-dictionaries\/([^/]+)\/(validate|preview|publish)$/);
       if(dictionaryCommand&&method==='POST') {
-        const d=await this.object(dictionaryCommand[1],a,'dictionary');try{validateRules(d.payload.rules);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}
-        if(dictionaryCommand[2]!=='publish')return {valid:true,version:d.version,rules:d.payload.rules.length,retroactive:false};
+        const d=await this.object(dictionaryCommand[1],a,'dictionary');this.version(d,b);const reason=text(b,'reason',10,1000);try{dictionaryPayload(d.payload);}catch(e:any){fail(400,'VALIDATION_ERROR',e.message);}
+        if(dictionaryCommand[2]!=='publish'){await this.audit(a,'dictionary.'+dictionaryCommand[2],d.id,reason);return {valid:true,version:d.version,rules:d.payload.rules.length,retroactive:false};}
+        if(d.status!=='draft')fail(409,'STATE_CONFLICT','Публиковать можно только черновик словаря');
         this.version(d,b);if(d.owner===a.id)fail(403,'SECOND_APPROVAL_REQUIRED','Публикацию подтверждает другой сотрудник');
         const result=await this.store.put({...d,status:'published',published_at:new Date().toISOString(),version:d.version+1});await this.audit(a,'dictionary.published',d.id,text(b,'reason',10,1000));return result;
       }

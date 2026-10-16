@@ -17,7 +17,17 @@ export function matchesRule(source:string,value:string,type:'exact_word'|'phrase
 }
 export function validateRules(rules:any) {
   if(!Array.isArray(rules)||rules.length>1000)throw Error('Словарь: максимум 1000 правил');
-  for(const r of rules)if(!['exact_word','phrase'].includes(r.type)||typeof r.value!=='string'||r.value.length<1||r.value.length>100||r.regex!==undefined)throw Error('Недопустимое правило словаря');
+  const ids=new Set<string>();
+  for(const r of rules){
+    if(!r||!['exact_word','phrase'].includes(r.type)||typeof r.value!=='string'||!r.value.trim()||r.value.length>100||r.regex!==undefined)throw Error('Недопустимое правило словаря');
+    if(r.surfaces!==undefined&&(!Array.isArray(r.surfaces)||!r.surfaces.length||r.surfaces.some((x:any)=>typeof x!=='string'||!Object.hasOwn(TEXT_SURFACES,x))))throw Error('Неизвестная поверхность правила');
+    if(r.id!==undefined){if(typeof r.id!=='string'||!r.id.trim()||r.id.length>100||ids.has(r.id))throw Error('ID правил должны быть уникальными');ids.add(r.id);}
+  }
+}
+export function dictionaryPayload(p:any){
+  validateRules(p?.rules);const exceptions=p.exceptions??[];
+  if(!Array.isArray(exceptions)||exceptions.length>1000||exceptions.some((x:any)=>typeof x!=='string'||!x.trim()||x.length>200))throw Error('Исключения: максимум 1000 строк по 200 символов');
+  return {rules:p.rules.map((r:any)=>({...(r.id!==undefined?{id:r.id}:{}),type:r.type,value:r.value.trim(),...(r.surfaces?{surfaces:[...new Set(r.surfaces)]}:{})})),exceptions:[...new Set(exceptions.map((x:string)=>x.trim()))]};
 }
 export class Moderation {
   constructor(private store:Store){}
