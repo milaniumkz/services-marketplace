@@ -28,6 +28,11 @@ export class Commerce {
   async apply(p:VerifiedPurchase) {
     if(!Number.isSafeInteger(p.amount_minor)||p.amount_minor<0||!Number.isFinite(Date.parse(p.valid_until))||!Number.isInteger(p.revision))fail('INVALID_PROVIDER_EVIDENCE','Некорректный ответ провайдера',422);
     if(!['sandbox','production'].includes(p.environment)||process.env.NODE_ENV==='production'&&p.environment!=='production')fail('PROVIDER_ENVIRONMENT_MISMATCH','Среда покупки не соответствует серверу',422);
+    if(!['provider','transaction_id','original_transaction_id','product_id'].every(key=>typeof (p as any)[key]==='string'&&(p as any)[key].trim().length>0&&(p as any)[key].length<=300)||p.currency!==({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[p.country]||p.revision<1)fail('INVALID_PROVIDER_EVIDENCE','Проверьте идентификаторы, валюту и ревизию покупки',422);
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-purchase:'+p.country+':'+p.provider+':'+p.original_transaction_id]);
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['payment-transaction:'+p.country+':'+p.provider+':'+p.transaction_id]);
+    const transactionEvents=(await this.store.all('payment_transaction',p.country)).filter(x=>x.provider===p.provider&&x.transaction_id===p.transaction_id);
+    if(transactionEvents.some(x=>x.owner!==p.user_id||x.benefit==='boost'||x.original_transaction_id!==p.original_transaction_id||x.product_id&&x.product_id!==p.product_id||x.currency!==p.currency||x.amount_minor!==p.amount_minor))fail('TRANSACTION_ALREADY_USED','Транзакция уже связана с другой покупкой',403);
     p={...p,valid_until:new Date(p.valid_until).toISOString()};
     const u=await this.store.get(p.user_id);if(!u||u.country!==p.country)fail('PURCHASE_OWNERSHIP_MISMATCH','Аккаунт покупки не найден',403);
     const existing=(await this.store.all('subscription',p.country)).find(x=>x.provider===p.provider&&x.original_transaction_id===p.original_transaction_id);
@@ -45,9 +50,13 @@ export class Commerce {
     if(price&&(price.payload.currency!==p.currency||price.payload.amount_minor!==p.amount_minor)&&!existing)fail('PRICE_MISMATCH','Цена не совпадает с опубликованной версией',422);
     if(existing&&existing.owner!==p.user_id)fail('PURCHASE_OWNERSHIP_MISMATCH','Покупку нельзя перенести на другой аккаунт',403);
     if(existing&&existing.provider_revision>=p.revision)return {subscription:existing,duplicate:true};
-    const ledger=(await this.store.all('payment_transaction',p.country)).find(x=>x.provider===p.provider&&x.transaction_id===p.transaction_id&&x.state===p.state);
-    if(!ledger)await this.store.put(this.record('payment_transaction',p.user_id,p.country,{provider:p.provider,transaction_id:p.transaction_id,original_transaction_id:p.original_transaction_id,amount_minor:p.amount_minor,currency:p.currency,state:p.state,provider_revision:p.revision}));
-    const subscription=await this.store.put({...existing??this.record('subscription',p.user_id,p.country,{}),price_snapshot:existing?.price_snapshot??price?.payload,provider:p.provider,original_transaction_id:p.original_transaction_id,product_id:p.product_id,status:p.state,valid_until:p.valid_until,provider_revision:p.revision,version:existing?existing.version+1:1});
+    const subscriptionId=existing?.id??randomUUID(),ledger=transactionEvents.find(x=>x.state===p.state);
+    if(!ledger){
+      const charged=p.state==='active'&&!transactionEvents.some(x=>x.state==='active');
+      const priorCharge=(await this.store.all('payment_transaction',p.country)).some(x=>x.provider===p.provider&&x.original_transaction_id===p.original_transaction_id&&x.transaction_id!==p.transaction_id&&x.state==='active');
+      await this.store.put(this.record('payment_transaction',p.user_id,p.country,{provider:p.provider,transaction_id:p.transaction_id,original_transaction_id:p.original_transaction_id,product_id:p.product_id,benefit:'subscription',source_id:subscriptionId,operation:charged?(priorCharge?'renewal':'purchase'):p.state==='revoked'?'revoke':'status_change',cash_amount_minor:charged?p.amount_minor:0,amount_minor:p.amount_minor,currency:p.currency,state:p.state,provider_revision:p.revision}));
+    }
+    const subscription=await this.store.put({...existing??this.record('subscription',p.user_id,p.country,{}),id:subscriptionId,price_snapshot:existing?.price_snapshot??price?.payload,provider:p.provider,original_transaction_id:p.original_transaction_id,product_id:p.product_id,status:p.state,valid_until:p.valid_until,provider_revision:p.revision,version:existing?existing.version+1:1});
     const grant=(await this.store.all('grant',p.country)).find(g=>g.source_id===subscription.id);
     const valid=['active','grace','canceled_at_period_end'].includes(p.state);
     await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:['search_full','send_offer','publish_profile'],version:grant?grant.version+1:1});

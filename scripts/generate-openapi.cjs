@@ -53,6 +53,7 @@ for(const path of ['/order-invites/{id}','/cancel-requests/{id}','/amendments/{i
 for(const path of ['/uploads/{id}/crop','/ads/reward-sessions/{id}/outcome','/me/processing-consents'])add('POST',path);
 for(const path of ['/promoted-listings','/me/legal-holds','/admin/legal-holds','/admin/languages','/admin/revenue','/admin/blacklist/{id}','/admin/bulk/{id}'])add('GET',path,path.startsWith('/admin/')?'staff':'user');
 add('PATCH','/me/contractor-profile/public-location');
+add('GET','/admin/payment-transactions','staff');
 add('GET','/admin/monetization-configs/{id}','staff');add('PATCH','/admin/monetization-configs/{id}','staff','VersionedCommand');
 add('GET','/admin/moderation-dictionaries/{id}','staff');add('PATCH','/admin/moderation-dictionaries/{id}','staff','VersionedCommand');
 for(const path of ['/admin/legal-holds','/admin/legal-holds/{id}/release','/admin/moderation-dictionaries/{id}/dry-run','/admin/security-events/{id}/disclose','/admin/bulk/preview','/admin/bulk/{id}/execute'])add('POST',path,'staff');

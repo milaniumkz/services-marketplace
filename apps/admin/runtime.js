@@ -1,3 +1,4 @@
+import {financialJournal} from './financial-journal.js';
 import {dictionaryWorkspace} from './dictionary-workspace.js';
 import {placementWorkspace} from './placement-workspace.js';
 import {rankingWorkspace} from './ranking-workspace.js';
@@ -25,7 +26,7 @@ const {routes,render,card,tablecard,field,note,metric,badge}=window.JOBA_ADMIN;
 const designMode=new URLSearchParams(location.search).has('design');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let session,loginDraft,cache={},error='',generation=0,disposeWorkspace;
-const privateWorkspaces=new Set([...pushRoutes,...scenarioRoutes,...userRoutes,'dictionary','dictionaries','placements','ranking','referrals','referral-preview','categories','prices','pricing','verificationPolicies','retention','campaigns','banner-detail','branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
+const privateWorkspaces=new Set([...pushRoutes,...scenarioRoutes,...userRoutes,'financial-journal','dictionary','dictionaries','placements','ranking','referrals','referral-preview','categories','prices','pricing','verificationPolicies','retention','campaigns','banner-detail','branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
 const cursors={},filters={},configRoutes=new Set(['prices','pricing','monetization','push','referrals','dictionaries','dictionary','categories','ranking','placements','verificationPolicies','retention']);
 const sections={users:['users','Аккаунты'],orders:['orders','Заказы'],support:['support-threads','Поддержка'],'support-recovery':['recovery-threads','Восстановление доступа'],moderation:['cases','Дела'],portfolio:['portfolio','Портфолио'],contractors:['contractors','Профили исполнителей'],privacy:['privacy-requests','Запросы приватности'],blacklist:['blacklist','Черный список'],audit:['audit','Аудит'],prices:['price-versions','Цены'],monetization:['monetization-configs','Монетизация'],push:['push-campaigns','Рассылки'],referrals:['referral-campaigns','Реферальные кампании'],dictionaries:['moderation-dictionaries','Словари'],categories:['categories','Категории'],ranking:['ranking-configs','Рейтинг'],pricing:['price-versions','Каталог цен'],campaigns:['banner-campaigns','Кампании'],dictionary:['moderation-dictionaries','Запрещенные слова'],verification:['verifications','Проверка документов'],top100:['boost-reports','Топ и продвижение'],placements:['placement-policies','Размещения'],verificationPolicies:['verification-policies','Правила проверки'],retention:['retention-policies','Сроки хранения']};
 function clearStaffState(){
@@ -126,6 +127,7 @@ async function draw(reload=true) {
       if(key==='ranking')routes[key]=await rankingWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
       if(['referrals','referral-preview'].includes(key))routes[key]=await referralWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
       if(['pricing','prices'].includes(key))routes[key]=await priceWorkspace({key,api:request,esc,card,note,tablecard,country:session.user.country,actorId:session.user.id,onRefresh:()=>draw()});
+      if(key==='financial-journal')routes[key]=await financialJournal({key,api:request,esc,card,note,tablecard,country:session.user.country});
       if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,actorId:session.user.id,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
       if(userRoutes.has(key)||key.startsWith('record-live/users/'))routes[key]=await userWorkspace({key,api:request,esc,card,tablecard,note,badge,namedField,sections,onRefresh:()=>draw()});

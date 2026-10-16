@@ -36,6 +36,7 @@ result={'source':'docs/spec/services-marketplace-spec-v1.ru.md','source_sha256':
 out=root/'docs/design/review/completion-registry.json'
 if out.exists():
  previous=json.loads(out.read_text())
+ if 'supplementary_screens' in previous:result['supplementary_screens']=previous['supplementary_screens']
  for collection in ['requirements','acceptance_scenarios']:
   old={x['id']:x for x in previous.get(collection,[])}
   for item in result[collection]:

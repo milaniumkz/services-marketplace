@@ -530,7 +530,9 @@
         13
       ],
       "review_status": "partial_functional_verified_visual_pending",
-      "test_candidates": [],
+      "test_candidates": [
+        "services/api/test/monetization-editor.test.cjs"
+      ],
       "verified_api_operations": [
         "GET /admin/monetization-configs/{id}",
         "PATCH /admin/monetization-configs/{id}",
@@ -557,13 +559,23 @@
         7,
         13
       ],
-      "review_status": "pending",
+      "review_status": "partial_integrity_verified_refunds_and_provider_pending",
       "test_candidates": [
         "services/api/test/commerce-legal.test.cjs"
       ],
-      "verified_api_operations": [],
+      "verified_api_operations": [
+        "POST /billing/verify-purchase",
+        "POST /billing/restore",
+        "GET /admin/payment-transactions",
+        "POST /billing/refund-requests"
+      ],
       "verified_controls": [],
-      "evidence": []
+      "evidence": [
+        "docs/financial-journal-update.md",
+        "services/api/test/financial-journal.test.cjs",
+        "services/api/test/trust-and-providers.test.cjs",
+        "scripts/verify-admin-browser.cjs"
+      ]
     },
     {
       "id": "FR-025",
@@ -43191,6 +43203,21 @@
         }
       ],
       "control_inventory_status": "inventoried_review_pending"
+    }
+  ],
+  "supplementary_screens": [
+    {
+      "route": "financial-journal",
+      "source": "docs/financial-journal-update.md",
+      "capture": "docs/design/review/admin/financial-journal.png",
+      "reference": null,
+      "visual_acceptance": "pending",
+      "control_inventory": "pending",
+      "blocks": [
+        6,
+        7,
+        16
+      ]
     }
   ]
 }

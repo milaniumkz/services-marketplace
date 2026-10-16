@@ -88,12 +88,14 @@ export class Growth {
     if(process.env.NODE_ENV==='production'&&p.environment!=='production')fail('PROVIDER_ENVIRONMENT_MISMATCH','Недопустимая среда покупки',422);
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-target:'+country+':'+boost.target_id]);
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-capacity:'+country+':'+boost.placement_id]);
-    const transactions=await this.store.all('payment_transaction',country);
-    const previous=transactions.find(x=>x.provider===p.provider&&x.transaction_id===p.transaction_id&&x.state===p.state);
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['payment-transaction:'+country+':'+p.provider+':'+p.transaction_id]);
+    const transactions=await this.store.all('payment_transaction',country),transactionEvents=transactions.filter(x=>x.provider===p.provider&&x.transaction_id===p.transaction_id);
+    if(transactionEvents.some(x=>x.boost_id!==boost.id||x.owner!==owner||x.amount_minor!==p.amount_minor||x.currency!==p.currency))fail('TRANSACTION_ALREADY_USED','Покупка уже связана с другим правом',403);
+    const previous=transactionEvents.find(x=>x.state===p.state);
     if(previous){if(previous.boost_id!==boost.id)fail('TRANSACTION_ALREADY_USED','Покупка уже связана с другим правом',403);return {...boost,duplicate:true};}
     if(p.state==='pending')return this.store.put({...boost,status:'payment_pending',provider:p.provider,version:boost.version+1});
     if(!['active','revoked'].includes(p.state))fail('PAYMENT_PENDING','Покупка ещё не подтверждена',409);
-    await this.store.put(this.record('payment_transaction',owner,country,{provider:p.provider,transaction_id:p.transaction_id,state:p.state,amount_minor:p.amount_minor,currency:p.currency,benefit:'boost',boost_id:boost.id}));
+    await this.store.put(this.record('payment_transaction',owner,country,{provider:p.provider,transaction_id:p.transaction_id,state:p.state,amount_minor:p.amount_minor,currency:p.currency,benefit:'boost',boost_id:boost.id,source_id:boost.id,operation:p.state==='active'?'purchase':'revoke',cash_amount_minor:p.state==='active'?p.amount_minor:0}));
     if(p.state==='revoked')return this.store.put({...boost,status:'revoked',version:boost.version+1});
     let resolution=false;
     try {
