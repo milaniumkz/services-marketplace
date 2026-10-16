@@ -19,6 +19,10 @@ export class Growth {
     const previous=(await this.store.all('referral_attribution',country)).find(x=>x.owner===owner);if(previous)fail('ATTRIBUTION_ALREADY_SET','Пригласивший уже закреплён');
     const referrer=(await this.store.all('referral_code',country)).find(x=>x.code===code);if(!referrer||referrer.owner===owner)fail('REFERRAL_INELIGIBLE','Код недоступен',422);
     const campaign=(await this.store.all('referral_campaign',country)).find(x=>x.status==='effective');if(!campaign)fail('CAMPAIGN_UNAVAILABLE','Активной реферальной кампании нет',422);
+    if(campaign.payload.attribution_window_days!==undefined){
+      const account=await this.store.get(owner),created=Date.parse(account?.created_at??''),days=campaign.payload.attribution_window_days;
+      if(!account||account.kind!=='user'||account.country!==country||!Number.isSafeInteger(days)||days<1||days>365||!Number.isFinite(created)||created>Date.now()||Date.now()>=created+days*86400000)fail('ATTRIBUTION_WINDOW_EXPIRED','Срок ввода кода после регистрации истёк',422);
+    }
     // Reserve one complete reward before accepting the first invitation in its group.
     // Reservations survive campaign stop and never borrow another inviter's budget.
     const reservations=(await this.store.all('referral_reservation',country)).filter(x=>x.campaign_id===campaign.id);
