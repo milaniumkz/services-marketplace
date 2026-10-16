@@ -21,3 +21,5 @@
 .category-schema-field{border:1px solid #D9E1EC;border-radius:8px;margin:12px 0;padding:14px}.category-schema-field label{display:flex;flex-direction:column;gap:6px;font-size:11px}.category-schema-field input[type=checkbox]{width:auto;align-self:flex-start}.category-schema-field button{margin-top:10px}
 
 .category-workspace{column-gap:14px}.category-workspace .cardhead{padding:15px 18px}.category-workspace .cardhead h2{font-size:14px}.category-workspace .cardbody{padding:16px 18px}.category-workspace .formfield input,.category-workspace .formfield select{font-size:11px}.category-workspace .formgrid{gap:17px 12px}.category-workspace .treeitem{color:#53627A}.category-workspace .treeitem.selected{color:#245BDB;background:#EAF0FE}
+
+#referral-editor fieldset{border:1px solid var(--line,#dbe3f2);border-radius:10px;padding:12px 16px;margin:10px 0;min-width:0}#referral-editor legend{font-size:12px;font-weight:700;padding:0 6px}#referral-editor .check{display:flex;align-items:center;gap:8px;margin:6px 0}#referral-editor .check input{width:auto;min-height:0}

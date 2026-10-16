@@ -4156,12 +4156,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.178596,
+      "different_pixels_ratio": 0.159522,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Structured referral editor with actual regional campaign metrics and versioned commands. Layout and dedicated preview still require visual acceptance; no automatic pass.",
       "surface": "admin"
     },
     {
@@ -4181,12 +4181,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.094944,
+      "different_pixels_ratio": 0.147866,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
+      "note": "Structured referral editor with actual regional campaign metrics and versioned commands. Layout and dedicated preview still require visual acceptance; no automatic pass.",
       "surface": "admin"
     },
     {

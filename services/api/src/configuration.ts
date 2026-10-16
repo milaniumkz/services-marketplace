@@ -1,3 +1,4 @@
+import {referralPolicy} from './referral-policy';
 import {categoryId,validateCategory} from './category-payload';
 import {pricePayload} from './price-payload';
 import {validatePushCampaign} from './push-campaigns';
@@ -63,11 +64,7 @@ export class Configuration {
     }
     if(r.kind==='dictionary'){try{validateRules(p.rules);}catch(e:any){fail('VALIDATION_ERROR',e.message);}}
     if(r.kind==='category')return validateCategory(this.store,r);
-    if(r.kind==='referral_campaign') {
-      if(!Number.isInteger(p.threshold)||p.threshold<1||p.threshold>100||!Number.isInteger(p.budget_units)||p.budget_units<1||!Number.isInteger(p.reward_duration_seconds)||p.reward_duration_seconds<60)fail('VALIDATION_ERROR','Проверьте порог, бюджет и длительность');
-      if(!['completed_order','executor_verified'].includes(p.qualifying_event))fail('VALIDATION_ERROR','Укажите подтверждаемое событие');
-      if(p.multilevel||p.cash_payout)fail('POLICY_REJECTED','В первом релизе только одноуровневые неденежные привилегии');
-    }
+    if(r.kind==='referral_campaign')referralPolicy(p);
     if(r.kind==='ranking_config')rankingParameters(p);
     if(r.kind==='placement_policy'&&(!Number.isInteger(p.capacity)||p.capacity<1||p.capacity>100))fail('VALIDATION_ERROR','Проверьте ёмкость размещения');
     if(['verification_policy','retention_policy'].includes(r.kind)) {
@@ -99,7 +96,7 @@ export class Configuration {
       const active=(await this.store.all('boost',r.country)).filter(x=>x.placement_id===r.payload.placement_id&&['active','scheduled'].includes(x.status));
       if(active.length>r.payload.capacity)fail('CAPACITY_PROMISE_CONFLICT','Нельзя уменьшить ёмкость ниже выданных обещаний',409);
     }
-    const scope=(x:RecordData)=>JSON.stringify(x.kind==='category'?{category:x.payload?.category_id??x.id}:x.kind==='price_version'?{provider:x.payload.provider,product:x.payload.product_id,audience:x.payload.audience}:x.kind==='placement_policy'?{placement:x.payload.placement_id}:{scope:x.payload?.scope,role:x.payload?.role,platform:x.payload?.platform});
+    const scope=(x:RecordData)=>JSON.stringify(x.kind==='referral_campaign'?{country:x.country}:x.kind==='category'?{category:x.payload?.category_id??x.id}:x.kind==='price_version'?{provider:x.payload.provider,product:x.payload.product_id,audience:x.payload.audience}:x.kind==='placement_policy'?{placement:x.payload.placement_id}:{scope:x.payload?.scope,role:x.payload?.role,platform:x.payload?.platform});
     for(const old of await this.store.all(r.kind,r.country))if(old.status==='effective'&&scope(old)===scope(r))await this.store.put({...old,status:'superseded',version:old.version+1});
     return this.store.put({...r,status:'effective',preview,published_by:actor,published_at:new Date().toISOString(),version:r.version+1});
   }

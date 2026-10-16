@@ -1846,22 +1846,34 @@
       "surface": "admin",
       "route": "referrals",
       "reference": "admin/screens/referrals.png",
-      "status": "unreviewed",
+      "status": "reviewed_changes_required",
       "acceptance": "pending",
-      "diagnostic_difference": 0.178596,
-      "known_gaps": [],
-      "evidence": []
+      "diagnostic_difference": 0.159522,
+      "known_gaps": [
+        "Каркас, расположение полей, типографика и отдельное представление предпросмотра требуют визуальной сверки.",
+        "Окно атрибуции, освобождение незавершённого резерва и provider offer ещё не реализованы."
+      ],
+      "evidence": [
+        "referral-editor-update.md",
+        "visual-audit.json"
+      ]
     },
     {
       "id": "A20.preview",
       "surface": "admin",
       "route": "referral-preview",
       "reference": "admin/screens/referral-preview.png",
-      "status": "unreviewed",
+      "status": "reviewed_changes_required",
       "acceptance": "pending",
-      "diagnostic_difference": 0.094944,
-      "known_gaps": [],
-      "evidence": []
+      "diagnostic_difference": 0.147866,
+      "known_gaps": [
+        "Каркас, расположение полей, типографика и отдельное представление предпросмотра требуют визуальной сверки.",
+        "Окно атрибуции, освобождение незавершённого резерва и provider offer ещё не реализованы."
+      ],
+      "evidence": [
+        "referral-editor-update.md",
+        "visual-audit.json"
+      ]
     },
     {
       "id": "A21",
