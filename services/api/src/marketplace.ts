@@ -1,3 +1,4 @@
+import {holdSnapshot} from './legal-holds';
 import {deletionPlan,anonymizeProfile,validateRetentionCategories} from './deletion-plan';
 import {Refunds} from './refunds';
 import {monetizationPayload} from './monetization-payload';
@@ -1037,17 +1038,14 @@ export class Marketplace {
           const updated=await this.store.put({...job,status:'completed',processed:results.length,results,completed_at:new Date().toISOString(),version:job.version+1});await this.audit(a,'bulk.executed',job.id,reason);return updated;
         }
       }
-      if(path==='/admin/legal-holds'&&method==='GET')return this.page('legal_hold',a,q);
+      if(path==='/admin/legal-holds'&&method==='GET'){const result=await this.page('legal_hold',a,q);await this.audit(a,'privacy.holds_read','legal_hold','Просмотр оснований и конкретных удержанных данных');return result;}
       if(path==='/admin/legal-holds'&&method==='POST'){
-        const target=await this.object(String(b.target_id),a),allowed:Record<string,string[]>={upload:['file'],verification:['document_refs'],order:['upload_ids','revision_upload_ids','completion_upload_ids'],message:['upload_ids'],portfolio:['photos'],contractor:['gallery_ids']};
-        const fields=allowed[target.kind];if(!fields||!Array.isArray(b.fields)||!b.fields.length||b.fields.some((f:any)=>!fields.includes(f)))fail(400,'VALIDATION_ERROR','Укажите конкретные поля удержания');
-        if(['purge_pending','purged'].includes(target.status))fail(409,'STATE_CONFLICT','Очистка уже началась');
-        for(const field of b.fields)for(const id of Array.isArray(target[field])?target[field]:[]){const file=await this.store.get(id);if(file&&['purge_pending','purged'].includes(file.status))fail(409,'STATE_CONFLICT','Очистка файла уже началась');}
+        const target=await this.object(String(b.target_id),a),snapshot=await holdSnapshot(this.store,target,b.fields);
         const review=Date.parse(String(b.review_at));if(!Number.isFinite(review)||review<=Date.now()||review>Date.now()+366*86400000)fail(400,'VALIDATION_ERROR','Дата пересмотра должна быть в пределах года');
-        const hold=this.record('legal_hold',a,{target_id:target.id,subject_user_id:target.owner,fields:[...new Set(b.fields)],basis:text(b,'basis',10,1000),reason:text(b,'reason',10,1000),review_at:new Date(review).toISOString(),status:'active'});await this.store.put(hold);await this.audit(a,'privacy.hold_created',hold.id,hold.reason);await this.notify(target.owner,a,'privacy.hold.created',hold.id);return hold;
+        const hold=this.record('legal_hold',a,{target_id:target.id,subject_user_id:target.owner,...snapshot,basis:text(b,'basis',10,1000),reason:text(b,'reason',10,1000),review_at:new Date(review).toISOString(),status:'active'});await this.store.put(hold);await this.audit(a,'privacy.hold_created',hold.id,hold.reason);await this.notify(target.owner,a,'privacy.hold.created',hold.id);const {field_snapshot,...result}=hold;return result;
       }
       const holdRelease=path.match(/^\/admin\/legal-holds\/([^/]+)\/release$/);
-      if(holdRelease&&method==='POST'){const hold=await this.object(holdRelease[1],a,'legal_hold');this.version(hold,b);if(hold.status!=='active')fail(409,'STATE_CONFLICT','Удержание уже закрыто');const reason=text(b,'reason',10,1000);const result=await this.store.put({...hold,status:'released',released_at:new Date().toISOString(),version:hold.version+1});await this.audit(a,'privacy.hold_released',hold.id,reason);await this.notify(hold.subject_user_id,a,'privacy.hold.released',hold.id);return result;}
+      if(holdRelease&&method==='POST'){const hold=await this.object(holdRelease[1],a,'legal_hold');this.version(hold,b);if(hold.status!=='active')fail(409,'STATE_CONFLICT','Удержание уже закрыто');const reason=text(b,'reason',10,1000);const result=await this.store.put({...hold,status:'released',field_snapshot:undefined,release_reason:reason,released_by:a.id,released_at:new Date().toISOString(),version:hold.version+1});await this.audit(a,'privacy.hold_released',hold.id,reason);await this.notify(hold.subject_user_id,a,'privacy.hold.released',hold.id);return result;}
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy','country-controls':'country_control',verifications:'verification'};
       if(path==='/admin/analytics'&&method==='GET'){const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');return productAnalytics(this.store,a.country,days);}
       if(path==='/admin/dashboard'&&method==='GET') {

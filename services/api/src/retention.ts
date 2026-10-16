@@ -1,3 +1,4 @@
+import {heldFileIds} from './legal-holds';
 import {Store,RecordData} from './store';
 /** Runs inside the maintenance transaction; bytes are removed only after commit. */
 export async function planFileRetention(store:Store,now:Date,onExpired?:(verification:RecordData)=>Promise<void>):Promise<string[]> {
@@ -10,6 +11,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
  for(const incident of cases)for(const field of ['avatar_id','cover_id']){const id=incident.target_snapshot?.[field];if(typeof id==='string')protectedFiles.add(incident.country+':'+id);}
  const deleted=new Set((await store.db.query<{id:string,country:string}>("SELECT id::text AS id,country FROM records WHERE kind='user' AND data->>'status'='deleted'")).rows.map(u=>u.country+':'+u.id));
  for(const hold of holds){
+  for(const id of heldFileIds(hold.field_snapshot??{}))protectedFiles.add(hold.country+':'+id);
   const target=await store.get(hold.target_id);if(!target||target.country!==hold.country)continue;
   if(target.kind==='upload')protectedFiles.add(hold.country+':'+target.id);
   for(const field of hold.fields)for(const id of Array.isArray(target[field])?target[field]:typeof target[field]==='string'?[target[field]]:[])protectedFiles.add(hold.country+':'+id);
