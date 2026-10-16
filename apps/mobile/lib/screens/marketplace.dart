@@ -4670,10 +4670,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const UiText('Вместе удобнее',
-                        style: TextStyle(
+                    UiText(localize(context, 'Вместе удобнее').toUpperCase(),
+                        style: const TextStyle(
                             color: Color(0xFFC5D3EB),
                             fontSize: 12,
+                            height: 1.5,
                             letterSpacing: 1.2,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 16),
@@ -4714,6 +4715,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   letterSpacing: 1,
                                   fontWeight: FontWeight.w700))),
                       IconButton(
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFFF3F5FA),
+                            fixedSize: const Size(48, 48),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
                           tooltip: localize(context, 'Скопировать код'),
                           onPressed: () => act(() async {
                                 await Clipboard.setData(
@@ -4722,14 +4728,17 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               }),
                           icon: const JobaIcon('file'))
                     ]),
-                    const SizedBox(height: 12),
-                    button(
-                        'Поделиться приглашением',
-                        () => act(() async {
+                    const SizedBox(height: 16),
+                    FilledButton(
+                        onPressed: actionBusy ? null : () => act(() async {
                               final shown = await shareInvitation(
                                   '${localize(context, 'Код приглашения')} JOBA: ${data['code']}');
                               if (!shown && mounted) success('Код скопирован');
-                            }))
+                            }),
+                        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          JobaIcon('share'), SizedBox(width: 10),
+                          Flexible(child: UiText('Поделиться приглашением', textAlign: TextAlign.center))
+                        ]))
                   ])),
           const SizedBox(height: 24),
           const UiText('Ваш прогресс',
@@ -4744,9 +4753,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    Row(children: [
+                      Expanded(child: Text(
                         '${localize(context, 'Приглашения')}: ${attributions.length}',
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                        style: const TextStyle(fontWeight: FontWeight.w700))),
+                      const SizedBox(width: 8),
+                      if (attributions.isNotEmpty) Flexible(child: JobaBadge(
+                        qualified > 0 ? 'Выполнены условия' : 'Ожидает условия',
+                        background: qualified > 0 ? const Color(0xFFEAF5EE) : const Color(0xFFFFF4D1),
+                        foreground: qualified > 0 ? const Color(0xFF327453) : const Color(0xFF785800))),
+                    ]),
                     const SizedBox(height: 12),
                     Text(
                         '${localize(context, 'Выполнены условия')}: $qualified · ${localize(context, 'Ожидает условия')}: ${attributions.length - qualified}',
@@ -4776,7 +4792,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 subtitle: 'Ввести приглашение друга')
           ])
         ]);
-      }));
+      }), titleOffset: -11);
   Widget portfolioScreen() => page(
           'Моё портфолио',
           loaded('/me/portfolio-projects', (data, reload) {

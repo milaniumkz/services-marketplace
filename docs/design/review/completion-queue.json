@@ -977,8 +977,11 @@
       "reference": "mobile/screens/S37-referrals.png",
       "status": "unreviewed",
       "acceptance": "pending",
-      "diagnostic_difference": 0.10486,
-      "known_gaps": [],
+      "diagnostic_difference": 0.083954,
+      "known_gaps": [
+        "Декоративный контур героя, геометрия прогресса и меню, типографика и состояния выданных наград требуют сверки.",
+        "DEMO-условия макета не заменяют опубликованные условия API."
+      ],
       "evidence": [
         "mobile-referral-terms-update.md"
       ]
