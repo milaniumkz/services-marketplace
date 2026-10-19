@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:services_marketplace/core/api.dart';
 import 'package:services_marketplace/core/local_lock.dart';
-import 'package:services_marketplace/core/widgets.dart';
 import 'package:services_marketplace/main.dart';
 import 'package:services_marketplace/screens/marketplace.dart';
 
@@ -36,6 +35,7 @@ class _Lock extends LocalLock {
   Object? failure;
   bool bioResult = true;
   _Lock() : super('isolated-owner');
+  Future<int?> pinLength() async => 6;
   Future<bool> unlock(String pin) async {
     pins++;
     if (failure != null) throw failure!;
@@ -59,6 +59,38 @@ class _SetupLock extends LocalLock {
 }
 
 void main() {
+  for (final choice in ['password', 'biometry']) {
+    testWidgets('keypad $choice action uses the actual account route',
+        (tester) async {
+      final api = _Api(), protection = _Lock();
+      protection.bioResult = false;
+      await tester.pumpWidget(JobaApp(api: api));
+      await tester.pumpAndSettle();
+      final dynamic state = tester.state(find.byType(Marketplace));
+      api.session = {
+        'access_token': 'isolated-token',
+        'user': {'id': 'owner'}
+      };
+      state.lock = protection;
+      state.locked = true;
+      state.go('unlock');
+      await tester.pumpAndSettle();
+      final key = find.byKey(ValueKey(
+          choice == 'password' ? 'unlock-password' : 'unlock-key-biometry'));
+      await tester.scrollUntilVisible(key, 150,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      await tester.tap(key);
+      await tester.pumpAndSettle();
+      expect(state.route, choice == 'password' ? 'login' : 'unlock');
+      expect(api.authenticated, choice != 'password');
+      expect(api.refreshes, 0);
+      expect(protection.bios, choice == 'biometry' ? 1 : 0);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      api.dispose();
+    });
+  }
   for (final outcome in ['success', 'failure', 'logout']) {
     testWidgets(
         'standalone biometric setup handles $outcome with a real route fallback',
@@ -159,7 +191,7 @@ void main() {
     });
   }
   testWidgets(
-      'unlock validates PIN before consuming an attempt and supports keyboard Done',
+      'unlock keypad waits for six digits, submits once and retains the lock on rejection',
       (tester) async {
     final api = _Api(), protection = _Lock();
     await tester.pumpWidget(JobaApp(api: api));
@@ -173,14 +205,15 @@ void main() {
     state.locked = true;
     state.go('unlock');
     await tester.pumpAndSettle();
-    final field = find.byType(TextFormField);
-    await tester.enterText(field, '123');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    for (final digit in ['1', '2', '3']) {
+      await tester.tap(find.byKey(ValueKey('unlock-key-$digit')));
+      await tester.pump();
+    }
     expect(protection.pins, 0);
-    await tester.enterText(field, '123456');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump();
+    for (final digit in ['4', '5', '6']) {
+      await tester.tap(find.byKey(ValueKey('unlock-key-$digit')));
+      await tester.pump();
+    }
     expect(protection.pins, 1);
     protection.gate.complete(false);
     await tester.pumpAndSettle();
@@ -210,9 +243,7 @@ void main() {
       state.localProtected = true;
       state.go('unlock');
       await tester.pumpAndSettle();
-      final pending = tester
-          .widget<ActionForm>(find.byType(ActionForm))
-          .submit({'pin': '123456'});
+      final Future<void> pending = state.unlockSession(pin: '123456');
       await tester.pump();
       if (expire) {
         await api.forget();
@@ -220,11 +251,14 @@ void main() {
       } else {
         expect(
             tester
-                .widget<OutlinedButton>(find.widgetWithText(
-                    OutlinedButton, 'Разблокировать биометрией'))
-                .onPressed,
+                .widget<InkWell>(
+                    find.byKey(const ValueKey('unlock-key-biometry')))
+                .onTap,
             isNull);
-        expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        expect(
+            tester
+                .widget<InkWell>(find.byKey(const ValueKey('unlock-key-1')))
+                .onTap,
             isNull);
       }
       lock.gate.complete(true);

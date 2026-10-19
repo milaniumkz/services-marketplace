@@ -52,6 +52,7 @@ void main() {
     final record = jsonDecode(raw);
     expect(record['salt'], isNotEmpty);
     expect(record['hash'], isNotEmpty);
+    expect(await lock.pinLength(), 6);
     expect(await lock.unlock('123456'), true);
     for (var i = 0; i < 4; i++) {
       expect(await lock.unlock('000000'), false);
@@ -61,6 +62,18 @@ void main() {
         throwsA(isA<ApiException>()
             .having((e) => e.code, 'code', 'PIN_EXHAUSTED')));
     expect(await lock.configured(), false);
+  });
+  test(
+      'legacy PIN records keep unknown length and seven digit records remain usable',
+      () async {
+    final lock = LocalLock('legacy-length');
+    await lock.configure('1234567');
+    expect(await lock.pinLength(), 7);
+    final record = jsonDecode(values[lock.key]!) as Json;
+    record.remove('pin_length');
+    values[lock.key] = jsonEncode(record);
+    expect(await lock.pinLength(), isNull);
+    expect(await lock.unlock('1234567'), true);
   });
   test('Hardware protection missing prevents saving a PIN', () async {
     hardware = false;

@@ -584,6 +584,8 @@ void main() {
         'capability': 'isolated-visual-capability'
       };
       state.registrationInProgress = route == 'terms';
+      // Isolated S36 reference state: cached account only; two entered digits are not runtime defaults.
+      api.session!['user'] = route == 'unlock' ? {...user, 'display_name': 'Марина П.'} : user;
       state.listingFilters = route == 'filters'
           ? <String, dynamic>{
               'city': 'Алматы',
@@ -682,6 +684,11 @@ void main() {
         await tester.pumpAndSettle();
       } catch (e) {
         errors.add('$e');
+      }
+      if (route == 'unlock') {
+        await tester.tap(find.byKey(const ValueKey('unlock-key-1')));
+        await tester.tap(find.byKey(const ValueKey('unlock-key-2')));
+        await tester.pumpAndSettle();
       }
       Object? issue;
       while ((issue = tester.takeException()) != null) {

@@ -33,6 +33,7 @@ import 'promotions_history.dart';
 import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
+import 'unlock_keypad.dart';
 import 'city_selector.dart';
 import '../core/share_invitation.dart';
 import 'verification_editor.dart';
@@ -1783,40 +1784,19 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   Widget unlockScreen() => PopScope(
     canPop: !unlockSubmitting,
-    child: Scaffold(
-      appBar: AppBar(title: const UiText('Разблокировка JOBA')),
-      body: ActionForm(
-        submitEnabled: !unlockSubmitting,
-        fields: [
-          InputSpec(
-            'pin',
-            'PIN',
-            secret: true,
-            keyboard: TextInputType.number,
-            inputAction: TextInputAction.done,
-            validate: (v) => RegExp(r'^\d{6,8}$').hasMatch(v)
-                ? null
-                : 'PIN должен содержать 6–8 цифр',
-          ),
-        ],
-        button: 'Разблокировать',
-        submit: (v) => unlockSession(pin: v['pin']!),
-        after: [
-          button(
-            'Разблокировать биометрией',
-            () => act(() => unlockSession()),
-            outline: true,
-            enabled: !unlockSubmitting,
-          ),
-          button(
-            'Войти с номером и паролем',
-            () => act(() => api.forget()),
-            outline: true,
-            enabled: !unlockSubmitting,
-          ),
-        ],
-      ),
-    ),
+    child: Scaffold(backgroundColor: canvas, body: Column(children: [
+      Container(height: MediaQuery.paddingOf(context).top, color: Colors.white),
+      Expanded(child: UnlockKeypad(
+        key: ValueKey('unlock:${api.sessionGeneration}:${api.session?['user']?['id']}'),
+        name: api.session?['user']?['display_name'] ?? me?['display_name'] ?? '',
+        busy: unlockSubmitting,
+        loadLength: () => lock?.pinLength() ?? Future.value(6),
+        onPin: (pin) => unlockSession(pin: pin),
+        onBiometry: () => unlockSession(),
+        onPassword: () => api.forget(),
+      )),
+      Container(height: MediaQuery.paddingOf(context).bottom, color: Colors.white),
+    ])),
   );
   String countryName(String code) => localize(
       context,

@@ -363,7 +363,7 @@ void main() {
     }));
     await tester.pumpWidget(JobaApp(api: api));
     await tester.pumpAndSettle();
-    expect(find.text('Разблокировка JOBA'), findsOneWidget);
+    expect(find.text('Введите PIN приложения'), findsOneWidget);
     expect(requests, 0);
     await tester.pumpWidget(const SizedBox());
     api.dispose();

@@ -30,6 +30,13 @@ class LocalLock {
           iOptions: IOSOptions(accessibility: KeychainAccessibility.passcode))})
       : key = 'joba.lock.$scope';
   Future<bool> hasPin() async => await storage.read(key: key) != null;
+  Future<int?> pinLength() async {
+    final raw = await storage.read(key: key);
+    if (raw == null) return null;
+    final value = (jsonDecode(raw) as Json)['pin_length'];
+    return value is int && value >= 6 && value <= 8 ? value : null;
+  }
+
   Future<bool> configured() async =>
       await storage.read(key: key) != null || await hasBiometry();
   Future<bool> hasBiometry() async =>
@@ -88,7 +95,12 @@ class LocalLock {
     final hash = await compute(derivePin, [pin, salt]);
     await storage.write(
         key: key,
-        value: jsonEncode({'salt': salt, 'hash': hash, 'failures': 0}));
+        value: jsonEncode({
+          'salt': salt,
+          'hash': hash,
+          'failures': 0,
+          'pin_length': pin.length
+        }));
   }
 
   Future<bool> unlock(String pin) async {

@@ -5474,9 +5474,22 @@
             },
             "label": "1"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:2",
@@ -5487,9 +5500,22 @@
             },
             "label": "2 ABC"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:3",
@@ -5500,9 +5526,22 @@
             },
             "label": "3 DEF"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:4",
@@ -5513,9 +5552,22 @@
             },
             "label": "4 GHI"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:5",
@@ -5526,9 +5578,22 @@
             },
             "label": "5 JKL"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:6",
@@ -5539,9 +5604,22 @@
             },
             "label": "6 MNO"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:7",
@@ -5552,9 +5630,22 @@
             },
             "label": "7 PQRS"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:8",
@@ -5565,9 +5656,22 @@
             },
             "label": "8 TUV"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:9",
@@ -5578,9 +5682,22 @@
             },
             "label": "9 WXYZ"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:10",
@@ -5591,9 +5708,22 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:11",
@@ -5604,9 +5734,22 @@
             },
             "label": "0"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/refresh",
+            "GET /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:12",
@@ -5617,9 +5760,19 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         },
         {
           "id": "S36:13",
@@ -5630,9 +5783,19 @@
             },
             "label": "Войти номером и паролем"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/unlock-keypad-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_keypad_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "All keypad controls, deletion, physical keys, accessibility action, legacy length, actual app route callbacks. PIN/biometric completion triggers refresh/profile; local fixtures override refresh, not a current real HTTP proof. No visual/native-device acceptance."
+            }
+          ]
         }
       ]
     },
