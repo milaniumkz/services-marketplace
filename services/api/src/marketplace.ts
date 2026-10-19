@@ -1,3 +1,4 @@
+import {resolveStaffUser,assertStaffOperation,staffAccess} from './staff-access';
 import {refreshWorkFileProgress} from './work-file-retention';
 import {processDeletionCategories} from './deletion-worker';
 import {holdSnapshot} from './legal-holds';
@@ -106,7 +107,7 @@ export class Marketplace {
       await this.store.db.query('INSERT INTO tokens(hash,family,user_id,country,kind,expires_at,mfa_verified) VALUES($1,$2,$3,$4,$5,$6,$7)',[digest(value),family,user.id,user.country,kind,new Date(Date.now()+ttl*1000).toISOString(),mfa]);
     }
     await this.store.put(this.record('security_event',{id:user.id,country:user.country},{event:'session.credentials_issued',ip,session_family:family,mfa,occurred_at:new Date().toISOString()}));
-    return {access_token:access,refresh_token:refresh,expires_in:settings.access_seconds,user:{...safeUser(user),phone:user.phone,phone_status:'unverified'}};
+    return {access_token:access,refresh_token:refresh,expires_in:settings.access_seconds,user:{...safeUser(user),phone:user.phone,phone_status:'unverified',...(user.staff_permissions?.length?{staff_permissions:user.staff_permissions}:{} )}};
   }
   private async actor(authorization?: string): Promise<Actor> {
     const token=authorization?.match(/^Bearer ([A-Za-z0-9_-]+)$/)?.[1];
@@ -114,7 +115,7 @@ export class Marketplace {
     const t=(await this.store.db.query<any>('SELECT * FROM tokens WHERE hash=$1 AND kind=\'access\' AND NOT revoked AND expires_at>now()',[digest(token!)])).rows[0];
     if(!t) fail(401,'TOKEN_EXPIRED','Сессия истекла');
     const user=await this.store.get(t.user_id);if(!user || user.status==='deleted')fail(401,'UNAUTHENTICATED','Требуется вход');
-    return {id:user!.id,country:t.country,family:t.family,user:user!,mfa:t.mfa_verified};
+    return {id:user!.id,country:t.country,family:t.family,user:await resolveStaffUser(this.store,user!),mfa:t.mfa_verified};
   }
   private async object(id: string, a: Actor, kind?: string, own=false) {
     const r=await this.store.get(id);
@@ -156,7 +157,7 @@ export class Marketplace {
     }
   }
   private async staff(a: Actor, permission: string) {
-    const has=a.user.staff_permissions?.includes(permission)||(!['identity_view','verification_reviewer','bulk_restrict'].includes(permission)&&a.user.staff_permissions?.includes('administrator'));
+    const has=(a.user.staff_access_mode==='managed'&&permission==='administrator')||a.user.staff_permissions?.includes(permission)||(!['identity_view','verification_reviewer','bulk_restrict'].includes(permission)&&a.user.staff_permissions?.includes('administrator'));
     if(!has||!a.mfa||a.user.status!=='active')fail(403,'FORBIDDEN','Недостаточно служебных прав или MFA');
   }
   async handle(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local') {
@@ -166,6 +167,7 @@ export class Marketplace {
       if(method==='GET')return this.dispatch(method,path,body,authorization,query,ip);
       let actor: Actor|undefined;
       if(!path.startsWith('/auth/')&&!path.startsWith('/public/')&&!path.startsWith('/webhooks/'))actor=await this.actor(authorization);
+      if(actor)assertStaffOperation(actor.user,actor.mfa,method,path,body,query);
       // Counters commit independently of rejected business commands.
       if(actor)await this.limited('mutations:'+actor.id,120);
       if(path==='/auth/register')await this.limited('register:'+ip,5);
@@ -179,6 +181,7 @@ export class Marketplace {
       const scope=`${actor?.id??ip}:${method}:${path}`, bodyHash=key?await this.files.requestDigest(Buffer.isBuffer(body)?body.toString('base64'):JSON.stringify(body)):'';
       await this.store.db.exec('BEGIN');
       try {
+        if(actor?.user.staff_permissions?.length&&!path.startsWith('/admin/access/')){await this.store.db.query('SELECT pg_advisory_xact_lock_shared(hashtextextended($1,0))',['staff-access:'+actor.country]);actor=await this.actor(authorization);assertStaffOperation(actor.user,actor.mfa,method,path,body,query);}
         if(key)await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[scope+':'+key]);
         const cached=key?(await this.store.db.query<any>('SELECT * FROM idempotency WHERE scope=$1 AND key=$2',[scope,key])).rows[0]:null;
         if(cached){if(cached.body_hash!==bodyHash)fail(409,'IDEMPOTENCY_CONFLICT','Ключ уже использован с другими данными');await this.store.db.exec('COMMIT');return cached.result;}
@@ -234,7 +237,8 @@ export class Marketplace {
       if(!found)fail(404,'NOT_FOUND','Ссылка истекла или недействительна');
       const valid=(await db.query<any>("SELECT mfa_verified FROM tokens WHERE family=$1 AND kind='access' AND NOT revoked AND expires_at>now() LIMIT 1",[found.family])).rows[0];
       const user=await this.store.get(found.owner);if(!valid||!user||user.status==='deleted')fail(404,'NOT_FOUND','Ссылка недействительна');
-      const actor:Actor={id:user!.id,country:found.country,family:found.family,user:user!,mfa:valid.mfa_verified};
+      const actor:Actor={id:user!.id,country:found.country,family:found.family,user:await resolveStaffUser(this.store,user!),mfa:valid.mfa_verified};
+      assertStaffOperation(actor.user,actor.mfa,'GET','/uploads/'+found.upload_id+'/download',{}, {reason:found.reason});
       const upload=await this.object(found.upload_id,actor,'upload');await this.authorizeFile(upload,actor,{reason:found.reason});
       const claimed=await db.query("UPDATE records SET data=jsonb_set(jsonb_set(data,'{status}','\"used\"'::jsonb),'{version}',to_jsonb(version+1)),version=version+1 WHERE id=$1 AND data->>'status'='active' RETURNING id",[found.id]);
       if(!claimed.rows.length)fail(404,'NOT_FOUND','Ссылка уже использована');if(upload.purpose==='export')return {download_stream:await this.files.readStream(upload.id),download_size:upload.stored_size??upload.size,mime:upload.mime};return {download_buffer:await this.files.read(found.variant==='preview'&&upload.preview_file_id?upload.preview_file_id:upload.id),mime:upload.mime};
@@ -259,13 +263,15 @@ export class Marketplace {
       // Hash even nonexistent credentials to avoid the obvious timing distinction.
       const ok=c?await verify(c.password_hash,String(b.password)):await hash(String(b.password??''),{memoryCost:19456,timeCost:2,parallelism:1}).then(()=>false);
       if(!ok)fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
+      if(path==='/auth/staff-login')await db.query('SELECT pg_advisory_xact_lock_shared(hashtextextended($1,0))',['staff-access:'+String(b.country)]);
       const u=await this.store.get(c.user_id);if(!u || u.status==='deleted')fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       if(path==='/auth/staff-login') {
+        const effective=await resolveStaffUser(this.store,u!);
         const secret=u!.totp_secret_sealed?await this.files.unsealSecret(u!.totp_secret_sealed,u!.id):process.env.NODE_ENV==='production'?undefined:u!.totp_secret;
-        if(!u!.staff_permissions?.length||!secret||!verifyTotp(secret,String(b.mfa_code)))fail(401,'INVALID_CREDENTIALS','Неверные служебные данные или второй фактор');
+        if(!effective.staff_permissions?.length||(effective.staff_access_mode==='managed'&&!effective.staff_grants?.length)||!secret||!verifyTotp(secret,String(b.mfa_code)))fail(401,'INVALID_CREDENTIALS','Неверные служебные данные или второй фактор');
         if(u!.last_totp_step===Math.floor(Date.now()/30000)||u!.last_totp_code_hash===digest(String(b.mfa_code)))fail(401,'MFA_REPLAY','Код уже использован');
         await this.store.put({...u!,last_totp_step:Math.floor(Date.now()/30000),last_totp_code_hash:digest(String(b.mfa_code)),version:u!.version+1});
-        return this.tokens(u!,randomUUID(),true,ip);
+        return this.tokens(effective,randomUUID(),true,ip);
       }
       if(u!.staff_permissions?.length)fail(401,'INVALID_CREDENTIALS','Используйте отдельный служебный вход');
       return this.tokens(u!,randomUUID(),false,ip);
@@ -294,7 +300,9 @@ export class Marketplace {
       if(method==='POST'){const m=this.record('recovery_message',{id:'anonymous',country:t!.country},{thread_id:t!.id,text:text(b,'text',1,3000),sequence:messages.length+1});return this.store.put(m);}
     }
     const a=await this.actor(authorization);
+    assertStaffOperation(a.user,a.mfa,method,path,b,q);
     const settings=await this.settings(a.country);
+    if(path.startsWith('/admin/access/'))return staffAccess(this.store,a,method,path,b);
     if(a.user.staff_permissions?.length&&(path.startsWith('/orders')||path.startsWith('/me/contractor-profile')||path.startsWith('/me/portfolio-projects')||path==='/reviews'))fail(403,'FORBIDDEN','Для действий на бирже используйте отдельный пользовательский аккаунт');
     q={...q,_scope:a.id+':'+path};
     if(path==='/auth/logout'&&method==='POST'){await db.query('UPDATE tokens SET revoked=true WHERE family=$1',[a.family]);return {logged_out:true};}
@@ -950,7 +958,7 @@ export class Marketplace {
       const u=await this.object(upload[1],a,'upload');
       if(q.variant!==undefined&&!['original','preview'].includes(q.variant))fail(400,'VALIDATION_ERROR','Проверьте вариант файла');
       if(!['download','download-url','metadata'].includes(upload[2])&&u.owner!==a.id)fail(404,'NOT_FOUND','Файл не найден');
-      if(upload[2]==='metadata'&&method==='GET'){if(u.owner!==a.id)await this.authorizeFile(u,a,q);return {id:u.id,mime:u.mime,size:u.size,status:u.status,version:u.version,failure_code:u.failure_code};}
+      if(upload[2]==='metadata'&&method==='GET'){if(a.user.staff_access_mode==='managed'&&u.owner!==a.id&&!a.user.staff_grants?.some((g:string)=>['files.moderator','files.content','files.support','sensitive.identity'].includes(g)))fail(403,'FORBIDDEN','Роль разрешает статус только собственных загрузок');if(u.owner!==a.id)await this.authorizeFile(u,a,q);return {id:u.id,mime:u.mime,size:u.size,status:u.status,version:u.version,failure_code:u.failure_code};}
       if(upload[2]==='content'&&method==='PUT') {
         if(!Buffer.isBuffer(b)||b.length!==u.size)fail(400,'VALIDATION_ERROR','Размер файла не совпадает');
         if(u.status!=='initiated'&&!(u.status==='uploaded'&&u.content_hash===digest(b.toString('base64'))))fail(409,'STATE_CONFLICT','Загрузка уже завершена');
@@ -984,8 +992,9 @@ export class Marketplace {
       if(path==='/admin/search'&&method==='GET') {
         if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.length)fail(403,'FORBIDDEN','Требуется служебный вход с MFA');
         const admin=a.user.staff_permissions.includes('administrator'),permissions=a.user.staff_permissions;
-        const allowed=[...(admin?['user','order']:[]),...(admin||permissions.includes('moderator')?['case']:[]),
-          ...(admin||permissions.includes('support')?['support']:[]),...(permissions.includes('verification_reviewer')?['verification']:[])];
+        const canRead=(section:string,legacy:string)=>a.user.staff_access_mode==='managed'?a.user.staff_grants?.includes('GET /admin/'+section):permissions.includes(legacy);
+        const allowed=[...(admin||a.user.staff_grants?.includes('GET /admin/users')?['user']:[]),...(admin||a.user.staff_grants?.includes('GET /admin/orders')?['order']:[]),...(admin||canRead('cases','moderator')?['case']:[]),
+          ...(admin||canRead('support-threads','support')?['support']:[]),...(canRead('verifications','verification_reviewer')?['verification']:[])];
         const query=text({q:q.q??''},'q',0,120);
         if(q.kind&&!allowed.includes(q.kind))fail(403,'FORBIDDEN','Тип записи недоступен этой роли');
         if(query.length<2)return {items:[],kinds:allowed};

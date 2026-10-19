@@ -11,6 +11,492 @@
     }
   ],
   "paths": {
+    "/admin/access/me": {
+      "get": {
+        "operationId": "get__admin_access_me",
+        "tags": [
+          "admin"
+        ],
+        "description": "Current active MFA staff access. Role permissions are resolved for every request.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/access/catalog": {
+      "get": {
+        "operationId": "get__admin_access_catalog",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Mutations require an audit reason and version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/access/roles": {
+      "get": {
+        "operationId": "get__admin_access_roles",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Mutations require an audit reason and version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post__admin_access_roles",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Mutations require an audit reason and version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffRoleCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/access/roles/{id}": {
+      "patch": {
+        "operationId": "patch__admin_access_roles_id_",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Mutations require an audit reason and version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffRoleUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/access/roles/{id}/archive": {
+      "post": {
+        "operationId": "post__admin_access_roles_id_archive",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Mutations require an audit reason and version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/access/staff": {
+      "get": {
+        "operationId": "get__admin_access_staff",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Mutations require an audit reason and version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/access/staff/{id}/roles": {
+      "put": {
+        "operationId": "put__admin_access_staff_id_roles",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Mutations require an audit reason and version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffRoleAssignment"
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/category-tree": {
       "get": {
         "operationId": "get__admin_category_tree",
@@ -24690,6 +25176,101 @@
           "expected_policy_version": {
             "type": "integer",
             "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffRoleCommand": {
+        "type": "object",
+        "required": [
+          "title",
+          "grants",
+          "reason"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "grants": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffRoleUpdate": {
+        "type": "object",
+        "required": [
+          "title",
+          "grants",
+          "reason",
+          "expected_version"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "grants": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffRoleAssignment": {
+        "type": "object",
+        "required": [
+          "role_ids",
+          "expected_version",
+          "reason"
+        ],
+        "properties": {
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 20
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
           }
         },
         "additionalProperties": false

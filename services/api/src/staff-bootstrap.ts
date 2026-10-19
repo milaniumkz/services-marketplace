@@ -4,13 +4,13 @@ import { hash } from '@node-rs/argon2';
 import { Store } from './store';
 import { PrivateFiles } from './private-files';
 
-const permissions=new Set(['bulk_restrict','administrator','content','moderator','senior_moderator','security','support','support_internal','phone_view','billing','campaign','moderator_manager','verification_reviewer','identity_view','promotion','brand_owner','release','auditor','privacy']);
+const permissions=new Set(['platform_owner','bulk_restrict','administrator','content','moderator','senior_moderator','security','support','support_internal','phone_view','billing','campaign','moderator_manager','verification_reviewer','identity_view','promotion','brand_owner','release','auditor','privacy']);
 function base32(bytes:Buffer){
  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits=0,value=0,result='';
  for(const byte of bytes){value=(value<<8)|byte;bits+=8;while(bits>=5){result+=alphabet[(value>>>(bits-5))&31];bits-=5;}}
  if(bits)result+=alphabet[(value<<(5-bits))&31];return result;
 }
-/** Offline operator command only. No HTTP route can grant staff permissions. */
+/** Offline operator command only. Owner bootstrap is offline. Managed roles are assigned by the owner through the audited API. */
 export async function bootstrapStaff(store:Store,files:PrivateFiles,input:any,saveEnrollment:(value:any)=>Promise<void>){
  if(!countryEnabled(input.country))throw Error('Select the matching regional country');
  if(input.locale!==undefined&&!['ru','kk','sr','be'].includes(input.locale))throw Error('Unsupported staff locale');
