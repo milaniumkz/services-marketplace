@@ -35,9 +35,20 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
   String? target, price, placement;
   Json? receipt;
   Timer? timer;
+  late final bool Function() ownsScreen;
   @override
   void initState() {
     super.initState();
+    final api = widget.api;
+    final generation = api.sessionGeneration;
+    final owner = api.session?['user']?['id'];
+    ownsScreen = () =>
+        mounted &&
+        identical(widget.api, api) &&
+        !api.disposed &&
+        api.authenticated &&
+        api.sessionGeneration == generation &&
+        api.session?['user']?['id'] == owner;
     if (widget.mode == 'promotion-checkout')
       timer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() {});
@@ -105,6 +116,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
 
   Future<void> run(Future<void> Function() f) async {
     if (busy) return;
+    if (!ownsScreen()) return;
     setState(() {
       busy = true;
       error = null;
@@ -112,7 +124,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
     try {
       await f();
     } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (ownsScreen()) setState(() => error = e);
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -256,17 +268,29 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
                         'Подтверждение покупки сохранено на этом экране. Повторная проверка не запускает новую оплату.'),
                 ],
                 submit: (_) async {
+                  if (!ownsScreen()) {
+                    throw ApiException(
+                        'SESSION_EXPIRED', 'Войдите в аккаунт заново');
+                  }
+                  final api = widget.api;
+                  final reservationId = widget.id;
                   setState(() => busy = true);
                   try {
-                    receipt ??= await widget.gateway.purchase(p!);
+                    if (receipt == null) {
+                      final proof = await widget.gateway.purchase(p!);
+                      if (!ownsScreen()) return;
+                      receipt = proof;
+                    }
+                    if (!ownsScreen()) return;
                     try {
-                      await widget.api.request('/boost-purchases/verify',
+                      await api.request('/boost-purchases/verify',
                           method: 'POST',
-                          body: {...receipt!, 'reservation_id': widget.id});
+                          body: {...receipt!, 'reservation_id': reservationId});
                     } on ApiException catch (e) {
                       if (e.code != 'PAYMENT_PENDING') rethrow;
                     }
-                    if (mounted) widget.onGo('promotion-pending', widget.id);
+                    if (ownsScreen())
+                      widget.onGo('promotion-pending', reservationId);
                   } finally {
                     if (mounted) setState(() => busy = false);
                   }
@@ -419,6 +443,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
               button: 'Проверить размещение',
               submit: (_) => run(() async {
                     try {
+                      if (!ownsScreen()) return;
                       final reserved = await widget.api.request(
                           '/boost-reservations',
                           method: 'POST',
@@ -427,11 +452,12 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
                             'price_id': price,
                             'placement_id': placement
                           });
-                      if (mounted)
+                      if (ownsScreen())
                         widget.onGo('promotion-checkout', reserved['id']);
                     } on ApiException catch (e) {
                       if (e.code == 'PLACEMENT_FULL') {
-                        if (mounted) widget.onGo('promotion-no-slots', null);
+                        if (ownsScreen())
+                          widget.onGo('promotion-no-slots', null);
                         return;
                       }
                       rethrow;

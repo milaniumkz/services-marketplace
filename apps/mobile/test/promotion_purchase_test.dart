@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,9 +25,95 @@ class Gateway extends CommerceGateway {
   Future<bool> playReward(Json session) async => false;
 }
 
+class DelayedGateway extends Gateway {
+  final proof = Completer<Json>();
+  @override
+  Future<Json> purchase(Json offer) {
+    purchases++;
+    return proof.future;
+  }
+}
+
+Json reservation(DateTime now) => {
+      'id': 'reservation',
+      'title': 'Моя услуга',
+      'status': 'reserved',
+      'reservation_expires_at':
+          now.add(const Duration(minutes: 10)).toIso8601String(),
+      'price': {
+        'provider': 'test',
+        'product_id': 'week',
+        'currency': 'KZT',
+        'amount_minor': 199000,
+        'period': 'week',
+        'time_zone': 'UTC'
+      }
+    };
+
 Widget host(Widget child) =>
     MaterialApp(theme: jobaTheme(), home: Scaffold(body: child));
 void main() {
+  for (final phase in ['provider', 'verification']) {
+    testWidgets(
+        'promotion ignores late $phase result after account replacement',
+        (t) async {
+      final clock = DateTime.utc(2026, 10, 15, 10);
+      final gateway = DelayedGateway();
+      final verification = Completer<http.Response>();
+      var writes = 0;
+      String? route;
+      final a =
+          JobaApi('https://isolated.example', transport: MockClient((r) async {
+        if (r.method == 'POST') {
+          writes++;
+          return verification.future;
+        }
+        return ok(reservation(clock));
+      }))
+            ..session = {
+              'access_token': 'first',
+              'user': {'id': 'first'}
+            };
+      addTearDown(a.dispose);
+      await t.pumpWidget(host(PromotionPurchase(
+          api: a,
+          mode: 'promotion-checkout',
+          id: 'reservation',
+          gateway: gateway,
+          now: () => clock,
+          onGo: (r, _) => route = r)));
+      await t.pumpAndSettle();
+      await t.scrollUntilVisible(find.byType(Checkbox), 150,
+          scrollable: find.byType(Scrollable).first);
+      await t.pumpAndSettle();
+      await t.tap(find.byType(Checkbox));
+      await t.pump();
+      await t.tap(find.text('Продолжить оплату'));
+      await t.pump();
+      expect(gateway.purchases, 1);
+      if (phase == 'verification') {
+        gateway.proof
+            .complete({'provider': 'test', 'transaction_reference': 'proof'});
+        await t.pump();
+        await t.pump();
+        expect(writes, 1);
+      }
+      a.session = {
+        'access_token': 'second',
+        'user': {'id': 'second'}
+      };
+      if (phase == 'provider')
+        gateway.proof
+            .complete({'provider': 'test', 'transaction_reference': 'proof'});
+      else
+        verification.complete(ok({'status': 'active'}));
+      await t.pumpAndSettle();
+      expect(writes, phase == 'provider' ? 0 : 1);
+      expect(route, isNull);
+      await t.pumpWidget(const SizedBox());
+    });
+  }
+
   testWidgets(
       'only compatible placements can be reserved, and period selection uses the exact published price',
       (t) async {
@@ -187,6 +274,16 @@ void main() {
     expect(gateway.purchases, 1);
     expect(attempts, 2);
     expect(route, 'promotion-pending');
+    route = null;
+    api.session = {
+      'access_token': 'replacement',
+      'user': {'id': 'replacement'}
+    };
+    await t.tap(find.text('Проверить оплату'));
+    await t.pumpAndSettle();
+    expect(attempts, 2);
+    expect(gateway.purchases, 1);
+    expect(route, isNull);
     await t.pumpWidget(const SizedBox());
     api.dispose();
   });

@@ -15,6 +15,49 @@ class _Vault implements SessionVault {
 }
 
 void main() {
+  testWidgets('late attribution cannot close the replacement account screen',
+      (tester) async {
+    final response = Completer<http.Response>();
+    var accepted = 0;
+    final api = JobaApi('https://isolated.example',
+        vault: _Vault(), transport: MockClient((_) => response.future))
+      ..session = {
+        'access_token': 'first',
+        'user': {'id': 'first'}
+      };
+    addTearDown(api.dispose);
+    await tester.pumpWidget(MaterialApp(
+        theme: jobaTheme(),
+        home: Builder(
+            builder: (context) => Scaffold(
+                body: TextButton(
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                            builder: (_) => ReferralCodeScreen(
+                                api: api, onAccepted: () => accepted++))),
+                    child: const Text('Open'))))));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'invited-code');
+    await tester.tap(find.text('Проверить код'));
+    await tester.pump();
+    api.session = {
+      'access_token': 'second',
+      'user': {'id': 'second'}
+    };
+    response.complete(http.Response(
+        jsonEncode({
+          'data': {'status': 'pending'}
+        }),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'}));
+    await tester.pumpAndSettle();
+    expect(accepted, 0);
+    expect(find.byType(ReferralCodeScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'invitation validates locally, retains code after rejection and retries once without duplicate requests',
       (tester) async {

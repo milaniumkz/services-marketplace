@@ -43,9 +43,15 @@ class ReferralCodeScreen extends StatelessWidget {
           ],
           button: 'Проверить код',
           submit: (values) async {
+            final generation = api.sessionGeneration;
+            final owner = api.session?['user']?['id'];
             await api.request('/referrals/attribute',
                 method: 'POST', body: {'code': values['code']!.trim()});
-            if (!context.mounted) return;
+            if (!context.mounted ||
+                api.disposed ||
+                !api.authenticated ||
+                api.sessionGeneration != generation ||
+                api.session?['user']?['id'] != owner) return;
             Navigator.pop(context);
             onAccepted();
           },
