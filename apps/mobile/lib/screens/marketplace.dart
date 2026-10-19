@@ -34,6 +34,7 @@ import 'portfolio_detail.dart';
 import 'contractor_profile.dart';
 import 'onboarding_consent.dart';
 import 'unlock_keypad.dart';
+import 'pin_limit.dart';
 import 'city_selector.dart';
 import '../core/share_invitation.dart';
 import 'verification_editor.dart';
@@ -464,6 +465,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   void back() {
     if (authNavigationBlocked) return;
+    if (route == 'pin-limit') {
+      leavePinLimit('login');
+      return;
+    }
     if (route == 'login' && authCredentialFailure) {
       setState(() { authCredentialFailure = false; authFormRevision++; });
       return;
@@ -531,7 +536,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           double titleOffset = 0,
           Widget? titleWidget, double? toolbarHeight, double leadingWidth = 72}) =>
       PopScope(
-          canPop: history.isEmpty && !authNavigationBlocked && !(route == 'login' && authCredentialFailure),
+          canPop: history.isEmpty && route != 'pin-limit' && !authNavigationBlocked && !(route == 'login' && authCredentialFailure),
           onPopInvokedWithResult: (popped, result) {
             if (!popped) back();
           },
@@ -754,7 +759,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           await completeLocalSetup(biometry: true);
         }),titleOffset:-12);
       case 'pin-limit':
-        return page('Нужен полный вход',ListView(padding:const EdgeInsets.all(20),children:[JobaStatePanel(icon:'lock',title:'Войдите снова',message:'После 5 неверных попыток PIN локальная разблокировка отключена для безопасности.',primaryLabel:'Войти номером и паролем',onPrimary:()=>go('login'),secondaryLabel:'Помощь со входом',onSecondary:()=>go('recovery'))]),titleOffset:-12);
+        return page('Нужен полный вход', PinLimit(
+          onLogin: () => leavePinLimit('login'),
+          onHelp: () => leavePinLimit('recovery'),
+        ), titleOffset: -12);
       case 'unlock':
         return unlockScreen();
       case 'banned':
@@ -1711,6 +1719,19 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     onSave: (pin, bio) => completeLocalSetup(pin: pin, biometry: bio),
     onPassword: () => completeLocalSetup(passwordOnly: true),
   ), titleOffset: -12);
+  void leavePinLimit(String target) {
+    if (authNavigationBlocked) return;
+    ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
+    setState(() {
+      history.clear();
+      if (target == 'recovery') history.add(('login', null));
+      route = target;
+      objectId = null;
+      authCredentialFailure = false;
+      authFormRevision++;
+    });
+  }
+
   Future<void> unlockSession({String? pin}) async {
     if (unlockSubmitting) return;
     final client = api, protection = lock, generation = api.sessionGeneration;

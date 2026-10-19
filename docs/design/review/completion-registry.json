@@ -9061,9 +9061,19 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/pin-limit-update.md",
+              "tests": [
+                "apps/mobile/test/pin_limit_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "Actual local KDF through five attempts with isolated hardware/storage channels, local vault deletion, both Back routes, login/recovery navigation without loops. No API call needed; no native-device/server/visual acceptance."
+            }
+          ]
         },
         {
           "id": "S36.limit:2",
@@ -9074,9 +9084,19 @@
             },
             "label": "Войти номером и паролем"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/pin-limit-update.md",
+              "tests": [
+                "apps/mobile/test/pin_limit_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "Actual local KDF through five attempts with isolated hardware/storage channels, local vault deletion, both Back routes, login/recovery navigation without loops. No API call needed; no native-device/server/visual acceptance."
+            }
+          ]
         },
         {
           "id": "S36.limit:3",
@@ -9087,9 +9107,19 @@
             },
             "label": "Помощь со входом"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/pin-limit-update.md",
+              "tests": [
+                "apps/mobile/test/pin_limit_test.dart",
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "Actual local KDF through five attempts with isolated hardware/storage channels, local vault deletion, both Back routes, login/recovery navigation without loops. No API call needed; no native-device/server/visual acceptance."
+            }
+          ]
         }
       ]
     },
