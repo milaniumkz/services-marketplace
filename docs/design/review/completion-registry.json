@@ -7019,9 +7019,19 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/pin-setup-update.md",
+              "tests": [
+                "apps/mobile/test/device_setup_test.dart",
+                "apps/mobile/test/pin_setup_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "Local UI/flow, keyboard, pending-navigation and stale-session guards with isolated platform/vault/lock fixtures. PIN requires no API operation. No native-device or visual acceptance."
+            }
+          ]
         },
         {
           "id": "S15.pin:3",
@@ -7032,9 +7042,19 @@
             },
             "label": "Вводить номер и пароль"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/pin-setup-update.md",
+              "tests": [
+                "apps/mobile/test/device_setup_test.dart",
+                "apps/mobile/test/pin_setup_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "Local UI/flow, keyboard, pending-navigation and stale-session guards with isolated platform/vault/lock fixtures. PIN requires no API operation. No native-device or visual acceptance."
+            }
+          ]
         },
         {
           "id": "S15.pin:4",
@@ -7045,9 +7065,19 @@
             },
             "label": "Подтвердить PIN в демо"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/pin-setup-update.md",
+              "tests": [
+                "apps/mobile/test/device_setup_test.dart",
+                "apps/mobile/test/pin_setup_flow_test.dart",
+                "apps/mobile/test/local_lock_test.dart"
+              ],
+              "scope": "Local UI/flow, keyboard, pending-navigation and stale-session guards with isolated platform/vault/lock fixtures. PIN requires no API operation. No native-device or visual acceptance."
+            }
+          ]
         }
       ]
     },

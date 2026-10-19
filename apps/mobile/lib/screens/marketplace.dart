@@ -176,9 +176,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   final List<(String, String?)> history = [];
   bool starting = true, executor = false, actionBusy = false;
   bool authSubmitting = false, authCredentialFailure = false;
+  bool localSetupSubmitting = false;
   int authFormRevision = 0;
   String authPhoneInitial = '';
-  bool get authNavigationBlocked => authSubmitting && ['login', 'register'].contains(route);
+  bool get authNavigationBlocked =>
+      (authSubmitting && ['login', 'register'].contains(route)) ||
+      (localSetupSubmitting && ['pin-setup', 'lock-setup', 'biometric'].contains(route));
   Object? startupError;
   int revision = 0, sequence = 0;
   WebSocketChannel? channel;
@@ -746,7 +749,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return lockSetup();
       case 'biometric':
         return page('Биометрия',BiometrySetup(onPin:()=>go(locked?'unlock':'pin-setup'),onEnable:()async{
-          await lock!.enableBiometry();await api.setPersistence(true);localProtected=true;finishLocalSetup();
+          await completeLocalSetup(biometry: true);
         }),titleOffset:-12);
       case 'pin-limit':
         return page('Нужен полный вход',ListView(padding:const EdgeInsets.all(20),children:[JobaStatePanel(icon:'lock',title:'Войдите снова',message:'После 5 неверных попыток PIN локальная разблокировка отключена для безопасности.',primaryLabel:'Войти номером и паролем',onPrimary:()=>go('login'),secondaryLabel:'Помощь со входом',onSecondary:()=>go('recovery'))]),titleOffset:-12);
@@ -1662,11 +1665,50 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       go('terms');
   }
 
-  Widget lockSetup() => page('Защитите приложение',PinSetup(onSave:(pin,bio)async{
-    await lock!.configure(pin);
-    if(bio){try{await lock!.enableBiometry();}catch(_){success('PIN сохранён. Биометрия недоступна.');}}
-    await api.setPersistence(true);localProtected=true;finishLocalSetup();
-  },onPassword:()async{await api.setPersistence(false);localProtected=false;finishLocalSetup();}),titleOffset:-12);
+  Future<void> completeLocalSetup({String? pin, bool biometry = false, bool passwordOnly = false}) async {
+    if (localSetupSubmitting) return;
+    final client = api, protection = lock, generation = api.sessionGeneration;
+    final owner = me?['id'], setupRoute = route;
+    final wasPersistent = client.persistSession;
+    bool current() => mounted && identical(_api, client) &&
+        client.sessionGeneration == generation && client.authenticated &&
+        me?['id'] == owner && route == setupRoute;
+    if (!current()) return;
+    setState(() => localSetupSubmitting = true);
+    try {
+      if (!passwordOnly) {
+        if (protection == null) throw ApiException('LOCAL_PROTECTION_UNAVAILABLE', 'Используйте вход с номером и паролем');
+        if (pin != null) await protection.configure(pin);
+        if (!current()) { await protection.clear(); return; }
+        if (biometry) {
+          try {
+            await protection.enableBiometry();
+          } catch (_) {
+            if (pin == null) rethrow;
+            if (current()) success('PIN сохранён. Биометрия недоступна.');
+          }
+          if (!current()) { await protection.clear(); return; }
+        }
+      }
+      await client.setPersistence(!passwordOnly);
+      if (!current()) return;
+      localProtected = !passwordOnly;
+      setState(() => localSetupSubmitting = false);
+      finishLocalSetup();
+    } catch (_) {
+      if (current() && client.persistSession != wasPersistent) {
+        await client.setPersistence(wasPersistent);
+      }
+      rethrow;
+    } finally {
+      if (mounted) setState(() => localSetupSubmitting = false);
+    }
+  }
+
+  Widget lockSetup() => page('Защитите приложение', PinSetup(
+    onSave: (pin, bio) => completeLocalSetup(pin: pin, biometry: bio),
+    onPassword: () => completeLocalSetup(passwordOnly: true),
+  ), titleOffset: -12);
   Widget unlockScreen() => Scaffold(
       appBar: AppBar(title: const UiText('Разблокировка JOBA')),
       body: ActionForm(

@@ -109,6 +109,8 @@ class _PinSetupState extends State<PinSetup> {
                     enableSuggestions: false,
                     autocorrect: false,
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => submit(),
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(6)
