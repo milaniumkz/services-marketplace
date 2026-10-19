@@ -18,6 +18,66 @@ http.Response ok(Object data) =>
     http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
         headers: {'content-type': 'application/json; charset=utf-8'});
 void main() {
+  testWidgets(
+      'edit profile saves through the root and reopens the confirmed record',
+      (t) async {
+    var writes = 0, reads = 0;
+    Json user = {
+      'id': 'owner',
+      'version': 1,
+      'display_name': 'Первое имя',
+      'country': 'KZ',
+      'locale': 'ru',
+      'roles': ['customer'],
+      'active_role': 'customer',
+      'phone': '+77000000001',
+      'languages': ['ru']
+    };
+    final api = JobaApi('https://isolated.example', vault: _Vault(),
+        transport: MockClient((r) async {
+      if (r.url.path.endsWith('/me')) {
+        if (r.method == 'PATCH') {
+          writes++;
+          final body = jsonDecode(r.body);
+          expect(body.containsKey('roles'), false);
+          user = {...user, ...body, 'version': 2};
+          return ok(user);
+        }
+        reads++;
+        return ok(user);
+      }
+      return ok({'items': []});
+    }));
+    addTearDown(api.dispose);
+    await t.pumpWidget(JobaApp(api: api));
+    await t.pumpAndSettle();
+    api.session = {'access_token': 'first', 'user': user};
+    final dynamic state = t.state(find.byType(Marketplace));
+    state.me = user;
+    state.go('account');
+    state.go('profile-edit');
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextFormField), 'Новое имя');
+    await t.tap(find.text('Сохранить профиль'));
+    await t.pumpAndSettle();
+    expect(writes, 1);
+    expect(state.route, 'account');
+    expect(state.profileDraft, isNull);
+    expect(state.me['display_name'], 'Новое имя');
+    state.go('profile-edit');
+    await t.pumpAndSettle();
+    expect(t.widget<TextFormField>(find.byType(TextFormField)).controller!.text,
+        'Новое имя');
+    expect(find.text('+77000000001'), findsOneWidget);
+    await t.tap(find.byTooltip('Назад'));
+    await t.pumpAndSettle();
+    expect(state.route, 'account');
+    expect(writes, 1);
+    expect(reads, greaterThanOrEqualTo(3));
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
   for (final name in ['', 'Complete']) {
     testWidgets('login resumes only an incomplete required profile: $name',
         (t) async {

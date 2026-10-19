@@ -87,9 +87,12 @@ void main() {
     final updated = await api.request('/me', method: 'PATCH', body: {
       'expected_version': (await api.request('/me'))['version'],
       'display_name': 'Новое имя',
-      'city': cities.first['name']
+      'city': cities.first['name'],
+      'languages': ['ru', 'kk']
     }) as Json;
     expect(updated['display_name'], 'Новое имя');
+    expect(updated['languages'], ['ru', 'kk']);
+    expect((await api.request('/me'))['languages'], ['ru', 'kk']);
     final image = base64Decode(
         'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEklEQVQImWNQib6tEn2bAUIBACMKBWmBjKz3AAAAAElFTkSuQmCC');
     final avatar = await api.upload(image, 'image/png', 'avatar');

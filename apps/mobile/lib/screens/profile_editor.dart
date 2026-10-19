@@ -1,3 +1,5 @@
+import 'city_selector.dart';
+import '../core/widgets.dart' show ApiView;
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/design_icons.dart';
@@ -33,7 +35,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
   late Json record;
   late TextEditingController name, city, languages;
   late String role;
-  bool busy = false;
+  bool busy = false, choosing = false;
   Object? error;
   Json? pendingAvatar;
   @override
@@ -78,19 +80,25 @@ class _ProfileEditorState extends State<ProfileEditor> {
   bool current(JobaApi api, int generation) =>
       mounted &&
       identical(widget.api, api) &&
+      !api.disposed &&
       api.sessionGeneration == generation &&
       api.authenticated &&
       api.session?['user']?['id'] == record['id'];
-  void start() {
+  void start({bool selecting = false}) {
     setState(() {
       busy = true;
+      choosing = selecting;
       error = null;
     });
     widget.onBusyChanged?.call(true);
   }
 
   void finish() {
-    if (mounted) setState(() => busy = false);
+    if (mounted)
+      setState(() {
+        busy = false;
+        choosing = false;
+      });
     widget.onBusyChanged?.call(false);
   }
 
@@ -122,7 +130,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
         'avatar_id': file?['id'],
       }) as Json;
       if (!current(api, generation) || updated['id'] != record['id']) return;
-      record = Json.from(updated);
+      record = {...record, ...updated};
       pendingAvatar = null;
     } catch (failure) {
       await conflict(failure, api, generation);
@@ -143,8 +151,9 @@ class _ProfileEditorState extends State<ProfileEditor> {
         'expected_version': record['version'],
         if (pendingAvatar != null) 'avatar_id': pendingAvatar!['id'],
         'display_name': name.text.trim(),
-        'active_role': role,
-        'roles': {...record['roles'] as List? ?? [], role}.toList(),
+        if (widget.onboarding) 'active_role': role,
+        if (widget.onboarding)
+          'roles': {...record['roles'] as List? ?? [], role}.toList(),
         if (!widget.onboarding) 'city': city.text.trim(),
         if (!widget.onboarding)
           'languages': languages.text
@@ -158,7 +167,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
         pendingAvatar = null;
         finish();
         released = true;
-        widget.onSaved(result);
+        widget.onSaved({...record, ...result});
       }
     } catch (failure) {
       await conflict(failure, api, generation);
@@ -167,10 +176,139 @@ class _ProfileEditorState extends State<ProfileEditor> {
     }
   }
 
+  Future<void> chooseCity() async {
+    if (busy) return;
+    final api = widget.api, generation = api.sessionGeneration;
+    start(selecting: true);
+    try {
+      final selected = await Navigator.of(context).push<Json>(MaterialPageRoute(
+          builder: (context) => Scaffold(
+              appBar: AppBar(title: const UiText('Город')),
+              body: ApiView(
+                  load: () => api.request('/geo/cities'),
+                  builder: (context, data, reload) => CitySelector(
+                      cities: (data['items'] as List).cast<Json>(),
+                      initial: city.text,
+                      onSave: (value) async =>
+                          Navigator.pop(context, value))))));
+      if (selected != null && current(api, generation)) {
+        setState(() => city.text = selected['name']);
+        notifyDraft();
+      }
+    } finally {
+      finish();
+    }
+  }
+
+  Future<void> chooseLanguages() async {
+    if (busy) return;
+    final api = widget.api, generation = api.sessionGeneration;
+    final selected = languages.text
+        .split(',')
+        .map((v) => v.trim())
+        .where((v) => v.isNotEmpty)
+        .toSet();
+    start(selecting: true);
+    try {
+      final result = await showDialog<List<String>>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+              builder: (context, update) => AlertDialog(
+                      title: const UiText('Языки общения'),
+                      content: SingleChildScrollView(
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                        for (final entry in languageNames.entries)
+                          CheckboxListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: UiText(entry.value),
+                              value: selected.contains(entry.key),
+                              onChanged: (value) => update(() => value == true
+                                  ? selected.add(entry.key)
+                                  : selected.remove(entry.key)))
+                      ])),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const UiText('Отмена')),
+                        TextButton(
+                            onPressed: selected.isEmpty
+                                ? null
+                                : () =>
+                                    Navigator.pop(context, selected.toList()),
+                            child: const UiText('Выбрать'))
+                      ])));
+      if (result != null && current(api, generation)) {
+        setState(() => languages.text = result.join(', '));
+        notifyDraft();
+      }
+    } finally {
+      finish();
+    }
+  }
+
+  static const languageNames = {
+    'ru': 'Русский',
+    'kk': 'Қазақша',
+    'sr': 'Српски',
+    'be': 'Беларуская',
+    'en': 'English'
+  };
+  Widget selector(
+          String label, TextEditingController controller, VoidCallback pick,
+          {bool location = false}) =>
+      Padding(
+          padding: const EdgeInsets.only(top: 18),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            UiText(label,
+                style: const TextStyle(
+                    fontSize: 12, height: 1.45, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Semantics(
+                button: true,
+                child: InkWell(
+                    key: ValueKey(controller == city
+                        ? 'profile-city-selector'
+                        : 'profile-languages-selector'),
+                    onTap: busy ? null : pick,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                        constraints: const BoxConstraints(minHeight: 52),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: const Color(0xFFDCE3EE)),
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Row(children: [
+                          if (location) ...[
+                            const JobaIcon('pin'),
+                            const SizedBox(width: 10)
+                          ],
+                          Expanded(
+                              child: Text(
+                                  controller == languages
+                                      ? controller.text
+                                          .split(',')
+                                          .map((s) =>
+                                              languageNames[s.trim()] ??
+                                              s.trim())
+                                          .join(', ')
+                                      : controller.text,
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      height: 22 / 14,
+                                      color: navy))),
+                          const SizedBox(width: 10),
+                          const JobaIcon('down')
+                        ]))))
+          ]));
   Widget field(String label, TextEditingController controller,
           {bool required = true}) =>
       Padding(
-          padding: const EdgeInsets.only(top: 18),
+          padding: EdgeInsets.only(
+              top: !widget.onboarding && controller == name ? 0 : 18),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             UiText(label,
@@ -181,16 +319,12 @@ class _ProfileEditorState extends State<ProfileEditor> {
                 controller: controller,
                 onChanged: (_) => notifyDraft(),
                 enabled: !busy,
-                style: TextStyle(
-                    fontSize: 14,
-                    height: 1.45,
-                    color: widget.onboarding ? muted : navy),
+                style: TextStyle(fontSize: 14, height: 1.45, color: muted),
                 decoration: InputDecoration(
                     isDense: true,
                     constraints: const BoxConstraints(minHeight: 52),
                     contentPadding: EdgeInsets.symmetric(
-                        horizontal: widget.onboarding ? 11 : 14,
-                        vertical: widget.onboarding ? 16 : 14),
+                        horizontal: widget.onboarding ? 11 : 14, vertical: 16),
                     enabledBorder: const OutlineInputBorder(
                         borderRadius: BorderRadius.all(Radius.circular(12)),
                         borderSide: BorderSide(color: Color(0xFFDCE3EE)))),
@@ -363,60 +497,99 @@ class _ProfileEditorState extends State<ProfileEditor> {
                           notifyDraft();
                         },
                   child: const UiText('Отменить выбор фото')),
-          ] else
-            Row(children: [
-              JobaAvatar(
-                  api: widget.api,
-                  name: name.text,
-                  id: record['avatar_id'],
-                  size: 56),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: TextButton(
-                      onPressed: busy ? null : () => avatar(),
-                      child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            UiText('Добавить фото',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: primary)),
-                            SizedBox(height: 4),
-                            UiText('Необязательно',
-                                style: TextStyle(fontSize: 11, color: muted))
-                          ]))),
+          ] else ...[
+            Center(
+                child: Column(children: [
+              Container(
+                  width: 82,
+                  height: 82,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24)),
+                  child: JobaAvatar(
+                      api: widget.api,
+                      name: name.text,
+                      id: record['avatar_id'],
+                      size: 74,
+                      backgroundColor: const Color(0xFFE6E1F0),
+                      foregroundColor: const Color(0xFF6F608A))),
+              TextButton(
+                  onPressed: busy ? null : () => avatar(),
+                  child: UiText(
+                      pendingAvatar == null ? 'Изменить фото' : 'Повторить',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.5,
+                          fontWeight: FontWeight.w400))),
               if (record['avatar_id'] != null)
-                IconButton(
-                    tooltip: localize(context, 'Удалить фото профиля'),
+                TextButton(
                     onPressed: busy ? null : () => avatar(remove: true),
-                    icon: const JobaIcon('trash', size: 20))
-            ]),
-          if (error != null) Notice(errorText(context, error!), error: true),
-          field('Как к вам обращаться', name),
-          if (!widget.onboarding) ...[
-            field('Город', city, required: false),
-            field('Языки общения (ru, kk, sr, be, en)', languages)
+                    child: const UiText('Удалить фото профиля')),
+              if (pendingAvatar != null)
+                TextButton(
+                    onPressed: busy
+                        ? null
+                        : () {
+                            setState(() => pendingAvatar = null);
+                            notifyDraft();
+                          },
+                    child: const UiText('Отменить выбор фото'))
+            ]))
           ],
-          const SizedBox(height: 18),
-          const UiText('Что вам интересно?',
-              style: TextStyle(
-                  fontSize: 12, height: 1.45, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          roleChoice('customer', 'Найти специалиста',
-              'Разместить заказ или выбрать мастера', 'search'),
-          roleChoice('executor', 'Найти заказы',
-              'Предлагать услуги и откликаться', 'brief'),
-          if (widget.onboarding)
+          if (error != null) Notice(errorText(context, error!), error: true),
+          field(widget.onboarding ? 'Как к вам обращаться' : 'Имя в профиле',
+              name),
+          if (!widget.onboarding) ...[
+            selector('Город', city, chooseCity, location: true),
+            selector('Языки общения', languages, chooseLanguages)
+          ],
+          if (widget.onboarding) ...[
+            const SizedBox(height: 18),
+            const UiText('Что вам интересно?',
+                style: TextStyle(
+                    fontSize: 12, height: 1.45, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            roleChoice('customer', 'Найти специалиста',
+                'Разместить заказ или выбрать мастера', 'search'),
+            roleChoice('executor', 'Найти заказы',
+                'Предлагать услуги и откликаться', 'brief'),
             const Padding(
                 padding: EdgeInsets.only(top: 6),
                 child: UiText(
                     'Роль можно переключить позже. Для работы исполнителем потребуется проверка документа.',
                     style: TextStyle(fontSize: 12, height: 1.5, color: muted)))
-          else
-            const Notice(
-                'Роль можно переключить позже. Для работы исполнителем потребуется проверка документа.',
-                icon: 'info')
+          ] else ...[
+            Container(
+                margin: const EdgeInsets.only(top: 20),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: line),
+                    borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const UiText('Номер телефона',
+                          style: TextStyle(
+                              fontSize: 12, height: 1.5, color: muted)),
+                      const SizedBox(height: 8),
+                      Text(record['phone'] ?? 'Номер недоступен',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              height: 23 / 16,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      const UiText(
+                          'Используется как логин. Статус номера: не подтверждён.',
+                          style: TextStyle(
+                              fontSize: 10, height: 1.4, color: muted))
+                    ])),
+            const SizedBox(height: 20),
+            const UiText(
+                'Ваш номер не виден в публичном профиле. Документ обязателен только для работы исполнителем.',
+                style: TextStyle(fontSize: 12, height: 1.5, color: muted))
+          ]
         ])),
         Container(
             decoration: const BoxDecoration(
@@ -427,7 +600,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
                 top: false,
                 child: FilledButton(
                     onPressed: busy ? null : save,
-                    child: busy
+                    child: busy && !choosing
                         ? const SizedBox(
                             width: 20,
                             height: 20,

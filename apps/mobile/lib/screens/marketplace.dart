@@ -2585,7 +2585,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         },
       ),
     ),
-    titleOffset: route == 'onboarding' ? -12 : 0,
+    titleOffset: route == 'onboarding' ? -12 : -11,
   );
   Widget createScreen() => page(
       'Новый заказ',
