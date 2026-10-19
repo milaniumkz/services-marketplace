@@ -59,6 +59,8 @@ class PagedList extends StatefulWidget {
   final String empty;
   final Widget? header, footer, emptyState, loadingState;
   final Widget Function(Json)? emptyStateBuilder;
+  final Widget Function(List<Json>)? contentBuilder;
+  final VoidCallback? onReset;
   final ValueChanged<Json>? onMetadata;
   final ValueChanged<String>? onStatus;
   final Widget Function(Object, VoidCallback)? errorState;
@@ -72,6 +74,8 @@ class PagedList extends StatefulWidget {
       this.footer,
       this.emptyState,
       this.emptyStateBuilder,
+      this.contentBuilder,
+      this.onReset,
       this.onMetadata,
       this.onStatus,
       this.loadingState,
@@ -105,6 +109,7 @@ class _PagedListState extends State<PagedList> {
   Future<void> load({bool reset = false}) async {
     if (busy && !reset) return;
     if (reset) {
+      widget.onReset?.call();
       generation++;
       rows.clear();
       cursor = null;
@@ -175,7 +180,9 @@ class _PagedListState extends State<PagedList> {
                         const SizedBox(height: 16),
                         UiText(widget.empty, textAlign: TextAlign.center)
                       ])),
-            ...rows.map(widget.tile),
+            if (widget.contentBuilder != null && rows.isNotEmpty)
+              widget.contentBuilder!(rows)
+            else ...rows.map(widget.tile),
             if (error != null)
               rows.isEmpty && widget.errorState != null
                   ? widget.errorState!(error!, () => load(reset: true))

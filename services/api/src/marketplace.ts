@@ -1,3 +1,4 @@
+import {notificationCategory} from './notification-category';
 import {revokeOptionalProcessing} from './processing-consent-retention';
 import {resolveStaffUser,assertStaffOperation,staffAccess} from './staff-access';
 import {refreshWorkFileProgress} from './work-file-retention';
@@ -771,10 +772,16 @@ export class Marketplace {
       return this.store.put({...r,text:text(b,'text',0,2000),rating:b.rating,correction_count:(r.correction_count??0)+(r.status==='published'?1:0),version:r.version+1});
     }
     if(path==='/me/notifications'&&method==='GET') {
-      const readBefore=new Date().toISOString();
-      const notifications=(await this.store.all('notification',a.country)).filter(x=>x.owner===a.id);
-      const page=await this.list(notifications,q);
-      return {...page,meta:{...page.meta,unread_count:notifications.filter(x=>!x.read).length,read_before:readBefore}};
+      const readBefore=new Date().toISOString(),category=q.category??'all';
+      if(!['all','orders','account'].includes(category))fail(400,'VALIDATION_ERROR','Проверьте категорию уведомлений');
+      const notifications:RecordData[]=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='notification' AND country=$1 AND owner=$2",[a.country,a.id])).rows.map(x=>({...x.data,category:notificationCategory(x.data)}));
+      const sorted=notifications.filter(x=>(category==='all'||x.category===category)&&(!q.q||[x.title,x.body,x.type].join(' ').toLowerCase().includes(String(q.q).toLowerCase())))
+        .sort((x,y)=>Date.parse(y.created_at)-Date.parse(x.created_at)||x.id.localeCompare(y.id));
+      const scoped={...q,category,_notification_order:'created_desc_v1',_notification_owner:a.id,_notification_country:a.country},after=await this.cursor(scoped),limit=this.pageLimit(q);
+      const position=after?sorted.findIndex(x=>x.id===after):-1;
+      if(after&&position<0)fail(400,'VALIDATION_ERROR','Обновите список уведомлений',{restart_required:true});
+      const start=position+1,page=sorted.slice(start,start+limit);
+      return {items:page,meta:{next_cursor:start+page.length<sorted.length?await this.nextCursor(page.at(-1)!.id,scoped):null,total:sorted.length,unread_count:notifications.filter(x=>!x.read).length,read_before:readBefore}};
     }
     if(path==='/events'&&method==='GET') {
       const after=Number(q.after_sequence??0);if(!Number.isSafeInteger(after)||after<0)fail(400,'VALIDATION_ERROR','Недопустимый event cursor');

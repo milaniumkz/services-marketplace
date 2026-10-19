@@ -95,7 +95,8 @@ void main() {
     expect(find.byType(AlertDialog),findsOneWidget);
     await t.tap(find.text('Понятно'));await t.pumpAndSettle();
     expect(state.route,'notifications');
-    expect(find.text('Прочитано'),findsOneWidget);
+    expect(find.text('Новое'),findsNothing);
+    expect(find.text('Заголовок из API'),findsOneWidget);
     await t.pumpWidget(const SizedBox.shrink());
   });
 }

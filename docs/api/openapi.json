@@ -4640,13 +4640,44 @@
         "tags": [
           "me"
         ],
-        "description": "Owned regional notification page. data.meta.unread_count counts all unread notifications independent of pagination; data.meta.read_before is a canonical UTC watermark captured before the query for read-all. Keep the first displayed page watermark while paging.",
+        "description": "Owned regional notification page, newest first with ID tie-breaker. category filters the complete history before pagination; cursors are scoped to category, country and account. data.meta.unread_count counts all unread notifications independent of pagination; data.meta.read_before is a canonical UTC watermark captured before the query for read-all. Keep the first displayed page watermark while paging.",
         "security": [
           {
             "BearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "orders",
+                "account"
+              ],
+              "default": "all"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/Success"

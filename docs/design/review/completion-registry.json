@@ -249,7 +249,8 @@
       ],
       "review_status": "pending",
       "test_candidates": [
-        "services/api/test/category-editor.test.cjs"
+        "services/api/test/category-editor.test.cjs",
+        "services/api/test/notification-category.test.cjs"
       ],
       "verified_api_operations": [],
       "verified_controls": [],
@@ -5009,9 +5010,18 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:2",
@@ -5022,9 +5032,18 @@
             },
             "label": "Все"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:3",
@@ -5035,9 +5054,18 @@
             },
             "label": "Заказы"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:4",
@@ -5048,9 +5076,18 @@
             },
             "label": "Аккаунт"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:5",
@@ -5061,9 +5098,18 @@
             },
             "label": "Новый отклик от Алексея Сборка кухни · 09:24 Новое"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:6",
@@ -5074,9 +5120,18 @@
             },
             "label": "Работа готова к приёмке Проверьте результат заказа · 15:12"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:7",
@@ -5087,9 +5142,18 @@
             },
             "label": "Поддержка ждёт ответ Обращение № 1032 · 10:45"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:8",
@@ -5100,9 +5164,18 @@
             },
             "label": "Документ проверен Теперь доступны функции исполнителя"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:9",
@@ -5113,9 +5186,18 @@
             },
             "label": "Ваша подписка активна Доступ до 12 ноября 2026"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:10",
@@ -5126,9 +5208,18 @@
             },
             "label": "Проект опубликован Гостиная в тёплых тонах"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/notification-groups-update.md",
+              "tests": [
+                "apps/mobile/test/notification_flow_test.dart",
+                "services/api/test/notification-category.test.cjs"
+              ],
+              "scope": "Settings navigation, three API category filters, or one of six typed event routes. Destination-page requests are held in route tests: target business actions and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S31:11",

@@ -1,3 +1,4 @@
+import 'notification_widgets.dart';
 import 'referral_rules.dart';
 import 'referral_code.dart';
 import 'referral_reward_card.dart';
@@ -191,6 +192,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Object? startupError;
   int revision = 0, sequence = 0;
   String? notificationReadBefore, notificationScope;
+  String notificationCategory = 'all';
+  int? notificationUnreadCount;
   WebSocketChannel? channel;
   StreamSubscription? subscription;
   Timer? reconnect;
@@ -315,6 +318,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         verificationUploads.clear();
         draftWindow = null;
         registrationInProgress = false;
+        notificationCategory = 'all'; notificationUnreadCount = null;
+        notificationReadBefore = null; notificationScope = null;
         route = api.sessionExpired ? 'session-expired' : 'login';
         objectId = null;
         history.clear();
@@ -4296,11 +4301,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   Widget notificationsScreen() {
     final client = api, generation = api.sessionGeneration;
-    final owner = api.session?['user']?['id'];
-    final scope = '${identityHashCode(client)}:$generation:$owner:$revision';
+    final owner = api.session?['user']?['id'], category = notificationCategory;
+    final scope =
+        '${identityHashCode(client)}:$generation:$owner:$revision:$category';
     if (notificationScope != scope) {
       notificationScope = scope;
       notificationReadBefore = null;
+      notificationUnreadCount = null;
     }
     bool current() =>
         mounted &&
@@ -4308,7 +4315,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         client.sessionGeneration == generation &&
         client.authenticated &&
         client.session?['user']?['id'] == owner &&
-        route == 'notifications';
+        route == 'notifications' &&
+        notificationCategory == category;
     Future<void> perform(Future<void> Function() job) => act(() async {
       try {
         await job();
@@ -4316,83 +4324,134 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         if (current()) rethrow;
       }
     });
+    Future<void> openNotification(Json r) => perform(() async {
+      if (!current()) return;
+      final wasUnread = r['read'] != true;
+      await client.request('/me/notifications/${r['id']}/read', method: 'POST');
+      if (!current()) return;
+      setState(() {
+        r['read'] = true;
+        if (wasUnread && notificationScope == scope && (notificationUnreadCount ?? 0) > 0) {
+          notificationUnreadCount = notificationUnreadCount! - 1;
+        }
+      });
+      if (r['deep_link'] is Map) {
+        await openCampaignLink(Map<String, dynamic>.from(r['deep_link']));
+        return;
+      }
+      final type = '${r['type']}';
+      if (type == 'message.created')
+        go('chat', r['target_id']);
+      else if (type == 'support.message.created')
+        go('support-chat', r['target_id']);
+      else if (type == 'offer.created')
+        go('offers', r['target_id']);
+      else if (type == 'order.completion_requested')
+        go('complete', r['target_id']);
+      else if (type.startsWith('order.'))
+        go('order', r['target_id']);
+      else if (type == 'privacy.export.ready')
+        go('privacy');
+      else if (type == 'case.message.created' || type == 'case.updated')
+        go('case', r['target_id']);
+      else if (type.startsWith('verification.') || type == 'content.moderated') {
+        await refreshIdentity();
+        if (current())
+          go(type.startsWith('verification.') ? 'verification' : 'account');
+      } else if (type.startsWith('subscription.'))
+        go('my-access');
+      else if (type.startsWith('portfolio.'))
+        go('portfolio-project', r['target_id']);
+      else if (type == 'invite.created')
+        go('invitations');
+      else if (type.startsWith('amendment.') ||
+          type.startsWith('cancel_request.'))
+        go('change-requests');
+      else
+        setState(() => revision++);
+    });
     return page(
-      'Уведомления',
-      PagedList(
-        key: ValueKey('notifications:$revision'),
-        api: client,
-        path: '/me/notifications',
-        onMetadata: (meta) {
-          if (!current() || notificationScope != scope) return;
-          final value = meta['read_before'];
-          if (value is String && notificationReadBefore == null) {
-            notificationReadBefore = value;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (current() && notificationScope == scope) setState(() {});
-            });
-          }
-        },
-        tile: (r) => DataCard(
-          r['title'] ?? eventTitles[r['type']] ?? 'Новое событие JOBA',
-          subtitle: '${r['body'] ?? ''}',
-          status: r['read'] == true ? 'Прочитано' : 'Новое',
-          onTap: () => perform(() async {
-            if (!current()) return;
-            await client.request(
-              '/me/notifications/${r['id']}/read',
-              method: 'POST',
-            );
-            if (!current()) return;
-            setState(() => r['read'] = true);
-            if (r['deep_link'] is Map) {
-              await openCampaignLink(Map<String, dynamic>.from(r['deep_link']));
-              return;
-            }
-            final type = '${r['type']}';
-            if (type == 'message.created')
-              go('chat', r['target_id']);
-            else if (type == 'support.message.created')
-              go('support-chat', r['target_id']);
-            else if (type.startsWith('order.') || type == 'offer.created')
-              go('order', r['target_id']);
-            else if (type == 'privacy.export.ready')
-              go('privacy');
-            else if (type == 'case.message.created' || type == 'case.updated')
-              go('case', r['target_id']);
-            else if (type == 'verification.updated' ||
-                type == 'content.moderated') {
-              await refreshIdentity();
-              if (current())
-                go(type == 'verification.updated' ? 'verification' : 'account');
-            } else if (type == 'invite.created')
-              go('invitations');
-            else if (type.startsWith('amendment.') ||
-                type.startsWith('cancel_request.'))
-              go('change-requests');
-            else
-              setState(() => revision++);
-          }),
-        ),
+      'События',
+      Column(
+        children: [
+          NotificationHeader(
+            category: category,
+            onCategory: (value) {
+              if (value != notificationCategory)
+                setState(() => notificationCategory = value);
+            },
+            onSettings: () => go('notification-settings'),
+          ),
+          Expanded(
+            child: PagedList(
+              key: ValueKey('notifications:$revision:$category'),
+              api: client,
+              path: '/me/notifications',
+              query: {'category': category},
+              onReset: () {
+                if(current() && notificationScope==scope) setState(() {
+                  notificationReadBefore=null;notificationUnreadCount=null;
+                });
+              },
+              tile: (_) => const SizedBox.shrink(),
+              contentBuilder: (rows) => NotificationGroups(
+                rows: rows,
+                now: client.clock.now,
+                title: (r) =>
+                    r['title'] ??
+                    eventTitles[r['type']] ??
+                    'Новое событие JOBA',
+                onOpen: openNotification,
+              ),
+              onMetadata: (meta) {
+                if (!current() || notificationScope != scope) return;
+                var changed = false;
+                final value = meta['read_before'], count = meta['unread_count'];
+                if (value is String && notificationReadBefore == null) {
+                  notificationReadBefore = value;
+                  changed = true;
+                }
+                if (count is int && count != notificationUnreadCount) {
+                  notificationUnreadCount = count;
+                  changed = true;
+                }
+                if (changed)
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (current() && notificationScope == scope)
+                      setState(() {});
+                  });
+              },
+              footer: Tooltip(
+                message: localize(context, 'Прочитать все'),
+                child: TextButton(
+                  onPressed: actionBusy || notificationReadBefore == null
+                      ? null
+                      : () => perform(() async {
+                          if (!current()) return;
+                          final before = notificationReadBefore;
+                          if (before == null) return;
+                          await client.request(
+                            '/me/notifications/read-all',
+                            method: 'POST',
+                            body: {'before': before},
+                          );
+                          if (current()) setState(() => revision++);
+                        }),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      const UiText('Прочитать все'),
+                      if (notificationUnreadCount != null)
+                        Text(' ($notificationUnreadCount)'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      actions: [
-        IconButton(
-          tooltip: localize(context, 'Прочитать все'),
-          icon: const Icon(Icons.done_all),
-          onPressed: actionBusy || notificationReadBefore == null
-              ? null
-              : () => perform(() async {
-                  if (!current()) return;
-                  final before = notificationReadBefore;
-                  if (before == null) return;
-                  await client.request(
-                    '/me/notifications/read-all',
-                    method: 'POST',
-                    body: {'before': before},
-                  );
-                  if (current()) setState(() => revision++);
-                }),
-        ),
-      ],
+      chrome: false,
       nav: true,
     );
   }

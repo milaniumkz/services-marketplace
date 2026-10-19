@@ -240,7 +240,18 @@ void main() {
       if(path=='/me/subscriptions/visual-object')return response({'id':'visual-object','status':route=='subscription-canceled'?'canceled_at_period_end':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}});
       if(path=='/me/purchase-checks/visual-object')return response({'id':'visual-object','status':'pending'});
       if(path=='/me/subscriptions')return response({'items':[{'id':'visual-object','status':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}}]});
-      if(path=='/me/notifications')return response({'items':[],'meta':{'read_before':'2026-10-19T10:00:00.000Z','unread_count':0}});
+      if(path=='/me/notifications') {
+        final today=DateTime.now().toUtc();
+        String at(int delta,int hour,int minute)=>DateTime.utc(today.year,today.month,today.day+delta,hour,minute).toIso8601String();
+        return response({'items':[
+          {'id':'visual-notice-1','type':'offer.created','title':'Новый отклик от Алексея','body':'Сборка кухни','created_at':at(0,9,24),'read':false,'category':'orders'},
+          {'id':'visual-notice-2','type':'order.completion_requested','title':'Работа готова к приёмке','body':'Проверьте результат заказа','created_at':at(0,15,12),'read':true,'category':'orders'},
+          {'id':'visual-notice-3','type':'support.message.created','title':'Поддержка ждёт ответ','body':'Обращение № 1032','created_at':at(0,10,45),'read':true,'category':'other'},
+          {'id':'visual-notice-4','type':'verification.updated','title':'Документ проверен','body':'Теперь доступны функции исполнителя','created_at':at(-1,14,0),'read':true,'category':'account'},
+          {'id':'visual-notice-5','type':'subscription.updated','title':'Ваша подписка активна','body':'Доступ до 12 ноября 2026','created_at':at(-1,13,0),'read':true,'category':'account'},
+          {'id':'visual-notice-6','type':'portfolio.published','title':'Проект опубликован','body':'Гостиная в тёплых тонах','created_at':at(-1,12,0),'read':true,'category':'account'}
+        ],'meta':{'read_before':today.toIso8601String(),'unread_count':1}});
+      }
       if(path=='/me/entitlements')return response({'items':[{'id':'visual-access','source':'subscription','valid_until':'2026-11-12T09:41:00Z','capabilities':['search_full','send_offer','publish_profile']}]});
       if(path=='/billing/offers')return response({'items':[{'id':'visual-offer','title':'Полный доступ','amount_minor':249000,'currency':'KZT','period':'month','provider':'isolated','product_id':'monthly','product_type':'subscription'}]});
       if(path=='/ads/reward-sessions/visual-object')return response({'id':'visual-object','status':route=='reward-granted'?'granted':'pending','grant':route=='reward-granted'?{'valid_until':'2026-12-13T09:41:00Z','capabilities':['search_full']}:null});
@@ -597,7 +608,7 @@ void main() {
           : route == 'loading'
               ? <String, dynamic>{'q': 'Ремонт и отделка'}
               : <String, dynamic>{};
-      state.executor = route == 'executor-home' || const ['order','access','my-access','checkout','manage-subscription','subscription-canceled','payment-pending','restore','reward','reward-granted','reward-nofill','reward-pending'].contains(route);
+      state.executor = route == 'executor-home' || const ['notifications','order','access','my-access','checkout','manage-subscription','subscription-canceled','payment-pending','restore','reward','reward-granted','reward-nofill','reward-pending'].contains(route);
       user['active_role'] = state.executor ? 'executor' : 'customer';
       state.objectId = 'visual-object';
       state.history.clear();

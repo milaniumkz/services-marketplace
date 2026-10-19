@@ -37,6 +37,9 @@ void main() {
     final overview = await api.request('/me/overview') as Json;
     expect(overview['orders']['draft'], 1);
     expect(overview['rating']['count'], 0);
+    final notificationPage = await api.request('/me/notifications', query: {'category': 'orders', 'limit': 1}) as Json;
+    expect(notificationPage['meta']['unread_count'], isA<int>());
+    expect(DateTime.tryParse(notificationPage['meta']['read_before'])?.isUtc, true);
     expect(items(await api.request('/me/sessions')).single['current'], true);
     final remote = JobaApi(endpoint, vault: MemoryVault());
     await remote
