@@ -50,6 +50,10 @@ String errorText(BuildContext context, Object error) {
         'PDF_SANITIZER_UNAVAILABLE':
             'Проверка файлов недоступна. Попробуйте позже.',
         'PROVIDER_UNAVAILABLE': 'Сервис ещё не подключён.',
+        'REFUND_EXCEEDS_REMAINING': 'Сумма превышает доступный остаток',
+        'REFUND_BALANCE_CONFLICT': 'Требуется сверка',
+        'PAYMENT_REQUIRES_RECONCILIATION': 'Требуется сверка',
+        'LEGACY_REFUND_REQUIRES_REVIEW': 'Требуется сверка',
         'ATTRIBUTION_WINDOW_EXPIRED': 'Срок ввода кода после регистрации истёк',
         'ATTRIBUTION_ALREADY_SET': 'Пригласивший уже закреплён',
         'REFERRAL_BUDGET_EXHAUSTED': 'Бюджет новых приглашений исчерпан',

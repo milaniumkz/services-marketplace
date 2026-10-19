@@ -16,6 +16,7 @@ import 'top_listings.dart';
 import 'revoke_session.dart';
 import 'device_setup.dart';
 import 'commerce_states.dart';
+import 'refunds.dart';
 import 'executor_access.dart';
 import 'order_overview.dart';
 import 'conversation_inbox.dart';
@@ -1101,6 +1102,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             ],
             nav: true);
       case 'access':
+      case 'refunds':
+        return page('Платежи и возвраты', RefundsScreen(api: api, onSupport: () => go('support')), titleOffset: -12);
       case 'my-access':
         return executor ? accessScreen() : customerAccessScreen();
       case 'checkout':
@@ -2345,6 +2348,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     ]),
                     const SizedBox(height: 16),
                     JobaMenu([
+                      JobaMenuEntry('Платежи и возвраты', 'card', () => go('refunds')),
                       JobaMenuEntry('Мои обращения', 'flag', () => go('cases'))
                     ])
                   ]))
