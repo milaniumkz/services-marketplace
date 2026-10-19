@@ -5316,9 +5316,18 @@
             },
             "label": "Начать демо-просмотр"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/commerce-lifecycle-update.md",
+              "tests": [
+                "apps/mobile/test/remaining_states_test.dart",
+                "apps/mobile/test/reward_privacy_layout_test.dart"
+              ],
+              "scope": "Isolated gateway: pending restore, manage reload and server-confirmed cancellation, reward outcome without client grant; stale-account guards. No real provider or full-screen acceptance."
+            }
+          ]
         }
       ]
     },
@@ -9683,9 +9692,18 @@
             },
             "label": "Показать восстановленный доступ"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/commerce-lifecycle-update.md",
+              "tests": [
+                "apps/mobile/test/remaining_states_test.dart",
+                "apps/mobile/test/reward_privacy_layout_test.dart"
+              ],
+              "scope": "Isolated gateway: pending restore, manage reload and server-confirmed cancellation, reward outcome without client grant; stale-account guards. No real provider or full-screen acceptance."
+            }
+          ]
         }
       ]
     },
@@ -10656,9 +10674,18 @@
             },
             "label": "Показать отмену продления"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/commerce-lifecycle-update.md",
+              "tests": [
+                "apps/mobile/test/remaining_states_test.dart",
+                "apps/mobile/test/reward_privacy_layout_test.dart"
+              ],
+              "scope": "Isolated gateway: pending restore, manage reload and server-confirmed cancellation, reward outcome without client grant; stale-account guards. No real provider or full-screen acceptance."
+            }
+          ]
         }
       ]
     },
@@ -10699,9 +10726,18 @@
             },
             "label": "Мой доступ"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/commerce-lifecycle-update.md",
+              "tests": [
+                "apps/mobile/test/remaining_states_test.dart",
+                "apps/mobile/test/reward_privacy_layout_test.dart"
+              ],
+              "scope": "Isolated gateway: pending restore, manage reload and server-confirmed cancellation, reward outcome without client grant; stale-account guards. No real provider or full-screen acceptance."
+            }
+          ]
         }
       ]
     },

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -44,7 +45,162 @@ class DelayedGateway extends Gateway {
   }
 }
 
+class LifecycleGateway extends Gateway {
+  final restored = Completer<List<Json>>();
+  final rewarded = Completer<bool>();
+  final managed = Completer<void>();
+  @override
+  Future<List<Json>> restore() => restored.future;
+  @override
+  Future<bool> playReward(Json session) => rewarded.future;
+  @override
+  Future<void> manage(Json subscription) => managed.future;
+}
+
 void main() {
+  testWidgets(
+      'subscription cancellation is displayed only after server confirmation',
+      (t) async {
+    var canceled = false;
+    var reads = 0;
+    String? route;
+    final a = api((r) async {
+      reads++;
+      return ok({
+        'id': 'sub',
+        'status': canceled ? 'canceled_at_period_end' : 'active',
+        'valid_until': '2030-01-01T00:00:00Z',
+        'price': {'amount_minor': 123400, 'currency': 'KZT', 'period': 'month'}
+      });
+    });
+    addTearDown(a.dispose);
+    await t.pumpWidget(host(CommerceStateScreen(
+        api: a,
+        mode: 'manage-subscription',
+        id: 'sub',
+        gateway: Gateway(),
+        onGo: (r, _) => route = r)));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Управлять подпиской'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Управлять подпиской'));
+    await t.pumpAndSettle();
+    expect(reads, 2);
+    expect(find.text('Продление отключено'), findsNothing);
+    await t.ensureVisible(find.text('Проверить продление'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Проверить продление'));
+    await t.pumpAndSettle();
+    expect(route, 'subscription-canceled');
+    await t.pumpWidget(host(CommerceStateScreen(
+        key: const ValueKey('not-confirmed'),
+        api: a,
+        mode: 'subscription-canceled',
+        id: 'sub',
+        onGo: (r, _) => route = r)));
+    await t.pumpAndSettle();
+    expect(find.text('Статус продления'), findsOneWidget);
+    expect(find.text('Продление отключено'), findsNothing);
+    canceled = true;
+    await t.pumpWidget(host(CommerceStateScreen(
+        key: const ValueKey('confirmed'),
+        api: a,
+        mode: 'subscription-canceled',
+        id: 'sub',
+        onGo: (r, _) => route = r)));
+    await t.pumpAndSettle();
+    expect(find.text('Продление отключено'), findsOneWidget);
+    await t.tap(find.text('Мой доступ'));
+    await t.pumpAndSettle();
+    expect(route, 'my-access');
+  });
+
+  setUpAll(() => initializeDateFormatting());
+  for (final mode in ['restore', 'reward', 'manage-subscription']) {
+    testWidgets('$mode ignores provider completion after account replacement',
+        (t) async {
+      final requests = <String>[];
+      final a = api((r) async {
+        requests.add('${r.method} ${r.url.path}');
+        if (r.url.path.endsWith('/me/subscriptions/sub'))
+          return ok({
+            'id': 'sub',
+            'status': 'active',
+            'valid_until': '2030-01-01T00:00:00Z'
+          });
+        if (r.url.path.endsWith('/ads/reward-sessions'))
+          return ok({'id': 'ad'});
+        return ok({
+          'rewarded_access_enabled': true,
+          'reward_provider_ready': true,
+          'reward_policy': {'kind': 'duration', 'duration_seconds': 86400}
+        });
+      });
+      addTearDown(a.dispose);
+      a.session!['user'] = {'id': 'first'};
+      final gateway = LifecycleGateway();
+      String? route;
+      await t.pumpWidget(host(CommerceStateScreen(
+          api: a,
+          mode: mode,
+          id: 'sub',
+          gateway: gateway,
+          onGo: (r, _) => route = r)));
+      await t.pumpAndSettle();
+      final action = mode == 'restore'
+          ? 'Восстановить покупку'
+          : mode == 'reward'
+              ? 'Посмотреть ролик'
+              : 'Управлять подпиской';
+      await t.ensureVisible(find.text(action));
+      await t.pumpAndSettle();
+      await t.tap(find.text(action));
+      await t.pump();
+      // Let the reward-session POST finish before replacing the account.
+      await t.pump();
+      final count = requests.length;
+      a.session = {
+        'access_token': 'replacement',
+        'user': {'id': 'second'}
+      };
+      if (mode == 'restore')
+        gateway.restored.complete([
+          {'provider': 'isolated'}
+        ]);
+      if (mode == 'reward') gateway.rewarded.complete(true);
+      if (mode == 'manage-subscription') gateway.managed.complete();
+      await t.pumpAndSettle();
+      expect(requests.length, count);
+      expect(route, isNull);
+    });
+  }
+  testWidgets('restoration preserves server pending status', (t) async {
+    final a = api((r) async => ok({
+          'pending': true,
+          'check': {'id': 'pending-check'}
+        }));
+    addTearDown(a.dispose);
+    final gateway = LifecycleGateway();
+    String? route, id;
+    await t.pumpWidget(host(CommerceStateScreen(
+        api: a,
+        mode: 'restore',
+        gateway: gateway,
+        onGo: (r, i) {
+          route = r;
+          id = i;
+        })));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Восстановить покупку'));
+    await t.pump();
+    gateway.restored.complete([
+      {'provider': 'isolated', 'transaction_reference': 'proof'}
+    ]);
+    await t.pumpAndSettle();
+    expect(route, 'payment-pending');
+    expect(id, 'pending-check');
+  });
+
   testWidgets('late purchase cannot verify under a replacement account',
       (t) async {
     final posts = <String>[];

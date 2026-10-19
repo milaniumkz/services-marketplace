@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../core/api.dart';
 import '../core/commerce_gateway.dart';
 import '../core/currency.dart';
@@ -32,8 +33,23 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
   String? acceptedOffer;
   Object? error;
   String? selected;
+  bool Function() sessionGuard() {
+    final api = widget.api;
+    final generation = api.sessionGeneration;
+    final owner = api.session?['user']?['id'];
+    return () =>
+        mounted &&
+        identical(widget.api, api) &&
+        !api.disposed &&
+        api.authenticated &&
+        api.sessionGeneration == generation &&
+        api.session?['user']?['id'] == owner;
+  }
+
   Future<void> run(Future<void> Function() job) async {
     if (busy) return;
+    final current = sessionGuard();
+    if (!current()) return;
     setState(() {
       busy = true;
       error = null;
@@ -41,7 +57,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
     try {
       await job();
     } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (current()) setState(() => error = e);
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -49,15 +65,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
 
   Future<void> purchase(Json offer) => run(() async {
         final api = widget.api;
-        final generation = api.sessionGeneration;
-        final owner = api.session?['user']?['id'];
-        bool current() =>
-            mounted &&
-            identical(widget.api, api) &&
-            !api.disposed &&
-            api.authenticated &&
-            api.sessionGeneration == generation &&
-            api.session?['user']?['id'] == owner;
+        final current = sessionGuard();
         if (!current()) return;
         final receipt = await widget.gateway.purchase(offer);
         if (!current()) return;
@@ -84,20 +92,24 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
         if (error != null) Notice(errorText(context, error!), error: true)
       ]);
   Future<void> playReward() => run(() async {
+        final api = widget.api;
+        final gateway = widget.gateway;
+        final current = sessionGuard();
         try {
-          final session = await widget.api.request('/ads/reward-sessions',
+          final session = await api.request('/ads/reward-sessions',
               method: 'POST', body: {'placement': 'access'});
-          final completed = await widget.gateway.playReward(session);
-          await widget.api.request(
-              '/ads/reward-sessions/${session['id']}/outcome',
+          if (!current()) return;
+          final completed = await gateway.playReward(session);
+          if (!current()) return;
+          await api.request('/ads/reward-sessions/${session['id']}/outcome',
               method: 'POST',
               body: {'outcome': completed ? 'completed' : 'no_fill'});
-          if (mounted)
+          if (current())
             widget.onGo(
                 completed ? 'reward-pending' : 'reward-nofill', session['id']);
         } on ApiException catch (e) {
           if (['REWARDED_DISABLED', 'PROVIDER_UNAVAILABLE'].contains(e.code)) {
-            if (mounted) widget.onGo('reward-nofill', null);
+            if (current()) widget.onGo('reward-nofill', null);
             return;
           }
           rethrow;
@@ -270,12 +282,24 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
           'Восстановление не создаёт новое списание. Провайдер проверит принадлежность покупки этому аккаунту.',
           'Восстановить покупку',
           () => run(() async {
+                final api = widget.api;
+                final current = sessionGuard();
                 final receipts = await widget.gateway.restore();
+                if (!current()) return;
+                String? pendingCheck;
                 for (final r in receipts) {
-                  await widget.api
-                      .request('/billing/restore', method: 'POST', body: r);
+                  if (!current()) return;
+                  final result = await api.request('/billing/restore',
+                      method: 'POST', body: r);
+                  if (!current()) return;
+                  if (result['pending'] == true) {
+                    pendingCheck ??= result['check']?['id'];
+                  }
                 }
-                if (mounted) widget.onGo('my-access', null);
+                if (current())
+                  widget.onGo(
+                      pendingCheck == null ? 'my-access' : 'payment-pending',
+                      pendingCheck);
               }),
           secondary: 'Мой доступ',
           onSecondary: () => widget.onGo('my-access', null));
@@ -370,27 +394,76 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                   'Мой доступ',
                   () => widget.onGo('my-access', null));
             return ListView(padding: const EdgeInsets.all(20), children: [
-              const UiHeading('Всё под контролем'),
+              const UiHeading(
+                  'Всё под контролем', 'Исполнитель · поиск заказов и отклики'),
               if (r == null)
                 const Notice('Подписка не найдена.')
               else ...[
-                DataCard('Подписка JOBA',
-                    subtitle: '${r['status']} · ${r['valid_until']}',
-                    footer: Text(money(r['price']))),
-                const Notice(
-                    'Отключение автопродления не закрывает уже оплаченный срок.'),
-                FilledButton(
+                Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: line),
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Column(children: [
+                      Row(children: [
+                        const Expanded(
+                            child: UiText('Подписка JOBA',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    height: 1.45,
+                                    fontWeight: FontWeight.w700))),
+                        JobaBadge(
+                            canceled
+                                ? 'Продление отключено'
+                                : ['active', 'grace'].contains(r['status'])
+                                    ? 'Активна'
+                                    : 'Не активна',
+                            background: !canceled &&
+                                    ['active', 'grace'].contains(r['status'])
+                                ? const Color(0xFFE8F5EF)
+                                : const Color(0xFFEAF0FC),
+                            foreground: !canceled &&
+                                    ['active', 'grace'].contains(r['status'])
+                                ? const Color(0xFF147657)
+                                : primary),
+                      ]),
+                      const SizedBox(height: 16),
+                      checkoutFact(
+                          'До',
+                          DateTime.tryParse('${r['valid_until']}') == null
+                              ? '—'
+                              : DateFormat(
+                                      'd MMMM',
+                                      Localizations.localeOf(context)
+                                          .languageCode)
+                                  .format(DateTime.parse(r['valid_until'])
+                                      .toLocal())),
+                      checkoutFact('Цена',
+                          '${money(r['price'])} · ${periodLabel(r['price']?['period'])}',
+                          last: true),
+                    ])),
+                const SizedBox(height: 20),
+                const UiText(
+                    'Отключение автопродления не закрывает уже оплаченный срок. Для изменения условий откройте управление подпиской и дождитесь подтверждения провайдера.',
+                    style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
+                const SizedBox(height: 20),
+                OutlinedButton(
                     onPressed: busy
                         ? null
                         : () => run(() async {
+                              final current = sessionGuard();
                               await widget.gateway.manage(r);
-                              reload();
+                              if (current()) reload();
                             }),
                     child: const UiText('Управлять подпиской')),
-                OutlinedButton(
-                    onPressed: () =>
-                        widget.onGo('subscription-canceled', r['id']),
-                    child: const UiText('Проверить продление'))
+                TextButton(
+                    onPressed: busy
+                        ? null
+                        : () => widget.onGo('subscription-canceled', r['id']),
+                    child: const UiText('Проверить продление')),
+                if (widget.gateway is DisconnectedCommerceGateway)
+                  const Notice('Сервис ещё не подключён.', icon: 'info'),
               ],
               if (error != null) Notice(errorText(context, error!), error: true)
             ]);
