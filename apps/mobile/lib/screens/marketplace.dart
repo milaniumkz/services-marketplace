@@ -190,6 +190,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       (localSetupSubmitting && ['pin-setup', 'lock-setup', 'biometric'].contains(route));
   Object? startupError;
   int revision = 0, sequence = 0;
+  String? notificationReadBefore, notificationScope;
   WebSocketChannel? channel;
   StreamSubscription? subscription;
   Timer? reconnect;
@@ -1070,66 +1071,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'case':
         return caseScreen();
       case 'notifications':
-        return page(
-            'Уведомления',
-            paged(
-                '/me/notifications',
-                (r) => DataCard(
-                    r['title'] ??
-                        eventTitles[r['type']] ??
-                        'Новое событие JOBA',
-                    subtitle: r['body'],
-                    status: r['read'] == true ? 'Прочитано' : 'Новое',
-                    onTap: () => act(() async {
-                          await api.request('/me/notifications/${r['id']}/read',
-                              method: 'POST');
-                          if (!mounted) return;
-                          if (r['deep_link'] is Map) {
-                            await openCampaignLink(
-                                Map<String, dynamic>.from(r['deep_link']));
-                            return;
-                          }
-                          final type = '${r['type']}';
-                          if (type == 'message.created') {
-                            go('chat', r['target_id']);
-                          } else if (type == 'support.message.created') {
-                            go('support-chat', r['target_id']);
-                          } else if (type.startsWith('order.') ||
-                              type == 'offer.created') {
-                            go('order', r['target_id']);
-                          } else if (type == 'privacy.export.ready') {
-                            go('privacy');
-                          } else if (type == 'case.message.created' ||
-                              type == 'case.updated') {
-                            go('case', r['target_id']);
-                          } else if (type == 'verification.updated') {
-                            await refreshIdentity();
-                            if (mounted) go('verification');
-                          } else if (type == 'content.moderated') {
-                            await refreshIdentity();
-                            if (mounted) go('account');
-                          } else if (type == 'invite.created') {
-                            go('invitations');
-                          } else if (type.startsWith('amendment.') ||
-                              type.startsWith('cancel_request.')) {
-                            go('change-requests');
-                          } else {
-                            setState(() => revision++);
-                          }
-                        }))),
-            actions: [
-              IconButton(
-                  tooltip: localize(context, 'Прочитать все'),
-                  icon: const Icon(Icons.done_all),
-                  onPressed: () => act(() async {
-                        final before = api.serverTime;
-                        if (before == null) return;
-                        await api.request('/me/notifications/read-all',
-                            method: 'POST', body: {'before': before});
-                        if (mounted) setState(() => revision++);
-                      }))
-            ],
-            nav: true);
+        return notificationsScreen();
       case 'access':
         return executor ? accessScreen() : customerAccessScreen();
       case 'refunds':
@@ -4352,6 +4294,108 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         button('Мои заказы', () => go('orders'), outline: true),
       ]));
 
+  Widget notificationsScreen() {
+    final client = api, generation = api.sessionGeneration;
+    final owner = api.session?['user']?['id'];
+    final scope = '${identityHashCode(client)}:$generation:$owner:$revision';
+    if (notificationScope != scope) {
+      notificationScope = scope;
+      notificationReadBefore = null;
+    }
+    bool current() =>
+        mounted &&
+        identical(_api, client) &&
+        client.sessionGeneration == generation &&
+        client.authenticated &&
+        client.session?['user']?['id'] == owner &&
+        route == 'notifications';
+    Future<void> perform(Future<void> Function() job) => act(() async {
+      try {
+        await job();
+      } catch (_) {
+        if (current()) rethrow;
+      }
+    });
+    return page(
+      'Уведомления',
+      PagedList(
+        key: ValueKey('notifications:$revision'),
+        api: client,
+        path: '/me/notifications',
+        onMetadata: (meta) {
+          if (!current() || notificationScope != scope) return;
+          final value = meta['read_before'];
+          if (value is String && notificationReadBefore == null) {
+            notificationReadBefore = value;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (current() && notificationScope == scope) setState(() {});
+            });
+          }
+        },
+        tile: (r) => DataCard(
+          r['title'] ?? eventTitles[r['type']] ?? 'Новое событие JOBA',
+          subtitle: '${r['body'] ?? ''}',
+          status: r['read'] == true ? 'Прочитано' : 'Новое',
+          onTap: () => perform(() async {
+            if (!current()) return;
+            await client.request(
+              '/me/notifications/${r['id']}/read',
+              method: 'POST',
+            );
+            if (!current()) return;
+            setState(() => r['read'] = true);
+            if (r['deep_link'] is Map) {
+              await openCampaignLink(Map<String, dynamic>.from(r['deep_link']));
+              return;
+            }
+            final type = '${r['type']}';
+            if (type == 'message.created')
+              go('chat', r['target_id']);
+            else if (type == 'support.message.created')
+              go('support-chat', r['target_id']);
+            else if (type.startsWith('order.') || type == 'offer.created')
+              go('order', r['target_id']);
+            else if (type == 'privacy.export.ready')
+              go('privacy');
+            else if (type == 'case.message.created' || type == 'case.updated')
+              go('case', r['target_id']);
+            else if (type == 'verification.updated' ||
+                type == 'content.moderated') {
+              await refreshIdentity();
+              if (current())
+                go(type == 'verification.updated' ? 'verification' : 'account');
+            } else if (type == 'invite.created')
+              go('invitations');
+            else if (type.startsWith('amendment.') ||
+                type.startsWith('cancel_request.'))
+              go('change-requests');
+            else
+              setState(() => revision++);
+          }),
+        ),
+      ),
+      actions: [
+        IconButton(
+          tooltip: localize(context, 'Прочитать все'),
+          icon: const Icon(Icons.done_all),
+          onPressed: actionBusy || notificationReadBefore == null
+              ? null
+              : () => perform(() async {
+                  if (!current()) return;
+                  final before = notificationReadBefore;
+                  if (before == null) return;
+                  await client.request(
+                    '/me/notifications/read-all',
+                    method: 'POST',
+                    body: {'before': before},
+                  );
+                  if (current()) setState(() => revision++);
+                }),
+        ),
+      ],
+      nav: true,
+    );
+  }
   Widget accessScreen() => page(
       route == 'access' ? 'Доступ к JOBA' : 'Мой доступ',
       ApiView(
@@ -4773,11 +4817,22 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         ])
       ]));
   Future<void> openCampaignLink(Json link) async {
+    final client = api, generation = api.sessionGeneration;
+    final owner = api.session?['user']?['id'], origin = route;
+    bool current() =>
+        mounted &&
+        identical(_api, client) &&
+        client.sessionGeneration == generation &&
+        client.authenticated &&
+        client.session?['user']?['id'] == owner &&
+        route == origin;
+    if (!current()) return;
     final target = link['id'];
     if (target != null &&
         (target is! String ||
-            !RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
-                .hasMatch(target)))
+            !RegExp(
+              r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+            ).hasMatch(target)))
       throw ApiException('NOT_FOUND', 'Объект недоступен');
     switch (link['route']) {
       case 'order':
@@ -4786,8 +4841,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return;
       case 'offer':
         if (target == null) break;
-        final offer = await api.request('/offers/$target');
-        if (mounted) go('order', offer['order_id']);
+        final offer = await client.request('/offers/$target');
+        if (current()) go('order', offer['order_id']);
         return;
       case 'conversation':
         if (target == null) break;
@@ -4808,7 +4863,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     }
     throw ApiException('NOT_FOUND', 'Объект недоступен');
   }
-
   Widget notificationSettings() => page(
       'Уведомления',
       ApiView(

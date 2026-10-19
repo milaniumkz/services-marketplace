@@ -770,15 +770,25 @@ export class Marketplace {
       await this.store.put(this.record('review_revision',a,{review_id:r.id,text:r.text,rating:r.rating,previous_version:r.version}));
       return this.store.put({...r,text:text(b,'text',0,2000),rating:b.rating,correction_count:(r.correction_count??0)+(r.status==='published'?1:0),version:r.version+1});
     }
-    if(path==='/me/notifications'&&method==='GET')return this.list((await this.store.all('notification',a.country)).filter(x=>x.owner===a.id),q);
+    if(path==='/me/notifications'&&method==='GET') {
+      const readBefore=new Date().toISOString();
+      const notifications=(await this.store.all('notification',a.country)).filter(x=>x.owner===a.id);
+      const page=await this.list(notifications,q);
+      return {...page,meta:{...page.meta,unread_count:notifications.filter(x=>!x.read).length,read_before:readBefore}};
+    }
     if(path==='/events'&&method==='GET') {
       const after=Number(q.after_sequence??0);if(!Number.isSafeInteger(after)||after<0)fail(400,'VALIDATION_ERROR','Недопустимый event cursor');
       const events=await db.query<any>('SELECT sequence,data FROM events WHERE recipient_id=$1 AND country=$2 AND sequence>$3 ORDER BY sequence LIMIT 100',[a.id,a.country,after]);
       return {items:events.rows.map(r=>({...r.data,sequence:Number(r.sequence)}))};
     }
     const notification=path.match(/^\/me\/notifications\/([^/]+)\/read$/);
-    if(notification&&method==='POST'){const n=await this.object(notification[1],a,'notification',true);return this.store.put({...n,read:true,version:n.version+1});}
-    if(path==='/me/notifications/read-all'&&method==='POST'){for(const n of await this.store.all('notification',a.country))if(n.owner===a.id&&!n.read&&n.created_at<=String(b.before))await this.store.put({...n,read:true,version:n.version+1});return {read:true};}
+    if(notification&&method==='POST'){const n=await this.object(notification[1],a,'notification',true);return n.read?n:this.store.put({...n,read:true,version:n.version+1});}
+    if(path==='/me/notifications/read-all'&&method==='POST') {
+      const before=typeof b.before==='string'?Date.parse(b.before):NaN;
+      if(!Number.isFinite(before)||new Date(before).toISOString()!==b.before||before>Date.now())fail(400,'VALIDATION_ERROR','Передайте время последнего просмотра уведомлений в UTC');
+      for(const n of await this.store.all('notification',a.country))if(n.owner===a.id&&!n.read&&Date.parse(n.created_at)<=before)await this.store.put({...n,read:true,version:n.version+1});
+      return {read:true};
+    }
     if(path==='/me/notification-preferences'&&method==='GET')return a.user.notification_preferences??{marketing:false,chat:true,service:true};
     if(path==='/me/notification-preferences'&&method==='PATCH') {
       this.version(a.user,b);const p=b.preferences;if(!p||['marketing','chat','service'].some(k=>typeof p[k]!=='boolean'))fail(400,'VALIDATION_ERROR','Проверьте категории уведомлений');

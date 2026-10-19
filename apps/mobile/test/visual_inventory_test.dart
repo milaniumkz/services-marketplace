@@ -240,6 +240,7 @@ void main() {
       if(path=='/me/subscriptions/visual-object')return response({'id':'visual-object','status':route=='subscription-canceled'?'canceled_at_period_end':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}});
       if(path=='/me/purchase-checks/visual-object')return response({'id':'visual-object','status':'pending'});
       if(path=='/me/subscriptions')return response({'items':[{'id':'visual-object','status':'active','valid_until':'2026-11-12T09:41:00Z','price':{'amount_minor':249000,'currency':'KZT','period':'month'}}]});
+      if(path=='/me/notifications')return response({'items':[],'meta':{'read_before':'2026-10-19T10:00:00.000Z','unread_count':0}});
       if(path=='/me/entitlements')return response({'items':[{'id':'visual-access','source':'subscription','valid_until':'2026-11-12T09:41:00Z','capabilities':['search_full','send_offer','publish_profile']}]});
       if(path=='/billing/offers')return response({'items':[{'id':'visual-offer','title':'Полный доступ','amount_minor':249000,'currency':'KZT','period':'month','provider':'isolated','product_id':'monthly','product_type':'subscription'}]});
       if(path=='/ads/reward-sessions/visual-object')return response({'id':'visual-object','status':route=='reward-granted'?'granted':'pending','grant':route=='reward-granted'?{'valid_until':'2026-12-13T09:41:00Z','capabilities':['search_full']}:null});

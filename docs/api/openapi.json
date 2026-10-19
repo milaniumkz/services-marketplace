@@ -4640,6 +4640,7 @@
         "tags": [
           "me"
         ],
+        "description": "Owned regional notification page. data.meta.unread_count counts all unread notifications independent of pagination; data.meta.read_before is a canonical UTC watermark captured before the query for read-all. Keep the first displayed page watermark while paging.",
         "security": [
           {
             "BearerAuth": []
@@ -6033,8 +6034,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/NotificationReadAll"
               }
             }
           }
@@ -24603,6 +24603,19 @@
   },
   "components": {
     "schemas": {
+      "NotificationReadAll": {
+        "type": "object",
+        "required": [
+          "before"
+        ],
+        "properties": {
+          "before": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Canonical UTC ISO timestamp (including milliseconds) from notification list meta.read_before, never future. Newer events stay unread."
+          }
+        }
+      },
       "InviteCreate": {
         "type": "object",
         "required": [

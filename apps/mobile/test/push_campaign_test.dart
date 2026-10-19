@@ -91,6 +91,11 @@ void main() {
         state.openCampaignLink({'route': 'https://outside.example'}),
         throwsA(isA<ApiException>()));
     expect(requests.length, count);
+    await t.tap(find.text('Заголовок из API'));await t.pumpAndSettle();
+    expect(find.byType(AlertDialog),findsOneWidget);
+    await t.tap(find.text('Понятно'));await t.pumpAndSettle();
+    expect(state.route,'notifications');
+    expect(find.text('Прочитано'),findsOneWidget);
     await t.pumpWidget(const SizedBox.shrink());
   });
 }
