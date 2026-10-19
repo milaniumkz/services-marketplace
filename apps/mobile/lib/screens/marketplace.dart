@@ -1607,6 +1607,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 success('Аккаунт создан. Войдите, чтобы продолжить.');
               Error.throwWithStackTrace(error, stack);
             }
+            registrationInProgress = register || needsProfile(me!);
             authPhoneInitial = '';
             serviceCategories = null;
             draftCategory = null;
@@ -1673,6 +1674,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       titleOffset: -12,
     );
   }
+  bool needsProfile(Json profile) => profile['display_name'] is String &&
+      (profile['display_name'] as String).trim().length < 2;
+
   void finishLocalSetup() {
     if (history.isNotEmpty && history.last.$1 == 'security')
       back();
@@ -1781,7 +1785,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         objectId = null;
         executor = profile['active_role'] == 'executor';
         locked = false;
-        route = 'home';
+        registrationInProgress = needsProfile(profile);
+        route = registrationInProgress ? 'terms' : 'home';
         history.clear();
       });
       widget.onLocaleChanged?.call(locale);

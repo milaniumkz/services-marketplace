@@ -18,6 +18,85 @@ http.Response ok(Object data) =>
     http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
         headers: {'content-type': 'application/json; charset=utf-8'});
 void main() {
+  for (final name in ['', 'Complete']) {
+    testWidgets('login resumes only an incomplete required profile: $name',
+        (t) async {
+      t.view.physicalSize = const Size(390, 844);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      var user = <String, dynamic>{
+        'id': 'owner',
+        'version': 1,
+        'display_name': name,
+        'country': 'KZ',
+        'locale': 'ru',
+        'roles': ['customer'],
+        'active_role': 'customer'
+      };
+      final a = JobaApi('https://isolated.example', vault: _Vault(),
+          transport: MockClient((r) async {
+        if (r.url.path.endsWith('/auth/login'))
+          return ok({
+            'access_token': 'isolated',
+            'refresh_token': 'isolated-refresh',
+            'user': user
+          });
+        if (r.url.path.endsWith('/me')) {
+          if (r.method == 'PATCH')
+            user = {...user, ...jsonDecode(r.body), 'version': 2};
+          return ok(user);
+        }
+        if (r.url.path.endsWith('/legal/documents'))
+          return ok({
+            'items': [
+              {'id': 'terms', 'type': 'terms', 'version': 1, 'hash': 'terms-1'},
+              {
+                'id': 'privacy',
+                'type': 'privacy',
+                'version': 1,
+                'hash': 'privacy-1'
+              }
+            ]
+          });
+        return ok({'items': []});
+      }));
+      addTearDown(a.dispose);
+      await t.pumpWidget(JobaApp(api: a));
+      await t.pumpAndSettle();
+      final dynamic state = t.state(find.byType(Marketplace));
+      state.go('login');
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextFormField).at(0), '+77000000001');
+      await t.enterText(
+          find.byType(TextFormField).at(1), 'Isolated password 2026!');
+      await t.ensureVisible(find.widgetWithText(FilledButton, 'Войти'));
+      await t.tap(find.widgetWithText(FilledButton, 'Войти'));
+      await t.pumpAndSettle();
+      expect(state.route, 'lock-setup');
+      expect(state.registrationInProgress, name.isEmpty);
+      await state.completeLocalSetup(passwordOnly: true);
+      await t.pumpAndSettle();
+      expect(state.route, 'terms');
+      if (name.isEmpty) {
+        await t.tap(find.byType(CheckboxListTile).at(0));
+        await t.pump();
+        await t.tap(find.byType(CheckboxListTile).at(1));
+        await t.pump();
+        await t.tap(find.text('Принять и продолжить'));
+        await t.pumpAndSettle();
+        expect(state.route, 'onboarding');
+        await t.enterText(find.byType(TextFormField).first, 'Complete');
+        await t.tap(find.text('Сохранить профиль'));
+        await t.pumpAndSettle();
+        expect(state.route, 'home');
+        expect(state.registrationInProgress, false);
+        expect(user['display_name'], 'Complete');
+      }
+      await t.pumpWidget(const SizedBox());
+    });
+  }
+
   testWidgets(
       'onboarding Back returns to terms and restores a scoped draft over the latest server version',
       (tester) async {

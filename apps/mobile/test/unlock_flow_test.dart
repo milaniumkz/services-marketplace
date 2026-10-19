@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -17,12 +18,23 @@ class _Vault implements SessionVault {
 class _Api extends JobaApi {
   int refreshes = 0;
   bool offline = false;
-  _Api({String profileId = "owner"})
+  _Api({String profileId = "owner", String? displayName})
       : super('https://isolated.example',
             vault: _Vault(),
             transport: MockClient((r) async => http.Response(
-                '{"data":{"id":"$profileId","country":"KZ","locale":"ru","roles":["customer"],"active_role":"customer","items":[]}}',
-                200)));
+                jsonEncode({
+                  'data': {
+                    'id': profileId,
+                    'country': 'KZ',
+                    'locale': 'ru',
+                    'roles': ['customer'],
+                    'active_role': 'customer',
+                    'items': [],
+                    if (displayName != null) 'display_name': displayName
+                  }
+                }),
+                200,
+                headers: {'content-type': 'application/json; charset=utf-8'})));
   Future<void> refresh() async {
     refreshes++;
     if (offline) throw ApiException("OFFLINE", "Нет соединения");
@@ -59,6 +71,35 @@ class _SetupLock extends LocalLock {
 }
 
 void main() {
+  for (final name in ['', 'Complete']) {
+    testWidgets('unlock resumes only an incomplete profile: $name', (t) async {
+      final api = _Api(displayName: name), protection = _Lock();
+      addTearDown(api.dispose);
+      await t.pumpWidget(JobaApp(api: api));
+      await t.pumpAndSettle();
+      final dynamic state = t.state(find.byType(Marketplace));
+      api.session = {
+        'access_token': 'isolated',
+        'user': {'id': 'owner'}
+      };
+      state.lock = protection;
+      state.locked = true;
+      state.go('unlock');
+      await t.pumpAndSettle();
+      protection.gate.complete(true);
+      for (final digit in ['1', '2', '3', '4', '5', '6']) {
+        await t.tap(find.byKey(ValueKey('unlock-key-$digit')));
+        await t.pump();
+      }
+      await t.pumpAndSettle();
+      expect(api.refreshes, 1);
+      expect(state.registrationInProgress, name.isEmpty);
+      expect(state.route, name.isEmpty ? 'terms' : 'home');
+      expect(state.locked, false);
+      await t.pumpWidget(const SizedBox());
+    });
+  }
+
   for (final choice in ['password', 'biometry']) {
     testWidgets('keypad $choice action uses the actual account route',
         (tester) async {
