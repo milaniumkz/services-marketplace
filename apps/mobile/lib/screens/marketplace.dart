@@ -1,3 +1,4 @@
+import 'password_change.dart';
 import 'session_list.dart';
 import 'notification_settings.dart';
 import 'notification_widgets.dart';
@@ -4645,30 +4646,17 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         sessions: items(data),
         onRevoke: (family) => go('revoke-session', family),
         onRevokeOthers: () => go('logout-others'))));
-  Widget passwordScreen() => page(
-      'Изменить пароль',
-      ActionForm(
-          fields: const [
-            InputSpec('current_password', 'Текущий пароль', secret: true),
-            InputSpec('new_password', 'Новый пароль', secret: true),
-            InputSpec('repeat', 'Повторите новый пароль', secret: true)
-          ],
-          submit: (v) async {
-            if (v['new_password'] != v['repeat'])
-              throw ApiException('VALIDATION_ERROR', 'Пароли не совпадают');
-            await api.request('/me/password/change', method: 'POST', body: {
-              'current_password': v['current_password'],
-              'new_password': v['new_password']
-            });
-            success('Пароль изменён');
-            back();
-          }));
+  Widget passwordScreen() => page('Сменить пароль',
+      PasswordChangeContent(api: api, onChanged: () {
+        success('Пароль изменён');
+        back();
+      }), titleOffset: -11);
   Widget phoneScreen() => page(
       'Изменить номер',
       ActionForm(
           fields: const [
             InputSpec('new_phone', 'Новый номер',
-                keyboard: TextInputType.phone),
+                keyboard: TextInputType.phone, autofillHints: [AutofillHints.telephoneNumber]),
             InputSpec('current_password', 'Текущий пароль', secret: true)
           ],
           before: const [
@@ -4676,10 +4664,21 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 'Номер остаётся неподтверждённым идентификатором. Другие сессии будут завершены.')
           ],
           submit: (v) async {
-            await api.request('/me/phone-change-requests',
-                method: 'POST', body: v);
-            success('Номер изменён');
-            back();
+            final client = api, generation = api.sessionGeneration, viewRevision = revision;
+            final owner = api.session?['user']?['id'];
+            bool current() => mounted && identical(client, api) && !client.disposed && client.authenticated &&
+                client.sessionGeneration == generation && client.session?['user']?['id'] == owner;
+            try {
+              final result = await client.request('/me/phone-change-requests',
+                  method: 'POST', body: {...v, 'new_phone': v['new_phone']!.trim()}) as Json;
+              if (!current()) return;
+              if (result['version'] is! int || me?['version'] is! int || result['version'] >= me!['version']) {
+                setState(() => me = {...?me, 'phone': result['phone'], 'phone_status': result['phone_status'], 'version': result['version'] ?? me?['version']});
+              }
+              if (route != 'phone' || revision != viewRevision) return;
+              success('Номер изменён');
+              back();
+            } catch (_) { if (current() && route == 'phone' && revision == viewRevision) rethrow; }
           }));
   Widget settingsScreen() => page(
       'Настройки',

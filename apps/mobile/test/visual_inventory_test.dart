@@ -325,6 +325,8 @@ void main() {
             }
           ]
         };
+      else if (path == '/me/security-policy')
+        data = {'password_min':15,'password_max':128};
       else if (path == '/me/notification-preferences')
         data = {'marketing': false, 'chat': true, 'service': true};
       else if (path == '/catalog/categories')

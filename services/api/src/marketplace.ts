@@ -65,7 +65,7 @@ const text = (b: any, name: string, min: number, max: number) => {
   return v.trim();
 };
 const password = (b: any, name: string,min=15) => {
-  const v=b?.[name];if(typeof v!=='string'||v.length<min||v.length>128)fail(400,'VALIDATION_ERROR','Пароль должен содержать от 15 до 128 символов');
+  const v=b?.[name];if(typeof v!=='string'||v.length<min||v.length>128)fail(400,'VALIDATION_ERROR',`Пароль должен содержать от ${min} до 128 символов`,{min_length:min,max_length:128});
   return v;
 };
 const safeUser = (u: RecordData) => ({id:u.id,display_name:u.display_name,city:u.city,country:u.country,roles:u.roles,locale:u.locale,languages:u.languages??[u.locale??'ru'],active_role:u.active_role??'customer',avatar_id:u.avatar_id,verification:u.verification,created_at:u.created_at});
@@ -318,6 +318,7 @@ export class Marketplace {
       return {revoked:true,current_session_preserved:true};
     }
     if(path==='/me'&&method==='GET')return {...safeUser(a.user),phone:a.user.phone,phone_status:'unverified',status:a.user.status,version:a.user.version};
+    if(path==='/me/security-policy'&&method==='GET')return {password_min:settings.password_min,password_max:128};
     if(path==='/me/overview'&&method==='GET')return accountOverview(this.store,a.id,a.country);
     if(path==='/me/restrictions'&&method==='GET'){
       const now=new Date().toISOString();
@@ -345,12 +346,12 @@ export class Marketplace {
       else if(b.avatar_id!==undefined){const u=await this.object(String(b.avatar_id),a,'upload',true);if(u.status!=='clean'||u.purpose!=='avatar')fail(422,'UNSAFE_UPLOAD','Аватар ещё не проверен');changes.avatar_id=u.id;}
       return this.store.put({...a.user,...changes,version:a.user.version+1}).then(u=>({...safeUser(u),version:u.version}));
     }
-    if(path==='/me/password/change'&&method==='POST'){await this.reauth(a,b);await db.query('UPDATE credentials SET password_hash=$1 WHERE user_id=$2',[await hash(password(b,'new_password',settings.password_min)),a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);return {changed:true};}
+    if(path==='/me/password/change'&&method==='POST'){await this.reauth(a,b);await db.query('UPDATE credentials SET password_hash=$1 WHERE user_id=$2',[await hash(password(b,'new_password',settings.password_min)),a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);await this.store.put(this.record('security_event',a,{event:'password.changed',ip,occurred_at:new Date().toISOString()}));return {changed:true};}
     if(path==='/me/phone-change-requests'&&method==='POST') {
       await this.reauth(a,b);const value=text(b,'new_phone',8,16),number=parsePhoneNumberFromString(value);if(!number?.isValid()||number.country!==a.country||number.number!==value)fail(400,'VALIDATION_ERROR','Номер не соответствует выбранному региону');
       const exists=(await db.query('SELECT 1 FROM credentials WHERE country=$1 AND phone=$2',[a.country,value])).rows.length;if(exists)fail(409,'PHONE_CHANGE_UNAVAILABLE','Не удалось изменить идентификатор. Обратитесь в поддержку.');
       await db.query('UPDATE credentials SET phone=$1 WHERE user_id=$2',[value,a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);
-      await this.store.put({...a.user,phone:value,phone_status:'unverified',version:a.user.version+1});await this.store.put(this.record('security_event',a,{event:'phone.changed',ip,occurred_at:new Date().toISOString()}));return {phone:value,phone_status:'unverified'};
+      await this.store.put({...a.user,phone:value,phone_status:'unverified',version:a.user.version+1});await this.store.put(this.record('security_event',a,{event:'phone.changed',ip,occurred_at:new Date().toISOString()}));return {phone:value,phone_status:'unverified',version:a.user.version+1};
     }
     if(path==='/me/sessions'&&method==='GET')return {items:(await db.query('SELECT DISTINCT family,expires_at FROM tokens WHERE user_id=$1 AND kind=\'refresh\' AND country=$2 AND expires_at>now() AND NOT revoked AND NOT used ORDER BY expires_at DESC',[a.id,a.country])).rows.map(r=>({...r,current:r.family===a.family}))};
     const revokeSession=path.match(/^\/me\/sessions\/([^/]+)$/);

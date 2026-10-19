@@ -1119,6 +1119,53 @@
         }
       }
     },
+    "/me/security-policy": {
+      "get": {
+        "operationId": "get__me_security_policy",
+        "tags": [
+          "me"
+        ],
+        "description": "Current regional password_min (15–128) and password_max (128), used by authenticated password-change forms. Server rechecks the policy when saving.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
     "/admin/analytics": {
       "get": {
         "operationId": "get__admin_analytics",
@@ -5471,6 +5518,7 @@
         "tags": [
           "me"
         ],
+        "description": "Verify current password and enforce regional password minimum (at least 15, maximum 128). Preserve current session; revoke all other families. Store only password hash and an owned security event, never the plaintext password.",
         "security": [
           {
             "BearerAuth": []
@@ -5525,8 +5573,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/PasswordChange"
               }
             }
           }
@@ -5539,6 +5586,7 @@
         "tags": [
           "me"
         ],
+        "description": "Verify current password, reject invalid regional numbers and collisions, change the login identifier without changing account ownership. New number remains unverified; current session survives and all other families are revoked.",
         "security": [
           {
             "BearerAuth": []
@@ -5593,8 +5641,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/PhoneChange"
               }
             }
           }
@@ -24702,6 +24749,44 @@
   },
   "components": {
     "schemas": {
+      "PasswordChange": {
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 128,
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PhoneChange": {
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_phone"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "new_phone": {
+            "type": "string",
+            "pattern": "^\\+[1-9]\\d{7,14}$"
+          }
+        },
+        "additionalProperties": false
+      },
       "SessionReauthentication": {
         "type": "object",
         "required": [

@@ -159,11 +159,30 @@ void main() {
     expect(archive.bytes.take(2).toList(), [0x50, 0x4b]);
     expect(archive.bytes.length, greaterThan(500));
 
+    final securityPolicy = await api.request('/me/security-policy') as Json;
+    expect(securityPolicy['password_min'],15);
+    expect(securityPolicy['password_max'],128);
+    const replacementPassword = 'Changed integration password 2026!';
+    await api.request('/me/password/change', method: 'POST', body: {
+      'current_password': password, 'new_password': replacementPassword
+    });
+    var replacementNumber = number;
+    while (replacementNumber == number) {
+      replacementNumber = '+7701${(1000000 + Random.secure().nextInt(8999999))}';
+    }
+    final changedNumber = await api.request('/me/phone-change-requests', method: 'POST', body: {
+      'current_password': replacementPassword, 'new_phone': replacementNumber
+    }) as Json;
+    expect(changedNumber['phone_status'], 'unverified');
+    expect((await api.request('/me'))['phone'], replacementNumber);
     final old = api.accessToken;
     await api.refresh();
     expect(api.accessToken, isNot(old));
     await api.logout();
     expect(api.authenticated, false);
+    await api.signIn({'country':'KZ','phone':replacementNumber,'password':replacementPassword});
+    expect((await api.request('/me'))['id'], user['id']);
+    await api.logout();
     api.dispose();
   },
       skip: endpoint.isEmpty
