@@ -35,7 +35,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
    if(verification&&['passed','rejected','expired'].includes(verification.status)&&verification.decided_at&&Date.parse(verification.decided_at)+policy.payload.document_days*86400000<=now.getTime())reason='document_retention_expired';
    if(verification&&['draft','pending_review'].includes(verification.status)&&Date.parse(verification.created_at)+14*86400000<=now.getTime()){
     const held=holds.some(h=>h.country===verification.country&&h.target_id===verification.id&&h.fields.includes('document_refs'));
-    if(!held){reason='verification_incomplete_14d';if(verification.status!=='expired'){const current=await store.get(verification.id);if(current?.status!=='expired'){const expired=await store.put({...current!,status:'expired',failure_code:'DOCUMENT_WINDOW_EXPIRED',version:current!.version+1});if(onExpired)await onExpired(expired);}}}
+    if(!held){reason='verification_incomplete_14d';if(verification.status!=='expired'){const current=await store.get(verification.id);if(current?.status!=='expired'){const expired=await store.put({...current!,status:'expired',failure_code:'DOCUMENT_WINDOW_EXPIRED',decided_at:now.toISOString(),version:current!.version+1});if(onExpired)await onExpired(expired);}}}
    }
   }
   if(reason){await store.put({...file,status:'purge_pending',purge_reason:reason,policy_id:policy.id,purge_requested_at:now.toISOString(),version:file.version+1});removals.push(file.id);}

@@ -1,3 +1,5 @@
+import {minimizeVerificationHistory} from './verification-retention';
+import {minimizeOptionalConsentHistory} from './processing-consent-retention';
 import {minimizeCaseText} from './case-text-retention';
 import {minimizeClosedSupport} from './support-retention';
 import {minimizeClosedWork} from './work-retention';
@@ -23,6 +25,8 @@ export async function processDeletionCategories(store:Store,job:RecordData,polic
   const remaining=await store.db.query<{count:string}>(`SELECT count(*)::text AS count FROM records r WHERE ${scope}`,[job.country,rule.kinds,job.owner]);
   progress[rule.category]={state:Number(remaining.rows[0].count)?'waiting_retention_or_protection':'minimized',processed:(progress[rule.category]?.processed??0)+processed,remaining:Number(remaining.rows[0].count),policy_id:policy!.id,policy_version:policy!.version,last_run_at:now.toISOString()};
  }
+ progress.documents=await minimizeVerificationHistory(store,job,policy,now);
+ progress.optional_consents=await minimizeOptionalConsentHistory(store,job,policy,now);
  progress.support=await minimizeClosedSupport(store,job,policy,now);
  progress.case_text=await minimizeCaseText(store,job,policy,now);
  progress.work=await minimizeClosedWork(store,job,policy,now);

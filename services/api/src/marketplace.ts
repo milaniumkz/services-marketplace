@@ -1,3 +1,4 @@
+import {revokeOptionalProcessing} from './processing-consent-retention';
 import {resolveStaffUser,assertStaffOperation,staffAccess} from './staff-access';
 import {refreshWorkFileProgress} from './work-file-retention';
 import {processDeletionCategories} from './deletion-worker';
@@ -1801,6 +1802,7 @@ export class Marketplace {
           await this.store.db.query('DELETE FROM credentials WHERE user_id=$1',[r.owner]);await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[r.owner]);
           await this.store.db.query('DELETE FROM idempotency WHERE scope LIKE $1',[r.owner+':%']);
           for(const kind of ['contractor','portfolio','content_revision'])for(const {data:x} of (await this.store.db.query<{data:RecordData}>('SELECT data FROM records WHERE kind=$1 AND country=$2 AND owner=$3',[kind,r.country,r.owner])).rows)await anonymizeProfile(this.store,x);
+          await revokeOptionalProcessing(this.store,r.owner,r.country,now);
           const plan=await deletionPlan(this.store,r.owner,r.country,policy,now,'account_removed');
           await this.store.db.query("UPDATE records SET version=version+1,data=jsonb_set(jsonb_set(data,'{status}',$3::jsonb),'{version}',to_jsonb(version+1)) WHERE kind='download_ticket' AND country=$1 AND owner=$2 AND data->>'status'='active'",[r.country,r.owner,JSON.stringify('revoked')]);
           await this.store.db.query("UPDATE records SET version=version+1,data=jsonb_build_object('id',id::text,'kind',kind,'owner',owner,'country',country,'created_at',data->'created_at','status','revoked','version',version+1) WHERE kind='push_token' AND country=$1 AND owner=$2",[r.country,r.owner]);
