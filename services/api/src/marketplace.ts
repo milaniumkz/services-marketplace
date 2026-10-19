@@ -796,11 +796,13 @@ export class Marketplace {
       for(const n of await this.store.all('notification',a.country))if(n.owner===a.id&&!n.read&&Date.parse(n.created_at)<=before)await this.store.put({...n,read:true,version:n.version+1});
       return {read:true};
     }
-    if(path==='/me/notification-preferences'&&method==='GET')return a.user.notification_preferences??{marketing:false,chat:true,service:true};
+    if(path==='/me/notification-preferences'&&method==='GET'){const p=a.user.notification_preferences??{};return {marketing:false,chat:true,service:true,...p,orders:p.orders??p.service??true,support:p.support??p.service??true};}
     if(path==='/me/notification-preferences'&&method==='PATCH') {
       this.version(a.user,b);const p=b.preferences;if(!p||['marketing','chat','service'].some(k=>typeof p[k]!=='boolean'))fail(400,'VALIDATION_ERROR','Проверьте категории уведомлений');
+      if(['orders','support'].some(k=>p[k]!==undefined&&typeof p[k]!=='boolean'))fail(400,'VALIDATION_ERROR','Проверьте категории уведомлений');
+      if(p.quiet_hours!==undefined&&p.quiet_hours!==null&&(typeof p.quiet_hours!=='object'||Array.isArray(p.quiet_hours)||typeof p.quiet_hours.time_zone!=='string'||!p.quiet_hours.time_zone.trim()))fail(400,'VALIDATION_ERROR','Проверьте часы тишины');
       if(p.quiet_hours){if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.quiet_hours.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.quiet_hours.end)||p.quiet_hours.start===p.quiet_hours.end)fail(400,'VALIDATION_ERROR','Проверьте часы тишины');try{new Intl.DateTimeFormat('ru',{timeZone:p.quiet_hours.time_zone}).format(new Date());}catch{fail(400,'VALIDATION_ERROR','Проверьте часовой пояс');}}
-      await this.store.put({...a.user,notification_preferences:{marketing:p.marketing,chat:p.chat,service:p.service,quiet_hours:p.quiet_hours},version:a.user.version+1});return p;
+      await this.store.put({...a.user,notification_preferences:{...a.user.notification_preferences,marketing:p.marketing,chat:p.chat,service:p.service,orders:p.orders??a.user.notification_preferences?.orders??p.service,support:p.support??a.user.notification_preferences?.support??p.service,quiet_hours:p.quiet_hours},version:a.user.version+1});return p;
     }
     if(path==='/me/push-tokens'&&method==='POST'){
       if(!['ios','android','web'].includes(b.platform))fail(400,'VALIDATION_ERROR','Проверьте платформу');const value=text(b,'token',10,4096);
@@ -1604,8 +1606,9 @@ export class Marketplace {
             const update=async(status:string,extra:any={})=>this.store.put({...current,status,...extra,version:current.version+1});
             const user=await this.store.get(current.recipient_id);
             if(!user||user.country!==entry.country||user.status==='deleted'){await update('suppressed');return;}
-            const preference=current.type.startsWith('message.')?'chat':current.type.startsWith('marketing.')?'marketing':'service';
-            if(user.notification_preferences?.[preference]===false||preference==='marketing'&&user.notification_preferences?.marketing!==true){await update('suppressed');return;}
+            const preference=current.type.startsWith('message.')?'chat':current.type.startsWith('marketing.')?'marketing':current.type.startsWith('support.')?'support':notificationCategory(current)==='orders'?'orders':'service';
+            const enabled=user.notification_preferences?.[preference]??(['orders','support'].includes(preference)?user.notification_preferences?.service:undefined);
+            if(enabled===false||preference==='marketing'&&user.notification_preferences?.marketing!==true){await update('suppressed');return;}
             let message:any={event_id:current.event_id,title:'JOBA',body:'Новое событие в приложении'};
             if(current.campaign_id){const result=await claimCampaignMessage(this.store,current,user,now);if(result.stop){await update(result.stop);return;}if(result.retry){await update('retry',{next_attempt_at:result.retry});return;}message=result.message;}
             const quiet=user.notification_preferences?.quiet_hours;

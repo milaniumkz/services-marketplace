@@ -549,7 +549,8 @@
       ],
       "review_status": "partial_functional_verified_visual_pending",
       "test_candidates": [
-        "services/api/test/monetization-editor.test.cjs"
+        "services/api/test/monetization-editor.test.cjs",
+        "apps/mobile/test/notification_settings_test.dart"
       ],
       "verified_api_operations": [
         "GET /admin/monetization-configs/{id}",
@@ -11081,9 +11082,13 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            "docs/notification-settings-update.md",
+            "apps/mobile/test/notification_settings_test.dart",
+            "services/api/test/notification-preferences.test.cjs"
+          ]
         },
         {
           "id": "S35.notifications:3",
@@ -11095,9 +11100,13 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            "docs/notification-settings-update.md",
+            "apps/mobile/test/notification_settings_test.dart",
+            "services/api/test/notification-preferences.test.cjs"
+          ]
         },
         {
           "id": "S35.notifications:4",
@@ -11109,9 +11118,13 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            "docs/notification-settings-update.md",
+            "apps/mobile/test/notification_settings_test.dart",
+            "services/api/test/notification-preferences.test.cjs"
+          ]
         },
         {
           "id": "S35.notifications:5",
@@ -11123,9 +11136,13 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            "docs/notification-settings-update.md",
+            "apps/mobile/test/notification_settings_test.dart",
+            "services/api/test/notification-preferences.test.cjs"
+          ]
         },
         {
           "id": "S35.notifications:6",
@@ -11136,9 +11153,13 @@
             },
             "label": "Сохранить в демо"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            "docs/notification-settings-update.md",
+            "apps/mobile/test/notification_settings_test.dart",
+            "services/api/test/notification-preferences.test.cjs"
+          ]
         }
       ]
     },

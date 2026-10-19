@@ -1,3 +1,4 @@
+import 'notification_settings.dart';
 import 'notification_widgets.dart';
 import 'referral_rules.dart';
 import 'referral_code.dart';
@@ -4924,65 +4925,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
   Widget notificationSettings() => page(
       'Уведомления',
-      ApiView(
-          load: () => Future.wait([
-                api.request('/me'),
-                api.request('/me/notification-preferences')
-              ]),
-          builder: (c, data, reload) => ActionForm(
-                  fields: [
-                    for (final e in {
-                      'chat': 'Сообщения чата',
-                      'service': 'Сервисные уведомления',
-                      'marketing': 'Реклама'
-                    }.entries)
-                      InputSpec(e.key, e.value,
-                          initial: '${data[1][e.key]}',
-                          options: const {
-                            'true': 'Включены',
-                            'false': 'Отключены'
-                          }),
-                    InputSpec('quiet_enabled', 'Часы тишины',
-                        initial:
-                            data[1]['quiet_hours'] == null ? 'false' : 'true',
-                        options: const {
-                          'false': 'Отключены',
-                          'true': 'Включены'
-                        }),
-                    InputSpec('quiet_start', 'Начало (ЧЧ:ММ)',
-                        initial:
-                            '${data[1]['quiet_hours']?['start'] ?? '22:00'}'),
-                    InputSpec('quiet_end', 'Окончание (ЧЧ:ММ)',
-                        initial:
-                            '${data[1]['quiet_hours']?['end'] ?? '08:00'}'),
-                    InputSpec('time_zone', 'Часовой пояс IANA',
-                        initial: '${data[1]['quiet_hours']?['time_zone'] ?? {
-                              'KZ': 'Asia/Almaty',
-                              'KG': 'Asia/Bishkek',
-                              'RU': 'Europe/Moscow',
-                              'BY': 'Europe/Minsk'
-                            }[me?['country']] ?? 'UTC'}')
-                  ],
-                  submit: (v) async {
-                    await api.request('/me/notification-preferences',
-                        method: 'PATCH',
-                        body: {
-                          'expected_version': data[0]['version'],
-                          'preferences': {
-                            for (final key in ['chat', 'service', 'marketing'])
-                              key: v[key] == 'true',
-                            'quiet_hours': v['quiet_enabled'] == 'true'
-                                ? {
-                                    'start': v['quiet_start'],
-                                    'end': v['quiet_end'],
-                                    'time_zone': v['time_zone']
-                                  }
-                                : null
-                          }
-                        });
-                    success('Настройки сохранены');
-                    back();
-                  })));
+      NotificationSettingsContent(api: api, onSaved: () {
+        success('Настройки сохранены');
+        back();
+      }));
   void enterReferralCode() => Navigator.push(
       context,
       MaterialPageRoute<void>(builder: (c) => ReferralCodeScreen(

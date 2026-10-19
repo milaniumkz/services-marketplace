@@ -4816,8 +4816,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/NotificationPreferencesCommand"
               }
             }
           }
@@ -24634,6 +24633,75 @@
   },
   "components": {
     "schemas": {
+      "NotificationPreferencesCommand": {
+        "type": "object",
+        "required": [
+          "expected_version",
+          "preferences"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "preferences": {
+            "type": "object",
+            "required": [
+              "chat",
+              "service",
+              "marketing"
+            ],
+            "properties": {
+              "chat": {
+                "type": "boolean"
+              },
+              "service": {
+                "type": "boolean",
+                "description": "Other service events; legacy fallback when orders/support have never been set."
+              },
+              "marketing": {
+                "type": "boolean"
+              },
+              "orders": {
+                "type": "boolean"
+              },
+              "support": {
+                "type": "boolean"
+              },
+              "quiet_hours": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "start",
+                      "end",
+                      "time_zone"
+                    ],
+                    "properties": {
+                      "start": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "end": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "time_zone": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "description": "Versioned category settings. Omitted orders/support retain existing explicit values, otherwise inherit service. In-app history is retained. Quiet hours require distinct start/end and a valid IANA time zone; null disables quiet hours."
+      },
       "NotificationReadAll": {
         "type": "object",
         "required": [

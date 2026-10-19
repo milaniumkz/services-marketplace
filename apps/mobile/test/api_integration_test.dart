@@ -40,6 +40,15 @@ void main() {
     final notificationPage = await api.request('/me/notifications', query: {'category': 'orders', 'limit': 1}) as Json;
     expect(notificationPage['meta']['unread_count'], isA<int>());
     expect(DateTime.tryParse(notificationPage['meta']['read_before'])?.isUtc, true);
+    final preferences = await api.request('/me/notification-preferences') as Json;
+    final preferencesOwner = await api.request('/me') as Json;
+    await api.request('/me/notification-preferences', method: 'PATCH', body: {
+      'expected_version': preferencesOwner['version'],
+      'preferences': {...preferences, 'orders': false, 'support': true}
+    });
+    final savedPreferences = await api.request('/me/notification-preferences') as Json;
+    expect(savedPreferences['orders'], false);
+    expect(savedPreferences['support'], true);
     expect(items(await api.request('/me/sessions')).single['current'], true);
     final remote = JobaApi(endpoint, vault: MemoryVault());
     await remote
@@ -71,7 +80,7 @@ void main() {
       'reason': 'Завершение изолированной проверки бесплатной публикации'
     });
     final updated = await api.request('/me', method: 'PATCH', body: {
-      'expected_version': user['version'],
+      'expected_version': (await api.request('/me'))['version'],
       'display_name': 'Новое имя',
       'city': cities.first['name']
     }) as Json;
