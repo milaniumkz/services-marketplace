@@ -1131,6 +1131,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             ],
             nav: true);
       case 'access':
+        return executor ? accessScreen() : customerAccessScreen();
       case 'refunds':
         return page('Платежи и возвраты', RefundsScreen(api: api, onSupport: () => go('support')), titleOffset: -12);
       case 'my-access':
@@ -4358,7 +4359,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           builder: (c, data, reload) => ExecutorAccess(
               choosing: route == 'access', grants: items(data[0]),
               config: Json.from(data[1]), subscriptions: items(data[2]),
-              onGo: (r, id) => go(r, id))));
+              onGo: (r, id) => go(r, id))), titleOffset: -12);
   Widget privacyScreen() => page(
       'Приватность',
       loaded(

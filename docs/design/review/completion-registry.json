@@ -2736,9 +2736,17 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/executor-access-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart"
+              ],
+              "scope": "Root-route navigation only: account back, checkout with API offer ID, reward, restore and support. Customer access is free; provider operations and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S05:2",
@@ -2749,9 +2757,17 @@
             },
             "label": "Посмотреть условия"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/executor-access-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart"
+              ],
+              "scope": "Root-route navigation only: account back, checkout with API offer ID, reward, restore and support. Customer access is free; provider operations and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S05:3",
@@ -2762,9 +2778,17 @@
             },
             "label": "Доступ за рекламу Демо: 24 часа для заказчика"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/executor-access-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart"
+              ],
+              "scope": "Root-route navigation only: account back, checkout with API offer ID, reward, restore and support. Customer access is free; provider operations and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S05:4",
@@ -2775,9 +2799,17 @@
             },
             "label": "Восстановить"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/executor-access-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart"
+              ],
+              "scope": "Root-route navigation only: account back, checkout with API offer ID, reward, restore and support. Customer access is free; provider operations and visual acceptance remain pending."
+            }
+          ]
         },
         {
           "id": "S05:5",
@@ -2788,9 +2820,17 @@
             },
             "label": "Поддержка"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/executor-access-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart"
+              ],
+              "scope": "Root-route navigation only: account back, checkout with API offer ID, reward, restore and support. Customer access is free; provider operations and visual acceptance remain pending."
+            }
+          ]
         }
       ]
     },

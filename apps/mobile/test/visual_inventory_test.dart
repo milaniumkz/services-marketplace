@@ -606,7 +606,8 @@ void main() {
         state.enterReferralCode();
       } else {
         state.go(
-            frame['native_route'] ?? aliases[route] ?? route, 'visual-object');
+            frame['native_route'] ?? aliases[route] ?? route,
+            route == 'checkout' ? 'visual-offer' : 'visual-object');
       }
       final errors = <String>[];
       try {

@@ -63,7 +63,11 @@ class ExecutorAccess extends StatelessWidget {
       UiText(value,
           style: TextStyle(
               fontSize: size,
-              height: 1.5,
+              height: size == 10
+                  ? 1.4
+                  : size == 30
+                      ? 1.45
+                      : 1.5,
               color: color,
               fontWeight: bold ? FontWeight.w700 : FontWeight.w400));
   Widget badge(String value, {bool green = false}) => Container(
@@ -80,10 +84,10 @@ class ExecutorAccess extends StatelessWidget {
       child:
           FilledButton(onPressed: () => onGo(route, id), child: UiText(label)));
   Widget benefit(String label) => Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const JobaIcon('check', color: primary, size: 14),
-        const SizedBox(width: 4),
+        const SizedBox(width: 10),
         Expanded(child: text(label))
       ]));
   void history(BuildContext context) => showModalBottomSheet<void>(
@@ -135,56 +139,113 @@ class ExecutorAccess extends StatelessWidget {
     final price = subscription?['price'] as Json?;
     if (choosing)
       return ListView(padding: const EdgeInsets.all(20), children: [
-        const UiHeading(
-            'Ваши возможности', 'Поиск заказов, публикация услуг и отклики.'),
+        const UiText('Ваши возможности',
+            style: TextStyle(
+                fontSize: 26,
+                height: 33 / 26,
+                letterSpacing: -.9,
+                fontWeight: FontWeight.w700)),
+        const SizedBox(height: 10),
+        text('Поиск заказов, публикация услуг и отклики.', color: muted),
+        const SizedBox(height: 20),
         card([
           Row(children: [
             Expanded(child: text('Подписка JOBA', size: 16, bold: true)),
             badge('Исполнитель')
           ]),
-          const SizedBox(height: 20),
-          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Flexible(child: text(money(context, offer), size: 28, bold: true)),
-            const SizedBox(width: 6),
-            text(period(offer), color: muted)
-          ]),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
+          Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Flexible(
+                    child: text(money(context, offer), size: 30, bold: true)),
+                const SizedBox(width: 6),
+                text(period(offer), color: muted)
+              ]),
+          const SizedBox(height: 8),
           text(
               offer == null
                   ? 'Тариф ещё не опубликован'
                   : 'Итоговая цена будет показана перед оплатой.',
               size: 10,
               color: muted),
-          const Divider(height: 28),
+          const Divider(height: 29, thickness: 1),
           benefit('Находите подходящие заказы'),
           benefit('Публикуйте услуги и откликайтесь'),
           benefit('Общайтесь по вашим заказам'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           action('Посмотреть условия', 'checkout', id: offer?['id']),
           const SizedBox(height: 12),
           text('Автопродление можно отменить. Оплаченный срок сохраняется.',
               size: 10, color: muted),
         ], selected: true),
         const SizedBox(height: 12),
-        JobaMenu([
-          JobaMenuEntry('Доступ за рекламу', 'play', () => onGo('reward', null),
-              subtitle: config['rewarded_access_enabled'] == true
-                  ? 'Условия и срок доступа'
-                  : 'Пока недоступен')
-        ]),
+        Material(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+              side: const BorderSide(color: line),
+              borderRadius: BorderRadius.circular(16)),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => onGo('reward', null),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                Container(
+                    width: 52,
+                    height: 48,
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFFF5DA),
+                        borderRadius: BorderRadius.circular(15)),
+                    child: const Center(child: JobaIcon('play', size: 25))),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      text('Доступ за рекламу', size: 13, bold: true),
+                      const SizedBox(height: 4),
+                      text(
+                          config['rewarded_access_enabled'] == true &&
+                                  config['reward_provider_ready'] == true
+                              ? 'Условия и срок доступа'
+                              : 'Пока недоступен',
+                          size: 10,
+                          color: muted),
+                    ])),
+                const SizedBox(width: 10),
+                const JobaIcon('right', size: 14),
+              ]),
+            ),
+          ),
+        ),
         const SizedBox(height: 12),
         text(
             'Рекламный способ доступен только после проверки правил провайдера для страны.',
             size: 10,
             color: muted),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         Row(children: [
           Expanded(
               child: TextButton(
+                  style: TextButton.styleFrom(
+                      minimumSize: const Size(0, 52),
+                      textStyle: const TextStyle(
+                          fontFamily: 'Noto',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700)),
                   onPressed: () => onGo('restore', null),
                   child: const UiText('Восстановить'))),
+          const SizedBox(width: 10),
           Expanded(
               child: TextButton(
+                  style: TextButton.styleFrom(
+                      minimumSize: const Size(0, 52),
+                      textStyle: const TextStyle(
+                          fontFamily: 'Noto',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700)),
                   onPressed: () => onGo('support', null),
                   child: const UiText('Поддержка')))
         ]),
