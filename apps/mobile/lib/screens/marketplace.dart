@@ -1502,7 +1502,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 register ? AutofillHints.newPassword : AutofillHints.password,
               ],
               validate: (v) =>
-                  register && v.length < 15 ? 'Не менее 15 символов' : null,
+                  register && v.length < 15 ? 'Не менее 15 символов'
+                      : register && v.length > 128 ? 'Не более 128 символов' : null,
             ),
             if (register)
               const InputSpec(
