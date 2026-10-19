@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,7 +35,60 @@ class Gateway extends CommerceGateway {
   Future<bool> playReward(Json session) async => true;
 }
 
+class DelayedGateway extends Gateway {
+  final result = Completer<Json>();
+  @override
+  Future<Json> purchase(Json offer) {
+    purchases++;
+    return result.future;
+  }
+}
+
 void main() {
+  testWidgets('late purchase cannot verify under a replacement account',
+      (t) async {
+    final posts = <String>[];
+    final a = api((r) async {
+      if (r.method == 'POST') posts.add(r.url.path);
+      return ok({
+        'items': [
+          {
+            'id': 'offer',
+            'amount_minor': 100,
+            'currency': 'KZT',
+            'product_type': 'subscription'
+          }
+        ]
+      });
+    });
+    addTearDown(a.dispose);
+    a.session!['user'] = {'id': 'first'};
+    final gateway = DelayedGateway();
+    String? route;
+    await t.pumpWidget(host(CommerceStateScreen(
+        api: a,
+        mode: 'checkout',
+        gateway: gateway,
+        onGo: (r, _) => route = r)));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.byType(CheckboxListTile), 150);
+    await t.pumpAndSettle();
+    await t.tap(find.byType(CheckboxListTile));
+    await t.pump();
+    await t.tap(find.text('Продолжить оплату'));
+    await t.pump();
+    expect(gateway.purchases, 1);
+    a.session = {
+      'access_token': 'replacement',
+      'user': {'id': 'second'}
+    };
+    gateway.result
+        .complete({'provider': 'isolated', 'transaction_reference': 'proof'});
+    await t.pumpAndSettle();
+    expect(posts, isEmpty);
+    expect(route, isNull);
+  });
+
   testWidgets('checkout never replaces a retired selected offer', (t) async {
     final a = api((r) async => ok({
           'items': [

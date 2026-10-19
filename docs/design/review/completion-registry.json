@@ -8574,9 +8574,18 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/checkout-layout-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart",
+                "apps/mobile/test/remaining_states_test.dart"
+              ],
+              "scope": "Back to access and legal/restore navigation; checkout consent, pending API proof, disconnected provider and account-change guard with isolated gateway. No real provider purchase or visual acceptance."
+            }
+          ]
         },
         {
           "id": "S05.checkout:2",
@@ -8587,9 +8596,18 @@
             },
             "label": "Условия подписки Правила и отмена"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/checkout-layout-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart",
+                "apps/mobile/test/remaining_states_test.dart"
+              ],
+              "scope": "Back to access and legal/restore navigation; checkout consent, pending API proof, disconnected provider and account-change guard with isolated gateway. No real provider purchase or visual acceptance."
+            }
+          ]
         },
         {
           "id": "S05.checkout:3",
@@ -8600,9 +8618,18 @@
             },
             "label": "Восстановить покупку Без новой оплаты"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/checkout-layout-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart",
+                "apps/mobile/test/remaining_states_test.dart"
+              ],
+              "scope": "Back to access and legal/restore navigation; checkout consent, pending API proof, disconnected provider and account-change guard with isolated gateway. No real provider purchase or visual acceptance."
+            }
+          ]
         },
         {
           "id": "S05.checkout:4",
@@ -8613,9 +8640,18 @@
             },
             "label": "Показать демо-оплату"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/checkout-layout-update.md",
+              "tests": [
+                "apps/mobile/test/customer_access_test.dart",
+                "apps/mobile/test/remaining_states_test.dart"
+              ],
+              "scope": "Back to access and legal/restore navigation; checkout consent, pending API proof, disconnected provider and account-change guard with isolated gateway. No real provider purchase or visual acceptance."
+            }
+          ]
         }
       ]
     },

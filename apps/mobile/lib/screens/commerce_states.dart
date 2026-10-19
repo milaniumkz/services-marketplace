@@ -47,6 +47,27 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
     }
   }
 
+  Future<void> purchase(Json offer) => run(() async {
+        final api = widget.api;
+        final generation = api.sessionGeneration;
+        final owner = api.session?['user']?['id'];
+        bool current() =>
+            mounted &&
+            identical(widget.api, api) &&
+            !api.disposed &&
+            api.authenticated &&
+            api.sessionGeneration == generation &&
+            api.session?['user']?['id'] == owner;
+        if (!current()) return;
+        final receipt = await widget.gateway.purchase(offer);
+        if (!current()) return;
+        final result = await api.request('/billing/verify-purchase',
+            method: 'POST', body: receipt);
+        if (!current()) return;
+        widget.onGo(result['pending'] == true ? 'payment-pending' : 'my-access',
+            result['check']?['id']);
+      });
+
   Widget panel(String icon, String title, String message, String label,
           VoidCallback action,
           {String? secondary, VoidCallback? onSecondary}) =>
@@ -226,10 +247,13 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                 child: UiText(label,
                     style: const TextStyle(fontSize: 12, color: navy))),
             const SizedBox(width: 12),
-            Flexible(
+            Expanded(
                 child: UiText(value,
+                    textAlign: TextAlign.right,
                     style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700))),
+                        fontSize: 12,
+                        height: 1.5,
+                        fontWeight: FontWeight.w700))),
           ]));
 
   String money(Json? r) => r?['amount_minor'] is int
@@ -388,8 +412,16 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
           return Column(children: [
             Expanded(
                 child: ListView(padding: const EdgeInsets.all(20), children: [
-              const UiHeading('Подписка JOBA',
-                  'Поиск заказов и публикация услуг исполнителя.'),
+              const UiText('Подписка JOBA',
+                  style: TextStyle(
+                      fontSize: 26,
+                      height: 33 / 26,
+                      letterSpacing: -.9,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              const UiText('Поиск заказов и публикация услуг исполнителя.',
+                  style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
+              const SizedBox(height: 20),
               if (offers.length > 1 || (offer == null && offers.isNotEmpty))
                 for (final r in offers)
                   ListTile(
@@ -422,11 +454,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                       checkoutFact('Продление', 'По условиям провайдера',
                           last: true),
                     ])),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 const UiText(
                     'Перед оплатой проверьте период, итоговую сумму и условия продления. Оплаченный срок сохраняется при отключении автопродления.',
-                    style: TextStyle(fontSize: 12, color: navy)),
-                const SizedBox(height: 16),
+                    style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
+                const SizedBox(height: 20),
               ],
               const Notice(
                   'Доступ активируется после подтверждения оплаты. Если платёж обрабатывается, повторная покупка не требуется.',
@@ -434,9 +466,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                   icon: 'info'),
               JobaMenu([
                 JobaMenuEntry('Условия подписки', 'file',
-                    () => widget.onGo('legal', null)),
+                    () => widget.onGo('legal', null),
+                    subtitle: 'Правила и отмена'),
                 JobaMenuEntry('Восстановить покупку', 'refresh',
-                    () => widget.onGo('restore', null)),
+                    () => widget.onGo('restore', null),
+                    subtitle: 'Без новой оплаты'),
               ]),
               const SizedBox(height: 12),
               CheckboxListTile(
@@ -461,20 +495,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                         child: FilledButton(
                             onPressed: busy || !accepted || offer == null
                                 ? null
-                                : () => run(() async {
-                                      final receipt =
-                                          await widget.gateway.purchase(offer);
-                                      final result = await widget.api.request(
-                                          '/billing/verify-purchase',
-                                          method: 'POST',
-                                          body: receipt);
-                                      if (mounted)
-                                        widget.onGo(
-                                            result['pending'] == true
-                                                ? 'payment-pending'
-                                                : 'my-access',
-                                            result['check']?['id']);
-                                    }),
+                                : () => purchase(offer),
                             child: const UiText('Продолжить оплату')))))
           ]);
         });

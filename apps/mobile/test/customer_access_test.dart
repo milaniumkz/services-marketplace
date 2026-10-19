@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:services_marketplace/core/api.dart';
+import 'package:services_marketplace/core/design_widgets.dart';
 import 'package:services_marketplace/main.dart';
 import 'package:services_marketplace/screens/marketplace.dart';
 
@@ -105,6 +106,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(state.route, 'checkout');
     expect(state.objectId, 'isolated-tariff');
+    await tester.tap(find.byTooltip('Назад'));
+    await tester.pumpAndSettle();
+    expect(state.route, 'access');
+    for (final entry in {
+      'Условия подписки': 'legal',
+      'Восстановить покупку': 'restore'
+    }.entries) {
+      state.go('checkout', 'isolated-tariff');
+      await tester.pumpAndSettle();
+      final link = find.descendant(
+          of: find.byType(JobaMenu), matching: find.text(entry.key));
+      await tester.scrollUntilVisible(link, 150);
+      await tester.pumpAndSettle();
+      await tester.tap(link);
+      await tester.pumpAndSettle();
+      expect(state.route, entry.value);
+    }
+
     state.go('access');
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Доступ за рекламу'), 150);
