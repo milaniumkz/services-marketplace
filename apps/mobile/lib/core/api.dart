@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'server_clock.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -58,9 +59,21 @@ class JobaApi extends ChangeNotifier {
   bool get sessionExpired => _sessionExpired;
   bool disposed = false;
   bool persistSession = true;
-  String? serverTime;
-  JobaApi(String endpoint, {http.Client? transport, SessionVault? vault})
-      : base = Uri.parse(endpoint),
+  final ServerClock clock;
+  String? _serverTime;
+  String? get serverTime => _serverTime;
+  set serverTime(String? value) {
+    final sample = DateTime.tryParse(value ?? '');
+    if (sample == null || !sample.isUtc) return;
+    final previous = DateTime.tryParse(_serverTime ?? '');
+    if (previous == null || !sample.isBefore(previous)) _serverTime = value;
+    clock.synchronize(value);
+  }
+
+  JobaApi(String endpoint,
+      {http.Client? transport, SessionVault? vault, ServerClock? clock})
+      : clock = clock ?? ServerClock(),
+        base = Uri.parse(endpoint),
         transport = transport ?? http.Client(),
         vault = vault ?? SecureSessionVault('joba.session.$endpoint') {
     if (!['http', 'https'].contains(base.scheme) ||
@@ -212,8 +225,10 @@ class JobaApi extends ChangeNotifier {
         _retryKeys.remove(scope);
         return result;
       }, onError: (Object error, StackTrace stack) {
-        if (error is ApiException && error.status > 0 && error.status < 500 && error.status != 429)
-          _retryKeys.remove(scope);
+        if (error is ApiException &&
+            error.status > 0 &&
+            error.status < 500 &&
+            error.status != 429) _retryKeys.remove(scope);
         Error.throwWithStackTrace(error, stack);
       });
     }
@@ -300,7 +315,9 @@ class JobaApi extends ChangeNotifier {
               ? Map<String, dynamic>.from(responseError['details'])
               : const {});
     }
-    serverTime = decoded['meta']?['server_time'];
+    final metadata = decoded['meta'];
+    final timestamp = metadata is Map ? metadata['server_time'] : null;
+    if (timestamp is String) serverTime = timestamp;
     return decoded['data'];
   }
 

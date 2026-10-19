@@ -1285,7 +1285,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'promotion-no-slots':
       case 'promotion-terms':
       case 'promotion':
-        return page({'promotion':'Продвинуть объявление','promotion-checkout':'Проверить продвижение','promotion-no-slots':'Нет доступных мест','promotion-terms':'Условия размещения'}[route]!,PromotionPurchase(key:ValueKey('promotion:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
+        return page({'promotion':'Продвинуть объявление','promotion-checkout':'Проверить продвижение','promotion-no-slots':'Нет доступных мест','promotion-terms':'Условия размещения'}[route]!,PromotionPurchase(key:ValueKey('promotion:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,now:()=>api.clock.now,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       default:
         return page(
             'JOBA',
@@ -4364,6 +4364,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           builder: (c, data, reload) => ExecutorAccess(
               choosing: route == 'access', grants: items(data[0]),
               config: Json.from(data[1]), subscriptions: items(data[2]),
+              now: () => api.clock.now,
               onGo: (r, id) => go(r, id))), titleOffset: -12);
   Widget privacyScreen() => page(
       'Приватность',
@@ -4999,7 +5000,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   ])),
           const SizedBox(height: 16),
           for (final reward in rewards)
-            ReferralRewardCard(
+            ReferralRewardCard(now: () => api.clock.now,
                 key: ValueKey('referral-reward:${reward['id']}'),
                 reward: reward,
                 onActivate: () async {

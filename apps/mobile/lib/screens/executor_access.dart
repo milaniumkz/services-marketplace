@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/api.dart';
@@ -9,10 +10,11 @@ import '../core/theme.dart';
 import '../core/widgets.dart';
 
 /// S05 and S32 share data, but represent choosing access and managing it.
-class ExecutorAccess extends StatelessWidget {
+class ExecutorAccess extends StatefulWidget {
   final bool choosing;
   final List<Json> grants, subscriptions;
   final Json config;
+  final DateTime Function() now;
   final void Function(String route, String? id) onGo;
   const ExecutorAccess(
       {required this.choosing,
@@ -20,10 +22,48 @@ class ExecutorAccess extends StatelessWidget {
       required this.subscriptions,
       required this.config,
       required this.onGo,
+      this.now = DateTime.now,
       super.key});
+  @override
+  State<ExecutorAccess> createState() => _ExecutorAccessState();
+}
+
+class _ExecutorAccessState extends State<ExecutorAccess> {
+  Timer? _ticker;
+  bool get choosing => widget.choosing;
+  List<Json> get grants => widget.grants;
+  List<Json> get subscriptions => widget.subscriptions;
+  Json get config => widget.config;
+  void onGo(String route, String? id) => widget.onGo(route, id);
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(covariant ExecutorAccess oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.choosing != choosing) _schedule();
+  }
+
+  void _schedule() {
+    _ticker?.cancel();
+    if (!choosing)
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
   DateTime? until(Json r) => DateTime.tryParse('${r['valid_until'] ?? ''}');
   bool valid(Json r) =>
-      until(r)?.isAfter(DateTime.now()) == true &&
+      until(r)?.isAfter(widget.now()) == true &&
       (r['balance'] == null || r['balance'] > 0);
   String date(BuildContext context, Json r, {bool short = false}) {
     final value = until(r);

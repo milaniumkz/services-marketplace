@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -33,6 +34,24 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
   String? acceptedOffer;
   Object? error;
   String? selected;
+  Timer? _ticker;
+  @override
+  void initState() {
+    super.initState();
+    if (['reward', 'reward-granted', 'reward-pending', 'manage-subscription']
+        .contains(widget.mode)) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
   bool Function() sessionGuard() {
     final api = widget.api;
     final generation = api.sessionGeneration;
@@ -130,7 +149,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                 credits != null &&
                 credits > 0)) &&
         (remaining == null || remaining > 0) &&
-        (cooldown == null || !cooldown.isAfter(DateTime.now()));
+        (cooldown == null || !cooldown.isAfter(widget.api.clock.now));
     final hours = seconds == null ? 0 : seconds ~/ 3600;
     final hourWord = hours % 10 == 1 && hours % 100 != 11
         ? 'час'
@@ -206,7 +225,8 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                     ? 'Рекламная сеть ещё не подключена.'
                     : remaining != null && remaining <= 0
                         ? 'Дневной лимит просмотров достигнут.'
-                        : cooldown != null && cooldown.isAfter(DateTime.now())
+                        : cooldown != null &&
+                                cooldown.isAfter(widget.api.clock.now)
                             ? 'Перед следующим просмотром нужна пауза. Обновите условия позже.'
                             : 'Доступ выдаётся только после подтверждения рекламной сети.',
             warning: true,
@@ -327,7 +347,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
             final valid = r['status'] == 'granted' &&
                 grant != null &&
                 DateTime.tryParse('${grant['valid_until']}')
-                        ?.isAfter(DateTime.now()) ==
+                        ?.isAfter(widget.api.clock.now) ==
                     true &&
                 (grant['balance'] == null || grant['balance'] > 0);
             return panel(
@@ -382,6 +402,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                 ? (items(data).isEmpty ? null : items(data).first)
                 : data;
             final canceled = r?['status'] == 'canceled_at_period_end';
+            final hasAccess = r != null &&
+                ['active', 'grace'].contains(r['status']) &&
+                DateTime.tryParse('${r['valid_until']}')
+                        ?.isAfter(widget.api.clock.now) ==
+                    true;
             if (mode == 'subscription-canceled')
               return panel(
                   canceled ? 'check' : 'info',
@@ -416,15 +441,13 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                         JobaBadge(
                             canceled
                                 ? 'Продление отключено'
-                                : ['active', 'grace'].contains(r['status'])
+                                : hasAccess
                                     ? 'Активна'
                                     : 'Не активна',
-                            background: !canceled &&
-                                    ['active', 'grace'].contains(r['status'])
+                            background: !canceled && hasAccess
                                 ? const Color(0xFFE8F5EF)
                                 : const Color(0xFFEAF0FC),
-                            foreground: !canceled &&
-                                    ['active', 'grace'].contains(r['status'])
+                            foreground: !canceled && hasAccess
                                 ? const Color(0xFF147657)
                                 : primary),
                       ]),

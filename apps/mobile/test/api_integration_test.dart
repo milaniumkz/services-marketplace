@@ -19,6 +19,8 @@ void main() {
       'display_name': 'Проверка клиента'
     }, register: true);
     final user = await api.request('/me') as Json;
+    expect(api.clock.synchronized, true);
+    expect(DateTime.tryParse(api.serverTime ?? '')?.isUtc, true);
     final categories = items(await api.request('/catalog/categories'));
     final cities = items(await api.request('/geo/cities'));
     final draft = await api.request('/orders', method: 'POST', body: {
