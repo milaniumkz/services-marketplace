@@ -1,0 +1,18 @@
+{
+  "source_commit": "375e587de5a46c99e91e42dd983261fa06235779",
+  "api_url": "https://188-241-217-228.sslip.io",
+  "build_mode": "debug",
+  "abis": [
+    "arm64-v8a"
+  ],
+  "min_android_api": 24,
+  "min_android_version": "7.0",
+  "package": "kz.joba.services_marketplace",
+  "signing": "Android test/debug certificate",
+  "sha256": "38d0505e5254374f41537baab7a0b79b20e6341262a048e10f2f19cec15d6c91",
+  "size_bytes": 82186276,
+  "physical_device_tested": false,
+  "server_updated": false,
+  "server_update_blocker": "GitHub integration cannot manage Actions Secrets (HTTP 403); owner must save SSH credential",
+  "advertising_sdks_integrated": false
+}
