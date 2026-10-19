@@ -1266,51 +1266,87 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     }
   }
 
-  Widget countryCard(String code, String name, String currency) => Container(
+  Widget countryCard(String code, String name, String currency) => Semantics(
+    button: true,
+    selected: country == code,
+    enabled: !actionBusy,
+    child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       height: 76,
       decoration: BoxDecoration(
-          color: country == code ? const Color(0xFFF1F5FE) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: country == code ? primary : line)),
+        color: country == code ? const Color(0xFFF1F5FE) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: country == code ? primary : line),
+      ),
       child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: actionBusy ? null : () => act(() => chooseCountry(code)),
-          child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(children: [
-                if (code == 'KZ') ...[
-                  const JobaIcon('globe'),
-                  const SizedBox(width: 12)
-                ],
-                Expanded(
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      UiText(name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              height: 1.4,
-                              fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      UiText(currency,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 13,
-                              height: 1.4,
-                              color: Color(0xFF627187)))
-                    ])),
-                Icon(
-                    country == code
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: country == code ? primary : line,
-                    size: 24),
-              ]))));
+        borderRadius: BorderRadius.circular(14),
+        onTap: actionBusy ? null : () => act(() => chooseCountry(code)),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              if (code == 'KZ') ...[
+                const JobaIcon('globe'),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    UiText(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    UiText(
+                      currency,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: Color(0xFF627187),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: country == code ? primary : const Color(0xFFBBC7D9),
+                    width: 1.5,
+                  ),
+                ),
+                child: country == code
+                    ? Center(
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: primary,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
   Widget welcomeScreen() => Scaffold(
       backgroundColor: canvas,
       body: SafeArea(

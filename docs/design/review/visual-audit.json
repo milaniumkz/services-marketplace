@@ -1,6 +1,6 @@
 {
-  "generated_on": "2026-10-16",
-  "scenario": "Isolated fixtures; native and browser clients use real API contracts.",
+  "generated_on": "2026-10-19",
+  "scenario": "Mobile uses isolated visual fixtures; admin/public browser captures use isolated real HTTP API. These are review artifacts, not production data.",
   "acceptance_rule": "A capture, route or pixel metric does not establish visual or functional acceptance. All frames remain pending.",
   "summary": {
     "expected": 187,
@@ -27,7 +27,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.070139,
+      "different_pixels_ratio": 0.069567,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -227,14 +227,13 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.08509,
+      "different_pixels_ratio": 0.209593,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile",
-      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
+      "surface": "mobile"
     },
     {
       "id": "S05.checkout",
@@ -453,7 +452,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.143109,
+      "different_pixels_ratio": 0.142987,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -503,7 +502,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.150087,
+      "different_pixels_ratio": 0.149538,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -534,8 +533,7 @@
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile",
-      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
+      "surface": "mobile"
     },
     {
       "id": "S11.edit",
@@ -585,8 +583,7 @@
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile",
-      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
+      "surface": "mobile"
     },
     {
       "id": "S12",
@@ -1355,7 +1352,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.062877,
+      "different_pixels_ratio": 0.062849,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1380,7 +1377,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.203645,
+      "different_pixels_ratio": 0.202594,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -1686,8 +1683,7 @@
         "bottom": 44
       },
       "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
-      "surface": "mobile",
-      "policy_note": "Owner 2026-10-15: customer access is free; subscription frames apply to executor only."
+      "surface": "mobile"
     },
     {
       "id": "S32.canceled",
@@ -2236,7 +2232,7 @@
         "top": 86,
         "bottom": 44
       },
-      "note": "Prototype CSS hero contour, progress badge right alignment, two-line actual counters and local menu height implemented. Issued rewards, long text/locales and exact typography still require acceptance.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -2261,7 +2257,7 @@
         "top": 86,
         "bottom": 44
       },
-      "note": "Dedicated code entry screen: sticky submit, below-field explanation card, prototype canvas/back icon/title offset and 52px input. Validation, API rejection/retained input and retry tested. Demo text intentionally replaced; exact visual acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -2286,7 +2282,7 @@
         "top": 86,
         "bottom": 44
       },
-      "note": "Three-step timeline, prototype title position and warning styling. Actual campaign policy remains visible, so text/height differ from demo. Empty and narrow large-text cases tested; visual acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "mobile"
     },
     {
@@ -2331,7 +2327,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.083402,
+      "different_pixels_ratio": 0.08334,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2381,7 +2377,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.106609,
+      "different_pixels_ratio": 0.106091,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2406,7 +2402,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.196821,
+      "different_pixels_ratio": 0.196501,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2431,7 +2427,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.062192,
+      "different_pixels_ratio": 0.05725,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -2956,7 +2952,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.088778,
+      "different_pixels_ratio": 0.088723,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -2981,7 +2977,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.106697,
+      "different_pixels_ratio": 0.106689,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3031,7 +3027,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.075478,
+      "different_pixels_ratio": 0.07942,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3046,7 +3042,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.2---A12-user-security.png",
-      "actual_route": "user-security?user_id=aab2892a-b304-4231-998b-ce4ede5708a6",
+      "actual_route": "user-security?user_id=005c93df-54a9-4f39-a62b-78718b683a7e",
       "errors": [],
       "reference_size": [
         1440,
@@ -3056,7 +3052,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.105299,
+      "different_pixels_ratio": 0.105282,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3106,7 +3102,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069777,
+      "different_pixels_ratio": 0.069748,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3131,7 +3127,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.0719,
+      "different_pixels_ratio": 0.071901,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3146,7 +3142,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.cases-user-cases.png",
-      "actual_route": "user-cases?user_id=aab2892a-b304-4231-998b-ce4ede5708a6",
+      "actual_route": "user-cases?user_id=005c93df-54a9-4f39-a62b-78718b683a7e",
       "errors": [],
       "reference_size": [
         1440,
@@ -3156,7 +3152,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.123987,
+      "different_pixels_ratio": 0.12396,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3181,7 +3177,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.087326,
+      "different_pixels_ratio": 0.087463,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3196,7 +3192,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.detail-user-detail.png",
-      "actual_route": "record-live/users/aab2892a-b304-4231-998b-ce4ede5708a6",
+      "actual_route": "record-live/users/005c93df-54a9-4f39-a62b-78718b683a7e",
       "errors": [],
       "reference_size": [
         1440,
@@ -3206,7 +3202,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.092913,
+      "different_pixels_ratio": 0.092845,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3221,7 +3217,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.history-user-decisions.png",
-      "actual_route": "user-decisions?user_id=1e1f0cd8-e032-48cd-a46a-fd8df28ac5d1",
+      "actual_route": "user-decisions?user_id=c104903e-7095-4f3b-9691-0af597e478d2",
       "errors": [],
       "reference_size": [
         1440,
@@ -3231,7 +3227,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.098055,
+      "different_pixels_ratio": 0.097923,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3246,7 +3242,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A03.orders-user-orders.png",
-      "actual_route": "user-orders?user_id=1e1f0cd8-e032-48cd-a46a-fd8df28ac5d1",
+      "actual_route": "user-orders?user_id=c104903e-7095-4f3b-9691-0af597e478d2",
       "errors": [],
       "reference_size": [
         1440,
@@ -3256,7 +3252,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.066364,
+      "different_pixels_ratio": 0.066367,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3271,7 +3267,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A04-order-detail.png",
-      "actual_route": "record-live/orders/39377f4c-6e3e-4ebe-a467-d8f2e7c9838a",
+      "actual_route": "record-live/orders/c810ef0b-7014-44d3-b12b-1b088a54b260",
       "errors": [],
       "reference_size": [
         1440,
@@ -3281,7 +3277,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.0725,
+      "different_pixels_ratio": 0.072574,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3306,7 +3302,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.066307,
+      "different_pixels_ratio": 0.066269,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3331,7 +3327,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.075966,
+      "different_pixels_ratio": 0.078567,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3371,7 +3367,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A06-case.png",
-      "actual_route": "case-live/aae2fd2a-b59d-4ae2-b566-e0d010a94d09",
+      "actual_route": "case-live/b732541a-4658-4e10-89bd-57a39b188741",
       "errors": [],
       "reference_size": [
         1440,
@@ -3381,7 +3377,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.181747,
+      "different_pixels_ratio": 0.181728,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3406,7 +3402,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.093991,
+      "different_pixels_ratio": 0.101162,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3421,7 +3417,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.authorization-id-auth.png",
-      "actual_route": "id-auth?id=ac22a130-b9eb-4f53-b352-34fd1043c2f9",
+      "actual_route": "id-auth?id=8a6a3cf9-b856-4cb1-8c2e-10e7378c3772",
       "errors": [],
       "reference_size": [
         1440,
@@ -3431,7 +3427,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.070763,
+      "different_pixels_ratio": 0.070881,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3446,7 +3442,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.guard-verification-detail.png",
-      "actual_route": "record-live/verification/ac22a130-b9eb-4f53-b352-34fd1043c2f9",
+      "actual_route": "record-live/verification/8a6a3cf9-b856-4cb1-8c2e-10e7378c3772",
       "errors": [],
       "reference_size": [
         1440,
@@ -3456,7 +3452,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.106987,
+      "different_pixels_ratio": 0.107003,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3471,7 +3467,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A07.review-verification-review.png",
-      "actual_route": "verification-review?id=ac22a130-b9eb-4f53-b352-34fd1043c2f9",
+      "actual_route": "verification-review?id=8a6a3cf9-b856-4cb1-8c2e-10e7378c3772",
       "errors": [],
       "reference_size": [
         1440,
@@ -3481,7 +3477,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.13999,
+      "different_pixels_ratio": 0.14003,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3506,12 +3502,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.136315,
+      "different_pixels_ratio": 0.135583,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Structured category tree/translations/schema editor and real version lifecycle. Shared shell, icons, field table/editor states and exact spacing still require acceptance; no staged catalog data used.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "admin"
     },
     {
@@ -3531,7 +3527,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.105219,
+      "different_pixels_ratio": 0.105218,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3556,12 +3552,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.105596,
+      "different_pixels_ratio": 0.107079,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Structured price fields, real product/status/SKU filters and published promotion. Shared shell, badges, exact layout and data states still require acceptance. Country/role changes follow owner instructions.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "admin"
     },
     {
@@ -3631,12 +3627,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.107559,
+      "different_pixels_ratio": 0.107687,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Separate banner form and creative/review API implemented; shared shell, real empty states and additional controls still require acceptance. Metric is diagnostic only.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "admin"
     },
     {
@@ -3686,7 +3682,7 @@
         "top": 0,
         "bottom": 0
       },
-      "note": "Separate banner form and creative/review API implemented; shared shell, real empty states and additional controls still require acceptance. Metric is diagnostic only.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "admin"
     },
     {
@@ -3706,7 +3702,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.079326,
+      "different_pixels_ratio": 0.083516,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3731,7 +3727,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.134598,
+      "different_pixels_ratio": 0.107978,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3746,7 +3742,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A12.full-security-full.png",
-      "actual_route": "security-full?id=4861e0a4-1a42-4922-afdc-e6becdff130c",
+      "actual_route": "security-full?id=163afe34-3dff-412e-bedd-5c9d4d4c21bd",
       "errors": [],
       "reference_size": [
         1440,
@@ -3756,7 +3752,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.159373,
+      "different_pixels_ratio": 0.159427,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3781,7 +3777,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.098572,
+      "different_pixels_ratio": 0.09904,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3806,7 +3802,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.211569,
+      "different_pixels_ratio": 0.211547,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3831,7 +3827,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.078278,
+      "different_pixels_ratio": 0.078589,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3856,7 +3852,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.123812,
+      "different_pixels_ratio": 0.12237,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3871,7 +3867,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A15.retry-job-detail.png",
-      "actual_route": "job-detail?job_id=8142a044-d74c-4e51-b6f6-958f607d3089",
+      "actual_route": "job-detail?job_id=58bc8f07-5574-4e79-addd-707bb97b0a78",
       "errors": [],
       "reference_size": [
         1440,
@@ -3881,7 +3877,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.110992,
+      "different_pixels_ratio": 0.111062,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3906,7 +3902,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.085602,
+      "different_pixels_ratio": 0.085594,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3931,7 +3927,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.11965,
+      "different_pixels_ratio": 0.120321,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3956,7 +3952,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.073609,
+      "different_pixels_ratio": 0.073592,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -3981,7 +3977,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.096073,
+      "different_pixels_ratio": 0.096103,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4006,7 +4002,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.090371,
+      "different_pixels_ratio": 0.09041,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4071,7 +4067,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A18.dryrun-dictionary-dryrun.png",
-      "actual_route": "dictionary-dryrun?id=8be600f4-1316-4073-a110-4136c05a1abb",
+      "actual_route": "dictionary-dryrun?id=4e29a728-b2f4-415b-afa4-131db570c396",
       "errors": [],
       "reference_size": [
         1440,
@@ -4121,7 +4117,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "A19.build-branding-build.png",
-      "actual_route": "branding-build?version=e1004182-62d2-4fe4-a52e-ab2a4dd0615a",
+      "actual_route": "branding-build?version=77bf53c2-8523-44fb-9284-6a6d3bda9001",
       "errors": [],
       "reference_size": [
         1440,
@@ -4131,7 +4127,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.130464,
+      "different_pixels_ratio": 0.130473,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4161,7 +4157,7 @@
         "top": 0,
         "bottom": 0
       },
-      "note": "Dedicated referral preview and compact promise-control rows. Default preview capture is selection state; selected-version screenshot is separate evidence. Exact visual acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "admin"
     },
     {
@@ -4186,7 +4182,7 @@
         "top": 0,
         "bottom": 0
       },
-      "note": "Dedicated referral preview and compact promise-control rows. Default preview capture is selection state; selected-version screenshot is separate evidence. Exact visual acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "admin"
     },
     {
@@ -4206,7 +4202,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.114157,
+      "different_pixels_ratio": 0.114213,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4231,7 +4227,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115955,
+      "different_pixels_ratio": 0.116004,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4256,12 +4252,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.157527,
+      "different_pixels_ratio": 0.157513,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Top page links to structured ranking configuration; organic/paid inventory screen still requires visual acceptance.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "admin"
     },
     {
@@ -4281,7 +4277,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.121807,
+      "different_pixels_ratio": 0.122146,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4306,7 +4302,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.130558,
+      "different_pixels_ratio": 0.130935,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4331,7 +4327,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.120204,
+      "different_pixels_ratio": 0.120128,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4356,7 +4352,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.226252,
+      "different_pixels_ratio": 0.226215,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4381,7 +4377,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.070247,
+      "different_pixels_ratio": 0.070167,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4406,7 +4402,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069411,
+      "different_pixels_ratio": 0.06933,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4431,7 +4427,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.115502,
+      "different_pixels_ratio": 0.115439,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4456,7 +4452,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.061939,
+      "different_pixels_ratio": 0.061868,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4481,7 +4477,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.069778,
+      "different_pixels_ratio": 0.069695,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4496,7 +4492,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G07---A06.conflict-revision-conflict.png",
-      "actual_route": "revision-conflict?id=aae2fd2a-b59d-4ae2-b566-e0d010a94d09",
+      "actual_route": "revision-conflict?id=b732541a-4658-4e10-89bd-57a39b188741",
       "errors": [],
       "reference_size": [
         1440,
@@ -4506,7 +4502,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.186616,
+      "different_pixels_ratio": 0.18661,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4546,7 +4542,7 @@
       "visual_acceptance": "pending",
       "status": "review_required",
       "capture": "G08.success---A15.progress-bulk-result.png",
-      "actual_route": "bulk-result?accounts=1&id=15a13068-b9e5-42aa-9207-0bfa59f42d73",
+      "actual_route": "bulk-result?accounts=1&id=0469d362-1227-4421-a8d5-03fa661a77ef",
       "errors": [],
       "reference_size": [
         1440,
@@ -4556,7 +4552,7 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.112151,
+      "different_pixels_ratio": 0.112152,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
@@ -4586,7 +4582,7 @@
         "top": 0,
         "bottom": 0
       },
-      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "public"
     },
     {
@@ -4611,7 +4607,7 @@
         "top": 0,
         "bottom": 0
       },
-      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "public"
     },
     {
@@ -4631,12 +4627,12 @@
         1440,
         1024
       ],
-      "different_pixels_ratio": 0.10631,
+      "different_pixels_ratio": 0.106306,
       "excluded_system_rows": {
         "top": 0,
         "bottom": 0
       },
-      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "public"
     },
     {
@@ -4661,7 +4657,7 @@
         "top": 0,
         "bottom": 0
       },
-      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "public"
     },
     {
@@ -4686,7 +4682,7 @@
         "top": 0,
         "bottom": 0
       },
-      "note": "Owner-requested full legal/commercial pages and expanded footer links. Published API documents override site text. Exact prototype acceptance remains pending.",
+      "note": "Dynamic text/data and rasterization also affect this metric; no automatic pass.",
       "surface": "public"
     }
   ],
