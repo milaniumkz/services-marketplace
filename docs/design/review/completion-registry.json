@@ -131,7 +131,8 @@
       "test_candidates": [
         "services/api/test/session-revocation.test.cjs",
         "services/api/test/trust-and-providers.test.cjs",
-        "apps/mobile/test/revoke_session_test.dart"
+        "apps/mobile/test/revoke_session_test.dart",
+        "apps/mobile/test/session_list_test.dart"
       ],
       "verified_api_operations": [],
       "verified_controls": [],
@@ -148,7 +149,8 @@
       "review_status": "pending",
       "test_candidates": [
         "services/api/test/session-revocation.test.cjs",
-        "apps/mobile/test/revoke_session_test.dart"
+        "apps/mobile/test/revoke_session_test.dart",
+        "apps/mobile/test/session_list_test.dart"
       ],
       "verified_api_operations": [],
       "verified_controls": [],
@@ -7469,9 +7471,16 @@
             },
             "label": "Завершить сеанс"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "get__me_sessions"
+          ],
+          "evidence": [
+            "docs/session-management-update.md",
+            "apps/mobile/test/session_list_test.dart",
+            "apps/mobile/test/revoke_session_test.dart",
+            "apps/mobile/test/notification_flow_test.dart"
+          ]
         },
         {
           "id": "S15.sessions:3",
@@ -7482,9 +7491,16 @@
             },
             "label": "Выйти на других устройствах"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "post__auth_logout_others"
+          ],
+          "evidence": [
+            "docs/session-management-update.md",
+            "apps/mobile/test/session_list_test.dart",
+            "apps/mobile/test/revoke_session_test.dart",
+            "apps/mobile/test/notification_flow_test.dart"
+          ]
         }
       ]
     },
@@ -11068,9 +11084,14 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            "docs/session-management-update.md",
+            "apps/mobile/test/session_list_test.dart",
+            "apps/mobile/test/revoke_session_test.dart",
+            "apps/mobile/test/notification_flow_test.dart"
+          ]
         },
         {
           "id": "S35.notifications:2",
@@ -11083,7 +11104,10 @@
             "label": ""
           },
           "functional_review": "behavior_verified_visual_pending",
-          "api_operations": [],
+          "api_operations": [
+            "get__me_notification_preferences",
+            "patch__me_notification_preferences"
+          ],
           "evidence": [
             "docs/notification-settings-update.md",
             "apps/mobile/test/notification_settings_test.dart",
@@ -11101,7 +11125,10 @@
             "label": ""
           },
           "functional_review": "behavior_verified_visual_pending",
-          "api_operations": [],
+          "api_operations": [
+            "get__me_notification_preferences",
+            "patch__me_notification_preferences"
+          ],
           "evidence": [
             "docs/notification-settings-update.md",
             "apps/mobile/test/notification_settings_test.dart",
@@ -11119,7 +11146,10 @@
             "label": ""
           },
           "functional_review": "behavior_verified_visual_pending",
-          "api_operations": [],
+          "api_operations": [
+            "get__me_notification_preferences",
+            "patch__me_notification_preferences"
+          ],
           "evidence": [
             "docs/notification-settings-update.md",
             "apps/mobile/test/notification_settings_test.dart",
@@ -11137,7 +11167,10 @@
             "label": ""
           },
           "functional_review": "behavior_verified_visual_pending",
-          "api_operations": [],
+          "api_operations": [
+            "get__me_notification_preferences",
+            "patch__me_notification_preferences"
+          ],
           "evidence": [
             "docs/notification-settings-update.md",
             "apps/mobile/test/notification_settings_test.dart",
@@ -11154,7 +11187,10 @@
             "label": "Сохранить в демо"
           },
           "functional_review": "behavior_verified_visual_pending",
-          "api_operations": [],
+          "api_operations": [
+            "get__me_notification_preferences",
+            "patch__me_notification_preferences"
+          ],
           "evidence": [
             "docs/notification-settings-update.md",
             "apps/mobile/test/notification_settings_test.dart",
@@ -11351,9 +11387,17 @@
             },
             "label": "Завершить в демо"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "get__me_sessions",
+            "delete__me_sessions_id_"
+          ],
+          "evidence": [
+            "docs/session-management-update.md",
+            "apps/mobile/test/session_list_test.dart",
+            "apps/mobile/test/revoke_session_test.dart",
+            "apps/mobile/test/notification_flow_test.dart"
+          ]
         },
         {
           "id": "S15.revoke:3",
@@ -11364,9 +11408,14 @@
             },
             "label": "Отмена"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            "docs/session-management-update.md",
+            "apps/mobile/test/session_list_test.dart",
+            "apps/mobile/test/revoke_session_test.dart",
+            "apps/mobile/test/notification_flow_test.dart"
+          ]
         }
       ]
     },

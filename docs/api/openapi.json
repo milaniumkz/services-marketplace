@@ -2915,6 +2915,74 @@
         }
       }
     },
+    "/auth/logout-others": {
+      "post": {
+        "operationId": "post__auth_logout_others",
+        "tags": [
+          "auth"
+        ],
+        "description": "Verify the current password and revoke all other session families in this country. Current access/refresh tokens remain valid. Adds an owned security event.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionReauthentication"
+              }
+            }
+          }
+        }
+      }
+    },
     "/public/config": {
       "get": {
         "operationId": "get__public_config",
@@ -4718,6 +4786,7 @@
         "tags": [
           "me"
         ],
+        "description": "Preference snapshot with version from the same user record. Use this version as PATCH expected_version; a separate profile read cannot safely supply its version.",
         "security": [
           {
             "BearerAuth": []
@@ -24633,6 +24702,20 @@
   },
   "components": {
     "schemas": {
+      "SessionReauthentication": {
+        "type": "object",
+        "required": [
+          "current_password"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "writeOnly": true,
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
       "NotificationPreferencesCommand": {
         "type": "object",
         "required": [

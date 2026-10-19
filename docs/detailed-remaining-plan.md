@@ -159,6 +159,8 @@ S25.inbox/chat/frozen, S29–S31, S30.restricted/appeal/appeal-sent, S40.new/cha
 
 ## 10. Настройки, устройства и приватность пользователя
 
+Обновление: [отзыв остальных устройств, снимок версии настроек и поздние ответы](session-management-update.md). Метаданные устройств, визуальная и многоклиентская приёмка остаются открытыми.
+
 S11.edit/roles, S15.pin/sessions/password/biometric/revoke, S34.consents/export/delete/delete-confirm/delete-status/export-pending, S35.notifications/languages/logout, S36.limit.
 
 - ☐ Редактирование профиля/роль/язык/город: серверное сохранение, повторное открытие и обновление связанных экранов.

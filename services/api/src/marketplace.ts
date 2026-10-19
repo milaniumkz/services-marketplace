@@ -311,6 +311,12 @@ export class Marketplace {
     if(path==='/auth/logout-all'&&method==='POST') {
       await this.reauth(a,b);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[a.id]);return {logged_out:true};
     }
+    if(path==='/auth/logout-others'&&method==='POST') {
+      await this.reauth(a,b);
+      await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND country=$2 AND family<>$3',[a.id,a.country,a.family]);
+      await this.store.put(this.record('security_event',a,{event:'sessions.others_revoked',ip,occurred_at:new Date().toISOString()}));
+      return {revoked:true,current_session_preserved:true};
+    }
     if(path==='/me'&&method==='GET')return {...safeUser(a.user),phone:a.user.phone,phone_status:'unverified',status:a.user.status,version:a.user.version};
     if(path==='/me/overview'&&method==='GET')return accountOverview(this.store,a.id,a.country);
     if(path==='/me/restrictions'&&method==='GET'){
@@ -796,7 +802,7 @@ export class Marketplace {
       for(const n of await this.store.all('notification',a.country))if(n.owner===a.id&&!n.read&&Date.parse(n.created_at)<=before)await this.store.put({...n,read:true,version:n.version+1});
       return {read:true};
     }
-    if(path==='/me/notification-preferences'&&method==='GET'){const p=a.user.notification_preferences??{};return {marketing:false,chat:true,service:true,...p,orders:p.orders??p.service??true,support:p.support??p.service??true};}
+    if(path==='/me/notification-preferences'&&method==='GET'){const p=a.user.notification_preferences??{};return {marketing:false,chat:true,service:true,...p,orders:p.orders??p.service??true,support:p.support??p.service??true,version:a.user.version};}
     if(path==='/me/notification-preferences'&&method==='PATCH') {
       this.version(a.user,b);const p=b.preferences;if(!p||['marketing','chat','service'].some(k=>typeof p[k]!=='boolean'))fail(400,'VALIDATION_ERROR','Проверьте категории уведомлений');
       if(['orders','support'].some(k=>p[k]!==undefined&&typeof p[k]!=='boolean'))fail(400,'VALIDATION_ERROR','Проверьте категории уведомлений');

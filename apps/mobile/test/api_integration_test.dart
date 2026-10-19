@@ -41,9 +41,9 @@ void main() {
     expect(notificationPage['meta']['unread_count'], isA<int>());
     expect(DateTime.tryParse(notificationPage['meta']['read_before'])?.isUtc, true);
     final preferences = await api.request('/me/notification-preferences') as Json;
-    final preferencesOwner = await api.request('/me') as Json;
+    expect(preferences['version'], isA<int>());
     await api.request('/me/notification-preferences', method: 'PATCH', body: {
-      'expected_version': preferencesOwner['version'],
+      'expected_version': preferences['version'],
       'preferences': {...preferences, 'orders': false, 'support': true}
     });
     final savedPreferences = await api.request('/me/notification-preferences') as Json;
@@ -58,6 +58,11 @@ void main() {
     final remoteFamily =
         families.singleWhere((r) => r['current'] == false)['family'];
     await api.request('/me/sessions/$remoteFamily', method: 'DELETE');
+    await remote.signIn({'country': 'KZ', 'phone': number, 'password': password});
+    final revokeOthers = await api.request('/auth/logout-others', method: 'POST', body: {'current_password': password}) as Json;
+    expect(revokeOthers['current_session_preserved'], true);
+    expect(items(await api.request('/me/sessions')).single['current'], true);
+
     await expectLater(remote.request('/me'), throwsA(isA<ApiException>()));
     expect((await api.request('/me'))['id'], user['id']);
     expect(items(await api.request('/me/boosts', query: {'bucket': 'active'})),

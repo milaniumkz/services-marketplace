@@ -35,6 +35,103 @@ JobaApi client(Future<http.Response> Function(http.Request) send) =>
         'user': {'id': 'owner'}
       };
 void main() {
+  testWidgets('load retries and uses the preference snapshot version',
+      (t) async {
+    var loads = 0;
+    Json? written;
+    final api = client((r) async {
+      if (r.method == 'PATCH') {
+        written = jsonDecode(r.body);
+        return ok({});
+      }
+      if (r.url.path.endsWith('/me'))
+        return ok({'version': 1, 'country': 'KZ'});
+      if (++loads == 1)
+        return http.Response(
+            jsonEncode({
+              'error': {'code': 'UNAVAILABLE', 'message': 'Unavailable'}
+            }),
+            503,
+            headers: {'content-type': 'application/json'});
+      return ok(
+          {'version': 9, 'chat': true, 'service': true, 'marketing': false});
+    });
+    addTearDown(api.dispose);
+    await mount(t, api, () {});
+    expect(find.text('Повторить'), findsOneWidget);
+    await t.tap(find.text('Повторить'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Сохранить'));
+    await t.pumpAndSettle();
+    expect(loads, 2);
+    expect(written!['expected_version'], 9);
+    expect((written!['preferences'] as Map).containsKey('version'), false);
+  });
+  testWidgets('conflict reload can fail and retry without saving stale values',
+      (t) async {
+    var loads = 0, writes = 0, saved = 0;
+    Json? written;
+    final api = client((r) async {
+      if (r.method == 'PATCH') {
+        writes++;
+        written = jsonDecode(r.body);
+        return writes == 1
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'code': 'STATE_CONFLICT',
+                    'message': 'Данные изменились. Обновите экран.'
+                  }
+                }),
+                409,
+                headers: {'content-type': 'application/json'})
+            : ok({});
+      }
+      if (r.url.path.endsWith('/me')) return ok({'version': 1});
+      loads++;
+      if (loads == 2)
+        return http.Response(
+            jsonEncode({
+              'error': {'code': 'UNAVAILABLE', 'message': 'Unavailable'}
+            }),
+            503,
+            headers: {'content-type': 'application/json'});
+      return ok({
+        'version': loads == 1 ? 2 : 3,
+        'chat': true,
+        'service': true,
+        'orders': loads == 1,
+        'marketing': false
+      });
+    });
+    addTearDown(api.dispose);
+    await mount(t, api, () => saved++);
+    await t.tap(find.text('Сохранить'));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.text('Обновить настройки'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await t.tap(find.text('Обновить настройки'));
+    await t.pumpAndSettle();
+    expect(writes, 1);
+    expect(t.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
+    await t.scrollUntilVisible(find.text('Обновить настройки'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await t.tap(find.text('Обновить настройки'));
+    await t.pumpAndSettle();
+    expect(
+        t
+            .widgetList<NotificationPreferenceToggle>(
+                find.byType(NotificationPreferenceToggle))
+            .elementAt(1)
+            .value,
+        false);
+    await t.tap(find.text('Сохранить'));
+    await t.pumpAndSettle();
+    expect(saved, 1);
+    expect(writes, 2);
+    expect(written!['expected_version'], 3);
+    expect(written!['preferences']['orders'], false);
+  });
   testWidgets('four independent switches save API state and retain quiet hours',
       (t) async {
     Json? body;

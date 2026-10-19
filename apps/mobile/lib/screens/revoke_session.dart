@@ -29,14 +29,22 @@ class _RevokeSessionState extends State<RevokeSession> {
       busy = true;
       error = null;
     });
+    final client = widget.api;
+    final generation = client.sessionGeneration;
+    final owner = client.session?['user']?['id'];
+    bool active() =>
+        mounted &&
+        !client.disposed &&
+        client.authenticated &&
+        client.sessionGeneration == generation &&
+        client.session?['user']?['id'] == owner;
     try {
-      await widget.api
-          .request('/me/sessions/${widget.family}', method: 'DELETE');
-      if (mounted) widget.onRevoked(current);
+      await client.request('/me/sessions/${widget.family}', method: 'DELETE');
+      if (active()) widget.onRevoked(current);
     } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (active()) setState(() => error = e);
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (active()) setState(() => busy = false);
     }
   }
 

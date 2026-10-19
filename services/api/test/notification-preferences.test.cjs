@@ -9,7 +9,7 @@ test('independent preferences persist with version checks and legacy service fal
  let user=await call('GET','/me');
  const p={chat:false,service:true,marketing:false,orders:false,support:true,quiet_hours:{start:'22:00',end:'08:00',time_zone:'Asia/Almaty'}};
  await call('PATCH','/me/notification-preferences',{expected_version:user.version,preferences:p});
- assert.deepEqual(await get(),p);
+ const snapshot=await get();assert.deepEqual(snapshot,{...p,version:user.version+1});
  await assert.rejects(()=>call('PATCH','/me/notification-preferences',{expected_version:user.version,preferences:{...p,orders:true}}),e=>e.getStatus()===409);
  user=await call('GET','/me');
  for(const invalid of [{...p,quiet_hours:false},{...p,quiet_hours:[]},{...p,quiet_hours:{start:'22:00',end:'08:00'}},{...p,support:'true'},{...p,quiet_hours:{start:'24:00',end:'08:00',time_zone:'UTC'}}])await assert.rejects(()=>call('PATCH','/me/notification-preferences',{expected_version:user.version,preferences:invalid}),e=>e.getStatus()===400);

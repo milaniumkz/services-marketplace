@@ -458,7 +458,8 @@ void main() {
     state.go('sessions');
     await tester.pumpAndSettle();
     await capture('S15-sessions');
-    await tester.tap(find.text('Завершить сессию'));
+    expect(find.text('Завершить сеанс'), findsNothing);
+    state.go('revoke-session', 'active-session');
     await tester.pumpAndSettle();
     expect(api.authenticated, true);
     expect(requests.any((r) => r.method == 'DELETE' && r.url.path.endsWith('/me/sessions/active-session')), false);

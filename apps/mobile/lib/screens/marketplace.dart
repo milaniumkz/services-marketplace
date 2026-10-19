@@ -1,3 +1,4 @@
+import 'session_list.dart';
 import 'notification_settings.dart';
 import 'notification_widgets.dart';
 import 'referral_rules.dart';
@@ -1155,11 +1156,22 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             }),
                         outline: true))));
       case 'revoke-session':
-        return page('Завершить сеанс?', RevokeSession(api: api, family: objectId ?? '',
+        return page('Завершить сеанс?', RevokeSession(key: ValueKey('revoke:$objectId'), api: api, family: objectId ?? '',
           onCancel: back, onRevoked: (current) async {
             if (current) { await api.forget(); return; }
             go('sessions');
           }), titleOffset: -12);
+      case 'logout-others':
+        return page('Выйти на других устройствах', ActionForm(
+          fields: const [InputSpec('current_password', 'Текущий пароль', secret: true)],
+          button: 'Выйти на других устройствах', submit: (values) async {
+            final client = api, generation = api.sessionGeneration;
+            final owner = api.session?['user']?['id'];
+            await client.request('/auth/logout-others', method: 'POST', body: values);
+            if (!mounted || client != api || client.disposed || !client.authenticated ||
+                client.sessionGeneration != generation || client.session?['user']?['id'] != owner) return;
+            go('sessions');
+          }));
       case 'logout-all':
         return page(
             'Завершить все сессии',
@@ -1169,9 +1181,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 ],
                 button: 'Завершить все сессии',
                 submit: (v) async {
-                  await api.request('/auth/logout-all',
-                      method: 'POST', body: v);
-                  await api.forget();
+                  final client = api, generation = api.sessionGeneration;
+                  final owner = api.session?['user']?['id'];
+                  await client.request('/auth/logout-all', method: 'POST', body: v);
+                  if (!mounted || client != api || client.disposed || !client.authenticated ||
+                      client.sessionGeneration != generation || client.session?['user']?['id'] != owner) return;
+                  await client.forget();
                 }));
       case 'phone':
         return phoneScreen();
@@ -4625,23 +4640,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 ])
               ])));
   Widget sessionsScreen() => page(
-      'Устройства и сессии',
-      loaded(
-          '/me/sessions',
-          (data, reload) => listBody([
-                const UiHeading('Активные сессии',
-                    'Завершите сеансы, которые вам не нужны.'),
-                for (final record in items(data))
-                  DataCard('Сессия',
-                      translateTitle: true,
-                      subtitle: dateLabel(record['expires_at']),
-                      footer: button(
-                          'Завершить сессию',
-                          () => go('revoke-session', record['family']),
-                          outline: true)),
-                button('Завершить все сессии', () => go('logout-all'),
-                    outline: true)
-              ])));
+      'Мои устройства',
+      loaded('/me/sessions', (data, reload) => SessionListContent(
+        sessions: items(data),
+        onRevoke: (family) => go('revoke-session', family),
+        onRevokeOthers: () => go('logout-others'))));
   Widget passwordScreen() => page(
       'Изменить пароль',
       ActionForm(

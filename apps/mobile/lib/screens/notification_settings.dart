@@ -18,7 +18,7 @@ class _NotificationSettingsContentState
   Json? preferences;
   dynamic version;
   Object? error;
-  bool saving = false, loading = true;
+  bool saving = false, loading = true, refreshFailed = false;
   late int generation;
   String? owner;
   final start = TextEditingController(),
@@ -60,7 +60,8 @@ class _NotificationSettingsContentState
       if (!current) return;
       final user = data[0], p = Map<String, dynamic>.from(data[1]);
       setState(() {
-        version = user['version'];
+        version = p.remove('version') ?? user['version'];
+        refreshFailed = false;
         preferences = {
           'chat': true,
           'service': true,
@@ -86,13 +87,14 @@ class _NotificationSettingsContentState
       if (current)
         setState(() {
           error = e;
+          refreshFailed = preferences != null;
           loading = false;
         });
     }
   }
 
   Future<void> save() async {
-    if (saving || !current) return;
+    if (saving || loading || refreshFailed || !current) return;
     if (quiet &&
         (!RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(start.text.trim()) ||
             !RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(end.text.trim()) ||
@@ -209,7 +211,8 @@ class _NotificationSettingsContentState
         if (error != null) ...[
           Text(errorText(context, error!),
               style: const TextStyle(color: Colors.red)),
-          if (error is ApiException && (error as ApiException).status == 409)
+          if (refreshFailed ||
+              (error is ApiException && (error as ApiException).status == 409))
             TextButton(
                 onPressed: saving ? null : load,
                 child: const UiText('Обновить настройки'))
@@ -222,7 +225,7 @@ class _NotificationSettingsContentState
               color: Colors.white,
               border: Border(top: BorderSide(color: line))),
           child: FilledButton(
-              onPressed: saving ? null : save,
+              onPressed: saving || refreshFailed ? null : save,
               child: UiText(saving ? 'Сохранение…' : 'Сохранить')))
     ]);
   }

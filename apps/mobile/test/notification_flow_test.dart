@@ -237,7 +237,7 @@ void main() {
     await t.tap(find.byTooltip('Настройки уведомлений'));
     await t.pumpAndSettle();
     expect(state.route, 'notification-settings');
-    state.back();
+    await t.tap(find.byTooltip('Назад'));
     await t.pumpAndSettle();
     await t.tap(find.text('Аккаунт'));
     await t.pumpAndSettle();
