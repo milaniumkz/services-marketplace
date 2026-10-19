@@ -112,7 +112,8 @@
       ],
       "review_status": "pending",
       "test_candidates": [
-        "services/api/test/trust-and-providers.test.cjs"
+        "services/api/test/trust-and-providers.test.cjs",
+        "services/api/test/auth-rate-limit.test.cjs"
       ],
       "verified_api_operations": [],
       "verified_controls": [],
@@ -649,6 +650,7 @@
       "test_candidates": [
         "services/api/test/admin-scenarios.test.cjs",
         "services/api/test/admin-review-permissions.test.cjs",
+        "services/api/test/admin-rate-retry.test.cjs",
         "scripts/verify-admin-browser.cjs"
       ],
       "verified_api_operations": [],
@@ -1057,7 +1059,17 @@
       "id": "T04",
       "source_line": 1145,
       "source_text": "- T04 Повтор publish/message/purchase/reward с тем же ключом не создает дубликат; другой payload с тем же ключом дает конфликт",
-      "review_status": "pending"
+      "review_status": "partial_transport_429_retry_verified_other_steps_pending",
+      "evidence": [
+        {
+          "source": "docs/login-screen-update.md",
+          "tests": [
+            "apps/mobile/test/rate_limit_retry_test.dart",
+            "services/api/test/admin-rate-retry.test.cjs"
+          ],
+          "result": "Lost command response -> 429 -> retry keeps one key and one stored result in both transports. Other scenario steps require separate acceptance."
+        }
+      ]
     },
     {
       "id": "T05",
@@ -2159,9 +2171,19 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S02:2",
@@ -2173,9 +2195,19 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S02:3",
@@ -2186,9 +2218,23 @@
             },
             "label": "Войти"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/login",
+            "GET /me",
+            "PATCH /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S02:4",
@@ -2199,9 +2245,19 @@
             },
             "label": "Нужна помощь со входом?"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S02:5",
@@ -2212,9 +2268,19 @@
             },
             "label": "Зарегистрироваться"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         }
       ]
     },
@@ -9771,9 +9837,19 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S02.error:2",
@@ -9785,9 +9861,19 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S02.error:3",
@@ -9798,9 +9884,21 @@
             },
             "label": "Повторить через 00:30"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /auth/login"
+          ],
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S02.error:4",
@@ -9811,9 +9909,19 @@
             },
             "label": "Помощь со входом"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/login-screen-update.md",
+              "tests": [
+                "apps/mobile/test/login_screen_test.dart",
+                "services/api/test/auth-rate-limit.test.cjs",
+                "apps/mobile/test/api_integration_test.dart"
+              ],
+              "scope": "Widget behavior and separate real HTTP contracts; local navigation/visibility needs no API. S02.error deadline is server data. Visual/device acceptance remains pending."
+            }
+          ]
         }
       ]
     },

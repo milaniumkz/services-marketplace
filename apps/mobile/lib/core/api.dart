@@ -212,7 +212,7 @@ class JobaApi extends ChangeNotifier {
         _retryKeys.remove(scope);
         return result;
       }, onError: (Object error, StackTrace stack) {
-        if (error is ApiException && error.status > 0 && error.status < 500)
+        if (error is ApiException && error.status > 0 && error.status < 500 && error.status != 429)
           _retryKeys.remove(scope);
         Error.throwWithStackTrace(error, stack);
       });

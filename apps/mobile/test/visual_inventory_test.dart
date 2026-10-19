@@ -180,8 +180,8 @@ void main() {
               headers: {'content-type': 'application/json; charset=utf-8'});
       if (path == '/auth/login' && route == 'login-error')
         return http.Response(
-            '{"error":{"code":"INVALID_CREDENTIALS","message":"Неверный номер или пароль"}}',
-            401,
+            '{"error":{"code":"RATE_LIMITED","message":"Слишком много попыток. Повторите позже.","details":{"retry_after_seconds":30}}}',
+            429,
             headers: {'content-type': 'application/json; charset=utf-8'});
       if (path == '/auth/refresh' && route == 'session-expired')
         return http.Response(

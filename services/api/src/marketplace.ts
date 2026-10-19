@@ -98,8 +98,8 @@ export class Marketplace {
       ON CONFLICT(scope_hash) DO UPDATE SET
         attempts=CASE WHEN rate_limits.window_start<=CURRENT_TIMESTAMP-INTERVAL '60 seconds' THEN 1 ELSE rate_limits.attempts+1 END,
         window_start=CASE WHEN rate_limits.window_start<=CURRENT_TIMESTAMP-INTERVAL '60 seconds' THEN CURRENT_TIMESTAMP ELSE rate_limits.window_start END
-      RETURNING attempts`,[scope]);
-    if(result.rows[0].attempts>max)fail(429,'RATE_LIMITED','Слишком много попыток. Повторите позже.');
+      RETURNING attempts,GREATEST(1,CEIL(EXTRACT(EPOCH FROM (window_start+INTERVAL '60 seconds'-CURRENT_TIMESTAMP))))::int AS retry_after_seconds`,[scope]);
+    if(result.rows[0].attempts>max)fail(429,'RATE_LIMITED','Слишком много попыток. Повторите позже.',{retry_after_seconds:result.rows[0].retry_after_seconds});
   }
   private async tokens(user: RecordData, family=randomUUID(), mfa=false,ip='unknown') {
     const settings=await this.settings(user.country);

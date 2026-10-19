@@ -175,6 +175,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   int reviewRating = 0;
   final List<(String, String?)> history = [];
   bool starting = true, executor = false, actionBusy = false;
+  bool authSubmitting = false, authCredentialFailure = false;
+  int authFormRevision = 0;
+  String authPhoneInitial = '';
+  bool get authNavigationBlocked => authSubmitting && ['login', 'register'].contains(route);
   Object? startupError;
   int revision = 0, sequence = 0;
   WebSocketChannel? channel;
@@ -254,6 +258,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if (replacement != null) replaceApi(replacement);
       setState(() {
         country = next;
+        authPhoneInitial = '';
         recovery = null;
         objectId = null;
         listingFilters = {};
@@ -425,9 +430,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   void go(String next, [String? id]) {
+    if (authNavigationBlocked) return;
     ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     if (next == 'languages') pendingLocale = null;
     setState(() {
+      authCredentialFailure = false;
       history.add((route, objectId));
       route = next;
       if (next == 'catalog') catalogPresentation = 'loading';
@@ -451,6 +458,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   void back() {
+    if (authNavigationBlocked) return;
+    if (route == 'login' && authCredentialFailure) {
+      setState(() { authCredentialFailure = false; authFormRevision++; });
+      return;
+    }
     ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     setState(() {
       if (history.isNotEmpty) {
@@ -514,7 +526,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           double titleOffset = 0,
           Widget? titleWidget, double? toolbarHeight, double leadingWidth = 72}) =>
       PopScope(
-          canPop: history.isEmpty,
+          canPop: history.isEmpty && !authNavigationBlocked && !(route == 'login' && authCredentialFailure),
           onPopInvokedWithResult: (popped, result) {
             if (!popped) back();
           },
@@ -529,7 +541,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       title: Transform.translate(
                           offset: Offset(0, titleOffset), child: titleWidget ?? UiText(title)),
                       leading: IconButton(
-                          onPressed: back,
+                          onPressed: authNavigationBlocked ? null : back,
                           tooltip: localize(context, 'Назад'),
                           icon: const JobaIcon('back')),
                       actions: actions)
@@ -1424,141 +1436,224 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Widget authScreen() {
     final register = route == 'register';
     return page(
-        register ? 'Новый аккаунт' : 'Вход в JOBA',
-        ActionForm(
-            key: ValueKey(route),
-            authLayout: true,
-            before: [
-              UiHeading(
-                  register ? 'Добро пожаловать' : 'С возвращением',
-                  register
-                      ? 'Один аккаунт для ваших задач и работы.'
-                      : 'Войдите в свой аккаунт, чтобы продолжить.')
-            ],
-            fields: [
-              InputSpec('phone', 'Номер телефона',
-                  hint: '${{
-                    'KZ': '+7',
-                    'RU': '+7',
-                    'BY': '+375',
-                    'KG': '+996'
-                  }[country]} · ${localize(context, 'Номер телефона').toLowerCase()}',
-                  originalIcon: 'phone',
-                  keyboard: TextInputType.phone),
-              InputSpec('password', register ? 'Придумайте пароль' : 'Пароль',
-                  hint: register ? 'Не менее 15 символов' : 'Введите пароль',
-                  secret: true,
-                  validate: (v) => register && v.length < 15
-                      ? 'Не менее 15 символов'
-                      : null),
-              if (register)
-                const InputSpec('repeat', 'Повторите пароль',
-                    hint: 'Введите пароль ещё раз', secret: true)
-            ],
-            afterField: register
-                ? const {
-                    'phone': [
-                      Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: UiText(
-                              'Номер будет вашим логином, он не подтверждён.',
-                              style: TextStyle(
-                                  fontSize: 10, color: muted, height: 1.4)))
-                    ],
-                    'password': [
-                      Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: UiText(
-                              'Можно использовать пробелы и длинную фразу.',
-                              style: TextStyle(
-                                  fontSize: 10, color: muted, height: 1.4)))
-                    ]
-                  }
-                : const {},
-            afterFields: register
-                ? const [
-                    Notice(
-                        'Сохраните пароль в надёжном месте. Он нужен для входа на новом устройстве.',
-                        icon: 'info',
-                        margin: EdgeInsets.zero),
-                    SizedBox(height: 20)
-                  ]
-                : const [],
-            button: register ? 'Продолжить' : 'Войти',
-            submit: (v) async {
-              if (register && v['password'] != v['repeat'])
-                throw ApiException('VALIDATION_ERROR', 'Пароли не совпадают');
-              await api.signIn({
-                'country': country,
-                'phone': v['phone']!.trim(),
-                'password': v['password'],
-                if (register) 'locale': locale
-              }, register: register);
-              registrationInProgress = register;
+      register ? 'Новый аккаунт' : 'Вход в JOBA',
+      AutofillGroup(
+        onDisposeAction: AutofillContextAction.cancel,
+        child: ActionForm(
+          key: ValueKey(route),
+          authLayout: true,
+          loginLayout: !register,
+          errorResetKey: authFormRevision,
+          onErrorChanged: (error) {
+            if (mounted)
+              setState(
+                () => authCredentialFailure =
+                    !register &&
+                    error is ApiException &&
+                    [
+                      'INVALID_CREDENTIALS',
+                      'RATE_LIMITED',
+                    ].contains(error.code),
+              );
+          },
+          credentialFailureAfter: [
+            TextButton(
+              style: TextButton.styleFrom(
+                minimumSize: const Size(double.infinity, 52),
+              ),
+              onPressed: authSubmitting ? null : () => go('recovery'),
+              child: const UiText('Помощь со входом'),
+            ),
+          ],
+          onBusyChanged: (busy) {
+            if (mounted) setState(() => authSubmitting = busy);
+          },
+          before: [
+            UiHeading(
+              register ? 'Добро пожаловать' : 'С возвращением',
+              register
+                  ? 'Один аккаунт для ваших задач и работы.'
+                  : 'Войдите в свой аккаунт, чтобы продолжить.',
+            ),
+          ],
+          fields: [
+            InputSpec(
+              'phone',
+              'Номер телефона',
+              initial: authPhoneInitial,
+              hint:
+                  '${{'KZ': '+7', 'RU': '+7', 'BY': '+375', 'KG': '+996'}[country]} · ${localize(context, 'Номер телефона').toLowerCase()}',
+              originalIcon: 'phone',
+              keyboard: TextInputType.phone,
+              inputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.username],
+              validate: (value) => RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(value.trim())
+                  ? null : 'Введите номер в международном формате с кодом страны',
+            ),
+            InputSpec(
+              'password',
+              register ? 'Придумайте пароль' : 'Пароль',
+              hint: register ? 'Не менее 15 символов' : 'Введите пароль',
+              secret: true,
+              inputAction: register
+                  ? TextInputAction.next
+                  : TextInputAction.done,
+              autofillHints: [
+                register ? AutofillHints.newPassword : AutofillHints.password,
+              ],
+              validate: (v) =>
+                  register && v.length < 15 ? 'Не менее 15 символов' : null,
+            ),
+            if (register)
+              const InputSpec(
+                'repeat',
+                'Повторите пароль',
+                hint: 'Введите пароль ещё раз',
+                secret: true,
+                inputAction: TextInputAction.done,
+                autofillHints: [AutofillHints.newPassword],
+              ),
+          ],
+          afterField: register
+              ? const {
+                  'phone': [
+                    Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: UiText(
+                        'Номер будет вашим логином, он не подтверждён.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: muted,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                  'password': [
+                    Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: UiText(
+                        'Можно использовать пробелы и длинную фразу.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: muted,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                }
+              : const {},
+          afterFields: register
+              ? const [
+                  Notice(
+                    'Сохраните пароль в надёжном месте. Он нужен для входа на новом устройстве.',
+                    icon: 'info',
+                    margin: EdgeInsets.zero,
+                  ),
+                  SizedBox(height: 20),
+                ]
+              : const [],
+          button: register ? 'Продолжить' : 'Войти',
+          submit: (v) async {
+            if (register && v['password'] != v['repeat'])
+              throw ApiException('VALIDATION_ERROR', 'Пароли не совпадают');
+            await api.setPersistence(false);
+            await api.signIn({
+              'country': country,
+              'phone': v['phone']!.trim(),
+              'password': v['password'],
+              if (register) 'locale': locale,
+            }, register: register);
+            registrationInProgress = register;
+            try {
               me = await api.request('/me') as Json;
               if (me!['locale'] != locale)
-                me = await api.request('/me', method: 'PATCH', body: {
-                  'expected_version': me!['version'],
-                  'locale': locale
-                }) as Json;
-              serviceCategories = null;
-              draftCategory = null;
-              objectId = null;
-              executor = me!['active_role'] == 'executor';
-              widget.onLocaleChanged?.call(locale);
-              sequence = 0;
-              connectEvents();
-              lock = LocalLock('${api.base}:${me!['id']}');
-              if (mounted)
-                setState(() {
-                  route = 'lock-setup';
-                  history.clear();
-                });
-            },
-            after: register
-                ? [
-                    TextButton(
-                        onPressed: () => go('login'),
-                        child: const UiText('Уже есть аккаунт? Войти'))
-                  ]
-                : [
-                    TextButton(
-                        style: TextButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 52)),
-                        onPressed: () => go('recovery'),
-                        child: const UiText('Нужна помощь со входом?')),
-                    const Divider(height: 29),
-                    const UiText('Ещё нет аккаунта?',
-                        textAlign: TextAlign.center,
-                        style:
-                            TextStyle(fontSize: 12, color: Color(0xFF627187))),
-                    button('Зарегистрироваться', () => go('register'),
-                        outline: true),
-                    const Notice(
-                        'Ваш номер используется как логин. Подтверждение кодом не требуется.',
-                        icon: 'lock',
-                        margin: const EdgeInsets.only(top: 24)),
-                    Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: Text(
-                            '${localize(context, {
-                                  'KZ': 'Казахстан',
-                                  'RU': 'Россия',
-                                  'BY': 'Беларусь',
-                                  'KG': 'Кыргызстан'
-                                }[country]!)} · ${{
-                              'ru': 'Русский',
-                              'kk': 'Қазақша',
-                              'sr': 'Српски',
-                              'be': 'Беларуская'
-                            }[locale]}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF627187))))
-                  ]),
-        titleOffset: -12);
+                me =
+                    await api.request(
+                          '/me',
+                          method: 'PATCH',
+                          body: {
+                            'expected_version': me!['version'],
+                            'locale': locale,
+                          },
+                        )
+                        as Json;
+            } catch (error, stack) {
+              if (register) authPhoneInitial = v['phone']!.trim();
+              // A credential response alone must not leave an unprotected local
+              // session when profile/bootstrap fails. Server expiry is unchanged.
+              await api.forget();
+              if (register && mounted)
+                success('Аккаунт создан. Войдите, чтобы продолжить.');
+              Error.throwWithStackTrace(error, stack);
+            }
+            authPhoneInitial = '';
+            serviceCategories = null;
+            draftCategory = null;
+            objectId = null;
+            executor = me!['active_role'] == 'executor';
+            widget.onLocaleChanged?.call(locale);
+            sequence = 0;
+            TextInput.finishAutofillContext(shouldSave: true);
+            connectEvents();
+            lock = LocalLock('${api.base}:${me!['id']}');
+            if (mounted)
+              setState(() {
+                route = 'lock-setup';
+                history.clear();
+              });
+          },
+          after: register
+              ? [
+                  TextButton(
+                    onPressed: authSubmitting ? null : () => go('login'),
+                    child: const UiText('Уже есть аккаунт? Войти'),
+                  ),
+                ]
+              : [
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 52),
+                    ),
+                    onPressed: authSubmitting ? null : () => go('recovery'),
+                    child: const UiText('Нужна помощь со входом?'),
+                  ),
+                  const Divider(height: 29),
+                  const UiText(
+                    'Ещё нет аккаунта?',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Color(0xFF627187)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: OutlinedButton(
+                      onPressed: authSubmitting ? null : () => go('register'),
+                      child: const UiText('Зарегистрироваться'),
+                    ),
+                  ),
+                  const Notice(
+                    'Ваш номер используется как логин. Подтверждение кодом не требуется.',
+                    icon: 'lock',
+                    margin: const EdgeInsets.only(top: 24),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 24),
+                    child: Text(
+                      '${localize(context, {'KZ': 'Казахстан', 'RU': 'Россия', 'BY': 'Беларусь', 'KG': 'Кыргызстан'}[country]!)} · ${{'ru': 'Русский', 'kk': 'Қазақша', 'sr': 'Српски', 'be': 'Беларуская'}[locale]}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF627187),
+                      ),
+                    ),
+                  ),
+                ],
+        ),
+      ),
+      titleOffset: -12,
+    );
   }
-
   void finishLocalSetup() {
     if (history.isNotEmpty && history.last.$1 == 'security')
       back();

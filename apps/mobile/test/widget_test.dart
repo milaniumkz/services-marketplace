@@ -393,7 +393,7 @@ void main() {
     expect(find.byTooltip('Скрыть пароль'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pumpAndSettle();
-    expect(find.text('Неверный номер или пароль'), findsOneWidget);
+    expect(find.text('Не удалось войти. Проверьте данные или обратитесь за помощью.'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     api.dispose();
   });

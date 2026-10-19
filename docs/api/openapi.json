@@ -24997,7 +24997,15 @@
                 "type": "string"
               },
               "details": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 60,
+                    "description": "Для ограничения частоты запросов: оставшееся время фиксированного серверного окна. Отсутствует у ошибок без такого срока."
+                  }
+                }
               },
               "request_id": {
                 "type": "string",
@@ -25289,6 +25297,16 @@
       },
       "Failure": {
         "description": "Structured error",
+        "headers": {
+          "Retry-After": {
+            "description": "Только при 429 с известным сроком: оставшееся время фиксированного серверного окна в секундах.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
+            }
+          }
+        },
         "content": {
           "application/json": {
             "schema": {

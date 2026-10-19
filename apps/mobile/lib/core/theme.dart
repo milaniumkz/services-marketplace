@@ -120,11 +120,16 @@ class Notice extends StatelessWidget {
   final String text;
   final bool error, warning;
   final String? icon;
+  final Color? backgroundColor, textColor;
+  final double iconSize;
   final EdgeInsets margin;
   const Notice(this.text,
       {this.error = false,
       this.warning = false,
       this.icon,
+      this.backgroundColor,
+      this.textColor,
+      this.iconSize = 19,
       this.margin = const EdgeInsets.symmetric(vertical: 12),
       super.key});
   @override
@@ -133,20 +138,20 @@ class Notice extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       margin: margin,
       decoration: BoxDecoration(
-          color: error ? const Color(0xFFFFEEEE) : warning ? const Color(0xFFFFF4D4) : const Color(0xFFEAF0FC),
+          color: backgroundColor ?? (error ? const Color(0xFFFFEEEE) : warning ? const Color(0xFFFFF4D4) : const Color(0xFFEAF0FC)),
           borderRadius: BorderRadius.circular(12)),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (icon != null) ...[
           JobaIcon(icon!,
-              size: 19, color: error ? const Color(0xFFA02C32) : navy),
+              size: iconSize, color: error ? const Color(0xFFA02C32) : navy),
           const SizedBox(width: 10)
         ],
         Expanded(
             child: UiText(text,
                 style: TextStyle(
-                    color: error
+                    color: textColor ?? (error
                         ? const Color(0xFFA02C32)
-                        : warning ? const Color(0xFF705000) : const Color(0xFF3C5A8B),
+                        : warning ? const Color(0xFF705000) : const Color(0xFF3C5A8B)),
                     fontSize: 12,
                     letterSpacing: 0,
                     height: 1.583)))

@@ -45,7 +45,7 @@ export function staffApi({getSession,saveSession}) {
         result=await send(path,method,body,key,current,format);
       }
       if(fingerprint)retryKeys.delete(fingerprint);return result;
-    }catch(failure){if(fingerprint&&failure.status>=400&&failure.status<500)retryKeys.delete(fingerprint);throw failure;}
+    }catch(failure){if(fingerprint&&failure.status>=400&&failure.status<500&&failure.status!==429)retryKeys.delete(fingerprint);throw failure;}
   };
   api.download=path=>api(path,'GET',{},'blob');
   api.upload=async (file,purpose='brand')=>{
