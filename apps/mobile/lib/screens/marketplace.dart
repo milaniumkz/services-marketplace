@@ -179,10 +179,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   bool starting = true, executor = false, actionBusy = false;
   bool authSubmitting = false, authCredentialFailure = false;
   bool localSetupSubmitting = false, unlockSubmitting = false;
-  int authFormRevision = 0;
+  int authFormRevision = 0, profilePending = 0;
   String authPhoneInitial = '';
+  Json? profileDraft;
+  String? profileDraftScope;
   bool get authNavigationBlocked =>
       unlockSubmitting ||
+      (profilePending > 0 && ['onboarding', 'profile-edit'].contains(route)) ||
       (authSubmitting && ['login', 'register'].contains(route)) ||
       (localSetupSubmitting && ['pin-setup', 'lock-setup', 'biometric'].contains(route));
   Object? startupError;
@@ -304,6 +307,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       localProtected = false;
       setState(() {
         me = null;
+        profileDraft = null; profileDraftScope = null;
         ordersHasAny = null;
         recovery = null;
         draftPhotos.clear();
@@ -2573,26 +2577,46 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       nav: true,
       chrome: false);
   Widget profileForm() => page(
-      route == 'onboarding' ? 'Расскажите о себе' : 'Редактировать профиль',
-      loaded(
-          '/me',
-          (data, reload) => ProfileEditor(
-              api: api,
-              initial: data,
-              onboarding: route == 'onboarding',
-              pickAvatar: () => pickUpload('avatar'),
-              onSaved: (saved) {
-                me = saved;
-                locale = saved['locale'] ?? locale;
-                executor = saved['active_role'] == 'executor';
-                widget.onLocaleChanged?.call(locale);
-                success('Профиль сохранён');
-                if (route == 'onboarding') {
-                  registrationInProgress = false;
-                  go(executor ? 'access' : 'home');
-                } else
-                  back();
-              })));
+    route == 'onboarding' ? 'Расскажите о себе' : 'Редактировать профиль',
+    loaded(
+      '/me',
+      (data, reload) => ProfileEditor(
+        key: ValueKey('$route:${api.sessionGeneration}:${data['id']}'),
+        api: api,
+        onBusyChanged: (busy) {
+          if (mounted) setState(() => profilePending += busy ? 1 : -1);
+        },
+        draft:
+            profileDraftScope ==
+                '$route:${api.base}:${api.sessionGeneration}:${data['id']}'
+            ? profileDraft
+            : null,
+        onDraftChanged: (draft) {
+          profileDraft = Json.from(draft);
+          profileDraftScope =
+              '$route:${api.base}:${api.sessionGeneration}:${data['id']}';
+        },
+        initial: data,
+        onboarding: route == 'onboarding',
+        pickAvatar: () => pickUpload('avatar'),
+        onSaved: (saved) {
+          profileDraft = null;
+          profileDraftScope = null;
+          me = saved;
+          locale = saved['locale'] ?? locale;
+          executor = saved['active_role'] == 'executor';
+          widget.onLocaleChanged?.call(locale);
+          success('Профиль сохранён');
+          if (route == 'onboarding') {
+            registrationInProgress = false;
+            go(executor ? 'services' : 'home');
+          } else
+            back();
+        },
+      ),
+    ),
+    titleOffset: route == 'onboarding' ? -12 : 0,
+  );
   Widget createScreen() => page(
       'Новый заказ',
       ApiView(

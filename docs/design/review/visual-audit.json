@@ -202,7 +202,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.071025,
+      "different_pixels_ratio": 0.03299,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44
@@ -552,7 +552,7 @@
         780,
         1688
       ],
-      "different_pixels_ratio": 0.096199,
+      "different_pixels_ratio": 0.101506,
       "excluded_system_rows": {
         "top": 86,
         "bottom": 44

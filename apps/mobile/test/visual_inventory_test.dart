@@ -250,7 +250,7 @@ void main() {
       if(path=='/contractors/map')return response({'items':[{...profile,'id':'visual-profile','display_name':'Алексей К.','public_location':{'latitude':43.24,'longitude':76.91,'approximate':true}}],'meta':{'map_provider_configured':false}});
       dynamic data = {'items': []};
       if (path == '/me')
-        data = user;
+        data = route == 'onboarding' ? {...user, 'display_name': 'Марина', 'roles': ['customer'], 'active_role': 'customer', 'verification': 'not_started'} : user;
       else if (path == '/cases/visual-object' ||
           path == '/cases/visual-object/appeals')
         data = {

@@ -2620,9 +2620,20 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/profile-onboarding-update.md",
+              "tests": [
+                "apps/mobile/test/profile_editor_test.dart",
+                "apps/mobile/test/profile_onboarding_flow_test.dart",
+                "services/api/test/profile-onboarding.test.cjs",
+                "services/api/test/customer-free-access.test.cjs"
+              ],
+              "scope": "Back/draft, both role choices and actual continuation, explicit save/conflict retry, old-session cancellation. Separate real Marketplace/PGlite version/role/free-customer contracts. Native picker/full onboarding/visual acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S04:2",
@@ -2633,9 +2644,20 @@
             },
             "label": "Найти специалиста Разместить заказ или выбрать мастера"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/profile-onboarding-update.md",
+              "tests": [
+                "apps/mobile/test/profile_editor_test.dart",
+                "apps/mobile/test/profile_onboarding_flow_test.dart",
+                "services/api/test/profile-onboarding.test.cjs",
+                "services/api/test/customer-free-access.test.cjs"
+              ],
+              "scope": "Back/draft, both role choices and actual continuation, explicit save/conflict retry, old-session cancellation. Separate real Marketplace/PGlite version/role/free-customer contracts. Native picker/full onboarding/visual acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S04:3",
@@ -2646,9 +2668,20 @@
             },
             "label": "Найти заказы Предлагать услуги и откликаться"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/profile-onboarding-update.md",
+              "tests": [
+                "apps/mobile/test/profile_editor_test.dart",
+                "apps/mobile/test/profile_onboarding_flow_test.dart",
+                "services/api/test/profile-onboarding.test.cjs",
+                "services/api/test/customer-free-access.test.cjs"
+              ],
+              "scope": "Back/draft, both role choices and actual continuation, explicit save/conflict retry, old-session cancellation. Separate real Marketplace/PGlite version/role/free-customer contracts. Native picker/full onboarding/visual acceptance remains pending."
+            }
+          ]
         },
         {
           "id": "S04:4",
@@ -2659,9 +2692,23 @@
             },
             "label": "Сохранить профиль"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "GET /me",
+            "PATCH /me"
+          ],
+          "evidence": [
+            {
+              "source": "docs/profile-onboarding-update.md",
+              "tests": [
+                "apps/mobile/test/profile_editor_test.dart",
+                "apps/mobile/test/profile_onboarding_flow_test.dart",
+                "services/api/test/profile-onboarding.test.cjs",
+                "services/api/test/customer-free-access.test.cjs"
+              ],
+              "scope": "Back/draft, both role choices and actual continuation, explicit save/conflict retry, old-session cancellation. Separate real Marketplace/PGlite version/role/free-customer contracts. Native picker/full onboarding/visual acceptance remains pending."
+            }
+          ]
         }
       ]
     },
