@@ -7259,9 +7259,18 @@
             },
             "label": "Ввести PIN"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/unlock-biometry-update.md",
+              "tests": [
+                "apps/mobile/test/unlock_flow_test.dart",
+                "apps/mobile/test/remaining_states_test.dart"
+              ],
+              "scope": "Standalone biometric failure opens the actual pin-setup route; success/logout and pending Back checked separately with isolated local protection. No visual/native-device acceptance."
+            }
+          ]
         }
       ]
     },

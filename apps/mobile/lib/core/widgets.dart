@@ -513,7 +513,9 @@ class _ActionFormState extends State<ActionForm> {
                   textInputAction: field.inputAction,
                   autofillHints: field.autofillHints,
                   onFieldSubmitted:
-                      widget.authLayout && field == widget.fields.last
+                      field == widget.fields.last &&
+                          (widget.authLayout ||
+                              field.inputAction == TextInputAction.done)
                       ? (_) => submit()
                       : null,
                   style: const TextStyle(

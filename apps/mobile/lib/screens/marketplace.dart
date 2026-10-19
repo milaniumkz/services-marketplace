@@ -176,10 +176,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   final List<(String, String?)> history = [];
   bool starting = true, executor = false, actionBusy = false;
   bool authSubmitting = false, authCredentialFailure = false;
-  bool localSetupSubmitting = false;
+  bool localSetupSubmitting = false, unlockSubmitting = false;
   int authFormRevision = 0;
   String authPhoneInitial = '';
   bool get authNavigationBlocked =>
+      unlockSubmitting ||
       (authSubmitting && ['login', 'register'].contains(route)) ||
       (localSetupSubmitting && ['pin-setup', 'lock-setup', 'biometric'].contains(route));
   Object? startupError;
@@ -512,15 +513,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       ? localize(context, 'По договорённости')
       : money(amount, currency, locale);
 
-  Widget button(String label, VoidCallback onPressed, {bool outline = false}) =>
+  Widget button(String label, VoidCallback onPressed, {bool outline = false, bool enabled = true}) =>
       Padding(
           padding: const EdgeInsets.only(top: 12),
           child: outline
               ? OutlinedButton(
-                  onPressed: actionBusy ? null : onPressed,
+                  onPressed: actionBusy || !enabled ? null : onPressed,
                   child: UiText(label))
               : FilledButton(
-                  onPressed: actionBusy ? null : onPressed,
+                  onPressed: actionBusy || !enabled ? null : onPressed,
                   child: UiText(label)));
   Widget page(String title, Widget body,
           {List<Widget> actions = const [],
@@ -1709,74 +1710,114 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     onSave: (pin, bio) => completeLocalSetup(pin: pin, biometry: bio),
     onPassword: () => completeLocalSetup(passwordOnly: true),
   ), titleOffset: -12);
-  Widget unlockScreen() => Scaffold(
+  Future<void> unlockSession({String? pin}) async {
+    if (unlockSubmitting) return;
+    final client = api, protection = lock, generation = api.sessionGeneration;
+    final owner = api.session?['user']?['id'];
+    bool current() =>
+        mounted &&
+        identical(_api, client) &&
+        client.sessionGeneration == generation &&
+        client.authenticated &&
+        identical(lock, protection) &&
+        client.session?['user']?['id'] == owner;
+    if (!current() || protection == null) return;
+    setState(() => unlockSubmitting = true);
+    try {
+      final valid = pin == null
+          ? await protection.unlockBiometry(
+              title: localize(context, 'Разблокировка JOBA'),
+              cancel: localize(context, 'Отмена'),
+            )
+          : await protection.unlock(pin);
+      if (!current()) return;
+      if (!valid) {
+        if (pin != null) throw ApiException('PIN_INVALID', 'Неверный PIN');
+        return;
+      }
+      await client.refresh();
+      if (!current()) return;
+      final profile = await client.request('/me') as Json;
+      if (!current()) return;
+      if (profile['id'] != owner)
+        throw ApiException(
+          'SESSION_SUPERSEDED',
+          'Сессия изменилась. Повторите вход',
+          401,
+        );
+      setState(() {
+        me = profile;
+        country = profile['country'];
+        locale = profile['locale'] ?? 'ru';
+        serviceCategories = null;
+        draftCategory = null;
+        objectId = null;
+        executor = profile['active_role'] == 'executor';
+        locked = false;
+        route = 'home';
+        history.clear();
+      });
+      widget.onLocaleChanged?.call(locale);
+      connectEvents();
+    } catch (e) {
+      if (!current()) return;
+      if (e is ApiException && e.code == 'PIN_EXHAUSTED') {
+        await client.forget();
+        if (mounted &&
+            identical(_api, client) &&
+            client.sessionGeneration == generation + 1 &&
+            !client.authenticated) {
+          setState(() {
+            locked = false;
+            route = 'pin-limit';
+            history.clear();
+          });
+        }
+        return;
+      }
+      rethrow;
+    } finally {
+      if (mounted) setState(() => unlockSubmitting = false);
+    }
+  }
+
+  Widget unlockScreen() => PopScope(
+    canPop: !unlockSubmitting,
+    child: Scaffold(
       appBar: AppBar(title: const UiText('Разблокировка JOBA')),
       body: ActionForm(
-          fields: const [
-            InputSpec('pin', 'PIN',
-                secret: true, keyboard: TextInputType.number)
-          ],
-          button: 'Разблокировать',
-          submit: (v) async {
-            try {
-              if (!await lock!.unlock(v['pin']!))
-                throw ApiException('PIN_INVALID', 'Неверный PIN');
-              await api.refresh();
-              me = await api.request('/me') as Json;
-              country = me!['country'];
-              locale = me!['locale'] ?? 'ru';
-              widget.onLocaleChanged?.call(locale);
-              serviceCategories = null;
-              draftCategory = null;
-              objectId = null;
-              executor = me!['active_role'] == 'executor';
-              if (mounted)
-                setState(() {
-                  locked = false;
-                  route = 'home';
-                  objectId = null;
-                  history.clear();
-                });
-              connectEvents();
-            } on ApiException catch (e) {
-              if (e.code == 'PIN_EXHAUSTED') { await api.forget(); if(mounted)go('pin-limit'); }
-              rethrow;
-            }
-          },
-          after: [
-            button(
-                'Разблокировать биометрией',
-                () => act(() async {
-                      try {
-                        if (!await lock!.unlockBiometry(
-                            title: localize(context, 'Разблокировка JOBA'),
-                            cancel: localize(context, 'Отмена'))) return;
-                        await api.refresh();
-                        me = await api.request('/me') as Json;
-                        country = me!['country'];
-                        locale = me!['locale'] ?? 'ru';
-                        widget.onLocaleChanged?.call(locale);
-                        serviceCategories = null;
-                        draftCategory = null;
-                        objectId = null;
-                        executor = me!['active_role'] == 'executor';
-                        if (mounted)
-                          setState(() {
-                            locked = false;
-                            route = 'home';
-                            objectId = null;
-                            history.clear();
-                          });
-                        connectEvents();
-                      } on ApiException catch (e) {
-                        if (e.code == 'PIN_EXHAUSTED') { await api.forget(); if(mounted)go('pin-limit'); }
-                        rethrow;
-                      }
-                    }),
-                outline: true),
-            button('Войти с номером и паролем', () => act(() => api.forget()),
-                outline: true)
-          ]));
+        submitEnabled: !unlockSubmitting,
+        fields: [
+          InputSpec(
+            'pin',
+            'PIN',
+            secret: true,
+            keyboard: TextInputType.number,
+            inputAction: TextInputAction.done,
+            validate: (v) => RegExp(r'^\d{6,8}$').hasMatch(v)
+                ? null
+                : 'PIN должен содержать 6–8 цифр',
+          ),
+        ],
+        button: 'Разблокировать',
+        submit: (v) => unlockSession(pin: v['pin']!),
+        after: [
+          button(
+            'Разблокировать биометрией',
+            () => act(() => unlockSession()),
+            outline: true,
+            enabled: !unlockSubmitting,
+          ),
+          button(
+            'Войти с номером и паролем',
+            () => act(() => api.forget()),
+            outline: true,
+            enabled: !unlockSubmitting,
+          ),
+        ],
+      ),
+    ),
+  );
   String countryName(String code) => localize(
       context,
       const {

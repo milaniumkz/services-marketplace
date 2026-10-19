@@ -429,13 +429,14 @@ void main() {
         });
       if (path.endsWith('/legal/documents'))
         return ok({
-          'items': [document]
+          'items': [{'id':'terms-current','type':'terms','hash':'terms-hash','content':'Isolated accepted agreement'},document]
         });
       if (path.endsWith('/me/consents')) {
         if (request.method == 'POST')
           accepted = jsonDecode(request.body)['accepted'] == true;
         return ok({
           'items': [
+            {'document_id':'terms-current','document_hash':'terms-hash','accepted':true,'sequence':1},
             {
               'document_id': 'legal-current',
               'document_hash': 'current-hash',
@@ -462,14 +463,21 @@ void main() {
     await tester.pumpAndSettle();
     FilledButton next() => tester
         .widget<FilledButton>(find.widgetWithText(FilledButton, 'Продолжить'));
+    await tester.scrollUntilVisible(find.widgetWithText(FilledButton, 'Продолжить'), 150, scrollable: find.byType(Scrollable).first);
     expect(next().onPressed, isNull);
+    await tester.scrollUntilVisible(find.text('Принять эту версию'),-150,scrollable:find.byType(Scrollable).first);
     await tester.tap(find.text('Принять эту версию'));
     await tester.pumpAndSettle();
     expect(accepted, true);
+    await tester.scrollUntilVisible(find.widgetWithText(FilledButton, 'Продолжить'), 150, scrollable: find.byType(Scrollable).first);
     expect(next().onPressed, isNotNull);
-    await tester.tap(find.text('Отозвать согласие'));
+    final policy = find.ancestor(of:find.text('Утверждённая политика обработки данных'),matching:find.byType(DataCard));
+    final withdraw = find.descendant(of:policy,matching:find.text('Отозвать согласие'));
+    await tester.scrollUntilVisible(withdraw,-150,scrollable:find.byType(Scrollable).first);
+    await tester.tap(withdraw);
     await tester.pumpAndSettle();
     expect(accepted, false);
+    await tester.scrollUntilVisible(find.widgetWithText(FilledButton, 'Продолжить'), 150, scrollable: find.byType(Scrollable).first);
     expect(next().onPressed, isNull);
     await tester.pumpWidget(const SizedBox());
     api.dispose();
