@@ -17,6 +17,8 @@ test('authorized initial KZ legal publication is complete, public, audited and p
   const terms=publicDocs.items.find(d=>d.type==='terms');assert.equal(terms.minimum_age,18);
   const session=await app.handle('POST','/auth/register',{country:'KZ',phone:'+77000000198',password:'Isolated legal acceptance password'},undefined,randomUUID(),{},'isolated-legal');
   const call=(method,path,body={})=>app.handle(method,path,body,'Bearer '+session.access_token,randomUUID(),{},'isolated-legal');
+  await assert.rejects(()=>call('POST','/me/consents',{document_id:terms.id,document_hash:'outdated-hash',accepted:true,age_confirmed:true}),e=>e.getStatus()===409&&e.getResponse().error.code==='LEGAL_VERSION_CHANGED');
+  assert.equal((await call('GET','/me/consents')).items.length,0);
   for(const document of publicDocs.items)await call('POST','/me/consents',{document_id:document.id,document_hash:document.hash,accepted:true,...(document.type==='terms'?{age_confirmed:true}:{})});
   const consents=(await call('GET','/me/consents')).items;assert.equal(consents.length,2);assert.equal(consents.find(c=>c.document_id===terms.id).age_confirmed,true);
   const preferences=await call('GET','/me/notification-preferences'),user=await call('GET','/me');

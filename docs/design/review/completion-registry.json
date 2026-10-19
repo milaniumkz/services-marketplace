@@ -2453,9 +2453,20 @@
             },
             "label": "Пользовательское соглашение Версия KZ-1.1"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/onboarding-documents-update.md",
+              "tests": [
+                "apps/mobile/test/onboarding_consent_test.dart",
+                "apps/mobile/test/legal_gate_test.dart",
+                "services/api/test/initial-legal-publication.test.cjs",
+                "services/api/test/staff-review.test.cjs"
+              ],
+              "scope": "Widget document reading, declarations, optional marketing and revision-race guards; separate real Marketplace/PGlite consent contract. No visual/device/full onboarding acceptance."
+            }
+          ]
         },
         {
           "id": "S03:3",
@@ -2466,9 +2477,20 @@
             },
             "label": "Политика конфиденциальности Версия KZ-1.1"
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/onboarding-documents-update.md",
+              "tests": [
+                "apps/mobile/test/onboarding_consent_test.dart",
+                "apps/mobile/test/legal_gate_test.dart",
+                "services/api/test/initial-legal-publication.test.cjs",
+                "services/api/test/staff-review.test.cjs"
+              ],
+              "scope": "Widget document reading, declarations, optional marketing and revision-race guards; separate real Marketplace/PGlite consent contract. No visual/device/full onboarding acceptance."
+            }
+          ]
         },
         {
           "id": "S03:4",
@@ -2479,9 +2501,20 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/onboarding-documents-update.md",
+              "tests": [
+                "apps/mobile/test/onboarding_consent_test.dart",
+                "apps/mobile/test/legal_gate_test.dart",
+                "services/api/test/initial-legal-publication.test.cjs",
+                "services/api/test/staff-review.test.cjs"
+              ],
+              "scope": "Widget document reading, declarations, optional marketing and revision-race guards; separate real Marketplace/PGlite consent contract. No visual/device/full onboarding acceptance."
+            }
+          ]
         },
         {
           "id": "S03:5",
@@ -2492,9 +2525,20 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/onboarding-documents-update.md",
+              "tests": [
+                "apps/mobile/test/onboarding_consent_test.dart",
+                "apps/mobile/test/legal_gate_test.dart",
+                "services/api/test/initial-legal-publication.test.cjs",
+                "services/api/test/staff-review.test.cjs"
+              ],
+              "scope": "Widget document reading, declarations, optional marketing and revision-race guards; separate real Marketplace/PGlite consent contract. No visual/device/full onboarding acceptance."
+            }
+          ]
         },
         {
           "id": "S03:6",
@@ -2505,9 +2549,20 @@
             },
             "label": ""
           },
-          "functional_review": "pending",
+          "functional_review": "behavior_verified_visual_pending",
           "api_operations": [],
-          "evidence": []
+          "evidence": [
+            {
+              "source": "docs/onboarding-documents-update.md",
+              "tests": [
+                "apps/mobile/test/onboarding_consent_test.dart",
+                "apps/mobile/test/legal_gate_test.dart",
+                "services/api/test/initial-legal-publication.test.cjs",
+                "services/api/test/staff-review.test.cjs"
+              ],
+              "scope": "Widget document reading, declarations, optional marketing and revision-race guards; separate real Marketplace/PGlite consent contract. No visual/device/full onboarding acceptance."
+            }
+          ]
         },
         {
           "id": "S03:7",
@@ -2519,9 +2574,25 @@
             },
             "label": "Принять и продолжить"
           },
-          "functional_review": "pending",
-          "api_operations": [],
-          "evidence": []
+          "functional_review": "behavior_verified_visual_pending",
+          "api_operations": [
+            "POST /me/consents",
+            "GET /me/notification-preferences",
+            "GET /me",
+            "PATCH /me/notification-preferences"
+          ],
+          "evidence": [
+            {
+              "source": "docs/onboarding-documents-update.md",
+              "tests": [
+                "apps/mobile/test/onboarding_consent_test.dart",
+                "apps/mobile/test/legal_gate_test.dart",
+                "services/api/test/initial-legal-publication.test.cjs",
+                "services/api/test/staff-review.test.cjs"
+              ],
+              "scope": "Widget document reading, declarations, optional marketing and revision-race guards; separate real Marketplace/PGlite consent contract. No visual/device/full onboarding acceptance."
+            }
+          ]
         }
       ]
     },

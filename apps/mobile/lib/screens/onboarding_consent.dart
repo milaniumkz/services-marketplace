@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'legal_documents.dart';
 import '../core/api.dart';
@@ -26,6 +27,7 @@ class OnboardingConsent extends StatefulWidget {
 class _OnboardingConsentState extends State<OnboardingConsent> {
   bool terms = false, privacy = false, marketing = false, busy = false;
   Object? error;
+  int documentGeneration = 0;
   Json? document(List<String> types) {
     for (final d in widget.documents) {
       if (types.contains(d['type'])) return d;
@@ -40,12 +42,30 @@ class _OnboardingConsentState extends State<OnboardingConsent> {
   @override
   void didUpdateWidget(covariant OnboardingConsent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    String revision(List<Json> records) => records
-        .map((d) => '${d['id']}:${d['hash']}:${d['minimum_age']}')
-        .join('|');
-    if (revision(oldWidget.documents) != revision(widget.documents)) {
+    String revision(List<Json> records) {
+      final revisions = records
+          .map((d) => jsonEncode([
+                d['id'],
+                d['type'],
+                d['version'],
+                d['hash'],
+                d['minimum_age'],
+                d['country'],
+                d['locale'],
+              ]))
+          .toList()
+        ..sort();
+      return jsonEncode(revisions);
+    }
+
+    if (oldWidget.api != widget.api ||
+        oldWidget.countryLabel != widget.countryLabel ||
+        oldWidget.localeLabel != widget.localeLabel ||
+        revision(oldWidget.documents) != revision(widget.documents)) {
+      documentGeneration++;
       terms = false;
       privacy = false;
+      error = null;
     }
   }
 
@@ -55,35 +75,51 @@ class _OnboardingConsentState extends State<OnboardingConsent> {
       busy = true;
       error = null;
     });
-    final generation = widget.api.sessionGeneration;
+    final api = widget.api;
+    final generation = api.sessionGeneration;
+    final documentsGeneration = documentGeneration;
+    final selected = [Json.from(agreement!), Json.from(policy!)];
+    final selectedMarketing = marketing;
+    bool current() =>
+        mounted &&
+        widget.api == api &&
+        generation == api.sessionGeneration &&
+        api.authenticated &&
+        documentsGeneration == documentGeneration;
     try {
-      for (final d in [agreement!, policy!]) {
-        await widget.api.request('/me/consents', method: 'POST', body: {
+      for (var index = 0; index < selected.length; index++) {
+        if (!current()) return;
+        final d = selected[index];
+        await api.request('/me/consents', method: 'POST', body: {
           'document_id': d['id'],
           'document_hash': d['hash'],
           'accepted': true,
-          if (d == agreement) 'age_confirmed': true
+          if (index == 0) 'age_confirmed': true
         });
-        if (!mounted ||
-            generation != widget.api.sessionGeneration ||
-            !widget.api.authenticated) return;
+        if (!current()) return;
       }
       final preferences =
-          await widget.api.request('/me/notification-preferences') as Json;
-      final user = await widget.api.request('/me') as Json;
-      if (!mounted ||
-          generation != widget.api.sessionGeneration ||
-          !widget.api.authenticated) return;
-      await widget.api
-          .request('/me/notification-preferences', method: 'PATCH', body: {
+          await api.request('/me/notification-preferences') as Json;
+      if (!current()) return;
+      final user = await api.request('/me') as Json;
+      if (!current()) return;
+      await api.request('/me/notification-preferences', method: 'PATCH', body: {
         'expected_version': user['version'],
-        'preferences': {...preferences, 'marketing': marketing}
+        'preferences': {...preferences, 'marketing': selectedMarketing}
       });
-      if (mounted &&
-          generation == widget.api.sessionGeneration &&
-          widget.api.authenticated) widget.onAccepted();
+      if (current()) widget.onAccepted();
     } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (current()) {
+        setState(() {
+          error = e;
+          if (e is ApiException && e.code == 'LEGAL_VERSION_CHANGED') {
+            terms = false;
+            privacy = false;
+          }
+        });
+        if (e is ApiException && e.code == 'LEGAL_VERSION_CHANGED')
+          widget.onReload?.call();
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }

@@ -5096,7 +5096,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   'terms',
                   'terms_of_use'
                 ].contains(d['type']));
-            final canContinue = requiredDocuments.every(accepted);
+            final canContinue = requiredDocuments.any((d) => ['terms', 'terms_of_use'].contains(d['type'])) &&
+                requiredDocuments.any((d) => ['privacy', 'privacy_policy'].contains(d['type'])) &&
+                requiredDocuments.every(accepted);
             return listBody([
               const UiHeading('Условия JOBA'),
               if (documents.isEmpty)
