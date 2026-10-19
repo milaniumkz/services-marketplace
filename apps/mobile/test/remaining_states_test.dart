@@ -35,6 +35,74 @@ class Gateway extends CommerceGateway {
 }
 
 void main() {
+  testWidgets('checkout never replaces a retired selected offer', (t) async {
+    final a = api((r) async => ok({
+          'items': [
+            {
+              'id': 'replacement',
+              'title': 'Replacement',
+              'amount_minor': 100,
+              'currency': 'KZT',
+              'product_type': 'subscription'
+            }
+          ]
+        }));
+    addTearDown(a.dispose);
+    await t.pumpWidget(host(CommerceStateScreen(
+        api: a, mode: 'checkout', id: 'retired', onGo: (_, __) {})));
+    await t.pumpAndSettle();
+    expect(t.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
+    await t.scrollUntilVisible(find.byType(CheckboxListTile), 150);
+    await t.pumpAndSettle();
+    expect(t.widget<CheckboxListTile>(find.byType(CheckboxListTile)).onChanged,
+        isNull);
+    expect(
+        find.text('Действующие предложения пока недоступны.'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Replacement'), -150);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Replacement'));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.byType(CheckboxListTile), 150);
+    await t.pumpAndSettle();
+    expect(t.widget<CheckboxListTile>(find.byType(CheckboxListTile)).onChanged,
+        isNotNull);
+    expect(t.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
+  });
+  testWidgets('checkout requires fresh consent after changing offer',
+      (t) async {
+    final a = api((r) async => ok({
+          'items': [
+            for (final id in ['monthly', 'yearly'])
+              {
+                'id': id,
+                'title': id,
+                'amount_minor': 100,
+                'currency': 'KZT',
+                'product_type': 'subscription'
+              }
+          ]
+        }));
+    addTearDown(a.dispose);
+    await t.pumpWidget(
+        host(CommerceStateScreen(api: a, mode: 'checkout', onGo: (_, __) {})));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.byType(CheckboxListTile), 150);
+    await t.pumpAndSettle();
+    await t.tap(find.byType(CheckboxListTile));
+    await t.pumpAndSettle();
+    expect(
+        t.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNotNull);
+    await t.scrollUntilVisible(find.text('yearly'), -150);
+    await t.pumpAndSettle();
+    await t.tap(find.text('yearly'));
+    await t.pumpAndSettle();
+    expect(t.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
+    await t.scrollUntilVisible(find.byType(CheckboxListTile), 150);
+    await t.pumpAndSettle();
+    expect(
+        t.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value, false);
+  });
+
   testWidgets(
       'PIN requires six digits and matching confirmation, keeps mismatch editable',
       (t) async {

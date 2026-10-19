@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/commerce_gateway.dart';
@@ -27,7 +28,8 @@ class CommerceStateScreen extends StatefulWidget {
 }
 
 class _CommerceStateScreenState extends State<CommerceStateScreen> {
-  bool busy = false, accepted = false;
+  bool busy = false;
+  String? acceptedOffer;
   Object? error;
   String? selected;
   Future<void> run(Future<void> Function() job) async {
@@ -374,22 +376,29 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
         builder: (context, data, reload) {
           final offers =
               items(data).where((r) => r['product_type'] != 'boost').toList();
-          final chosen =
-              offers.where((r) => r['id'] == (selected ?? widget.id)).toList();
-          final offer = chosen.isEmpty
+          final requested = selected ?? widget.id;
+          final chosen = offers.where((r) => r['id'] == requested).toList();
+          // A retired selection must never silently become another purchase.
+          final offer = requested == null
               ? (offers.isEmpty ? null : offers.first)
-              : chosen.first;
+              : (chosen.isEmpty ? null : chosen.first);
+          final offerSnapshot = offer == null ? null : jsonEncode(offer);
+          final accepted =
+              offerSnapshot != null && acceptedOffer == offerSnapshot;
           return Column(children: [
             Expanded(
                 child: ListView(padding: const EdgeInsets.all(20), children: [
               const UiHeading('Подписка JOBA',
                   'Поиск заказов и публикация услуг исполнителя.'),
-              if (offers.length > 1)
+              if (offers.length > 1 || (offer == null && offers.isNotEmpty))
                 for (final r in offers)
                   ListTile(
                       onTap: busy
                           ? null
-                          : () => setState(() => selected = r['id']),
+                          : () => setState(() {
+                                selected = r['id'];
+                                acceptedOffer = null;
+                              }),
                       leading: Icon(
                           offer?['id'] == r['id']
                               ? Icons.radio_button_checked
@@ -433,8 +442,10 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
               CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   value: accepted,
-                  onChanged:
-                      busy ? null : (v) => setState(() => accepted = v == true),
+                  onChanged: busy || offer == null
+                      ? null
+                      : (v) => setState(() =>
+                          acceptedOffer = v == true ? offerSnapshot : null),
                   title: const UiText('Ознакомился с условиями подписки.',
                       style: TextStyle(fontSize: 12))),
               if (error != null) Notice(errorText(context, error!), error: true)
