@@ -54,7 +54,7 @@ async function main(){
   if(!frontend){const {createServer}=await import('vite');vite=await createServer({root:resolve(__dirname,'../apps/admin'),server:{port:0,strictPort:false,host:'127.0.0.1'}});await vite.listen();frontend='http://127.0.0.1:'+vite.httpServer.address().port;}
   await page.goto(frontend+'/#login');
   assert.equal(await page.locator('.loginbrand').count(),1);
-  await page.getByLabel('Рабочий идентификатор').fill('staff-browser-test');await page.getByLabel('Пароль',{exact:true}).fill(password);
+  await page.getByLabel('Логин').fill('staff-browser-test');await page.getByLabel('Пароль',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Продолжить',exact:true}).click();
   const firstMfaTime=Date.now();
   await page.getByLabel('Код второго фактора').fill(totp(secret,firstMfaTime));await page.getByRole('button',{name:'Продолжить',exact:true}).click();
@@ -591,7 +591,7 @@ async function main(){
     };
     const login=frames.find(frame=>frame.surface==='admin'&&frame.design_route==='login');
     await captureFrame(login,frontend+'/#login');
-    await page.getByLabel('Рабочий идентификатор').fill('staff-browser-test');await page.getByLabel('Пароль',{exact:true}).fill(password);
+    await page.getByLabel('Логин').fill('staff-browser-test');await page.getByLabel('Пароль',{exact:true}).fill(password);
     await page.getByRole('button',{name:'Продолжить',exact:true}).click();
     // Re-login must not reuse the first login's one-time code when this fast
     // isolated run happens to complete within the same 30-second TOTP window.
@@ -624,7 +624,7 @@ async function main(){
       await captureFrame(frame,frontend+'/#'+actualRoute,actualRoute);
     }
     await page.getByRole('button',{name:'Выйти',exact:true}).click();
-    await page.getByLabel('Рабочий идентификатор').waitFor();
+    await page.getByLabel('Логин').waitFor();
     assert.equal(await page.evaluate(()=>['user-detail','user-security','user-orders','user-cases','user-decisions','job-detail','scheduled','boosts','boost-grant','branding-build'].some(key=>window.JOBA_ADMIN.routes[key])),false);
     // Functional recovery persistence was already checked above. Baseline W02
     // is the initial support form, not the conversation from that prior test.

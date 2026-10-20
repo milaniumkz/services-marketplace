@@ -269,6 +269,9 @@ export class Marketplace {
       const u=await this.store.get(c.user_id);if(!u || u.status==='deleted')fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       if(path==='/auth/staff-login') {
         const effective=await resolveStaffUser(this.store,u!);
+        // Password-only staff access must be explicitly provisioned offline by the owner.
+        if(effective.staff_permissions?.length&&u!.staff_auth_mode==='password'&&(effective.staff_access_mode!=='managed'||effective.staff_grants?.length))return this.tokens(effective,randomUUID(),true,ip);
+        if(effective.staff_permissions?.length&&!b.mfa_code)fail(401,'MFA_REQUIRED','Введите код второго фактора');
         const secret=u!.totp_secret_sealed?await this.files.unsealSecret(u!.totp_secret_sealed,u!.id):process.env.NODE_ENV==='production'?undefined:u!.totp_secret;
         if(!effective.staff_permissions?.length||(effective.staff_access_mode==='managed'&&!effective.staff_grants?.length)||!secret||!verifyTotp(secret,String(b.mfa_code)))fail(401,'INVALID_CREDENTIALS','Неверные служебные данные или второй фактор');
         if(u!.last_totp_step===Math.floor(Date.now()/30000)||u!.last_totp_code_hash===digest(String(b.mfa_code)))fail(401,'MFA_REPLAY','Код уже использован');

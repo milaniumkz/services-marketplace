@@ -32,7 +32,7 @@ const assert=require('node:assert/strict');
   await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByRole('button',{name:'Войти',exact:true}).waitFor();
   await page.screenshot({path:'live-web-report/login.png'});
   assert.equal(await page.evaluate(async()=>('serviceWorker' in navigator)?(await navigator.serviceWorker.getRegistrations()).filter(r=>r.scope===location.origin+'/').length:0),0,'Retired Flutter root worker was registered again');
-  await page.goto(base+'/admin/');await page.getByLabel('Рабочий идентификатор').waitFor();await page.screenshot({path:'live-web-report/admin.png'});
+  await page.goto(base+'/admin/');await page.getByLabel('Логин').waitFor();await page.screenshot({path:'live-web-report/admin.png'});
   await page.goto(base+'/site/');await page.getByRole('heading').first().waitFor();
   await page.goto(base+'/site/W03.html');await page.locator('.legal-paper').filter({hasText:'ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ JOBA'}).waitFor();
   await page.goto(base+'/site/W03.html#terms');await page.locator('.legal-paper').filter({hasText:'ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ JOBA'}).waitFor();

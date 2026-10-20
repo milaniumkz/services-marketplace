@@ -33,3 +33,18 @@ test('offline staff enrollment stores sealed MFA and preserves separate business
   assert.equal(JSON.stringify(await api.handle('GET','/me',{},auth)).includes('totp_secret'),false);
  }finally{await api.store.close();await rm(dir,{recursive:true,force:true});}
 });
+
+test('explicit offline password staff login retains permission and account separation checks',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ try{
+  const input={country:'KZ',identifier:'admin',display_name:'Владелец',password:'Isolated password login test!',authentication:'password',permissions:['platform_owner'],reason:'Владелец разрешил вход по логину и паролю'};
+  await bootstrapStaff(api.store,api.files,input,async()=>{});
+  const body={country:'KZ',phone:'admin',password:input.password};
+  await assert.rejects(()=>api.handle('POST','/auth/staff-login',{...body,password:'wrong'},undefined,undefined,{},'bad-password'),e=>e.getStatus()===401);
+  await assert.rejects(()=>api.handle('POST','/auth/login',body,undefined,undefined,{},'business-login'),e=>e.getStatus()===401);
+  const session=await api.handle('POST','/auth/staff-login',body,undefined,undefined,{},'owner-login');
+  const access=await api.handle('GET','/admin/access/me',{},'Bearer '+session.access_token);
+  assert.equal(access.is_owner,true);
+  await assert.rejects(()=>api.handle('POST','/auth/staff-login',{...body,country:'RU'},undefined,undefined,{},'wrong-region'),e=>e.getStatus()===401);
+ }finally{await api.store.close();}
+});
