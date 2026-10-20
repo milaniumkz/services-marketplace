@@ -50,7 +50,7 @@ void main() {
     final api = JobaApi('https://isolated.example', vault: Vault(),
         transport: MockClient((r) async {
       if (r.url.path.endsWith('/me/security-policy'))
-        return ok({'password_min': 15, 'password_max': 128});
+        return ok({'password_min': 6, 'password_max': 128});
       if (r.url.path.endsWith('/me/phone-change-requests')) {
         sent = jsonDecode(r.body);
         return ok({
@@ -155,7 +155,7 @@ void main() {
     final api = JobaApi('https://isolated.example', vault: Vault(),
         transport: MockClient((r) async {
       if (r.url.path.endsWith('/me/security-policy'))
-        return ok({'password_min': 15, 'password_max': 128});
+        return ok({'password_min': 6, 'password_max': 128});
       if (r.url.path.endsWith('/me/password/change')) {
         writes++;
         return ok({'changed': true});

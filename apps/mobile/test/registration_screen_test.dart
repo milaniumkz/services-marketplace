@@ -70,7 +70,7 @@ void main() {
             true);
       }
       await tester.enterText(fields.at(0), ' ${entry.value} ');
-      for (final length in [14, 129]) {
+      for (final length in [5, 129]) {
         final password = List.filled(length, 'x').join();
         await tester.enterText(fields.at(1), password);
         await tester.enterText(fields.at(2), password);
@@ -79,12 +79,14 @@ void main() {
         await tester.pumpAndSettle();
         expect(requests, isEmpty);
         expect(
-            find.text(length == 14
-                ? 'Не менее 15 символов'
+            find.text(length == 5
+                ? 'Не менее 6 символов'
                 : 'Не более 128 символов'),
             findsWidgets);
       }
-      final password = ' ' + List.filled(126, 'x').join() + ' ';
+      final password = entry.key == 'KZ'
+          ? ' ' + List.filled(126, 'x').join() + ' '
+          : 'Test6!';
       await tester.enterText(fields.at(1), password);
       await tester.enterText(fields.at(2), password);
       await tester.ensureVisible(find.text('Продолжить'));

@@ -163,7 +163,7 @@ void main() {
     expect(archive.bytes.length, greaterThan(500));
 
     final securityPolicy = await api.request('/me/security-policy') as Json;
-    expect(securityPolicy['password_min'],15);
+    expect(securityPolicy['password_min'],6);
     expect(securityPolicy['password_max'],128);
     const replacementPassword = 'Changed integration password 2026!';
     await api.request('/me/password/change', method: 'POST', body: {

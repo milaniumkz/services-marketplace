@@ -65,7 +65,7 @@ const text = (b: any, name: string, min: number, max: number) => {
   const v=b?.[name]; if (typeof v !== 'string' || v.trim().length<min || v.length>max) fail(400,'VALIDATION_ERROR',`Проверьте поле ${name}`,{field:name,min,max});
   return v.trim();
 };
-const password = (b: any, name: string,min=15) => {
+const password = (b: any, name: string,min=6) => {
   const v=b?.[name];if(typeof v!=='string'||v.length<min||v.length>128)fail(400,'VALIDATION_ERROR',`Пароль должен содержать от ${min} до 128 символов`,{min_length:min,max_length:128});
   return v;
 };

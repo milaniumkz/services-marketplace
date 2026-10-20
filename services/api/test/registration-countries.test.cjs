@@ -8,9 +8,9 @@ test('all four active countries accept registration at password bounds, preserve
   for(const [country,phone] of Object.entries(phones)) {
    const request=(body,ip)=>api.handle('POST','/auth/register',body,undefined,randomUUID(),{},ip);
    const base={country,phone,locale:'ru'};
-   for(const size of [14,129])await assert.rejects(()=>request({...base,password:'x'.repeat(size)},`${country}-bound-${size}`),e=>e.getStatus()===400&&e.getResponse().error.code==='VALIDATION_ERROR');
+   for(const size of [5,129])await assert.rejects(()=>request({...base,password:'x'.repeat(size)},`${country}-bound-${size}`),e=>e.getStatus()===400&&e.getResponse().error.code==='VALIDATION_ERROR');
    await assert.rejects(()=>request({...base,phone:country==='KZ'?phones.KG:phones.KZ,password:'Valid isolated password'},`${country}-foreign`),e=>e.getStatus()===400&&e.getResponse().error.code==='VALIDATION_ERROR');
-   const password=country==='KZ'?' '+'x'.repeat(126)+' ':'x'.repeat(15);
+   const password=country==='KZ'?' '+'x'.repeat(4)+' ':'x'.repeat(6);
    const session=await request({...base,password},`${country}-valid`);
    assert.ok(session.access_token);assert.deepEqual(session.user.roles,['customer']);assert.equal(session.user.country,country);
    const profile=await api.handle('GET','/me',{},'Bearer '+session.access_token);

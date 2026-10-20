@@ -37,7 +37,7 @@ test('offline staff enrollment stores sealed MFA and preserves separate business
 test('explicit offline password staff login retains permission and account separation checks',async()=>{
  const api=new Marketplace(new Store('memory://'));await api.initialize();
  try{
-  const input={country:'KZ',identifier:'admin',display_name:'Владелец',password:'Isolated password login test!',authentication:'password',permissions:['platform_owner'],reason:'Владелец разрешил вход по логину и паролю'};
+  const input={country:'KZ',identifier:'admin',display_name:'Владелец',password:'Test6!',authentication:'password',permissions:['platform_owner'],reason:'Владелец разрешил вход по логину и паролю'};
   await bootstrapStaff(api.store,api.files,input,async()=>{});
   const body={country:'KZ',phone:'admin',password:input.password};
   await assert.rejects(()=>api.handle('POST','/auth/staff-login',{...body,password:'wrong'},undefined,undefined,{},'bad-password'),e=>e.getStatus()===401);

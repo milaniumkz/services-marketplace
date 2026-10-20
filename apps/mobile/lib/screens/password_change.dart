@@ -21,7 +21,7 @@ class _PasswordChangeContentState extends State<PasswordChangeContent> {
       builder: (context, data, reload) {
         final minimum = data['password_min'];
         if (minimum is! int ||
-            minimum < 15 ||
+            minimum < 6 ||
             minimum > 128 ||
             data['password_max'] != 128) {
           return ListView(padding: const EdgeInsets.all(20), children: [

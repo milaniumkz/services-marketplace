@@ -27,7 +27,7 @@ JobaApi client(Future<http.Response> Function(http.Request) send) =>
             MockClient((r) async => r.url.path.endsWith('/me/security-policy')
                 ? http.Response(
                     jsonEncode({
-                      'data': {'password_min': 15, 'password_max': 128}
+                      'data': {'password_min': 6, 'password_max': 128}
                     }),
                     200,
                     headers: {'content-type': 'application/json'})
@@ -135,7 +135,7 @@ void main() {
     await t.tap(find.text('Сохранить'));
     await t.pumpAndSettle();
     expect(writes, 0);
-    expect(find.text('Пароль должен содержать от 15 до 128 символов'),
+    expect(find.text('Пароль должен содержать от 6 до 128 символов'),
         findsOneWidget);
     await fill(t, repeat: 'Different valid password!');
     await t.tap(find.text('Сохранить'));

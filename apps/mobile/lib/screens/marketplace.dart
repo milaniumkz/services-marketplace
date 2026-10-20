@@ -1476,7 +1476,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             InputSpec(
               'password',
               register ? 'Придумайте пароль' : 'Пароль',
-              hint: register ? 'Не менее 15 символов' : 'Введите пароль',
+              hint: register ? 'Не менее 6 символов' : 'Введите пароль',
               secret: true,
               inputAction: register
                   ? TextInputAction.next
@@ -1485,7 +1485,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 register ? AutofillHints.newPassword : AutofillHints.password,
               ],
               validate: (v) =>
-                  register && v.length < 15 ? 'Не менее 15 символов'
+                  register && v.length < 6 ? 'Не менее 6 символов'
                       : register && v.length > 128 ? 'Не более 128 символов' : null,
             ),
             if (register)
