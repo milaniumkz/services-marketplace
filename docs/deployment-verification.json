@@ -10,12 +10,12 @@
   "welcome_continue_opens_login": true,
   "admin_login_available": true,
   "public_site_available": true,
-  "first_render_ms": 4460,
+  "first_render_ms": 5906,
   "errors": [],
-  "verified_at": "2026-10-20T09:38:55.056720+00:00",
-  "server_source_commit": "fbf457d2d050ae5ef07471c062c2231629635dcb",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39400714400",
-  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39402070515",
+  "verified_at": "2026-10-20T10:06:48.757736+00:00",
+  "server_source_commit": "6e3e92fa1bdc90adb76183a00932999c0a72d4fb",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39404482833",
+  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39405425162",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
   "external_payment_ads_firebase": "not_connected",
@@ -67,5 +67,27 @@
       "root_categories": 31,
       "city_response_ms": 1064
     }
+  },
+  "frontend_revision_verified": true,
+  "reference_navigation": {
+    "region_then_city": true,
+    "root_then_subcategories": true,
+    "global_city_and_category_search": true,
+    "flutter_tests_passed": 218,
+    "flutter_tests_skipped": 2,
+    "api_city_counts": {
+      "KZ": 351,
+      "KG": 107,
+      "RU": 5143,
+      "BY": 314
+    }
+  },
+  "testing_apk": {
+    "source_commit": "37699b89e951957f712d7e576244a43999ae15e0",
+    "url": "https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-37699b8/JOBA-testing-arm64-debug.apk",
+    "sha256": "d534ea202c357aab27807c95ec7f33f7fb6e96967c159d76b83335bae71129fe",
+    "public_download_verified": true,
+    "signature_verified": true,
+    "update_signature_matches_previous": true
   }
 }
