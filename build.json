@@ -1,0 +1,35 @@
+{
+  "app_source_commit": "37699b89e951957f712d7e576244a43999ae15e0",
+  "built_at": "2026-10-20T09:54:16.020171+00:00",
+  "artifact": "JOBA-testing-arm64-debug.apk",
+  "sha256": "d534ea202c357aab27807c95ec7f33f7fb6e96967c159d76b83335bae71129fe",
+  "bytes": 82190372,
+  "type": "debug",
+  "abis": [
+    "arm64-v8a"
+  ],
+  "api_url": "https://joba.com.kz",
+  "countries": [
+    "KZ",
+    "KG",
+    "RU",
+    "BY"
+  ],
+  "reference_catalog": {
+    "cities_from_api": true,
+    "virtualized_city_selector": true,
+    "region_then_city": true,
+    "hierarchical_category_search": true
+  },
+  "plans": {
+    "standard": {
+      "duration_days": 30,
+      "default_price": 1000
+    },
+    "premium": {
+      "duration_days": 30,
+      "default_price": 1500,
+      "top100": true
+    }
+  }
+}
