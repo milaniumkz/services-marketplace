@@ -1,3 +1,4 @@
+import {toggleMobileNavigation,refreshMobileLayout} from './mobile-layout.js';
 import {staffAccessWorkspace} from './staff-access-workspace.js';
 import {refundWorkspace} from './refund-workspace.js';
 import {financialJournal} from './financial-journal.js';
@@ -175,6 +176,7 @@ async function draw(reload=true) {
   if(cache.staffAccess?.managed){const grants=cache.staffAccess.grants;const extra={dashboard:'dashboard',analytics:'analytics',monetization:'monetization-configs',countries:'country-controls',settings:'runtime-settings',legal:'legal',security:'security-events',jobs:'jobs',branding:'brand-icons',top100:'boost-reports','financial-journal':'payment-transactions',refunds:'refund-requests'};document.querySelectorAll('.nav a').forEach(link=>{const key=link.hash.slice(1),endpoint=sections[key]?.[0]??extra[key];link.hidden=!endpoint||!grants.some(g=>g.startsWith('GET /admin/'+endpoint)&&(!g.split(' ')[1].slice(('/admin/'+endpoint).length)||g.split(' ')[1].slice(('/admin/'+endpoint).length).startsWith('/')));link.style.display=link.hidden?'none':'';});const current=sections[key]?.[0]??sections[key.split('/')[1]]?.[0]??(key.startsWith('support-live/')?'support-threads':key.startsWith('case-live/')?'cases':extra[key]),canWrite=current&&grants.some(g=>!g.startsWith('GET ')&&g.includes('/admin/'+current));if(current&&!canWrite)document.querySelectorAll('.workspace form:not(#list-filters):not(#scenario-picker) button,.workspace button.primary').forEach(button=>{if(button.closest('form[data-staff-read]'))return;button.disabled=true;button.title='Роль разрешает только просмотр этого раздела';});}
   if(cache.staffAccess?.managed){const g=cache.staffAccess.grants;for(const [selector,grant] of [['#reply-support button','POST /admin/support-threads/{id}/messages'],['#assign-support','support.command.assign'],['#case-reply button','POST /admin/cases/{id}/messages']])if(!g.includes(grant))document.querySelectorAll(selector).forEach(button=>{button.disabled=true;button.title='Действие не разрешено вашей ролью';});}
   if(session)wireLiveShell({api,esc,card,onRefresh:()=>draw()});
+  refreshMobileLayout();
 }
 window.addEventListener('hashchange',()=>{error='';draw();});
 draw();
@@ -186,5 +188,5 @@ document.addEventListener('click',event=>{
  event.stopImmediatePropagation();
  const action=button.dataset.action;
  if(routes[action])location.hash=action;
- else if(action==='navigation')document.querySelector('.sidebar')?.classList.toggle('open');
+ else if(action==='navigation')toggleMobileNavigation();
 },true);

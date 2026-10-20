@@ -41,6 +41,10 @@ jobs:
       - run: sudo apt-get update -q && sudo apt-get install -y poppler-utils
       - run: npm ci
       - run: npm run verify
+      - name: Verify mobile admin layouts and navigation
+        run: node scripts/verify-admin-mobile.cjs
+        env:
+          JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
       - name: Install pinned Flutter
         run: |
           git clone --depth 1 --branch 3.35.7 https://github.com/flutter/flutter.git "$FLUTTER_ROOT"
