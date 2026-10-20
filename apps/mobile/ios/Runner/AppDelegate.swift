@@ -32,6 +32,7 @@ import CoreLocation
 
       let channel = FlutterMethodChannel(name: "joba.device_security", binaryMessenger: controller.binaryMessenger)
       channel.setMethodCallHandler { call, result in
+        if call.method == "secureStorageAvailable" { result(UIApplication.shared.isProtectedDataAvailable); return }
         guard call.method == "hardwareBacked" else {
           self.biometry(call, result: result); return
         }

@@ -113,7 +113,7 @@ class MainActivity : FlutterFragmentActivity() {
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.file_export").setMethodCallHandler { call, result -> saveExport(call, result) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.device_security")
             .setMethodCallHandler { call, result ->
-                if (call.method != "hardwareBacked") {
+                if (call.method != "hardwareBacked" && call.method != "secureStorageAvailable") {
                     biometry(call.method, call.argument<String>("alias") ?: "", call.argument<String>("title")?.take(100) ?: "JOBA", call.argument<String>("cancel")?.take(40) ?: "Cancel", result)
                     return@setMethodCallHandler
                 }
@@ -126,7 +126,7 @@ class MainActivity : FlutterFragmentActivity() {
                     val key = generator.generateKey()
                     val info = SecretKeyFactory.getInstance(key.algorithm, "AndroidKeyStore").getKeySpec(key, KeyInfo::class.java) as KeyInfo
                     @Suppress("DEPRECATION")
-                    result.success(info.isInsideSecureHardware)
+                    result.success(call.method == "secureStorageAvailable" || info.isInsideSecureHardware)
                 } catch (_: Exception) { result.success(false) }
                 finally { try { KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(alias) } catch (_: Exception) {} }
             }

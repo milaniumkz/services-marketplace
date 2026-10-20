@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -37,6 +38,29 @@ class _Lock extends LocalLock {
 }
 
 void main() {
+  testWidgets('accepted current documents skip consent and background keeps the session', (tester) async {
+    final api=JobaApi('https://isolated.example',vault:_Vault(),transport:MockClient((r) async {
+      final Object data=r.url.path.endsWith('/legal/documents') ? {'items':[
+        {'id':'terms','type':'terms','hash':'terms-hash'},
+        {'id':'privacy','type':'privacy','hash':'privacy-hash'}
+      ]} : r.url.path.endsWith('/me/consents') ? {'items':[
+        {'document_id':'terms','document_hash':'terms-hash','accepted':true,'sequence':1},
+        {'document_id':'privacy','document_hash':'privacy-hash','accepted':true,'sequence':2}
+      ]} : r.url.path.endsWith('/me') ? {'id':'owner','display_name':'Тест','country':'KZ','locale':'ru','roles':['customer']} : {'items':[]};
+      return http.Response(jsonEncode({'data':data}),200,headers:{'content-type':'application/json; charset=utf-8'});
+    }));
+    await tester.pumpWidget(JobaApp(api:api));await tester.pumpAndSettle();
+    api.session={'access_token':'isolated-token','user':{'id':'owner'}};
+    final dynamic state=tester.state(find.byType(Marketplace));
+    state.me={'id':'owner','display_name':'Тест','country':'KZ','locale':'ru'};
+    state.go('lock-setup');await tester.pumpAndSettle();
+    await state.completeLocalSetup(passwordOnly:true);await tester.pumpAndSettle();
+    expect(state.route,'home');expect(api.authenticated,true);
+    state.pausedAt=DateTime.now().subtract(const Duration(minutes:2));
+    state.didChangeAppLifecycleState(AppLifecycleState.resumed);await tester.pumpAndSettle();
+    expect(api.authenticated,true);expect(state.route,'home');
+    await tester.pumpWidget(const SizedBox());api.dispose();
+  });
   for (final mode in ['password', 'biometry-failure', 'vault-failure']) {
     testWidgets(
         'local setup handles $mode without false persistence or navigation',
@@ -60,6 +84,9 @@ void main() {
       state.lock = protection;
       state.go('pin-setup');
       await tester.pumpAndSettle();
+      state.back();
+      await tester.pumpAndSettle();
+      expect(state.route, 'pin-setup');
       final form = tester.widget<PinSetup>(find.byType(PinSetup));
       if (mode == 'password') {
         await form.onPassword();

@@ -6,6 +6,23 @@ import 'package:services_marketplace/core/theme.dart';
 import 'package:services_marketplace/screens/device_setup.dart';
 
 void main() {
+  testWidgets('PIN heading stays above dots and keypad confirms automatically', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? saved;
+    await tester.pumpWidget(MaterialApp(theme: jobaTheme(), home: Scaffold(body: PinSetup(onSave: (pin, bio) async {saved=pin;},onPassword: () async {}))));
+    final heading=find.text('Придумайте PIN');
+    final dots=find.byWidgetPredicate((w)=>w is Semantics && w.properties.label=='Введено цифр: 0 из 6');
+    expect(tester.getBottomLeft(heading).dy+16, lessThan(tester.getTopLeft(dots).dy));
+    for(final digit in ['1','2','3','4','5','6']) {await tester.tap(find.widgetWithText(TextButton,digit));await tester.pump();}
+    expect(find.text('Повторите PIN'),findsOneWidget);
+    expect(saved,isNull);
+    for(final digit in ['1','2','3','4','5','6']) {await tester.tap(find.widgetWithText(TextButton,digit));await tester.pump();}
+    expect(saved,'123456');
+    expect(tester.takeException(),isNull);
+  });
   testWidgets(
       'PIN keyboard filters digits, checks confirmation, blocks duplicates and permits retry after failure',
       (tester) async {

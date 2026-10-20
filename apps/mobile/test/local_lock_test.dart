@@ -7,10 +7,11 @@ import 'package:services_marketplace/core/api.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final values = <String, String>{};
-  bool hardware = true, changed = false;
+  bool hardware = true, storage = true, changed = false;
   setUp(() {
     values.clear();
     hardware = true;
+    storage = true;
     changed = false;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -34,6 +35,7 @@ void main() {
         .setMockMethodCallHandler(const MethodChannel('joba.device_security'),
             (call) async {
       if (call.method == 'hardwareBacked') return hardware;
+      if (call.method == 'secureStorageAvailable') return storage;
       if (changed && ['checkBiometry', 'unlockBiometry'].contains(call.method))
         throw PlatformException(code: 'BIOMETRY_CHANGED');
       return true;
@@ -75,11 +77,17 @@ void main() {
     expect(await lock.pinLength(), isNull);
     expect(await lock.unlock('1234567'), true);
   });
-  test('Hardware protection missing prevents saving a PIN', () async {
-    hardware = false;
+  test('Unavailable secure storage prevents saving a PIN', () async {
+    storage = false;
     final lock = LocalLock('unsupported');
     await expectLater(lock.configure('123456'), throwsA(isA<ApiException>()));
     expect(values, isEmpty);
+  });
+  test('Working secure storage allows PIN without hardware-backed keys', () async {
+    hardware = false;
+    final lock = LocalLock('software-keystore');
+    await lock.configure('123456');
+    expect(await lock.unlock('123456'), true);
   });
   test('Changed biometric enrollment invalidates local unlock', () async {
     final lock = LocalLock('biometry-test');

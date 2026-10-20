@@ -1,5 +1,9 @@
 // Explicit reviewable API operation catalogue. No wildcards may be assigned.
 export const staffOperations=[
+  {id:'POST /admin/users/{id}/block',method:'POST',path:'/admin/users/{id}/block',block:'users',label:'Блокировать аккаунт'},
+  {id:'POST /admin/users/{id}/unblock',method:'POST',path:'/admin/users/{id}/unblock',block:'users',label:'Разблокировать аккаунт'},
+  {id:'POST /admin/users/{id}/delete',method:'POST',path:'/admin/users/{id}/delete',block:'users',label:'Удалять аккаунт'},
+
   {id:'GET /admin/subscription-plans',method:'GET',path:'/admin/subscription-plans',block:'price-versions',label:'Просмотр цен Стандарта и Премиума'},
   {id:'POST /admin/subscription-plans',method:'POST',path:'/admin/subscription-plans',block:'price-versions',label:'Изменять цены Стандарта и Премиума'},
   {

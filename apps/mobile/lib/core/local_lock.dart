@@ -42,11 +42,6 @@ class LocalLock {
   Future<bool> hasBiometry() async =>
       await storage.read(key: '$key.biometry') == 'enabled';
   Future<void> enableBiometry() async {
-    final protected = await const MethodChannel('joba.device_security')
-        .invokeMethod<bool>('hardwareBacked');
-    if (protected != true)
-      throw ApiException('LOCAL_PROTECTION_UNAVAILABLE',
-          'Используйте вход с номером и паролем');
     final ok = await const MethodChannel('joba.device_security')
         .invokeMethod<bool>('enableBiometry', {'alias': alias});
     if (ok != true)
@@ -77,17 +72,17 @@ class LocalLock {
   Future<void> configure(String pin) async {
     if (!RegExp(r'^\d{6,8}$').hasMatch(pin))
       throw ApiException('PIN_INVALID', 'PIN должен содержать 6–8 цифр');
-    bool hardware = false;
+    bool available = false;
     try {
-      hardware = await const MethodChannel('joba.device_security')
-              .invokeMethod<bool>('hardwareBacked') ??
+      available = await const MethodChannel('joba.device_security')
+              .invokeMethod<bool>('secureStorageAvailable') ??
           false;
     } on PlatformException {
-      hardware = false;
+      available = false;
     } on MissingPluginException {
-      hardware = false;
+      available = false;
     }
-    if (!hardware)
+    if (!available)
       throw ApiException('LOCAL_PROTECTION_UNAVAILABLE',
           'На этом устройстве используйте вход с номером и паролем.');
     final random = Random.secure(),

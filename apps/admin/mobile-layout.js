@@ -22,6 +22,7 @@ function setExpanded(value, restoreFocus = true) {
 }
 export function toggleMobileNavigation() { setExpanded(!expanded); }
 export function refreshMobileLayout() {
+  const wasExpanded=expanded;
   document.querySelector('.mobile-menu-backdrop')?.remove();
   const sidebar = document.querySelector('.sidebar');
   if (sidebar) {
@@ -44,7 +45,7 @@ export function refreshMobileLayout() {
     hint.textContent='Прокрутите таблицу в сторону, чтобы увидеть все столбцы.';
     wrap.before(hint);
   });
-  setExpanded(false,false);
+  setExpanded(wasExpanded,false);
 }
 document.addEventListener('click',event=>{if(expanded&&event.target.closest('.sidebar a[href]'))setExpanded(false);});
 phone.addEventListener('change',()=>setExpanded(false,false));

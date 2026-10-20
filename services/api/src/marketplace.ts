@@ -117,7 +117,8 @@ export class Marketplace {
     if(!token) fail(401,'UNAUTHENTICATED','Требуется вход');
     const t=(await this.store.db.query<any>('SELECT * FROM tokens WHERE hash=$1 AND kind=\'access\' AND NOT revoked AND expires_at>now()',[digest(token!)])).rows[0];
     if(!t) fail(401,'TOKEN_EXPIRED','Сессия истекла');
-    const user=await this.store.get(t.user_id);if(!user || user.status==='deleted')fail(401,'UNAUTHENTICATED','Требуется вход');
+    const user=await this.store.get(t.user_id);if(user?.admin_blocked===true)fail(403,'ACCOUNT_BLOCKED','Аккаунт заблокирован администратором');
+    if(!user || user.status==='deleted')fail(401,'UNAUTHENTICATED','Требуется вход');
     return {id:user!.id,country:t.country,family:t.family,user:await resolveStaffUser(this.store,user!),mfa:t.mfa_verified};
   }
   private async object(id: string, a: Actor, kind?: string, own=false) {
@@ -269,6 +270,7 @@ export class Marketplace {
       if(!ok)fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       if(path==='/auth/staff-login')await db.query('SELECT pg_advisory_xact_lock_shared(hashtextextended($1,0))',['staff-access:'+String(b.country)]);
       const u=await this.store.get(c.user_id);if(!u || u.status==='deleted')fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
+      if(u!.admin_blocked===true)fail(403,'ACCOUNT_BLOCKED','Аккаунт заблокирован администратором');
       if(path==='/auth/staff-login') {
         const effective=await resolveStaffUser(this.store,u!);
         // The owner explicitly selected username/password staff authentication.
@@ -1321,6 +1323,28 @@ export class Marketplace {
           if(b.command==='resolve'&&b.reopen_until!==undefined&&(!Number.isFinite(Date.parse(b.reopen_until))||Date.parse(b.reopen_until)<=Date.now()))fail(400,'VALIDATION_ERROR','Проверьте срок повторного открытия');
           const result=await this.store.put({...t,status:states[b.command],assignee_id:a.id,...(b.command==='resolve'?{resolved_at:new Date().toISOString(),reopen_until:b.reopen_until?new Date(b.reopen_until).toISOString():null}:{}),version:t.version+1});await this.audit(a,'support.'+b.command,t.id,text(b,'reason',5,1000));return result;
         }
+      }
+      const accountAction=path.match(/^\/admin\/users\/([^/]+)\/(block|unblock|delete)$/);
+      if(accountAction&&method==='POST') {
+        const u=await this.object(accountAction[1],a,'user');this.version(u,b);
+        if(u.id===a.id||u.staff_permissions?.length)fail(403,'FORBIDDEN','Управление служебными аккаунтами выполняется в разделе сотрудников');
+        if(u.status==='deleted')fail(409,'STATE_CONFLICT','Аккаунт уже удалён');
+        const reason=text(b,'reason',10,1000),action=accountAction[2];
+        if(action==='delete') {
+          if(b.confirmation!==u.id)fail(422,'VALIDATION_ERROR','Введите ID аккаунта для подтверждения удаления');
+          const pending=(await this.store.select('privacy',a.country,{owner:u.id,limit:100})).find(r=>r.type==='delete'&&!['canceled','rejected','limited_retention','completed'].includes(r.status));
+          const request=pending??await this.store.put(this.record('privacy',{id:u.id,country:u.country},{type:'delete',status:'requested',requested_by:a.id,reason}));
+          await this.store.put({...u,status:'blocked',admin_blocked:true,deletion_request_id:request.id,version:u.version+1});
+          await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[u.id]);
+          await this.audit(a,'user.deletion_requested',u.id,reason);
+          return {id:u.id,status:'blocked',deletion_request_id:request.id,deletion_status:request.status};
+        }
+        if(action==='unblock'&&u.deletion_request_id){const job=await this.store.get(u.deletion_request_id);if(job&&!['canceled','cancelled','rejected'].includes(job.status))fail(409,'STATE_CONFLICT','Сначала рассмотрите запрос удаления в разделе приватности');}
+        const restricted=action==='unblock'&&(await Promise.all(['blacklist','auto_hold'].map(kind=>this.store.all(kind,a.country)))).flat().some(r=>r.user_id===u.id&&r.status==='active'&&(! (r.ends_at??r.expires_at)||(r.ends_at??r.expires_at)>new Date().toISOString()));
+        const result=await this.store.put({...u,status:action==='block'?'blocked':restricted?'restricted':'active',admin_blocked:action==='block',...(action==='unblock'?{deletion_request_id:null}:{}),version:u.version+1});
+        if(action==='block')await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[u.id]);
+        await this.audit(a,'user.'+action,u.id,reason);
+        return {id:result.id,status:result.status,version:result.version};
       }
       const blacklist=path.match(/^\/admin\/users\/([^/]+)\/blacklist$/);
       if(blacklist&&method==='POST') {

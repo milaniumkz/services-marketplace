@@ -140,7 +140,7 @@ async function draw(reload=true) {
       if(key==='financial-journal')routes[key]=await financialJournal({key,api:request,esc,card,note,tablecard,country:session.user.country});
       if(key==='monetization')routes[key]=await monetizationWorkspace({key,api:request,esc,card,note,metric,badge,namedField,actorId:session.user.id,onRefresh:()=>draw()});
       if(['settings','legal'].includes(key)||key.startsWith('recovery-live/'))routes[key]=await operationsWorkspace({key,api:request,esc,card,note,namedField,onRefresh:()=>draw()});
-      if(userRoutes.has(key)||key.startsWith('record-live/users/'))routes[key]=await userWorkspace({key,api:request,esc,card,tablecard,note,badge,namedField,sections,onRefresh:()=>draw()});
+      if(userRoutes.has(key)||key.startsWith('record-live/users/'))routes[key]=await userWorkspace({key,api:request,esc,card,tablecard,note,badge,namedField,sections,onRefresh:()=>draw(),staffAccess:cache.staffAccess});
       if(key.startsWith('record-live/')&&!key.startsWith('record-live/users/')){
         routes[key]=await reviewWorkspace({key,api:request,esc,card,note,namedField,sections,onRefresh:()=>draw(),staffAccess:cache.staffAccess});
       }

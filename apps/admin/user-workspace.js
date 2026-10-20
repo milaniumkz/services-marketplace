@@ -4,11 +4,11 @@ export const userRoutes=new Set(['user-detail','user-orders','user-cases','user-
 const tabs=[['Обзор','user-detail'],['Безопасность','user-security'],['Заказы','user-orders'],['Обращения','user-cases'],['Решения','user-decisions']];
 const auditLabels={'verification.passed':'Документ проверен','verification.rejected':'Проверка документа отклонена','security.events_read':'Служебный просмотр безопасности','user.phone_read':'Служебный просмотр контакта','job.retry_requested':'Повторная обработка запрошена','content.approved':'Материал опубликован','content.rejected':'Материал отклонён'};
 const titles={'user-detail':'Карточка пользователя','user-orders':'Заказы пользователя','user-cases':'Обращения пользователя','user-decisions':'История решений','user-security':'Безопасность пользователя'};
-const statuses={open:'Открыто',draft:'Черновик',published:'Опубликовано',in_progress:'В работе',completed:'Завершено',cancelled:'Отменено',resolved:'Решено',closed:'Закрыто',assigned:'Назначено',waiting_support:'Ожидает поддержки',active:'Активен',blocked:'Ограничен',passed:'Документ проверен',not_started:'Документ не проверен',rejected:'Проверка отклонена'};
+const statuses={open:'Открыто',draft:'Черновик',published:'Опубликовано',in_progress:'В работе',completed:'Завершено',cancelled:'Отменено',resolved:'Решено',closed:'Закрыто',assigned:'Назначено',waiting_support:'Ожидает поддержки',active:'Активен',blocked:'Заблокирован',restricted:'Ограничен',deleted:'Удалён',passed:'Документ проверен',not_started:'Документ не проверен',rejected:'Проверка отклонена'};
 const date=value=>value?new Intl.DateTimeFormat('ru',{dateStyle:'short',timeStyle:'short',timeZone:'UTC'}).format(new Date(value))+' UTC':'—';
 const route=(key,id,extra={})=>'#'+key+'?'+new URLSearchParams({user_id:id,...extra});
 
-export async function userWorkspace({key,api,esc,card,tablecard,note,badge,namedField,sections,onRefresh}){
+export async function userWorkspace({key,api,esc,card,tablecard,note,badge,namedField,sections,onRefresh,staffAccess}){
  const params=new URLSearchParams(location.hash.split('?')[1]||'');
  const selected=key.startsWith('record-live/users/')?key.split('/')[2]:params.get('user_id');
  const tab=key.startsWith('record-live/')?'user-detail':key;
@@ -26,7 +26,7 @@ export async function userWorkspace({key,api,esc,card,tablecard,note,badge,named
  const pagination=(cursor,name='cursor')=>cursor?`<a class="btn" href="${route(tab,user.id,{[name]:cursor,...(params.get('q')?{q:params.get('q')}:{}),...(params.get('status')?{status:params.get('status')}:{}),...(name==='cases_cursor'&&params.get('support_cursor')?{support_cursor:params.get('support_cursor')}:{}) ,...(name==='support_cursor'&&params.get('cases_cursor')?{cases_cursor:params.get('cases_cursor')}:{})})}">Следующая страница</a>`:'';
  const page={key,id:'A03',title:titles[tab],section:'Пользователи',subtitle:`${user.id} · ${user.country}`,actions:`<a class="btn" href="#users">К списку</a><button id="refresh-data" type="button">Обновить</button>`};
  if(tab==='user-detail'){
-  const detail=await reviewWorkspace({key:'record-live/users/'+user.id,api:(path,...args)=>path===base&&!args.length?Promise.resolve(user):api(path,...args),esc,card,note,namedField,sections,onRefresh});
+  const detail=await reviewWorkspace({key:'record-live/users/'+user.id,api:(path,...args)=>path===base&&!args.length?Promise.resolve(user):api(path,...args),esc,card,note,namedField,sections,onRefresh,staffAccess});
   return {...detail,...page,body:()=>summary+navigation+detail.body(),bind:detail.bind};
  }
  if(tab==='user-orders'){

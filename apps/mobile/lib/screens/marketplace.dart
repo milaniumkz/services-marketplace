@@ -193,6 +193,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       (profilePending > 0 && ['onboarding', 'profile-edit'].contains(route)) ||
       (authSubmitting && ['login', 'register'].contains(route)) ||
       (localSetupSubmitting && ['pin-setup', 'lock-setup', 'biometric'].contains(route));
+  bool get onboardingNavigationBlocked => _api?.authenticated == true && ((['lock-setup', 'pin-setup', 'biometric'].contains(route) && !history.any((entry) => entry.$1 == 'security')) || (['terms', 'onboarding'].contains(route) && (registrationInProgress || history.isEmpty)));
   Object? startupError;
   int revision = 0, sequence = 0;
   String? notificationReadBefore, notificationScope;
@@ -428,7 +429,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           });
           closeEvents();
         } else {
-          api.forget();
+          refreshIdentity();
+          connectEvents();
         }
       } else if (!locked) {
         connectEvents();
@@ -479,6 +481,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   void back() {
     if (authNavigationBlocked) return;
+    if (onboardingNavigationBlocked) return;
     if (route == 'pin-limit') {
       leavePinLimit('login');
       return;
@@ -550,7 +553,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           double titleOffset = 0,
           Widget? titleWidget, double? toolbarHeight, double leadingWidth = 72}) =>
       PopScope(
-          canPop: history.isEmpty && route != 'pin-limit' && !authNavigationBlocked && !(route == 'login' && authCredentialFailure),
+          canPop: history.isEmpty && route != 'pin-limit' && !onboardingNavigationBlocked && !authNavigationBlocked && !(route == 'login' && authCredentialFailure),
           onPopInvokedWithResult: (popped, result) {
             if (!popped) back();
           },
@@ -1642,11 +1645,25 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   bool needsProfile(Json profile) => profile['display_name'] is String &&
       (profile['display_name'] as String).trim().length < 2;
 
-  void finishLocalSetup() {
-    if (history.isNotEmpty && history.last.$1 == 'security')
-      back();
-    else
-      go('terms');
+  Future<void> finishLocalSetup() async {
+    if (history.isNotEmpty && history.last.$1 == 'security') { back(); return; }
+    final client=api, generation=api.sessionGeneration;
+    final setupRoute=route;
+    var target='terms';
+    try {
+      final values=await Future.wait([
+        client.request('/legal/documents',query:{'country':country,'locale':me?['locale']??locale,'required':'true'}),
+        client.request('/me/consents')]);
+      final documents=items(values[0]).where((d)=>['terms','terms_of_use','privacy','privacy_policy'].contains(d['type'])).toList();
+      final consents=items(values[1]);
+      if(documents.any((d)=>['terms','terms_of_use'].contains(d['type'])) && documents.any((d)=>['privacy','privacy_policy'].contains(d['type'])) && documents.every((d){
+        final records=consents.where((c)=>c['document_id']==d['id']).toList()
+          ..sort((a,b)=>(b['sequence'] as num).compareTo(a['sequence'] as num));
+        return records.isNotEmpty && records.first['accepted']==true && records.first['document_hash']==d['hash'] && (d['minimum_age']!=18 || records.first['age_confirmed']==true);
+      })) target=needsProfile(me??{})?'onboarding':'home';
+    } catch (_) { /* The documents screen offers retry without losing the session. */ }
+    if(!mounted || !identical(api,client) || generation!=api.sessionGeneration || !api.authenticated || route!=setupRoute)return;
+    setState((){history.clear();route=target;objectId=null;revision++;});
   }
 
   Future<void> completeLocalSetup({String? pin, bool biometry = false, bool passwordOnly = false}) async {
@@ -1678,7 +1695,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if (!current()) return;
       localProtected = !passwordOnly;
       setState(() => localSetupSubmitting = false);
-      finishLocalSetup();
+      await finishLocalSetup();
     } catch (_) {
       if (current() && client.persistSession != wasPersistent) {
         await client.setPersistence(wasPersistent);
@@ -5216,6 +5233,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 onCreated: (id) {Navigator.pop(c); go('support-chat', id);})))),
           onProfile: () => go('services'),
           onSupport: () => go('support')));
+  void continueAfterConsent() {
+    setState(() {
+      history.clear();
+      route = registrationInProgress ? 'onboarding' : 'home';
+      objectId = null;
+      revision++;
+    });
+  }
   Widget termsScreen() => page(
       registrationInProgress ? 'Перед началом' : 'Документы и согласия',
       ApiView(
@@ -5265,8 +5290,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         'be': 'Беларуская'
                       }[locale] ??
                       locale,
-                  onAccepted: () =>
-                      go(registrationInProgress ? 'onboarding' : 'home'));
+                  onAccepted: continueAfterConsent);
             final requiredDocuments = documents.where((d) => [
                   'privacy',
                   'privacy_policy',
@@ -5308,7 +5332,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     'Чтобы продолжить, примите условия использования и политику конфиденциальности.'),
               FilledButton(
                   onPressed: canContinue
-                      ? () => go(registrationInProgress ? 'onboarding' : 'home')
+                      ? continueAfterConsent
                       : null,
                   child: const UiText('Продолжить')),
               TextButton(

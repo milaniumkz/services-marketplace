@@ -55,144 +55,187 @@ class _PinSetupState extends State<PinSetup> {
     }
   }
 
+  void digit(String value) {
+    if (busy || input.text.length >= 6) return;
+    setState(() {
+      input.text += value;
+      error = null;
+    });
+    if (input.text.length == 6) submit();
+  }
+
   @override
   Widget build(BuildContext context) => Column(children: [
         Expanded(
-            child: ListView(padding: const EdgeInsets.all(20), children: [
-          Padding(
-              padding: const EdgeInsets.fromLTRB(23, 16, 23, 10),
-              child: Column(children: [
-                Container(
-                    width: 94,
-                    height: 94,
-                    decoration: BoxDecoration(
-                        color: const Color(0xFFE9EFFB),
-                        borderRadius: BorderRadius.circular(30)),
-                    child: const Center(
-                        child: JobaIcon('lock', size: 42, strokeWidth: 1.3))),
-                const SizedBox(height: 23),
-                UiText(first == null ? 'Придумайте PIN' : 'Повторите PIN',
-                    style: const TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -.9)),
-                const SizedBox(height: 12),
-                const UiText(
-                    '6 цифр для быстрого входа на этом устройстве. PIN не отправляется на сервер.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 13, color: Color(0xFF627187), height: 1.55))
-              ])),
-          const SizedBox(height: 28),
-          SizedBox(
-              height: 40,
-              child: Stack(alignment: Alignment.center, children: [
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  for (var i = 0; i < 6; i++)
-                    Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 7),
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: i < input.text.length
-                                ? primary
-                                : Colors.transparent,
-                            border: Border.all(color: primary)))
-                ]),
-                TextField(
-                    key: const ValueKey('secure-pin-input'),
-                    controller: input,
-                    focusNode: focus,
-                    enabled: !busy,
-                    obscureText: true,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => submit(),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6)
-                    ],
-                    style:
-                        const TextStyle(color: Colors.transparent, fontSize: 1),
-                    showCursor: false,
-                    decoration: InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        fillColor: Colors.transparent,
-                        filled: true,
-                        counterText: '',
-                        contentPadding: EdgeInsets.zero,
-                        labelText: localize(context,
-                            first == null ? 'Придумайте PIN' : 'Повторите PIN'),
-                        floatingLabelBehavior: FloatingLabelBehavior.never),
-                    onChanged: (_) => setState(() => error = null))
-              ])),
-          const SizedBox(height: 18),
-          Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: line),
-                  borderRadius: BorderRadius.circular(16)),
-              child: Row(children: [
-                const Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      UiText('Биометрия',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 16)),
-                      SizedBox(height: 4),
-                      UiText('Дополнительно к PIN',
-                          style:
-                              TextStyle(fontSize: 12, color: Color(0xFF627187)))
-                    ])),
-                Switch(
-                    value: bio,
-                    onChanged: busy ? null : (v) => setState(() => bio = v))
-              ])),
-          const Notice(
-              'Если безопасная локальная защита недоступна, при открытии потребуется номер и пароль.',
-              margin: EdgeInsets.only(top: 20)),
-          if (error != null)
-            Notice(
-                error.toString().contains('PIN не совпадает')
-                    ? localize(context, 'PIN не совпадает')
-                    : errorText(context, error!),
-                error: true),
-          TextButton(
-              onPressed: busy
-                  ? null
-                  : () async {
-                      setState(() => busy = true);
-                      try {
-                        await widget.onPassword();
-                      } catch (e) {
-                        if (mounted) setState(() => error = e);
-                      } finally {
-                        if (mounted) setState(() => busy = false);
-                      }
-                    },
-              child: const UiText('Вводить номер и пароль'))
-        ])),
-        Container(
-            decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: line))),
-            child: SafeArea(
-                top: false,
-                child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+            child: SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: Center(
+                    child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 340),
+                        child: Column(children: [
+                          const SizedBox(height: 12),
+                          const JobaIcon('lock', size: 40),
+                          const SizedBox(height: 20),
+                          UiText(
+                              first == null
+                                  ? 'Придумайте PIN'
+                                  : 'Повторите PIN',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontSize: 26, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          const UiText('6 цифр для быстрого входа',
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 24),
+                          Semantics(
+                              label: 'Введено цифр: ${input.text.length} из 6',
+                              child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    for (var i = 0; i < 6; i++)
+                                      Container(
+                                          width: 14,
+                                          height: 14,
+                                          margin: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: i < input.text.length
+                                                  ? primary
+                                                  : Colors.transparent,
+                                              border: Border.all(
+                                                  color: primary, width: 1.5)))
+                                  ])),
+                          SizedBox(
+                              height: 1,
+                              child: Opacity(
+                                  opacity: .01,
+                                  child: TextField(
+                                      key: const ValueKey('secure-pin-input'),
+                                      controller: input,
+                                      focusNode: focus,
+                                      enabled: !busy,
+                                      obscureText: true,
+                                      keyboardType: TextInputType.none,
+                                      autocorrect: false,
+                                      enableSuggestions: false,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(6)
+                                      ],
+                                      decoration: null,
+                                      onChanged: (_) =>
+                                          setState(() => error = null),
+                                      onSubmitted: (_) => submit()))),
+                          if (error != null)
+                            Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Notice(
+                                    error
+                                            .toString()
+                                            .contains('PIN не совпадает')
+                                        ? localize(context, 'PIN не совпадает')
+                                        : errorText(context, error!),
+                                    error: true)),
+                          const SizedBox(height: 20),
+                          for (final row in [
+                            ['1', '2', '3'],
+                            ['4', '5', '6'],
+                            ['7', '8', '9'],
+                            ['', '0', 'delete']
+                          ])
+                            Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(children: [
+                                  for (final key in row)
+                                    Expanded(
+                                        child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6),
+                                            child: key.isEmpty
+                                                ? const SizedBox(height: 62)
+                                                : SizedBox(
+                                                    height: 62,
+                                                    child: TextButton(
+                                                        style: TextButton.styleFrom(
+                                                            backgroundColor:
+                                                                Colors.white,
+                                                            foregroundColor:
+                                                                primary,
+                                                            shape: RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                        18))),
+                                                        onPressed: busy
+                                                            ? null
+                                                            : () => key ==
+                                                                    'delete'
+                                                                ? setState(() {
+                                                                    if (input
+                                                                        .text
+                                                                        .isNotEmpty)
+                                                                      input.text = input
+                                                                          .text
+                                                                          .substring(
+                                                                              0,
+                                                                              input.text.length - 1);
+                                                                    error =
+                                                                        null;
+                                                                  })
+                                                                : digit(key),
+                                                        child: key == 'delete'
+                                                            ? const Icon(Icons.backspace_outlined,
+                                                                semanticLabel:
+                                                                    'Удалить цифру')
+                                                            : Text(key,
+                                                                style: const TextStyle(
+                                                                    fontSize:
+                                                                        28,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500))))))
+                                ])),
+                          SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const UiText('Биометрия'),
+                              subtitle: const UiText('Дополнительно к PIN'),
+                              value: bio,
+                              onChanged:
+                                  busy ? null : (v) => setState(() => bio = v)),
+                          TextButton(
+                              onPressed: busy
+                                  ? null
+                                  : () async {
+                                      setState(() {
+                                        busy = true;
+                                        error = null;
+                                      });
+                                      try {
+                                        await widget.onPassword();
+                                      } catch (e) {
+                                        if (mounted) setState(() => error = e);
+                                      } finally {
+                                        if (mounted)
+                                          setState(() => busy = false);
+                                      }
+                                    },
+                              child: const UiText('Вводить номер и пароль')),
+                        ]))))),
+        SafeArea(
+            top: false,
+            child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                child: SizedBox(
+                    width: double.infinity,
                     child: FilledButton(
                         onPressed:
                             busy || input.text.length != 6 ? null : submit,
-                        child: UiText(first == null
-                            ? 'Подтвердить PIN'
-                            : 'Сохранить PIN')))))
+                        child: UiText(busy
+                            ? 'Сохранение…'
+                            : first == null
+                                ? 'Подтвердить PIN'
+                                : 'Сохранить PIN')))))
       ]);
 }
 
