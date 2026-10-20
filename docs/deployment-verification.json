@@ -1,5 +1,5 @@
 {
-  "url": "https://188-241-217-228.sslip.io",
+  "url": "https://joba.com.kz",
   "https_certificate_verified": true,
   "production_database_ready": true,
   "customer_access_free": true,
@@ -10,12 +10,12 @@
   "welcome_continue_opens_login": true,
   "admin_login_available": true,
   "public_site_available": true,
-  "first_render_ms": 4625,
+  "first_render_ms": 5180,
   "errors": [],
-  "verified_at": "2026-10-20T07:57:37.839942+00:00",
-  "server_source_commit": "f4a2591c34c651d7090f966b4d22a3bfeffd2d0a",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39388638682",
-  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39389774108",
+  "verified_at": "2026-10-20T08:32:52.524022+00:00",
+  "server_source_commit": "881b88ad228e09b8fb14f390949415e738e7de03",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39392921558",
+  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39393877747",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
   "external_payment_ads_firebase": "not_connected",
@@ -26,5 +26,19 @@
   "versioned_main_js": true,
   "staff_authentication": "username_password",
   "owner_password_login_verified": true,
-  "owner_roles_page_verified": true
+  "owner_roles_page_verified": true,
+  "domain": "joba.com.kz",
+  "http_redirects_to_https": true,
+  "subscription_plans": {
+    "standard": {
+      "duration_days": 30,
+      "default_amount_minor": 100000
+    },
+    "premium": {
+      "duration_days": 30,
+      "default_amount_minor": 150000,
+      "top100": true
+    }
+  },
+  "admin_plan_price_save_verified": true
 }

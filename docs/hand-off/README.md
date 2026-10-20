@@ -6,16 +6,16 @@
 
 Тестовая Android-сборка собирается скриптом `bash scripts/build-testing-apk.sh`, с release-оптимизацией и Android test/debug-подписью. Она не предназначена для публикации в магазине. Конечные файлы и build manifest помещаются в игнорируемый `release/testing/<commit>/`; приватные ключи не публикуются.
 
-Обновление сервера запускается только по отдельной deploy-ветке. Рабочий HTTPS-адрес: https://188-241-217-228.sslip.io/ . Наличие ответа /health не доказывает, что новый commit уже развёрнут. Результат текущего обновления: https://github.com/milaniumkz/services-marketplace/actions/runs/39263762618 .
+Обновление сервера запускается только по отдельной deploy-ветке. Рабочий HTTPS-адрес: https://joba.com.kz/ . Наличие ответа /health не доказывает, что новый commit уже развёрнут. Результат текущего обновления: https://github.com/milaniumkz/services-marketplace/actions/runs/39392921558 .
 
-19.10.2026: сборка и проверки Actions завершились успешно. Развёртывание было остановлено до SSH-входа, потому что Actions не получил SSH credential. Попытки чтения public key Actions Secrets через REST и GitHub CLI вернули HTTP 403 `Resource not accessible by integration`; самостоятельно добавить repository secret из этой интеграции нельзя. Для следующего запуска владелец сохраняет `JOBA_SSH_PASSWORD` или `JOBA_SSH_PRIVATE_KEY` в Settings → Secrets and variables → Actions. Значение не передаётся в чат и не коммитится. Пока успешное обновление сервера не подтверждено.
+20.10.2026: сервер обновлён до `881b88a`, HTTPS joba.com.kz и браузерные переходы проверены. Реальный вход владельца и сохранение базовых цен Стандарта/Премиума через админку проверены. Внешние платёжные/рекламные/push-провайдеры ещё не подключены.
 
 
 ## Готовые файлы для тестирования
 
-- [APK: Android 7.0+, ARM64, debug](https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-375e587/JOBA-testing-arm64-debug.apk)
+- [APK: Android 7.0+, ARM64, debug](https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-881b88a/JOBA-testing-arm64-debug.apk)
 - [PDF-инструкция, 10 страниц](https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-375e587/JOBA-advertising-owner-guide.ru.pdf)
-- [Установка, SHA-256 и build manifest](https://github.com/milaniumkz/services-marketplace/tree/testing/android-375e587)
+- [Установка, SHA-256 и build manifest](https://github.com/milaniumkz/services-marketplace/tree/testing/android-881b88a)
 - [Страница тестовой версии](https://github.com/milaniumkz/services-marketplace/releases/tag/testing-2026-10-19-375e587)
 
 APK: 82 186 276 байт (около 79 МиБ), SHA-256 `38d0505e5254374f41537baab7a0b79b20e6341262a048e10f2f19cec15d6c91`. Источник мобильного приложения — `375e587`. Проверены подпись, zip alignment 16 KiB, package `kz.joba.services_marketplace`, единственная ABI arm64-v8a, Android API 24+, INTERNET и HTTPS URL внутри kernel blob. Публичное скачивание вернуло 200, SHA-256 повторно совпал. APK не запускалась на физическом устройстве.
