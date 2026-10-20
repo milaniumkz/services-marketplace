@@ -17,6 +17,15 @@ cp -a apps/web/dist/. release/web/site/
 python3 - <<'PY'
 import hashlib,json,subprocess
 from pathlib import Path
-root=Path('release/web');files={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*')) if p.is_file() and p.name!='release.json'}
+root=Path('release/web')
+commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+# Both entry points change URL on each release, bypassing old browser caches.
+index=root/'mobile/index.html'
+index.write_text(index.read_text().replace('joba_release=20261015-worker-retirement','joba_release='+commit))
+bootstrap=root/'mobile/flutter_bootstrap.js'
+source=bootstrap.read_text()
+assert '"mainJsPath":"main.dart.js"' in source, 'Flutter entrypoint configuration changed'
+bootstrap.write_text(source.replace('"mainJsPath":"main.dart.js"','"mainJsPath":"main.dart.js?joba_release='+commit+'"'))
+files={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*')) if p.is_file() and p.name!='release.json'}
 (root/'release.json').write_text(json.dumps({'commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'files':files},indent=2)+'\n')
 PY
