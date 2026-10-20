@@ -47,84 +47,117 @@ class _CitySelectorState extends State<CitySelector> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        Expanded(
-            child: ListView(padding: const EdgeInsets.all(20), children: [
-          const UiHeading('Ваш город', 'Точный адрес для поиска не нужен.'),
-          TextField(
-              onChanged: (value) => setState(() => query = value),
-              decoration: InputDecoration(
-                  labelText: localize(context, 'Найти город'),
-                  prefixIcon: const Padding(
-                      padding: EdgeInsets.all(12), child: JobaIcon('search')))),
-          const SizedBox(height: 20),
-          if (widget.countryLabel.isNotEmpty)
-            Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(widget.countryLabel,
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700))),
-          for (final city in widget.cities.where((city) => '${city['name']}'
-              .toLowerCase()
-              .contains(query.trim().toLowerCase())))
-            Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Material(
-                    color: selected?['id'] == city['id']
-                        ? const Color(0xFFF0F4FF)
-                        : Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(
-                            color: selected?['id'] == city['id']
-                                ? primary
-                                : line)),
-                    child: InkWell(
-                        onTap:
-                            busy ? null : () => setState(() => selected = city),
-                        borderRadius: BorderRadius.circular(14),
-                        child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(children: [
-                              Expanded(
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                    Text('${city['name']}',
-                                        style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700)),
-                                    const SizedBox(height: 4),
-                                    const UiText('Город',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            color: Color(0xFF627187)))
-                                  ])),
-                              Icon(
-                                  selected?['id'] == city['id']
-                                      ? Icons.radio_button_checked
-                                      : Icons.radio_button_off,
+  Widget build(BuildContext context) {
+    String fold(String v) => v.toLowerCase().replaceAll('ё', 'е');
+    final needle = fold(query.trim());
+    final cities = widget.cities
+        .where((city) => [city['name'], ...(city['aliases'] as List? ?? [])]
+            .any((v) => fold('$v').contains(needle)))
+        .toList();
+    final header = <Widget>[
+      const UiHeading('Ваш город', 'Точный адрес для поиска не нужен.'),
+      TextField(
+          onChanged: (value) => setState(() => query = value),
+          decoration: InputDecoration(
+              labelText: localize(context, 'Найти город'),
+              prefixIcon: const Padding(
+                  padding: EdgeInsets.all(12), child: JobaIcon('search')))),
+      const SizedBox(height: 20),
+      if (widget.countryLabel.isNotEmpty)
+        Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(widget.countryLabel,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700))),
+    ];
+    return Column(children: [
+      Expanded(
+          child: ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: header.length +
+                  cities.length +
+                  1 +
+                  (error == null ? 0 : 1) +
+                  (widget.cities.any((c) => c['geonames_id'] != null) ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index < header.length) return header[index];
+                final position = index - header.length;
+                if (position < cities.length) {
+                  final city = cities[position];
+                  return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Material(
+                          color: selected?['id'] == city['id']
+                              ? const Color(0xFFF0F4FF)
+                              : Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(
                                   color: selected?['id'] == city['id']
                                       ? primary
-                                      : const Color(0xFFBBC8DE),
-                                  size: 22)
-                            ]))))),
-          const Notice(
-              'Вы можете выбрать город вручную и пользоваться поиском без геолокации.'),
-          if (error != null) Notice(errorText(context, error!), error: true)
-        ])),
-        Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-            child: SafeArea(
-                top: false,
-                child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                        onPressed: busy || selected == null ? null : save,
-                        child: Text(selected == null
-                            ? localize(context, 'Выбрать город')
-                            : '${localize(context, 'Выбрать')} ${selected!['name']}')))))
-      ]);
+                                      : line)),
+                          child: InkWell(
+                              onTap: busy
+                                  ? null
+                                  : () => setState(() => selected = city),
+                              borderRadius: BorderRadius.circular(14),
+                              child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(children: [
+                                    Expanded(
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                          Text('${city['name']}',
+                                              style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700)),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                              city['region']
+                                                          ?.toString()
+                                                          .isNotEmpty ==
+                                                      true
+                                                  ? '${city['region']}'
+                                                  : localize(context, 'Город'),
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF627187)))
+                                        ])),
+                                    Icon(
+                                        selected?['id'] == city['id']
+                                            ? Icons.radio_button_checked
+                                            : Icons.radio_button_off,
+                                        color: selected?['id'] == city['id']
+                                            ? primary
+                                            : const Color(0xFFBBC8DE),
+                                        size: 22)
+                                  ])))));
+                }
+                if (position == cities.length)
+                  return const Notice(
+                      'Вы можете выбрать город вручную и пользоваться поиском без геолокации.');
+                if (error != null && position == cities.length + 1)
+                  return Notice(errorText(context, error!), error: true);
+                return const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: UiText('Географические данные: GeoNames · CC BY 4.0',
+                        style:
+                            TextStyle(fontSize: 10, color: Color(0xFF627187))));
+              })),
+      Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+          child: SafeArea(
+              top: false,
+              child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                      onPressed: busy || selected == null ? null : save,
+                      child: Text(selected == null
+                          ? localize(context, 'Выбрать город')
+                          : '${localize(context, 'Выбрать')} ${selected!['name']}')))))
+    ]);
+  }
 }

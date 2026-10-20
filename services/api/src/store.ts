@@ -39,6 +39,7 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0008_push_campaigns.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0009_conversation_inbox.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0010_refund_balances.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0011_reference_catalog.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
@@ -77,7 +78,7 @@ export class Store {
       if(options.priceMax!==undefined)where.push("(data->'price'->>'amount_min')::numeric <= "+bind(options.priceMax));
       if(options.ratingMin!==undefined)where.push(`COALESCE((SELECT avg((review.data->>'rating')::numeric) FROM records review WHERE review.kind='review' AND review.country=r.country AND review.data->>'target_id'=r.owner AND review.data->>'status'='published' AND COALESCE(review.data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')),0) >= ${bind(options.ratingMin)}`);
     }
-    if(options.category){const category=bind(options.category);where.push(`(data->>'category_id'=${category} OR COALESCE(data->'category_ids','[]'::jsonb) ? ${category})`);}
+    if(options.category){const category=bind(options.category);where.push(`EXISTS(WITH RECURSIVE category_scope(id) AS (SELECT ${category}::text UNION SELECT COALESCE(c.data->'payload'->>'category_id',c.id::text) FROM records c JOIN category_scope parent ON c.data->'payload'->>'parent_id'=parent.id WHERE c.kind='category' AND c.country=$2 AND c.data->>'status'='effective') SELECT 1 FROM category_scope s WHERE r.data->>'category_id'=s.id OR COALESCE(r.data->'category_ids','[]'::jsonb) ? s.id)`);}
     if(options.near){
       const lat=bind(options.near.latitude),lon=bind(options.near.longitude),radius=bind(options.near.radius);
       where.push(`data->'public_location' IS NOT NULL AND 6371*ACOS(LEAST(1,GREATEST(-1,SIN(RADIANS(${lat}::numeric))*SIN(RADIANS((data->'public_location'->>'latitude')::numeric))+COS(RADIANS(${lat}::numeric))*COS(RADIANS((data->'public_location'->>'latitude')::numeric))*COS(RADIANS((data->'public_location'->>'longitude')::numeric-${lon}::numeric)))))<=${radius}::numeric`);

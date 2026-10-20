@@ -101,6 +101,9 @@ if [[ -n "$("${joba_compose[@]}" ps -q database)" ]]; then
   cp /etc/joba/production.env "$joba_backup/production.env"
 fi
 "${joba_compose[@]}" up -d --build --wait --wait-timeout 300
+"${joba_compose[@]}" cp scripts/import-reference-data.cjs api:/tmp/joba-import-reference.cjs
+"${joba_compose[@]}" exec -T -u root api chmod 0644 /tmp/joba-import-reference.cjs
+"${joba_compose[@]}" exec -T -e JOBA_REFERENCE_IMPORT=owner-authorized-2026-10-20 -e JOBA_REFERENCE_MODULE_ROOT=/app/services/api/dist/ api node /tmp/joba-import-reference.cjs
 # User explicitly authorized these initial documents with blank operator details.
 # Existing legal versions are preserved on every subsequent deployment.
 "${joba_compose[@]}" cp scripts/publish-initial-kz-legal.cjs api:/tmp/joba-publish-legal.cjs

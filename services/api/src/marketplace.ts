@@ -1,3 +1,4 @@
+import {cityCatalog,cityName} from './city-catalog';
 import {subscriptionPlans} from './subscription-plans';
 import {notificationCategory} from './notification-category';
 import {revokeOptionalProcessing} from './processing-consent-retention';
@@ -127,7 +128,7 @@ export class Marketplace {
   private version(r: RecordData, b: any) {
     if(b.expected_version!==r.version)fail(409,'STATE_CONFLICT','Данные изменились. Обновите экран.',{current_version:r.version});
   }
-  private async categories(country:string):Promise<RecordData[]>{return (await this.store.all('category',country)).filter(r=>r.status==='effective').map((r):RecordData=>({...r,record_id:r.id,id:categoryId(r)}));}
+  private async categories(country:string):Promise<RecordData[]>{return (await this.store.all('category',country)).filter(r=>r.status==='effective').map((r):RecordData=>({...r,record_id:r.id,id:categoryId(r)})).sort((a,b)=>(a.payload?.depth??(a.payload?.parent_id?2:1))-(b.payload?.depth??(b.payload?.parent_id?2:1))||(a.payload?.sort_order??Number(a.legacy_id??0))-(b.payload?.sort_order??Number(b.legacy_id??0)));}
   private categorySnapshot(category:RecordData,locale='ru'){return {id:category.id,version_id:category.record_id??category.id,title:category.payload.labels?.[locale]??category.payload.labels?.ru??category.title,labels:category.payload.labels,schema:category.payload.schema??{properties:{},required:[]}};}
   private async entitlement(a: Actor, capability: string, verified=false, consume=true) {
     if(['publish_order','select_offer','send_offer','publish_profile'].includes(capability)) {
@@ -216,11 +217,12 @@ export class Marketplace {
     if(path==='/reports')path='/cases';
     if(path==='/public/config'&&method==='GET') {
       const controls=await this.store.all('country_control');
-      return {countries:Object.entries(countries).map(([code,c])=>{
+      return {countries:await Promise.all(Object.entries(countries).map(async ([code,c])=>{
         const control=controls.find(r=>r.country===code&&r.status==='effective');
-        return {code,name:({KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,launch_status:'unverified',checkout_enabled:false,
+        const cityData=await cityCatalog(this.store,code);
+        return {code,name:({KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,cities:cityData.items.map(city=>city.name),cities_count:cityData.meta.total,launch_status:'unverified',checkout_enabled:false,
           active:countryEnabled(code)&&(control?.payload.registration_enabled??true)&&!(control?.payload.stop_new_business??false),registration_enabled:countryEnabled(code)&&(control?.payload.registration_enabled??true),stop_new_business:!countryEnabled(code)||(control?.payload.stop_new_business??false)};
-      }),subscription_enabled:true,subscription_scope:'executor',subscription_plans:subscriptionPlans,customer_access:'free',banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
+      })),subscription_enabled:true,subscription_scope:'executor',subscription_plans:subscriptionPlans,customer_access:'free',banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
     }
     if(path==='/legal/documents'&&method==='GET') {
       if(!countries[q.country??'KZ']||q.locale&&!['ru','kk','sr','be'].includes(q.locale))fail(400,'VALIDATION_ERROR','Проверьте страну и язык');
@@ -379,7 +381,7 @@ export class Marketplace {
       const rows=candidates.filter(r=>r.public_location&&Number.isFinite(r.public_location.latitude)&&Number.isFinite(r.public_location.longitude));
       return {items:await contractorPresentation(this.store,a.country,rows),meta:{approximate:true,map_provider_configured:false}};
     }
-    if(path==='/geo/cities'&&method==='GET')return {items:countries[a.country].cities.filter(c=>!q.q||c.toLowerCase().includes(String(q.q).toLowerCase())).map(name=>({id:referenceId(`joba:city:${a.country}:${name}`),name,country:a.country}))};
+    if(path==='/geo/cities'&&method==='GET'){if(q.q!==undefined&&(typeof q.q!=='string'||q.q.length>100))fail(400,'VALIDATION_ERROR','Проверьте запрос города');return cityCatalog(this.store,a.country,q.q??'');}
     if(path==='/me/monetization-config'&&method==='GET') {
       const config=(await this.store.all('monetization_config',a.country)).find(x=>x.status==='effective');
       const usage=(await db.query<{used:string;last:string|null}>("SELECT count(*) AS used,max(data->>'created_at') AS last FROM records WHERE kind='ad_session' AND country=$1 AND owner=$2 AND left(data->>'created_at',10)=$3",[a.country,a.id,new Date().toISOString().slice(0,10)])).rows[0];
@@ -529,7 +531,7 @@ export class Marketplace {
       if(b.country&&b.country!==a.country||b.budget?.currency&&b.budget.currency!==countries[a.country].currency)fail(400,'VALIDATION_ERROR','Страна и валюта не совпадают с регионом');
       if(!['onsite','remote','hybrid'].includes(b.work_mode??'onsite'))fail(400,'VALIDATION_ERROR','Проверьте формат работы');
       const category=(await this.categories(a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
-      const city=b.city??countries[a.country].cities.find(name=>referenceId(`joba:city:${a.country}:${name}`)===b.city_id);if(typeof city!=='string'||city.length<2||city.length>100)fail(400,'VALIDATION_ERROR','Город недоступен');
+      const city=b.city??await cityName(this.store,a.country,String(b.city_id));if(typeof city!=='string'||city.length<2||city.length>100)fail(400,'VALIDATION_ERROR','Город недоступен');
       const uploads=b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[];
       return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}},city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
     }
@@ -603,7 +605,7 @@ export class Marketplace {
         const changes:any={title:b.title===undefined?o.title:text(b,'title',5,120),description:b.description===undefined?o.description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:snapshot,attributes:attributes(snapshot.schema,b.attributes??o.attributes)};
         if(b.budget_amount!==undefined){if(b.budget_amount!==null&&(!Number.isSafeInteger(b.budget_amount)||b.budget_amount<0))fail(400,'VALIDATION_ERROR','Проверьте бюджет');changes.budget_amount=b.budget_amount;}
         if(b.city!==undefined)changes.city=text(b,'city',2,100);
-        if(b.city_id!==undefined){const city=countries[a.country].cities.find(name=>referenceId(`joba:city:${a.country}:${name}`)===b.city_id);if(!city)fail(400,'VALIDATION_ERROR','Город недоступен');changes.city=city;}
+        if(b.city_id!==undefined){const city=await cityName(this.store,a.country,String(b.city_id));if(!city)fail(400,'VALIDATION_ERROR','Город недоступен');changes.city=city;}
         if(b.work_mode!==undefined){if(!['onsite','remote','hybrid'].includes(b.work_mode))fail(400,'VALIDATION_ERROR','Проверьте формат работы');changes.work_mode=b.work_mode;}
         if(b.upload_ids!==undefined)changes.upload_ids=await this.safeUploads(a,b.upload_ids,'order');
         if(b.time_window!==undefined)changes.time_window=timeWindow(b.time_window);
