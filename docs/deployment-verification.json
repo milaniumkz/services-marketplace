@@ -10,12 +10,12 @@
   "welcome_continue_opens_login": true,
   "admin_login_available": true,
   "public_site_available": true,
-  "first_render_ms": 5180,
+  "first_render_ms": 4460,
   "errors": [],
-  "verified_at": "2026-10-20T08:32:52.524022+00:00",
-  "server_source_commit": "881b88ad228e09b8fb14f390949415e738e7de03",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39392921558",
-  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39393877747",
+  "verified_at": "2026-10-20T09:38:55.056720+00:00",
+  "server_source_commit": "fbf457d2d050ae5ef07471c062c2231629635dcb",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39400714400",
+  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39402070515",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
   "external_payment_ads_firebase": "not_connected",
@@ -40,5 +40,32 @@
       "top100": true
     }
   },
-  "admin_plan_price_save_verified": true
+  "admin_plan_price_save_verified": true,
+  "reference_catalog_verified_at": "2026-10-20T09:38:32.872007+00:00",
+  "reference_catalog": {
+    "KZ": {
+      "cities": 351,
+      "categories": 933,
+      "root_categories": 31,
+      "city_response_ms": 1607
+    },
+    "KG": {
+      "cities": 107,
+      "categories": 933,
+      "root_categories": 31,
+      "city_response_ms": 1051
+    },
+    "RU": {
+      "cities": 5143,
+      "categories": 933,
+      "root_categories": 31,
+      "city_response_ms": 2342
+    },
+    "BY": {
+      "cities": 314,
+      "categories": 933,
+      "root_categories": 31,
+      "city_response_ms": 1064
+    }
+  }
 }
