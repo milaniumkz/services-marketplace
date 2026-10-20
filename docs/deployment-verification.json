@@ -10,12 +10,12 @@
   "welcome_continue_opens_login": true,
   "admin_login_available": true,
   "public_site_available": true,
-  "first_render_ms": 4006,
+  "first_render_ms": 13419,
   "errors": [],
-  "verified_at": "2026-10-20T13:03:10.686842+00:00",
-  "server_source_commit": "a0c54221abe41a3057d3b764fef082487506134b",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39425643063",
-  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39426990786",
+  "verified_at": "2026-10-20T15:13:03.335293+00:00",
+  "server_source_commit": "0e0c4766ebd7185a904856fe3db5b3d276e3924f",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39443902686",
+  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39445834159",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
   "external_payment_ads_firebase": "not_connected",
@@ -113,5 +113,31 @@
       }
     },
     "owner_migration_once_verified": true
-  }
+  },
+  "admin_mobile_login_verified": true,
+  "admin_mobile_page_viewport_combinations": 40,
+  "flutter_tests": {
+    "passed": 222,
+    "skipped": 2
+  },
+  "mobile_analysis_issues": 0,
+  "admin_account_management": {
+    "controls_published": true,
+    "block_unblock_delete_api_tests": "passed_in_isolated_database",
+    "audited_full_ip_control_published": true
+  },
+  "server_monitoring": {
+    "owner_access_verified": true,
+    "automatic_refresh_verified": true,
+    "owner_only_not_assignable": true,
+    "source": "host",
+    "refresh_seconds": 20,
+    "history_limit_minutes": 60,
+    "logical_cpu_cores": 2,
+    "memory_total_bytes": 4106297344,
+    "disk_total_bytes": 102888095744
+  },
+  "pin_and_session_tests": "passed",
+  "job_search_tests": "passed",
+  "android_artifact_this_iteration": "not_published_per_owner_instruction"
 }
