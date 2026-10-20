@@ -11,6 +11,107 @@
     }
   ],
   "paths": {
+    "/admin/subscription-plans": {
+      "get": {
+        "operationId": "get__admin_subscription_plans",
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post__admin_subscription_plans",
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/access/me": {
       "get": {
         "operationId": "get__admin_access_me",

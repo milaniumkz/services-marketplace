@@ -100,11 +100,12 @@ export class Store {
       const likes='COALESCE(vcounts.likes,0)',dislikes='COALESCE(vcounts.dislikes,0)';
       const score=`GREATEST(0,LN(1+${likes})-${alpha}::numeric*LN(1+${dislikes}))*EXP(-GREATEST(0,EXTRACT(EPOCH FROM(CURRENT_TIMESTAMP-${published}))/86400)/${decay}::numeric)`;
       const mine=viewer?`(SELECT value FROM votes mine WHERE mine.voter=${viewer}::uuid AND mine.target=r.id)`:'NULL';
+      const premium=kind==='contractor'?"CASE WHEN EXISTS(SELECT 1 FROM records entitlement WHERE entitlement.kind='grant' AND entitlement.country=r.country AND entitlement.owner=r.owner AND (entitlement.data->>'valid_until')::timestamptz>CURRENT_TIMESTAMP AND COALESCE(entitlement.data->'capabilities','[]'::jsonb) ? 'top100') THEN 0 ELSE 1 END,":'';
       const order=ranking.sort==='new'?`${published} DESC,r.id ASC`:`${score} DESC,${likes} DESC,${published} DESC,r.id ASC`;
       const result=await this.db.query<{data:RecordData}>(`SELECT r.data || jsonb_build_object('likes',${likes},'dislikes',${dislikes},'organic_score',${score},'my_vote',${mine}) AS data FROM records r
         LEFT JOIN(SELECT v.target,count(*) FILTER(WHERE v.value=1) AS likes,count(*) FILTER(WHERE v.value=-1) AS dislikes FROM votes v JOIN records target ON target.id=v.target
           WHERE target.kind=$1 AND target.country=$2 AND v.created_at>${cutoff}::timestamptz AND v.voter::text<>target.owner GROUP BY v.target)vcounts ON vcounts.target=r.id
-        WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ${bind(options.limit??100)}`,args);
+        WHERE ${where.join(' AND ')} ORDER BY ${premium}${order} LIMIT ${bind(options.limit??100)}`,args);
       return result.rows.map(row=>row.data);
     }
     const limit=options.limit??101;const r=await this.db.query<{data:RecordData}>('SELECT data FROM records r WHERE '+where.join(' AND ')+' ORDER BY id LIMIT '+bind(limit),args);return r.rows.map(r=>r.data);

@@ -264,6 +264,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
         'month' || 'P1M' => '1 месяц',
         'year' || 'P1Y' => '1 год',
         'week' || 'P1W' => '1 неделя',
+        'days' => '30 дней',
         null => 'Уточняется у провайдера',
         _ => '$period',
       };
@@ -532,8 +533,10 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                               ? Icons.radio_button_checked
                               : Icons.radio_button_unchecked,
                           color: primary),
-                      title: Text('${r['title'] ?? r['product_id']}'),
-                      subtitle: Text('${money(r)} · ${r['period'] ?? ''}')),
+                      title:
+                          Text(r['plan'] == 'premium' ? 'Премиум' : 'Стандарт'),
+                      subtitle: Text(
+                          '${money(r)} · ${r['duration_days'] == 30 ? '30 дней' : r['period'] ?? ''}')),
               if (offer == null)
                 const Notice('Действующие предложения пока недоступны.'),
               if (offer != null) ...[
@@ -545,7 +548,15 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                         borderRadius: BorderRadius.circular(16)),
                     child: Column(children: [
                       checkoutFact('Полный доступ', 'Исполнитель'),
-                      checkoutFact('Период', periodLabel(offer['period'])),
+                      checkoutFact('Тариф',
+                          offer['plan'] == 'premium' ? 'Премиум' : 'Стандарт'),
+                      checkoutFact(
+                          'Период',
+                          offer['duration_days'] == 30
+                              ? '30 дней'
+                              : periodLabel(offer['period'])),
+                      if (offer['plan'] == 'premium')
+                        checkoutFact('Топ-100', 'Приоритет услуг на 30 дней'),
                       checkoutFact('Цена', money(offer)),
                       checkoutFact('Продление', 'По условиям провайдера',
                           last: true),

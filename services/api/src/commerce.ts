@@ -1,3 +1,4 @@
+import {subscriptionPlans,subscriptionCapabilities} from './subscription-plans';
 import { randomUUID } from 'node:crypto';
 import { RecordData, Store } from './store';
 import { Providers, VerifiedPurchase } from './providers';
@@ -7,9 +8,14 @@ function fail(code:string,message:string,status=503):never{throw new HttpExcepti
 export class Commerce {
   constructor(private store:Store,readonly providers:Providers) {}
   private record(kind:string,owner:string,country:string,data:any):RecordData {return {...data,id:randomUUID(),kind,owner,country,version:1,created_at:new Date().toISOString()};}
+  async plans(country:string){
+    const config=(await this.store.all('subscription_catalog',country))[0];
+    return {version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
+  }
   async offers(country:string) {
-    const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective');
-    return {items:prices.filter(p=>p.payload.product_type!=='boost'&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload}))};
+    const plans=(await this.plans(country)).items;
+    const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective'&&(!p.payload.plan||plans.find(plan=>plan.code===p.payload.plan)?.amount_minor===p.payload.amount_minor));
+    return {plans,items:prices.filter(p=>p.payload.product_type!=='boost'&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}))};
   }
   async verify(owner:string,country:string,providerName:string,reference:string) {
     const provider=this.providers.billing.get(providerName);if(!provider)fail('PROVIDER_UNAVAILABLE','Платёжный провайдер ещё не подключён');
@@ -50,6 +56,8 @@ export class Commerce {
     if(price&&(price.payload.currency!==p.currency||price.payload.amount_minor!==p.amount_minor)&&!existing)fail('PRICE_MISMATCH','Цена не совпадает с опубликованной версией',422);
     if(existing&&existing.owner!==p.user_id)fail('PURCHASE_OWNERSHIP_MISMATCH','Покупку нельзя перенести на другой аккаунт',403);
     if(existing&&existing.provider_revision>=p.revision)return {subscription:existing,duplicate:true};
+    const planPrice=existing?.product_id===p.product_id?existing.price_snapshot:price?.payload;
+    if(planPrice?.plan&&Date.parse(p.valid_until)>Date.now()+30*86400000+60000)fail('INVALID_SUBSCRIPTION_PERIOD','Стандарт и Премиум действуют не более 30 дней',422);
     const paid=transactionEvents.find(x=>x.state==='active'&&['purchase','renewal'].includes(x.operation));
     const refunded=paid?(await this.store.db.query<{total:string}>("SELECT COALESCE(sum((data->>'amount_minor')::numeric),0)::text AS total FROM records WHERE kind='payment_transaction' AND country=$1 AND data->>'operation'='refund' AND data->>'original_payment_id'=$2",[p.country,paid.id])).rows[0].total:'0';
     const fullyRefunded=paid&&Number(refunded)>=paid.amount_minor;
@@ -59,10 +67,10 @@ export class Commerce {
       const priorCharge=(await this.store.all('payment_transaction',p.country)).some(x=>x.provider===p.provider&&x.original_transaction_id===p.original_transaction_id&&x.transaction_id!==p.transaction_id&&x.state==='active');
       await this.store.put(this.record('payment_transaction',p.user_id,p.country,{provider:p.provider,transaction_id:p.transaction_id,original_transaction_id:p.original_transaction_id,product_id:p.product_id,benefit:'subscription',environment:p.environment,source_id:subscriptionId,operation:charged?(priorCharge?'renewal':'purchase'):p.state==='revoked'?'revoke':'status_change',cash_amount_minor:charged?p.amount_minor:0,amount_minor:p.amount_minor,currency:p.currency,state:p.state,provider_revision:p.revision}));
     }
-    const subscription=await this.store.put({...existing??this.record('subscription',p.user_id,p.country,{}),id:subscriptionId,current_transaction_id:p.transaction_id,price_snapshot:existing?.price_snapshot??price?.payload,provider:p.provider,original_transaction_id:p.original_transaction_id,product_id:p.product_id,status:fullyRefunded?'revoked':p.state,valid_until:p.valid_until,provider_revision:p.revision,version:existing?existing.version+1:1});
+    const subscription=await this.store.put({...existing??this.record('subscription',p.user_id,p.country,{}),id:subscriptionId,current_transaction_id:p.transaction_id,price_snapshot:existing?.product_id===p.product_id?existing.price_snapshot:price?.payload??existing?.price_snapshot,provider:p.provider,original_transaction_id:p.original_transaction_id,product_id:p.product_id,status:fullyRefunded?'revoked':p.state,valid_until:p.valid_until,provider_revision:p.revision,version:existing?existing.version+1:1});
     const grant=(await this.store.all('grant',p.country)).find(g=>g.source_id===subscription.id);
     const valid=!fullyRefunded&&['active','grace','canceled_at_period_end'].includes(p.state);
-    await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:['search_full','send_offer','publish_profile'],version:grant?grant.version+1:1});
+    await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:subscriptionCapabilities(subscription.price_snapshot?.plan),plan:subscription.price_snapshot?.plan??'standard',version:grant?grant.version+1:1});
     for(const check of await this.store.all('purchase_check',p.country))if(check.owner===p.user_id&&check.provider===p.provider&&check.transaction_id===p.transaction_id)await this.store.put({...check,status:'confirmed',subscription_id:subscription.id,version:check.version+1});
     return {subscription,duplicate:false};
   }

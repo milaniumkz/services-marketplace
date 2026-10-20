@@ -6,6 +6,8 @@
     X-Frame-Options DENY
     -Server
   }
+  @entrypoints path / /index.html /admin/ /admin/index.html /site/ /site/*.html
+  header @entrypoints Cache-Control "no-cache"
   handle /api/v1/* {
     reverse_proxy api:3000
   }

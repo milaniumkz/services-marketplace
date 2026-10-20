@@ -1,3 +1,4 @@
+import {subscriptionPlans} from './subscription-plans';
 import {notificationCategory} from './notification-category';
 import {revokeOptionalProcessing} from './processing-consent-retention';
 import {resolveStaffUser,assertStaffOperation,staffAccess} from './staff-access';
@@ -219,7 +220,7 @@ export class Marketplace {
         const control=controls.find(r=>r.country===code&&r.status==='effective');
         return {code,name:({KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,launch_status:'unverified',checkout_enabled:false,
           active:countryEnabled(code)&&(control?.payload.registration_enabled??true)&&!(control?.payload.stop_new_business??false),registration_enabled:countryEnabled(code)&&(control?.payload.registration_enabled??true),stop_new_business:!countryEnabled(code)||(control?.payload.stop_new_business??false)};
-      }),subscription_enabled:true,subscription_scope:'executor',customer_access:'free',banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
+      }),subscription_enabled:true,subscription_scope:'executor',subscription_plans:subscriptionPlans,customer_access:'free',banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
     }
     if(path==='/legal/documents'&&method==='GET') {
       if(!countries[q.country??'KZ']||q.locale&&!['ru','kk','sr','be'].includes(q.locale))fail(400,'VALIDATION_ERROR','Проверьте страну и язык');
@@ -385,7 +386,7 @@ export class Marketplace {
       const usedToday=Number(usage.used),dailyCap=config?.payload.daily_cap??5;
       const last=usage.last?Date.parse(usage.last):0;
       const cooldownUntil=last?new Date(last+(config?.payload.cooldown_seconds??300)*1000).toISOString():null;
-      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:false,subscription_enabled:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false,subscription_scope:'executor',country_gate:'unverified',offers:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false?(await this.commerce.offers(a.country)).items:[]};
+      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:false,subscription_enabled:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false,subscription_scope:'executor',plans:(await this.commerce.plans(a.country)).items,country_gate:'unverified',offers:a.user.active_role==='executor'&&config?.payload.subscription_enabled!==false?(await this.commerce.offers(a.country)).items:[]};
     }
     if(path==='/me/entitlements'&&method==='GET'){await this.promotionGrant(a);return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};}
     if(path==='/me/verification'&&method==='GET') {
@@ -925,8 +926,8 @@ export class Marketplace {
     if(path==='/billing/offers'&&method==='GET')return a.user.active_role==='executor'?this.commerce.offers(a.country):{items:[]};
     if(['/billing/verify-purchase','/billing/restore'].includes(path)&&method==='POST'){if(path==='/billing/verify-purchase'&&a.user.active_role!=='executor')fail(403,'EXECUTOR_ROLE_REQUIRED','Подписка доступна только исполнителю');return this.commerce.verify(a.id,a.country,String(b.provider),text(b,'transaction_reference',1,10000));}
     const purchaseCheck=path.match(/^\/me\/purchase-checks\/([^/]+)$/);if(purchaseCheck&&method==='GET'){const r=await this.object(purchaseCheck[1],a,'purchase_check',true);return {id:r.id,status:r.status,subscription_id:r.subscription_id??null};}
-    const ownSubscription=path.match(/^\/me\/subscriptions\/([^/]+)$/);if(ownSubscription&&method==='GET'){const r=await this.object(ownSubscription[1],a,'subscription',true);return {id:r.id,provider:r.provider,product_id:r.product_id,status:r.status,valid_until:r.valid_until,price:r.price_snapshot?{amount_minor:r.price_snapshot.amount_minor,currency:r.price_snapshot.currency,period:r.price_snapshot.period}:null};}
-    if(path==='/me/subscriptions'&&method==='GET')return {items:(await this.store.all('subscription',a.country)).filter(x=>x.owner===a.id).map(r=>({id:r.id,provider:r.provider,product_id:r.product_id,status:r.status,valid_until:r.valid_until,price:r.price_snapshot?{amount_minor:r.price_snapshot.amount_minor,currency:r.price_snapshot.currency,period:r.price_snapshot.period}:null}))};
+    const ownSubscription=path.match(/^\/me\/subscriptions\/([^/]+)$/);if(ownSubscription&&method==='GET'){const r=await this.object(ownSubscription[1],a,'subscription',true);return {id:r.id,provider:r.provider,product_id:r.product_id,plan:r.price_snapshot?.plan??'standard',top100:r.price_snapshot?.plan==='premium',status:r.status,valid_until:r.valid_until,price:r.price_snapshot?{amount_minor:r.price_snapshot.amount_minor,currency:r.price_snapshot.currency,period:r.price_snapshot.period}:null};}
+    if(path==='/me/subscriptions'&&method==='GET')return {items:(await this.store.all('subscription',a.country)).filter(x=>x.owner===a.id).map(r=>({id:r.id,provider:r.provider,product_id:r.product_id,plan:r.price_snapshot?.plan??'standard',top100:r.price_snapshot?.plan==='premium',status:r.status,valid_until:r.valid_until,price:r.price_snapshot?{amount_minor:r.price_snapshot.amount_minor,currency:r.price_snapshot.currency,period:r.price_snapshot.period}:null}))};
     if(path==='/billing/refundable-payments'&&method==='GET'){
       const limit=this.pageLimit(q),after=await this.cursor(q);
       const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND country=$1 AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
@@ -1014,6 +1015,18 @@ export class Marketplace {
     }
     if(path.startsWith('/admin/')) {
       const section=path.split('/')[2];
+      if(path==='/admin/subscription-plans'&&['GET','POST'].includes(method)){
+        await this.staff(a,'billing');
+        if(method==='GET')return this.commerce.plans(a.country);
+        const reason=text(b,'reason',10,1000);
+        await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-catalog:'+a.country]);
+        const old=(await this.store.all('subscription_catalog',a.country))[0];
+        if(b.expected_version!==(old?.version??0))fail(409,'STATE_CONFLICT','Цены изменились. Обновите страницу');
+        if(!b.prices||['standard','premium'].some(k=>!Number.isSafeInteger(b.prices[k])||b.prices[k]<1||b.prices[k]>100000000000))fail(422,'VALIDATION_ERROR','Укажите положительную цену обоих тарифов');
+        const r=await this.store.put({...old??this.record('subscription_catalog',a,{}),prices:{standard:b.prices.standard,premium:b.prices.premium},version:(old?.version??0)+1});
+        await this.audit(a,'subscriptions.prices_updated',r.id,reason);return this.commerce.plans(a.country);
+      }
+
       if(path==='/admin/search'&&method==='GET') {
         if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.length)fail(403,'FORBIDDEN','Требуется служебный вход с MFA');
         const admin=a.user.staff_permissions.includes('administrator'),permissions=a.user.staff_permissions;

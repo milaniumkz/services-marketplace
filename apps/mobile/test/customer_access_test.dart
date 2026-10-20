@@ -102,7 +102,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ваши возможности'), findsOneWidget);
     expect(find.text('Платежи и возвраты'), findsNothing);
-    await tester.tap(find.text('Посмотреть условия'));
+    await tester.tap(find.text('Посмотреть условия').first);
     await tester.pumpAndSettle();
     expect(state.route, 'checkout');
     expect(state.objectId, 'isolated-tariff');

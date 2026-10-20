@@ -79,13 +79,15 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
           ? formatMoney(price!['amount_minor'], '${price['currency']}',
               Localizations.localeOf(context).languageCode)
           : '—';
-  String period(Json? price) => switch (price?['period']) {
-        'year' || 'yearly' || 'P1Y' => '/ год',
-        'week' || 'weekly' || 'P1W' => '/ неделю',
-        'month' || 'monthly' || 'P1M' => '/ месяц',
-        null => '',
-        _ => '/ ${price!['period']}'
-      };
+  String period(Json? price) => price?['period'] == 'days'
+      ? '/ ${price?['duration_days'] ?? 30} дней'
+      : switch (price?['period']) {
+          'year' || 'yearly' || 'P1Y' => '/ год',
+          'week' || 'weekly' || 'P1W' => '/ неделю',
+          'month' || 'monthly' || 'P1M' => '/ месяц',
+          null => '',
+          _ => '/ ${price!['period']}'
+        };
   Widget card(List<Widget> children,
           {bool dark = false, bool selected = false}) =>
       Container(
@@ -147,7 +149,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                 if (grants.isEmpty && subscriptions.isEmpty)
                   const Notice('История доступа пока пуста.'),
                 for (final r in subscriptions)
-                  DataCard('Подписка JOBA',
+                  DataCard(r['plan'] == 'premium' ? 'Премиум' : 'Стандарт',
                       translateTitle: true,
                       subtitle: '${r['status']} · ${date(context, r)}'),
                 for (final r in grants)
@@ -175,7 +177,6 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         .cast<Json>()
         .where((r) => r['product_type'] != 'boost')
         .toList();
-    final offer = offers.isEmpty ? null : offers.first;
     final price = subscription?['price'] as Json?;
     if (choosing)
       return ListView(padding: const EdgeInsets.all(20), children: [
@@ -188,38 +189,63 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         const SizedBox(height: 10),
         text('Поиск заказов, публикация услуг и отклики.', color: muted),
         const SizedBox(height: 20),
-        card([
-          Row(children: [
-            Expanded(child: text('Подписка JOBA', size: 16, bold: true)),
-            badge('Исполнитель')
-          ]),
-          const SizedBox(height: 16),
-          Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Flexible(
-                    child: text(money(context, offer), size: 30, bold: true)),
-                const SizedBox(width: 6),
-                text(period(offer), color: muted)
-              ]),
-          const SizedBox(height: 8),
-          text(
-              offer == null
-                  ? 'Тариф ещё не опубликован'
-                  : 'Итоговая цена будет показана перед оплатой.',
-              size: 10,
-              color: muted),
-          const Divider(height: 29, thickness: 1),
-          benefit('Находите подходящие заказы'),
-          benefit('Публикуйте услуги и откликайтесь'),
-          benefit('Общайтесь по вашим заказам'),
-          const SizedBox(height: 6),
-          action('Посмотреть условия', 'checkout', id: offer?['id']),
-          const SizedBox(height: 12),
-          text('Автопродление можно отменить. Оплаченный срок сохраняется.',
-              size: 10, color: muted),
-        ], selected: true),
+        for (final plan in const ['standard', 'premium'])
+          Builder(builder: (context) {
+            final matching =
+                offers.where((r) => (r['plan'] ?? 'standard') == plan).toList();
+            final configured = (config['plans'] as List? ?? [])
+                .where((r) => r['code'] == plan)
+                .toList();
+            final Json? displayPrice = matching.isNotEmpty
+                ? matching.first
+                : configured.isEmpty
+                    ? null
+                    : Json.from(configured.first);
+            final offer = matching.isEmpty ? null : matching.first;
+            return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: card([
+                  Row(children: [
+                    Expanded(
+                        child: text(plan == 'premium' ? 'Премиум' : 'Стандарт',
+                            size: 16, bold: true)),
+                    badge('Исполнитель')
+                  ]),
+                  const SizedBox(height: 16),
+                  Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Flexible(
+                            child: text(money(context, displayPrice),
+                                size: 30, bold: true)),
+                        const SizedBox(width: 6),
+                        text('/ 30 дней', color: muted)
+                      ]),
+                  const SizedBox(height: 8),
+                  text(
+                      offer == null
+                          ? (displayPrice == null
+                              ? 'Цена ещё не установлена'
+                              : 'Оплата пока не подключена')
+                          : 'Итоговая цена будет показана перед оплатой.',
+                      size: 10,
+                      color: muted),
+                  const Divider(height: 29, thickness: 1),
+                  benefit('Находите подходящие заказы'),
+                  benefit('Публикуйте услуги и откликайтесь'),
+                  benefit('Общайтесь по вашим заказам'),
+                  if (plan == 'premium')
+                    benefit('Приоритет услуг в Топ-100 на 30 дней'),
+                  const SizedBox(height: 6),
+                  action('Посмотреть условия', 'checkout', id: offer?['id']),
+                  const SizedBox(height: 12),
+                  text(
+                      'Автопродление можно отменить. Оплаченный срок сохраняется.',
+                      size: 10,
+                      color: muted),
+                ], selected: plan == 'premium'));
+          }),
         const SizedBox(height: 12),
         Material(
           color: Colors.white,

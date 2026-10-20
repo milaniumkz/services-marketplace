@@ -4,6 +4,7 @@ const root=resolve(__dirname,'..');
 const routes=[];
 
 const add=(method,path,access='user',schema)=>routes.push({method,path,access,schema});
+for(const method of ['GET','POST'])add(method,'/admin/subscription-plans','billing');
 for(const [method,path] of [['GET','/admin/access/me'],['GET','/admin/access/catalog'],['GET','/admin/access/roles'],['POST','/admin/access/roles'],['PATCH','/admin/access/roles/{id}'],['POST','/admin/access/roles/{id}/archive'],['GET','/admin/access/staff'],['PUT','/admin/access/staff/{id}/roles']])add(method,path,'staff');
 add('GET','/admin/category-tree','staff');add('GET','/admin/categories/{id}','staff');add('PATCH','/admin/categories/{id}','staff','VersionedCommand');
 add('GET','/admin/referral-campaigns/{id}','staff');add('PATCH','/admin/referral-campaigns/{id}','staff','VersionedCommand');

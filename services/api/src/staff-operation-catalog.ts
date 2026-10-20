@@ -1,5 +1,7 @@
 // Explicit reviewable API operation catalogue. No wildcards may be assigned.
 export const staffOperations=[
+  {id:'GET /admin/subscription-plans',method:'GET',path:'/admin/subscription-plans',block:'price-versions',label:'Просмотр цен Стандарта и Премиума'},
+  {id:'POST /admin/subscription-plans',method:'POST',path:'/admin/subscription-plans',block:'price-versions',label:'Изменять цены Стандарта и Премиума'},
   {
     "id": "GET /admin/category-tree",
     "method": "GET",
