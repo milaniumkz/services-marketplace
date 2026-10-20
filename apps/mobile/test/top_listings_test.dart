@@ -88,7 +88,11 @@ void main() {
         'new');
     await tester.tap(find.text('Все города'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Астана'));
+    await tester.enterText(find.byType(TextField), 'Аст');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Астана'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Выбрать Астана'));
     await tester.pumpAndSettle();
     expect(
         requests

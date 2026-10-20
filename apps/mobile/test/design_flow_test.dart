@@ -286,7 +286,9 @@ void main() {
     await tester.tap(find.text('Алматы, Казахстан'));
     await tester.pumpAndSettle();
     expect(find.text('Где искать?'), findsOneWidget);
-    await tester.tap(find.text('Астана'));
+    await tester.enterText(find.byType(TextField), 'Аст');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Астана'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Выбрать Астана'));
     await tester.pumpAndSettle();
