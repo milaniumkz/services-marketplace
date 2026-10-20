@@ -38,8 +38,8 @@ function clearStaffState(){
 const api=staffApi({getSession:()=>session,saveSession:value=>{session=value;}});
 const namedField=(label,name,type='text')=>field(label,'',type).replace('<input ','<input name="'+name+'" ').replace('<textarea ','<textarea name="'+name+'" ');
 if(!designMode) {
-  routes.login.body=()=>`<div class="login"><section class="loginbrand"><div class="brand"><img src="/assets/joba-logo-original.jpeg" alt="JOBA"><div><b>JOBA</b><small>CONTROL CENTER</small></div></div><div><div class="eyebrow" style="color:#92B5F5;margin-bottom:18px">СЕРВИС НАЧИНАЕТСЯ С ДОВЕРИЯ</div><h1>Все инструменты.<br>Одна рабочая среда.</h1><p>Операции, поддержка и безопасность маркетплейса услуг JOBA.</p></div><div class="tiny" style="color:#92A9CE">Только для уполномоченных сотрудников</div></section><section class="loginform"><span class="demobadge">СЛУЖЕБНЫЙ ВХОД</span><h1 style="margin-top:18px">Вход в панель</h1><p class="muted" style="margin-top:10px">Используйте служебную учетную запись. Доступ определяется ролью и страной.</p><form id="staff-login" class="stack">${namedField('Логин','phone')}${namedField('Пароль','password','password')}<div class="formfield"><label for="staff-country">Страна</label><select id="staff-country" name="country"><option>KZ</option><option>KG</option><option>RU</option><option>BY</option></select></div><button class="primary">Продолжить</button></form>${error?note(esc(error),'danger'):''}<div class="notice-slim" style="margin-top:20px">Войдите с логином и паролем администратора. Если для вашей учётной записи включён второй фактор, появится запрос кода.</div><p class="helptext" style="margin-top:32px">Возникли проблемы со входом? Обратитесь к ответственному за доступ в вашей организации.</p></section></div>`;
-  routes.mfa.body=()=>`<div style="max-width:440px;margin:65px auto">${card('Подтвердите доступ',`${note('Служебная сессия · '+esc(loginDraft?.phone)+' · страна '+esc(loginDraft?.country),'','shield')}<form id="staff-mfa" class="stack">${namedField('Код второго фактора','mfa_code')}<button class="primary">Продолжить</button></form>${error?note(esc(error),'danger'):''}<p class="helptext" style="margin-top:20px"><a href="#login">Вернуться ко входу</a></p>`)}</div>`;
+  delete routes.mfa;
+  routes.login.body=()=>`<div class="login"><section class="loginbrand"><div class="brand"><img src="/assets/joba-logo-original.jpeg" alt="JOBA"><div><b>JOBA</b><small>CONTROL CENTER</small></div></div><div><div class="eyebrow" style="color:#92B5F5;margin-bottom:18px">СЕРВИС НАЧИНАЕТСЯ С ДОВЕРИЯ</div><h1>Все инструменты.<br>Одна рабочая среда.</h1><p>Операции, поддержка и безопасность маркетплейса услуг JOBA.</p></div><div class="tiny" style="color:#92A9CE">Только для уполномоченных сотрудников</div></section><section class="loginform"><span class="demobadge">СЛУЖЕБНЫЙ ВХОД</span><h1 style="margin-top:18px">Вход в панель</h1><p class="muted" style="margin-top:10px">Используйте служебную учетную запись. Доступ определяется ролью и страной.</p><form id="staff-login" class="stack">${namedField('Логин','phone')}${namedField('Пароль','password','password')}<div class="formfield"><label for="staff-country">Страна</label><select id="staff-country" name="country"><option>KZ</option><option>KG</option><option>RU</option><option>BY</option></select></div><button class="primary">Продолжить</button></form>${error?note(esc(error),'danger'):''}<div class="notice-slim" style="margin-top:20px">Войдите с логином и паролем администратора. Доступ к разделам определяется вашей ролью.</div><p class="helptext" style="margin-top:32px">Возникли проблемы со входом? Обратитесь к ответственному за доступ в вашей организации.</p></section></div>`;
   routes.dashboard.body=()=>cache.dashboard?`<div class="grid cols4">${metric('Пользователи',cache.dashboard.users,'','В текущем регионе')}${metric('Заказы',cache.dashboard.orders,'','Все состояния')}${metric('Открытые обращения',cache.dashboard.support,'','Требуют внимания')}${metric('Страна',cache.dashboard.country,'','Служебная область')}</div>${note('Коммерческие launch gates не пройдены. Оплата и рекламные награды отключены.','warn')}`:note('Загрузка данных…');
   for(const [route,[endpoint,label]] of Object.entries(sections)) {
     if(!routes[route])routes[route]={key:route,id:route,title:label,section:label,actions:''};
@@ -85,12 +85,9 @@ function bind(key) {
 
   const login=document.getElementById('staff-login');if(login)login.onsubmit=async e=>{e.preventDefault();const button=login.querySelector('button');if(button.disabled)return;button.disabled=true;loginDraft=Object.fromEntries(new FormData(login));error='';
     try{session=await api('/auth/staff-login','POST',loginDraft);loginDraft=undefined;location.hash='dashboard';}
-    catch(failure){if(failure.code==='MFA_REQUIRED')location.hash='mfa';else{loginDraft=undefined;error=failure.message;render();}}
+    catch(failure){loginDraft=undefined;error=failure.message;draw(false);}
     finally{button.disabled=false;}
   };
-  const mfa=document.getElementById('staff-mfa');if(mfa)mfa.onsubmit=async e=>{e.preventDefault();const button=mfa.querySelector('button');button.disabled=true;
-    try{session=await api('/auth/staff-login','POST',{...loginDraft,...Object.fromEntries(new FormData(mfa))});loginDraft=undefined;error='';location.hash='dashboard';}
-    catch(e){error=e.message;draw(false);}finally{button.disabled=false;}};
   const form=document.getElementById('draft-config');if(form)form.onsubmit=async event=>{event.preventDefault();const values=Object.fromEntries(new FormData(form));formBusy(form,true);try{values.payload=JSON.parse(values.payload||'{}');await api('/admin/'+sections[key][0],'POST',values);await draw();}catch(failure){formError(form,failure);}finally{formBusy(form,false);}};
   const evidence=document.getElementById('case-appeal-evidence');if(evidence){const viewGeneration=generation,viewer=session.user.id,country=session.user.country;evidence.onsubmit=async e=>{
     e.preventDefault();const values=Object.fromEntries(new FormData(evidence));formBusy(evidence,true);try{
@@ -109,7 +106,7 @@ async function draw(reload=true) {
   disposeWorkspace?.();disposeWorkspace=undefined;
   clearStaffDialogs();
   const key=location.hash.slice(1).split('?')[0]||'dashboard',g=++generation;
-  if(!session&&key!=='login'&&!(key==='mfa'&&loginDraft)){location.hash='login';return;}
+  if(!session&&key!=='login'){location.hash='login';return;}
   if(key==='login')loginDraft=undefined;
   const request=async(...args)=>{if(g!==generation)throw Error('Экран изменился');const data=await api(...args);if(g!==generation)throw Error('Экран изменился');return data;};
   try {

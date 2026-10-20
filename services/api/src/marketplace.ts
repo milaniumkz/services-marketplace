@@ -33,7 +33,6 @@ import { HttpException } from '@nestjs/common';
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { hash, verify } from '@node-rs/argon2';
 import { RecordData, Store } from './store';
-import { verifyTotp } from './totp';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
 import { Providers } from './providers';
 import { Commerce } from './commerce';
@@ -269,13 +268,9 @@ export class Marketplace {
       const u=await this.store.get(c.user_id);if(!u || u.status==='deleted')fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       if(path==='/auth/staff-login') {
         const effective=await resolveStaffUser(this.store,u!);
-        // Password-only staff access must be explicitly provisioned offline by the owner.
-        if(effective.staff_permissions?.length&&u!.staff_auth_mode==='password'&&(effective.staff_access_mode!=='managed'||effective.staff_grants?.length))return this.tokens(effective,randomUUID(),true,ip);
-        if(effective.staff_permissions?.length&&!b.mfa_code)fail(401,'MFA_REQUIRED','Введите код второго фактора');
-        const secret=u!.totp_secret_sealed?await this.files.unsealSecret(u!.totp_secret_sealed,u!.id):process.env.NODE_ENV==='production'?undefined:u!.totp_secret;
-        if(!effective.staff_permissions?.length||(effective.staff_access_mode==='managed'&&!effective.staff_grants?.length)||!secret||!verifyTotp(secret,String(b.mfa_code)))fail(401,'INVALID_CREDENTIALS','Неверные служебные данные или второй фактор');
-        if(u!.last_totp_step===Math.floor(Date.now()/30000)||u!.last_totp_code_hash===digest(String(b.mfa_code)))fail(401,'MFA_REPLAY','Код уже использован');
-        await this.store.put({...u!,last_totp_step:Math.floor(Date.now()/30000),last_totp_code_hash:digest(String(b.mfa_code)),version:u!.version+1});
+        // The owner explicitly selected username/password staff authentication.
+        // Retain the separate privileged session marker and role enforcement.
+        if(u!.status!=='active'||!effective.staff_permissions?.length||(effective.staff_access_mode==='managed'&&!effective.staff_grants?.length))fail(401,'INVALID_CREDENTIALS','Неверный логин или пароль');
         return this.tokens(effective,randomUUID(),true,ip);
       }
       if(u!.staff_permissions?.length)fail(401,'INVALID_CREDENTIALS','Используйте отдельный служебный вход');

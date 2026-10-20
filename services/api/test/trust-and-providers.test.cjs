@@ -16,20 +16,20 @@ const account=(api,phone='+77000000101')=>api.handle('POST','/auth/register',{co
 const command=(api,u,method,path,body={},key=randomUUID(),q={})=>api.handle(method,path,body,'Bearer '+u.access_token,key,q);
 const rejection=(fn,code)=>assert.rejects(fn,e=>e.getResponse().error.code===code);
 
-test('staff MFA is mandatory and audit is append-only',async()=>{
+test('staff password authentication retains separate privileges and append-only audit',async()=>{
   const api=new Marketplace(new Store('memory://'));await api.initialize();
   try {
     const u=await account(api),user=await api.store.get(u.user.id),secret=randomBytes(20).toString('hex');
     await api.store.put({...user,staff_permissions:['administrator','auditor'],totp_secret:secret});
     await rejection(()=>command(api,u,'GET','/admin/users'),'FORBIDDEN');
-    await rejection(()=>api.handle('POST','/auth/staff-login',{country:'KZ',phone:user.phone,password:'a sufficiently long password',mfa_code:'000000'},undefined,undefined,{},'staff'),'INVALID_CREDENTIALS');
+    await rejection(()=>api.handle('POST','/auth/staff-login',{country:'KZ',phone:user.phone,password:'incorrect password'},undefined,undefined,{},'staff'),'INVALID_CREDENTIALS');
     const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:user.phone,password:'a sufficiently long password',mfa_code:totp(secret)},undefined,undefined,{},'staff');
     const ordinary=await account(api,'+77000000102');
     const visibleUsers=(await command(api,staff,'GET','/admin/users')).items;assert.equal(visibleUsers.length,1);assert.equal(visibleUsers[0].id,ordinary.user.id);
     const d=await command(api,staff,'POST','/admin/categories',{title:'Категория услуг',payload:{labels:{ru:'Категория услуг',kk:'Қызметтер санаты'},icon:'briefcase'},reason:'Настройка рабочего каталога'});
     const audits=await api.store.all('audit','KZ');assert.equal(audits.length,1);
     await assert.rejects(()=>api.store.put({...audits[0],reason:'Переписать историю'}),/append-only/);
-    await rejection(()=>api.handle('POST','/auth/staff-login',{country:'KZ',phone:user.phone,password:'a sufficiently long password',mfa_code:totp(secret)},undefined,undefined,{},'staff'),'MFA_REPLAY');
+    const again=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:user.phone,password:'a sufficiently long password'},undefined,undefined,{},'staff');assert.ok(again.access_token);
     assert.equal(d.status,'draft');
   } finally {await api.store.close();}
 });

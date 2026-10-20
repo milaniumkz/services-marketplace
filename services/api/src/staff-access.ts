@@ -38,7 +38,7 @@ export function assertStaffOperation(u:RecordData,mfa:boolean,method:string,path
 const fail=(code:string,message:string,status=422):never=>{throw new HttpException({error:{code,message,retryable:false}},status);};
 export async function staffAccess(store:Store,a:{id:string,country:string,user:RecordData,mfa:boolean},method:string,path:string,b:any){
  if(!path.startsWith('/admin/access/'))return;
- if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.length)deny('Нужен служебный вход с MFA');
+ if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.length)deny('Нужен служебный вход');
  if(path==='/admin/access/me'&&method==='GET')return {is_owner:isStaffOwner(a.user),managed:a.user.staff_access_mode==='managed',grants:a.user.staff_grants??[],role_names:a.user.staff_role_names??[],permissions:a.user.staff_permissions};
  if(!isStaffOwner(a.user))deny('Управление ролями доступно только владельцу');
  if(method!=='GET')await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['staff-access:'+a.country]);
@@ -58,8 +58,7 @@ export async function staffAccess(store:Store,a:{id:string,country:string,user:R
  }
  if(assignment&&method==='PUT'){
   const target=await store.get(assignment[1]);if(!target||target.kind!=='user'||target.country!==a.country||!target.staff_permissions?.length)fail('NOT_FOUND','Служебная учётная запись не найдена',404);
-  if(!target!.totp_secret_sealed&&(process.env.NODE_ENV==='production'||!target!.totp_secret))fail('MFA_REQUIRED','Сначала подключите служебную учётную запись и MFA');
-  if(isStaffOwner(target!))deny('Права владельца изменяются только отдельной процедурой');if(b.expected_version!==target!.version)fail('STATE_CONFLICT','Сотрудник изменён. Обновите данные',409);
+   if(isStaffOwner(target!))deny('Права владельца изменяются только отдельной процедурой');if(b.expected_version!==target!.version)fail('STATE_CONFLICT','Сотрудник изменён. Обновите данные',409);
   if(!Array.isArray(b.role_ids)||b.role_ids.length>20||b.role_ids.some((id:any)=>typeof id!=='string'))fail('VALIDATION_ERROR','Проверьте назначенные роли');
   const roles=await store.all('staff_role',a.country);if(b.role_ids.some((id:string)=>!roles.some(r=>r.id===id&&r.status==='active')))fail('VALIDATION_ERROR','Выберите действующие роли этой страны');
   await audit('staff.roles_assigned',target!.id,{before:{role_ids:target!.staff_role_ids??[],legacy_permissions:target!.staff_permissions},after:{role_ids:[...new Set(b.role_ids)]}});await store.put({...target!,staff_permissions:['dynamic_staff'],staff_access_mode:'managed',staff_role_ids:[...new Set(b.role_ids)],version:target!.version+1});

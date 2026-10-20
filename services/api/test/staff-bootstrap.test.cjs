@@ -22,7 +22,7 @@ test('offline staff enrollment stores sealed MFA and preserves separate business
   await assert.rejects(()=>api.files.unsealSecret(user.totp_secret_sealed,randomUUID()));
   const body={country:'KZ',phone:input.identifier,password:input.password};
   await assert.rejects(()=>api.handle('POST','/auth/login',body,undefined,undefined,{},'staff-normal-login'),error=>error.getStatus()===401);
-  await assert.rejects(()=>api.handle('POST','/auth/staff-login',{...body,mfa_code:'invalid'},undefined,undefined,{},'staff-bad-mfa'),error=>error.getStatus()===401);
+  await assert.rejects(()=>api.handle('POST','/auth/staff-login',{...body,password:'incorrect'},undefined,undefined,{},'staff-bad-password'),error=>error.getStatus()===401);
   const session=await api.handle('POST','/auth/staff-login',{...body,mfa_code:totp(secret)},undefined,undefined,{},'staff-correct-mfa');
   const auth='Bearer '+session.access_token;
   assert.equal((await api.handle('GET','/admin/dashboard',{},auth)).users,0);
@@ -45,6 +45,8 @@ test('explicit offline password staff login retains permission and account separ
   const session=await api.handle('POST','/auth/staff-login',body,undefined,undefined,{},'owner-login');
   const access=await api.handle('GET','/admin/access/me',{},'Bearer '+session.access_token);
   assert.equal(access.is_owner,true);
+  const user=await api.store.get(session.user.id);await api.store.put({...user,status:'blocked',version:user.version+1});
+  await assert.rejects(()=>api.handle('POST','/auth/staff-login',body,undefined,undefined,{},'blocked-owner'),e=>e.getStatus()===401);
   await assert.rejects(()=>api.handle('POST','/auth/staff-login',{...body,country:'RU'},undefined,undefined,{},'wrong-region'),e=>e.getStatus()===401);
  }finally{await api.store.close();}
 });
