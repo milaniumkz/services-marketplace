@@ -10,12 +10,12 @@
   "welcome_continue_opens_login": true,
   "admin_login_available": true,
   "public_site_available": true,
-  "first_render_ms": 5906,
+  "first_render_ms": 4006,
   "errors": [],
-  "verified_at": "2026-10-20T10:06:48.757736+00:00",
-  "server_source_commit": "6e3e92fa1bdc90adb76183a00932999c0a72d4fb",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39404482833",
-  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39405425162",
+  "verified_at": "2026-10-20T13:03:10.686842+00:00",
+  "server_source_commit": "a0c54221abe41a3057d3b764fef082487506134b",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39425643063",
+  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39426990786",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
   "external_payment_ads_firebase": "not_connected",
@@ -83,11 +83,35 @@
     }
   },
   "testing_apk": {
-    "source_commit": "37699b89e951957f712d7e576244a43999ae15e0",
-    "url": "https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-37699b8/JOBA-testing-arm64-debug.apk",
-    "sha256": "d534ea202c357aab27807c95ec7f33f7fb6e96967c159d76b83335bae71129fe",
+    "source_commit": "a0c54221abe41a3057d3b764fef082487506134b",
+    "url": "https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-a0c5422/JOBA-testing-arm64-debug.apk",
+    "sha256": "b94737336d81e0ef249286195f21ea0fdeef2739aa57489961851ca11e48e3a2",
     "public_download_verified": true,
     "signature_verified": true,
-    "update_signature_matches_previous": true
+    "update_signature_matches_previous": true,
+    "password_min": 6
+  },
+  "password_policy": {
+    "minimum": 6,
+    "maximum": 128,
+    "live_countries": {
+      "KZ": {
+        "password_min": 6,
+        "password_max": 128
+      },
+      "KG": {
+        "password_min": 6,
+        "password_max": 128
+      },
+      "RU": {
+        "password_min": 6,
+        "password_max": 128
+      },
+      "BY": {
+        "password_min": 6,
+        "password_max": 128
+      }
+    },
+    "owner_migration_once_verified": true
   }
 }

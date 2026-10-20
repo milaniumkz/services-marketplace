@@ -6,26 +6,28 @@
 
 Тестовая Android-сборка собирается скриптом `bash scripts/build-testing-apk.sh`, с release-оптимизацией и Android test/debug-подписью. Она не предназначена для публикации в магазине. Конечные файлы и build manifest помещаются в игнорируемый `release/testing/<commit>/`; приватные ключи не публикуются.
 
-Обновление сервера запускается только по отдельной deploy-ветке. Рабочий HTTPS-адрес: https://joba.com.kz/ . Наличие ответа /health не доказывает, что новый commit уже развёрнут. Результат текущего обновления: https://github.com/milaniumkz/services-marketplace/actions/runs/39404482833 .
+Обновление сервера запускается только по отдельной deploy-ветке. Рабочий HTTPS-адрес: https://joba.com.kz/ . Наличие ответа /health не доказывает, что новый commit уже развёрнут. Результат текущего обновления: https://github.com/milaniumkz/services-marketplace/actions/runs/39425643063 .
 
-20.10.2026: сервер обновлён до `6e3e92f`, HTTPS joba.com.kz и браузерные переходы проверены. Реальный вход владельца и сохранение базовых цен Стандарта/Премиума через админку проверены. Внешние платёжные/рекламные/push-провайдеры ещё не подключены.
+20.10.2026: сервер обновлён до `a0c5422`, HTTPS joba.com.kz и браузерные переходы проверены. Реальный вход владельца и сохранение базовых цен Стандарта/Премиума через админку проверены. Внешние платёжные/рекламные/push-провайдеры ещё не подключены.
 
 
 ## Готовые файлы для тестирования
 
-- [APK: Android 7.0+, ARM64, debug](https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-37699b8/JOBA-testing-arm64-debug.apk)
+- [APK: Android 7.0+, ARM64, debug](https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-a0c5422/JOBA-testing-arm64-debug.apk)
 - [PDF-инструкция, 10 страниц](https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-375e587/JOBA-advertising-owner-guide.ru.pdf)
-- [Установка, SHA-256 и build manifest](https://github.com/milaniumkz/services-marketplace/tree/testing/android-37699b8)
+- [Установка, SHA-256 и build manifest](https://github.com/milaniumkz/services-marketplace/tree/testing/android-a0c5422)
 - [Архив предыдущей тестовой версии](https://github.com/milaniumkz/services-marketplace/releases/tag/testing-2026-10-19-375e587)
 
-APK: 82 190 372 байт (около 79 МиБ), SHA-256 `d534ea202c357aab27807c95ec7f33f7fb6e96967c159d76b83335bae71129fe`. Источник мобильного приложения — `37699b8`. Проверены подпись, zip alignment 16 KiB, package `kz.joba.services_marketplace`, единственная ABI arm64-v8a, Android API 24+, INTERNET и HTTPS URL внутри kernel blob. Публичное скачивание вернуло 200, SHA-256 повторно совпал. APK не запускалась на физическом устройстве.
+APK: 82 190 372 байт (около 79 МиБ), SHA-256 `b94737336d81e0ef249286195f21ea0fdeef2739aa57489961851ca11e48e3a2`. Источник мобильного приложения — `a0c5422`. Проверены подпись, zip alignment 16 KiB, package `kz.joba.services_marketplace`, единственная ABI arm64-v8a, Android API 24+, INTERNET и HTTPS URL внутри kernel blob. Публичное скачивание вернуло 200, SHA-256 повторно совпал. APK не запускалась на физическом устройстве.
 
 Успешно собрана универсальная debug-APK; для передачи из неё удалены неиспользуемые ABI, после чего файл выровнен и заново подписан тем же Android test-ключом. Подготовка оптимизированной release-APK остановлена на длительной стадии R8; она не объявляется собранной. Выданная debug-APK предназначена для функционального теста, не измерения производительности.
 
-Прямая загрузка Release assets из этой интеграции вернула 401 на uploads.github.com; APK опубликована отдельной Git-веткой testing/android-37699b8, чтобы не включать бинарник в основную ветку исходников. Страница Release содержит рабочие прямые ссылки. Ни пароль сервера, ни приватные ключи в Git не помещались.
+Прямая загрузка Release assets из этой интеграции вернула 401 на uploads.github.com; APK опубликована отдельной Git-веткой testing/android-a0c5422, чтобы не включать бинарник в основную ветку исходников. Страница Release содержит рабочие прямые ссылки. Ни пароль сервера, ни приватные ключи в Git не помещались.
 
 Backend обновлён: Кыргызстан активен. В PostgreSQL загружено 5915 населённых пунктов четырёх стран и по 933 категории на страну; выдача реального API и дерево админки проверены. В новом APK города выбираются через область/регион, категории — от основных разделов к подкатегориям и специализациям. Поиск работает по всем серверным записям текущей страны и показывает регион/путь категории. Строятся только видимые строки; новые справочные данные не требуют пересборки APK.
 
 ## Инструкция администратору
 
 `JOBA-admin-manual.template.ru.md` — исходник подробной инструкции с 37 разделами. Логин и пароль в публичном исходнике заменены плейсхолдерами. Персональная PDF/Word-версия с реальными данными входа передаётся владельцу отдельными файлами и не публикуется в GitHub. Основной адрес панели: https://joba.com.kz/admin/ .
+
+В текущем APK минимум нового пароля — 6 символов (максимум 128). Изменены регистрация и смена пароля; для обновления клиентской проверки требуется установка нового APK.
