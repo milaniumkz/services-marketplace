@@ -33,7 +33,7 @@ bash scripts/flutter-mobile.sh run --dart-define=JOBA_API_URL=http://10.0.2.2:30
 
 PIN 6–8 цифр, PBKDF2-HMAC-SHA256 100000 итераций и случайная соль; вычисление вынесено из UI isolate. Счётчик сохраняется до проверки PIN; после пяти неверных попыток нужен полный вход. Повторное открытие и возвращение после 60 секунд в фоне требуют разблокировки.
 
-Android проверяет hardware-backed Keystore; системная биометрия использует `BiometricPrompt` с CryptoObject и ключом, инвалидируемым при изменении enrollment. На Android 23 доступен PIN при аппаратной защите, биометрический сценарий требует Android 24+. iOS использует Secure Enclave, Keychain `WhenPasscodeSetThisDeviceOnly` для локального замка и `biometryCurrentSet`. Отказ или отсутствие безопасного механизма оставляет вход по номеру и паролю. Это не заменяет серверную проверку личности.
+Android проверяет доступность Android Keystore; аппаратная защита используется, если доступна; системная биометрия использует `BiometricPrompt` с CryptoObject и ключом, инвалидируемым при изменении enrollment. На Android 23 доступен PIN при работоспособном защищённом хранилище, биометрический сценарий требует Android 24+. iOS использует Secure Enclave, Keychain `WhenPasscodeSetThisDeviceOnly` для локального замка и `biometryCurrentSet`. Отказ или отсутствие безопасного механизма оставляет вход по номеру и паролю. Это не заменяет серверную проверку личности.
 
 Проверка KDF, лимита попыток и изменения enrollment в Flutter-тестах использует изолированные platform doubles. Работа физических датчиков, passcode/enrollment changes и iOS Keychain на реальном устройстве этими тестами не подтверждена.
 
