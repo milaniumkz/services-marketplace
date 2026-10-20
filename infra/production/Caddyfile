@@ -1,4 +1,4 @@
-{$JOBA_DOMAIN} {
+{$JOBA_DOMAIN}, joba.com.kz {
   encode zstd gzip
   header {
     X-Content-Type-Options nosniff

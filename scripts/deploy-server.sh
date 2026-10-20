@@ -10,8 +10,9 @@ joba_expected_ip="${4:-188.241.217.228}"
 [[ "$EUID" == 0 ]] || { echo 'Initial server provisioning requires root' >&2; exit 1; }
 python3 - "$joba_domain" "$joba_expected_ip" <<'PYDNS'
 import socket,sys
-addresses={x[4][0] for x in socket.getaddrinfo(sys.argv[1],443,type=socket.SOCK_STREAM)}
-assert sys.argv[2] in addresses, 'Public DNS must point to the supplied server before certificate issuance'
+for domain in {sys.argv[1],'joba.com.kz'}:
+    addresses={x[4][0] for x in socket.getaddrinfo(domain,443,type=socket.SOCK_STREAM)}
+    assert sys.argv[2] in addresses, 'Public DNS must point to the supplied server before certificate issuance'
 PYDNS
 exec 9>/var/lock/joba-deployment.lock
 flock -n 9 || { echo 'Another deployment is running' >&2; exit 75; }
@@ -121,5 +122,7 @@ PYCOMMERCE
 curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors --max-time 15 "https://$joba_domain/health"
 curl --fail --silent --show-error --max-time 15 "https://$joba_domain/" -o /dev/null
 curl --fail --silent --show-error --max-time 15 "https://$joba_domain/admin/" -o /dev/null
+curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors --max-time 15 https://joba.com.kz/health
+curl --fail --silent --show-error --max-time 15 https://joba.com.kz/admin/ -o /dev/null
 ln -sfn "$joba_release/source" /opt/joba/current
 printf '\nVerified deployment: https://%s/ commit %s\n' "$joba_domain" "$joba_commit"

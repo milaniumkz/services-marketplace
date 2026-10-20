@@ -23,7 +23,7 @@ jobs:
       - run: node scripts/verify-live-web.cjs
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          JOBA_LIVE_URL: https://188-241-217-228.sslip.io
+          JOBA_LIVE_URL: https://joba.com.kz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -533,8 +533,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                               ? Icons.radio_button_checked
                               : Icons.radio_button_unchecked,
                           color: primary),
-                      title:
-                          Text(r['plan'] == 'premium' ? 'Премиум' : 'Стандарт'),
+                      title: Text(r['plan'] == null
+                          ? '${r['title'] ?? r['product_id']}'
+                          : r['plan'] == 'premium'
+                              ? 'Премиум'
+                              : 'Стандарт'),
                       subtitle: Text(
                           '${money(r)} · ${r['duration_days'] == 30 ? '30 дней' : r['period'] ?? ''}')),
               if (offer == null)
@@ -548,8 +551,12 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                         borderRadius: BorderRadius.circular(16)),
                     child: Column(children: [
                       checkoutFact('Полный доступ', 'Исполнитель'),
-                      checkoutFact('Тариф',
-                          offer['plan'] == 'premium' ? 'Премиум' : 'Стандарт'),
+                      if (offer['plan'] != null)
+                        checkoutFact(
+                            'Тариф',
+                            offer['plan'] == 'premium'
+                                ? 'Премиум'
+                                : 'Стандарт'),
                       checkoutFact(
                           'Период',
                           offer['duration_days'] == 30

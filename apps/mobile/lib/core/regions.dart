@@ -16,17 +16,16 @@ class RegionGateway {
             ((country, endpoint) => JobaApi(endpoint,
                 vault: SecureSessionVault('joba.session.$country.$endpoint')));
   factory RegionGateway.environment() {
-    const shared = String.fromEnvironment('JOBA_API_URL',
+    const configured = String.fromEnvironment('JOBA_API_URL',
         defaultValue: kReleaseMode ? '' : 'http://localhost:3000');
+    const sameOrigin = bool.fromEnvironment('JOBA_WEB_SAME_ORIGIN');
+    final shared = kIsWeb && sameOrigin ? Uri.base.origin : configured;
+    String endpoint(String value) => value.isEmpty ? shared : value;
     return RegionGateway({
-      'KZ':
-          const String.fromEnvironment('JOBA_KZ_API_URL', defaultValue: shared),
-      'KG': const String.fromEnvironment('JOBA_KG_API_URL',
-          defaultValue: shared),
-      'RU': const String.fromEnvironment('JOBA_RU_API_URL',
-          defaultValue: shared),
-      'BY': const String.fromEnvironment('JOBA_BY_API_URL',
-          defaultValue: shared),
+      'KZ': endpoint(const String.fromEnvironment('JOBA_KZ_API_URL')),
+      'KG': endpoint(const String.fromEnvironment('JOBA_KG_API_URL')),
+      'RU': endpoint(const String.fromEnvironment('JOBA_RU_API_URL')),
+      'BY': endpoint(const String.fromEnvironment('JOBA_BY_API_URL')),
     });
   }
   JobaApi create(String country) {
