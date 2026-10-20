@@ -62,3 +62,8 @@
   .topbar .search[role=button] span,.topbar .search[role=button] kbd{display:none}
   input[type=checkbox],input[type=radio],.tablecheckbox{width:24px;height:24px}
 }
+@media(max-width:850px){
+  button,button.small,.btn,.price-primary{min-width:44px}
+  .workspace .formfield input:not([type=checkbox]):not([type=radio]),
+  .workspace .formfield select,.workspace .formfield textarea{font-size:16px;min-height:44px}
+}
