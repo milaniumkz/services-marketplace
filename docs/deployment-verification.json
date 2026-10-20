@@ -1,0 +1,143 @@
+{
+  "url": "https://joba.com.kz",
+  "https_certificate_verified": true,
+  "production_database_ready": true,
+  "customer_access_free": true,
+  "subscription_scope": "executor",
+  "published_kz_legal_documents": true,
+  "public_legal_reader_available": true,
+  "retired_flutter_worker_not_registered": true,
+  "welcome_continue_opens_login": true,
+  "admin_login_available": true,
+  "public_site_available": true,
+  "first_render_ms": 13419,
+  "errors": [],
+  "verified_at": "2026-10-20T15:13:03.335293+00:00",
+  "server_source_commit": "0e0c4766ebd7185a904856fe3db5b3d276e3924f",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39443902686",
+  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39445834159",
+  "browser_verification_attempt": 1,
+  "visual_acceptance": "pending",
+  "external_payment_ads_firebase": "not_connected",
+  "operator_legal_details": "blank_by_owner_instruction",
+  "legal_review": "not_performed",
+  "infrastructure_localization": "not_confirmed",
+  "country_kg_visible": true,
+  "versioned_main_js": true,
+  "staff_authentication": "username_password",
+  "owner_password_login_verified": true,
+  "owner_roles_page_verified": true,
+  "domain": "joba.com.kz",
+  "http_redirects_to_https": true,
+  "subscription_plans": {
+    "standard": {
+      "duration_days": 30,
+      "default_amount_minor": 100000
+    },
+    "premium": {
+      "duration_days": 30,
+      "default_amount_minor": 150000,
+      "top100": true
+    }
+  },
+  "admin_plan_price_save_verified": true,
+  "reference_catalog_verified_at": "2026-10-20T09:38:32.872007+00:00",
+  "reference_catalog": {
+    "KZ": {
+      "cities": 351,
+      "categories": 933,
+      "root_categories": 31,
+      "city_response_ms": 1607
+    },
+    "KG": {
+      "cities": 107,
+      "categories": 933,
+      "root_categories": 31,
+      "city_response_ms": 1051
+    },
+    "RU": {
+      "cities": 5143,
+      "categories": 933,
+      "root_categories": 31,
+      "city_response_ms": 2342
+    },
+    "BY": {
+      "cities": 314,
+      "categories": 933,
+      "root_categories": 31,
+      "city_response_ms": 1064
+    }
+  },
+  "frontend_revision_verified": true,
+  "reference_navigation": {
+    "region_then_city": true,
+    "root_then_subcategories": true,
+    "global_city_and_category_search": true,
+    "flutter_tests_passed": 218,
+    "flutter_tests_skipped": 2,
+    "api_city_counts": {
+      "KZ": 351,
+      "KG": 107,
+      "RU": 5143,
+      "BY": 314
+    }
+  },
+  "testing_apk": {
+    "source_commit": "a0c54221abe41a3057d3b764fef082487506134b",
+    "url": "https://raw.githubusercontent.com/milaniumkz/services-marketplace/refs/heads/testing/android-a0c5422/JOBA-testing-arm64-debug.apk",
+    "sha256": "b94737336d81e0ef249286195f21ea0fdeef2739aa57489961851ca11e48e3a2",
+    "public_download_verified": true,
+    "signature_verified": true,
+    "update_signature_matches_previous": true,
+    "password_min": 6
+  },
+  "password_policy": {
+    "minimum": 6,
+    "maximum": 128,
+    "live_countries": {
+      "KZ": {
+        "password_min": 6,
+        "password_max": 128
+      },
+      "KG": {
+        "password_min": 6,
+        "password_max": 128
+      },
+      "RU": {
+        "password_min": 6,
+        "password_max": 128
+      },
+      "BY": {
+        "password_min": 6,
+        "password_max": 128
+      }
+    },
+    "owner_migration_once_verified": true
+  },
+  "admin_mobile_login_verified": true,
+  "admin_mobile_page_viewport_combinations": 40,
+  "flutter_tests": {
+    "passed": 222,
+    "skipped": 2
+  },
+  "mobile_analysis_issues": 0,
+  "admin_account_management": {
+    "controls_published": true,
+    "block_unblock_delete_api_tests": "passed_in_isolated_database",
+    "audited_full_ip_control_published": true
+  },
+  "server_monitoring": {
+    "owner_access_verified": true,
+    "automatic_refresh_verified": true,
+    "owner_only_not_assignable": true,
+    "source": "host",
+    "refresh_seconds": 20,
+    "history_limit_minutes": 60,
+    "logical_cpu_cores": 2,
+    "memory_total_bytes": 4106297344,
+    "disk_total_bytes": 102888095744
+  },
+  "pin_and_session_tests": "passed",
+  "job_search_tests": "passed",
+  "android_artifact_this_iteration": "not_published_per_owner_instruction"
+}

@@ -1,0 +1,52 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {randomUUID,randomBytes}=require('node:crypto');
+const {Marketplace}=require('../dist/marketplace');
+const {Store}=require('../dist/store');
+const {totp}=require('../dist/totp');
+
+test('staff account tabs scope relations, mask security metadata and page immutable decisions chronologically',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ const password='Isolated staff account password!';
+ const call=(session,method,path,body={},query={})=>api.handle(method,path,body,session?'Bearer '+session.access_token:undefined,randomUUID(),query,'staff-account-test');
+ const register=phone=>call(null,'POST','/auth/register',{country:'KZ',phone,password});
+ try{
+  const owner=await register('+77000000801'),other=await register('+77000000802'),operator=await register('+77000000803');
+  const secret=randomBytes(20).toString('hex'),account=await api.store.get(operator.user.id);
+  await api.store.put({...account,staff_permissions:['administrator'],totp_secret:secret});
+  const staff=await call(null,'POST','/auth/staff-login',{country:'KZ',phone:account.phone,password,mfa_code:totp(secret)});
+  const put=(kind,data={},country='KZ',actor=owner.user.id)=>api.store.put({id:randomUUID(),kind,owner:actor,country,version:1,created_at:new Date().toISOString(),...data});
+  const get=(relation,query={},user=owner.user.id)=>call(staff,'GET','/admin/users/'+user+'/'+relation,{},query);
+  const ownOrder=await put('order',{title:'Заказ владельца',status:'open',exact_address:'Private address',upload_ids:['private-file']});
+  const assigned=await put('order',{title:'Работа исполнителя',status:'completed',executor_id:owner.user.id},'KZ',other.user.id);
+  await put('order',{title:'Другой заказ',status:'open'},'KZ',other.user.id);
+  await put('order',{title:'Другая страна',status:'open'},'KG');
+  const first=await get('orders',{limit:1});assert.equal(first.items.length,1);assert.ok(first.meta.next_cursor);
+  const second=await get('orders',{limit:1,cursor:first.meta.next_cursor});
+  assert.deepEqual(new Set([...first.items,...second.items].map(r=>r.id)),new Set([ownOrder.id,assigned.id]));
+  assert.equal(second.meta.next_cursor,null);assert.equal(first.items[0].exact_address,undefined);assert.equal(first.items[0].upload_ids,undefined);
+  await assert.rejects(()=>get('orders',{limit:1,cursor:first.meta.next_cursor},other.user.id),e=>e.getResponse().error.code==='VALIDATION_ERROR');
+  const ownCase=await put('case',{status:'open',reporter_private:true,description:'Private report text',evidence:['secret']});
+  await put('case',{status:'open',subject_user_id:owner.user.id,reporter_private:true},'KZ',other.user.id);
+  const cases=await get('cases');assert.equal(cases.items.length,1);assert.equal(cases.items[0].id,ownCase.id);assert.equal(cases.items[0].description,undefined);assert.equal(cases.items[0].evidence,undefined);
+  const support=await put('support',{subject:'Вопрос владельца',status:'open',internal_notes:'private'});
+  await put('support',{subject:'Другой пользователь',status:'open'},'KZ',other.user.id);
+  assert.deepEqual((await get('support-threads')).items.map(r=>r.id),[support.id]);assert.equal((await get('support-threads')).items[0].internal_notes,undefined);
+  const verification=await put('verification',{status:'passed'});
+  const older=await put('audit',{target_id:owner.user.id,actor_id:operator.user.id,action:'user.checked',reason:'Older decision',created_at:'2026-01-01T00:00:00.000Z'},'KZ',operator.user.id);
+  const newer=await put('audit',{target_id:verification.id,actor_id:operator.user.id,action:'verification.decided',reason:'Newer decision',created_at:'2026-01-02T00:00:00.000Z'},'KZ',operator.user.id);
+  await put('audit',{target_id:other.user.id,action:'unrelated',reason:'Other account'},'KZ',operator.user.id);
+  await put('audit',{target_id:owner.user.id,action:'foreign',reason:'Other country'},'KG',operator.user.id);
+  const history=await get('decisions',{limit:1});assert.equal(history.items[0].id,newer.id);
+  const history2=await get('decisions',{limit:1,cursor:history.meta.next_cursor});assert.equal(history2.items[0].id,older.id);assert.equal(history2.meta.next_cursor,null);
+  const foreign=await put('user',{status:'active'},'KG');await assert.rejects(()=>get('orders',{},foreign.id),e=>e.getStatus()===404);
+  await assert.rejects(()=>call(owner,'GET','/admin/users/'+owner.user.id+'/orders'),e=>e.getStatus()===403);
+  await put('security_event',{event:'test.login',ip:'192.0.2.42',session_family:'private-session-id'});
+  await assert.rejects(()=>get('security-events'),e=>e.getStatus()===400);
+  await assert.rejects(()=>get('security-events',{reason:'             '}),e=>e.getStatus()===400);
+  await assert.rejects(()=>call(staff,'GET','/admin/users/'+owner.user.id,{}, {include_phone:'true',reason:'             '}),e=>e.getStatus()===400);
+  const events=await get('security-events',{reason:'Investigation of account access'});
+  const event=events.items.find(r=>r.event==='test.login');assert.equal(event.ip_summary,'192.0.*.*');assert.equal(event.ip,undefined);assert.equal(event.session_family,undefined);
+  assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='security.events_read'&&r.target_id===owner.user.id));
+ }finally{await api.store.close();}
+});
