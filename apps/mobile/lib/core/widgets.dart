@@ -9,6 +9,7 @@ import 'api.dart';
 import 'theme.dart';
 import 'design_icons.dart';
 import 'resource_picker.dart';
+import 'reference_picker.dart';
 
 class ApiView extends StatefulWidget {
   final Future<dynamic> Function() load;
@@ -217,6 +218,8 @@ class InputSpec {
   final IconData? prefixIcon;
   final String? originalIcon;
   final Map<String, String>? options;
+  final List<Json>? referenceItems;
+  final bool cityReference;
   final JobaApi? pickerApi;
   final String? pickerPath;
   final Json pickerQuery;
@@ -239,6 +242,8 @@ class InputSpec {
     this.required = true,
     this.translateOptions = true,
     this.options,
+    this.referenceItems,
+    this.cityReference = false,
     this.pickerApi,
     this.pickerPath,
     this.pickerQuery = const {},
@@ -425,7 +430,7 @@ class _ActionFormState extends State<ActionForm> {
                   ),
                 ),
               ),
-              if (field.pickerPath != null)
+              if (field.pickerPath != null || field.referenceItems != null)
                 FormField<String>(
                   initialValue: controllers[field.key]!.text,
                   validator: (value) => field.required && (value ?? '').isEmpty
@@ -435,7 +440,9 @@ class _ActionFormState extends State<ActionForm> {
                     onTap: disabled
                         ? null
                         : () async {
-                            final result = await pickResource(
+                            final result = field.referenceItems != null
+                                ? await pickReference(context, field.referenceItems!, cities: field.cityReference, initial: controllers[field.key]!.text, optional: !field.required)
+                                : await pickResource(
                               context,
                               field.pickerApi!,
                               field.pickerPath!,
@@ -449,7 +456,7 @@ class _ActionFormState extends State<ActionForm> {
                             state.didChange(id);
                             setState(
                               () => pickedLabels[field.key] =
-                                  result['title'] ?? id,
+                                  result['name'] ?? result['title'] ?? id,
                             );
                             field.changed?.call(id);
                           },

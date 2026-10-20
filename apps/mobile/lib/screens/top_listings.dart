@@ -4,6 +4,7 @@ import '../core/design_icons.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../core/widgets.dart';
+import '../core/reference_picker.dart';
 
 class TopListings extends StatefulWidget {
   final JobaApi api;
@@ -52,26 +53,16 @@ class _TopListingsState extends State<TopListings> {
   }
 
   Future<void> choose(String path, bool cities) async {
-    final selected = await showModalBottomSheet<Json>(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => SafeArea(
-            child: SizedBox(
-                height: MediaQuery.sizeOf(context).height * .7,
-                child: ApiView(
-                    load: () => widget.api.request(path),
-                    builder: (context, data, reload) => ListView(children: [
-                          ListTile(
-                              title: UiText(
-                                  cities ? 'Все города' : 'Все категории'),
-                              onTap: () =>
-                                  Navigator.pop(context, <String, dynamic>{})),
-                          for (final row in items(data))
-                            ListTile(
-                                title: Text(
-                                    '${row['name'] ?? row['title'] ?? ''}'),
-                                onTap: () => Navigator.pop(context, row))
-                        ])))));
+    final selected = await Navigator.push<Json>(context, MaterialPageRoute(
+        builder: (context) => Scaffold(
+            backgroundColor: canvas,
+            appBar: AppBar(title: UiText(cities ? 'Город' : 'Категория')),
+            body: ApiView(
+                load: () => widget.api.request(path),
+                builder: (context, data, reload) => ReferenceSelector(
+                    rows: items(data), cities: cities, optional: true,
+                    initial: cities ? city : category,
+                    onSave: (row) async => Navigator.pop(context, row))))));
     if (!mounted || selected == null) return;
     setState(() {
       if (cities) {
@@ -225,7 +216,17 @@ class _TopListingsState extends State<TopListings> {
         await future;
       },
       child: ListView(padding: const EdgeInsets.all(20), children: [
-        PromotedListings(key:ValueKey('top-promoted:$type:$city:$category'),api:widget.api,placement:type=='orders'?'top.orders.promoted':'top.services.promoted',filters:{'city':city,if(category.isNotEmpty)'category_id':category},onOpen:widget.onOpen),
+        PromotedListings(
+            key: ValueKey('top-promoted:$type:$city:$category'),
+            api: widget.api,
+            placement: type == 'orders'
+                ? 'top.orders.promoted'
+                : 'top.services.promoted',
+            filters: {
+              'city': city,
+              if (category.isNotEmpty) 'category_id': category
+            },
+            onOpen: widget.onOpen),
         const Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(

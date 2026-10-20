@@ -1,3 +1,4 @@
+import '../core/reference_picker.dart';
 import 'password_change.dart';
 import 'session_list.dart';
 import 'notification_settings.dart';
@@ -2652,6 +2653,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               ],
               fields: [
                 InputSpec('category_id', 'Категория',
+                    referenceItems: items(data[0]),
                     translateOptions: false,
                     initial: draftCategory ?? '',
                     options: {
@@ -2663,6 +2665,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 const InputSpec('description', 'Опишите задачу',
                     multiline: true, validate: descriptionCheck),
                 InputSpec('city_id', 'Город',
+                    referenceItems: items(data[1]), cityReference: true,
                     translateOptions: false,
                     options: {
                       for (final r in items(data[1])) r['id']: r['name']
@@ -3470,17 +3473,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   const UiHeading('Категории услуг',
                       'Выберите дополнительные направления.'),
                   Wrap(spacing: 8, runSpacing: 8, children: [
-                    for (final category in items(data))
-                      FilterChip(
-                          label: Text(category['name']),
-                          selected: serviceCategories!.contains(category['id']),
-                          onSelected: (selected) => setState(() {
-                                if (selected) {
-                                  serviceCategories!.add(category['id']);
-                                } else {
-                                  serviceCategories!.remove(category['id']);
-                                }
-                              }))
+                    for (final category in items(data).where((r) => serviceCategories!.contains(r['id'])))
+                      InputChip(label: Text(referenceName(category)),
+                          onDeleted: () => setState(() => serviceCategories!.remove(category['id']))),
+                    ActionChip(label: const UiText('Добавить категорию'),
+                        onPressed: () async {
+                          final row = await pickReference(context, items(data), cities: false);
+                          if (mounted && row != null) setState(() => serviceCategories!.add('${row['id']}'));
+                        })
                   ])
                 ],
                 fields: [
@@ -3491,6 +3491,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       multiline: true,
                       validate: descriptionCheck),
                   InputSpec('category_id', 'Категория',
+                      referenceItems: items(data),
                       translateOptions: false,
                       initial: p?['category_id'] ?? '',
                       options: {

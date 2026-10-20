@@ -186,9 +186,11 @@ void main() {
                 onGo: (r, id) => route = r))));
     await t.pumpAndSettle();
     await t.enterText(find.byType(TextFormField).first, 'Созданный проект');
-    await t.tap(find.byType(DropdownButtonFormField<String>));
+    await t.tap(find.text('Выберите категорию'));
     await t.pumpAndSettle();
     await t.tap(find.text('Ремонт').last);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Выбрать Ремонт'));
     await t.pumpAndSettle();
     await t.tap(find.text('Добавить'));
     await t.pumpAndSettle();

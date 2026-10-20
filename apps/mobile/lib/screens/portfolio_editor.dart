@@ -4,6 +4,7 @@ import '../core/design_icons.dart';
 import '../core/design_widgets.dart';
 import '../core/l10n.dart';
 import '../core/resource_picker.dart';
+import '../core/reference_picker.dart';
 import '../core/theme.dart';
 import '../core/widgets.dart';
 
@@ -188,24 +189,33 @@ class _PortfolioEditorState extends State<PortfolioEditor> {
                                 ? localize(context, 'От 5 до 120 символов')
                                 : null),
                         label('Категория'),
-                        DropdownButtonFormField<String>(
+                        FormField<String>(
                             initialValue: available ? category : null,
-                            isExpanded: true,
-                            style: const TextStyle(
-                                fontFamily: 'Noto', fontSize: 14, color: muted),
-                            icon: const JobaIcon('down'),
-                            items: [
-                              for (final c in categories)
-                                DropdownMenuItem(
-                                    value: '${c['id']}',
-                                    child: Text('${c['name']}'))
-                            ],
-                            onChanged: busy
-                                ? null
-                                : (v) => setState(() => category = v),
-                            validator: (v) => v == null
+                            validator: (_) => category == null
                                 ? localize(context, 'Выберите значение')
-                                : null),
+                                : null,
+                            builder: (field) => InkWell(
+                                onTap: busy
+                                    ? null
+                                    : () async {
+                                        final row = await pickReference(
+                                            context, categories,
+                                            cities: false,
+                                            initial: category ?? '');
+                                        if (!mounted || row == null) return;
+                                        setState(
+                                            () => category = '${row['id']}');
+                                        field.didChange(category);
+                                      },
+                                child: InputDecorator(
+                                    decoration: InputDecoration(
+                                        errorText: field.errorText),
+                                    child: Text(categories
+                                            .where((r) => r['id'] == category)
+                                            .map(referenceName)
+                                            .firstOrNull ??
+                                        localize(
+                                            context, 'Выберите категорию'))))),
                         label('Фотографии · ${photos.length} из 10'),
                         Row(
                             crossAxisAlignment: CrossAxisAlignment.start,

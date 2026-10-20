@@ -6,6 +6,7 @@ import '../core/design_widgets.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../core/widgets.dart';
+import '../core/reference_picker.dart';
 
 class SearchFilters extends StatefulWidget {
   final JobaApi api;
@@ -174,30 +175,18 @@ class _SearchFiltersState extends State<SearchFilters> {
                         padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
                         children: [
                       label('Город'),
-                      DropdownButtonFormField<String>(
-                          initialValue: city,
-                          key: ValueKey('city:$city'),
-                          style: const TextStyle(
-                              fontFamily: 'Noto',
-                              fontSize: 14,
-                              color: Color(0xFF627187)),
-                          icon: const JobaIcon('down', size: 18),
-                          decoration: const InputDecoration(
-                              prefixIcon: Padding(
-                                  padding: EdgeInsets.all(14),
-                                  child: JobaIcon('pin'))),
-                          items: [
-                            const DropdownMenuItem(
-                                value: '', child: UiText('Все города')),
-                            if (city.isNotEmpty &&
-                                !items(data[0]).any((c) => c['name'] == city))
-                              DropdownMenuItem(value: city, child: Text(city)),
-                            for (final c in items(data[0]))
-                              DropdownMenuItem(
-                                  value: '${c['name']}',
-                                  child: Text('${c['name']}'))
-                          ],
-                          onChanged: (value) => setState(() => city = value!)),
+                      OutlinedButton.icon(
+                          icon: const JobaIcon('pin'),
+                          label: Text(city.isEmpty
+                              ? localize(context, 'Все города')
+                              : city),
+                          onPressed: () async {
+                            final row = await pickReference(
+                                context, items(data[0]),
+                                cities: true, initial: city, optional: true);
+                            if (mounted && row != null)
+                              setState(() => city = referenceName(row));
+                          }),
                       label('Расстояние'),
                       Wrap(spacing: 8, children: [
                         for (final title in ['5 км', '10 км'])
@@ -307,22 +296,22 @@ class _SearchFiltersState extends State<SearchFilters> {
                                 hintText: localize(context, 'Что ищете?')))
                       ],
                       label('Категория'),
-                      DropdownButtonFormField<String>(
-                          initialValue:
-                              items(data[1]).any((c) => c['id'] == category)
-                                  ? category
-                                  : '',
-                          key: ValueKey('category:$category'),
-                          items: [
-                            const DropdownMenuItem(
-                                value: '', child: UiText('Все категории')),
-                            for (final c in items(data[1]))
-                              DropdownMenuItem(
-                                  value: '${c['id']}',
-                                  child: Text('${c['name']}'))
-                          ],
-                          onChanged: (value) =>
-                              setState(() => category = value!))
+                      OutlinedButton.icon(
+                          icon: const JobaIcon('down'),
+                          label: Text(items(data[1])
+                                  .where((r) => r['id'] == category)
+                                  .map(referenceName)
+                                  .firstOrNull ??
+                              localize(context, 'Все категории')),
+                          onPressed: () async {
+                            final row = await pickReference(
+                                context, items(data[1]),
+                                cities: false,
+                                initial: category,
+                                optional: true);
+                            if (mounted && row != null)
+                              setState(() => category = '${row['id']}');
+                          })
                     ])),
                 Container(
                     decoration: const BoxDecoration(

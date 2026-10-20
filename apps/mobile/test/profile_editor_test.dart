@@ -112,7 +112,9 @@ void main() {
     await tester.enterText(find.byType(TextFormField), 'Марина');
     await tester.tap(find.byKey(const ValueKey('profile-city-selector')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Алматы'));
+    await tester.enterText(find.byType(TextField), 'Алматы');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Алматы'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Выбрать Алматы'));
     await tester.pumpAndSettle();
