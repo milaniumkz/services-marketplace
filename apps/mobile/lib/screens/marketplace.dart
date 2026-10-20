@@ -568,7 +568,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       title: Transform.translate(
                           offset: Offset(0, titleOffset), child: titleWidget ?? UiText(title)),
                       leading: IconButton(
-                          onPressed: authNavigationBlocked ? null : back,
+                          onPressed: authNavigationBlocked || onboardingNavigationBlocked ? null : back,
                           tooltip: localize(context, 'Назад'),
                           icon: const JobaIcon('back')),
                       actions: actions)
@@ -889,6 +889,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api: api,
                 path: '/orders',
                 initialFilters: listingFilters,
+                onFiltersChanged: (value) => listingFilters = value,
                 tile: orderCard),
             nav: true);
       case 'create':
@@ -1006,7 +1007,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             onClose: back,
             onApply: (filters) {
               listingFilters = filters;
-              go('catalog');
+              go(history.isNotEmpty && history.last.$1 == 'jobs' ? 'jobs' : 'catalog');
             });
       case 'catalog':
         return page(
@@ -1027,6 +1028,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 path: '/contractors',
                 onCreate: () => go('create'),
                 initialFilters: listingFilters,
+                onFiltersChanged: (value) => listingFilters = value,
                 tile: contractorCard),
             actions:[IconButton(tooltip:localize(context,'На карте'),onPressed:()=>go('map'),icon:const JobaIcon('pin'))],
             nav: !['empty', 'error', 'offline'].contains(catalogPresentation));
@@ -2063,7 +2065,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 if (category != null) 'category_id': category['id'],
                 if ((me?['city'] ?? '').isNotEmpty) 'city': me!['city']
               };
-              go('catalog');
+              go(executor ? 'jobs' : 'catalog');
             },
             borderRadius: BorderRadius.circular(14),
             child: Padding(
@@ -2092,7 +2094,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     try {final value=await const MethodChannel('joba.location').invokeMapMethod<String,dynamic>('current');
       if(!mounted||route!=scope)return;
       if(value==null)throw ApiException('GPS_DENIED','Выберите город вручную');
-      listingFilters={...listingFilters,'near_lat':((value['latitude'] as num)*100).round()/100,'near_lon':((value['longitude'] as num)*100).round()/100,'radius_km':50};go('map');
+      listingFilters={...listingFilters,'near_lat':((value['latitude'] as num)*100).round()/100,'near_lon':((value['longitude'] as num)*100).round()/100,'radius_km':50}..remove('city');go(executor||scope=='jobs'?'jobs':'map');
     } catch(_){if(mounted)go('gps-denied');}
   }
   Widget locationScreen() => page(

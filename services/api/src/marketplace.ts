@@ -2,7 +2,8 @@ import {cityCatalog,cityName} from './city-catalog';
 import {subscriptionPlans} from './subscription-plans';
 import {notificationCategory} from './notification-category';
 import {revokeOptionalProcessing} from './processing-consent-retention';
-import {resolveStaffUser,assertStaffOperation,staffAccess} from './staff-access';
+import {serverMetrics} from './server-metrics';
+import {resolveStaffUser,assertStaffOperation,staffAccess,isStaffOwner} from './staff-access';
 import {refreshWorkFileProgress} from './work-file-retention';
 import {processDeletionCategories} from './deletion-worker';
 import {holdSnapshot} from './legal-holds';
@@ -1101,6 +1102,10 @@ export class Marketplace {
       if(holdRelease&&method==='POST'){const hold=await this.object(holdRelease[1],a,'legal_hold');this.version(hold,b);if(hold.status!=='active')fail(409,'STATE_CONFLICT','Удержание уже закрыто');const reason=text(b,'reason',10,1000);const result=await this.store.put({...hold,status:'released',field_snapshot:undefined,release_reason:reason,released_by:a.id,released_at:new Date().toISOString(),version:hold.version+1});await this.audit(a,'privacy.hold_released',hold.id,reason);await this.notify(hold.subject_user_id,a,'privacy.hold.released',hold.id);return result;}
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy','country-controls':'country_control',verifications:'verification'};
       if(path==='/admin/analytics'&&method==='GET'){const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');return productAnalytics(this.store,a.country,days);}
+      if(path==='/admin/server-metrics'&&method==='GET') {
+        if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Показатели сервера доступны только владельцу');
+        return serverMetrics();
+      }
       if(path==='/admin/dashboard'&&method==='GET') {
         const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');
         return operationsOverview(this.store,a.country,days);
@@ -1573,7 +1578,12 @@ export class Marketplace {
       if(q.rating_min!==undefined){if(!/^\d(?:\.\d+)?$/.test(String(q.rating_min))||Number(q.rating_min)>5)fail(400,'VALIDATION_ERROR','Проверьте рейтинг');filters.ratingMin=Number(q.rating_min);}
       filters.workMode=q.work_mode;
     }
-    const selected=await this.store.select(kind,a.country,{...options,...filters,limit:limit+1,after,city:filters.workMode==='remote'?undefined:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
+    if(options.publicActor&&['order','contractor'].includes(kind)&&(q.near_lat!==undefined||q.near_lon!==undefined)){
+      const near={latitude:Number(q.near_lat),longitude:Number(q.near_lon),radius:Number(q.radius_km??50)};
+      if(!Number.isFinite(near.latitude)||Math.abs(near.latitude)>90||!Number.isFinite(near.longitude)||Math.abs(near.longitude)>180||!Number.isFinite(near.radius)||near.radius<=0||near.radius>500)fail(400,'VALIDATION_ERROR','Проверьте координаты и радиус');
+      filters.near=near;
+    }
+    const selected=await this.store.select(kind,a.country,{...options,...filters,limit:limit+1,after,city:filters.near||filters.workMode==='remote'?undefined:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
     const batch=selected.slice(0,limit);
     const items:RecordData[]=options.publicActor&&kind==='contractor'?await contractorPresentation(this.store,a.country,batch):batch.map(x=>options.publicActor&&kind==='order'?{...publicContent(x),exact_address:undefined}:x);
     return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};

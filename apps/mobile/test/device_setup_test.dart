@@ -57,6 +57,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(saves, 0);
     expect(find.text('PIN не совпадает'), findsOneWidget);
+    expect(tester.widget<TextField>(input).controller!.text, isEmpty);
     await tester.enterText(input, '123456');
     await tester.ensureVisible(find.byType(Switch));
     await tester.tap(find.byType(Switch));

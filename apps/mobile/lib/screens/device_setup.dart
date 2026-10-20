@@ -39,7 +39,10 @@ class _PinSetupState extends State<PinSetup> {
       return;
     }
     if (first != input.text) {
-      setState(() => error = Exception('PIN не совпадает'));
+      setState(() {
+        input.clear();
+        error = Exception('PIN не совпадает');
+      });
       return;
     }
     setState(() {

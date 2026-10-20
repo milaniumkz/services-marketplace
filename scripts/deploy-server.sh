@@ -91,6 +91,18 @@ fi
 # Existing keys and passwords must survive redeployment; never regenerate them.
 grep -qx "JOBA_DOMAIN=$joba_domain" /etc/joba/production.env || { echo 'Configured domain differs; inspect server configuration' >&2; exit 1; }
 cd "$joba_release/source"
+# Publish host resource counters through a read-only snapshot, without Docker socket access.
+if ! id -u joba-metrics >/dev/null 2>&1; then
+  useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin joba-metrics
+fi
+install -d -m 755 /usr/local/lib/joba
+install -d -o joba-metrics -g joba-metrics -m 755 /var/lib/joba-metrics
+install -m 644 scripts/collect-server-metrics.py /usr/local/lib/joba/collect-server-metrics.py
+install -m 644 infra/production/metrics/joba-metrics.service /etc/systemd/system/joba-metrics.service
+install -m 644 infra/production/metrics/joba-metrics.timer /etc/systemd/system/joba-metrics.timer
+systemctl daemon-reload
+systemctl enable --now joba-metrics.timer
+systemctl start joba-metrics.service
 joba_compose=(docker compose --env-file /etc/joba/production.env -f infra/production/compose.yaml)
 "${joba_compose[@]}" config --quiet
 if [[ -n "$("${joba_compose[@]}" ps -q database)" ]]; then

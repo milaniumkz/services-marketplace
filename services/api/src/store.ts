@@ -41,6 +41,7 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0010_refund_balances.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0011_reference_catalog.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0012_password_minimum.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0013_city_location_lookup.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
@@ -82,7 +83,8 @@ export class Store {
     if(options.category){const category=bind(options.category);where.push(`EXISTS(WITH RECURSIVE category_scope(id) AS (SELECT ${category}::text UNION SELECT COALESCE(c.data->'payload'->>'category_id',c.id::text) FROM records c JOIN category_scope parent ON c.data->'payload'->>'parent_id'=parent.id WHERE c.kind='category' AND c.country=$2 AND c.data->>'status'='effective') SELECT 1 FROM category_scope s WHERE r.data->>'category_id'=s.id OR COALESCE(r.data->'category_ids','[]'::jsonb) ? s.id)`);}
     if(options.near){
       const lat=bind(options.near.latitude),lon=bind(options.near.longitude),radius=bind(options.near.radius);
-      where.push(`data->'public_location' IS NOT NULL AND 6371*ACOS(LEAST(1,GREATEST(-1,SIN(RADIANS(${lat}::numeric))*SIN(RADIANS((data->'public_location'->>'latitude')::numeric))+COS(RADIANS(${lat}::numeric))*COS(RADIANS((data->'public_location'->>'latitude')::numeric))*COS(RADIANS((data->'public_location'->>'longitude')::numeric-${lon}::numeric)))))<=${radius}::numeric`);
+      const location=kind==='order'?`COALESCE(r.data->'public_location',(SELECT jsonb_build_object('latitude',city.data->'latitude','longitude',city.data->'longitude') FROM records city WHERE city.kind='city' AND city.country=r.country AND city.data->>'status'='active' AND city.data->>'name'=r.data->>'city' AND jsonb_typeof(city.data->'latitude')='number' AND jsonb_typeof(city.data->'longitude')='number' ORDER BY (city.data->>'population')::numeric DESC NULLS LAST,city.id LIMIT 1))`:`r.data->'public_location'`;
+      where.push(`EXISTS(SELECT 1 FROM (SELECT ${location} AS point) geo WHERE jsonb_typeof(geo.point->'latitude')='number' AND jsonb_typeof(geo.point->'longitude')='number' AND 6371*ACOS(LEAST(1,GREATEST(-1,SIN(RADIANS(${lat}::numeric))*SIN(RADIANS((geo.point->>'latitude')::numeric))+COS(RADIANS(${lat}::numeric))*COS(RADIANS((geo.point->>'latitude')::numeric))*COS(RADIANS((geo.point->>'longitude')::numeric-${lon}::numeric)))))<=${radius}::numeric)`);
     }
     if(options.publicActor){
       const viewer=bind(options.publicActor);
@@ -93,6 +95,7 @@ export class Store {
     }
     if(options.search){const parameter=bind('%'+options.search+'%');
       if(kind==='conversation'&&options.member){const actor=bind(options.member);where.push(`(EXISTS(SELECT 1 FROM records linked WHERE linked.country=r.country AND (linked.kind='order' AND linked.id::text=r.data->>'order_id' AND linked.data->>'title' ILIKE ${parameter} OR linked.kind='user' AND COALESCE(r.data->'members','[]'::jsonb) ? linked.id::text AND linked.id::text<>${actor} AND linked.data->>'display_name' ILIKE ${parameter})))`);}
+      else if(['order','contractor'].includes(kind))where.push(`(r.id::text ILIKE ${parameter} OR r.owner ILIKE ${parameter} OR r.data->>'title' ILIKE ${parameter} OR r.data->>'display_name' ILIKE ${parameter} OR r.data->>'description' ILIKE ${parameter} OR r.data->'category_snapshot'->>'title' ILIKE ${parameter} OR EXISTS(SELECT 1 FROM records category WHERE category.kind='category' AND category.country=r.country AND category.data->>'status'='effective' AND (r.data->>'category_id'=COALESCE(category.data->'payload'->>'category_id',category.id::text) OR COALESCE(r.data->'category_ids','[]'::jsonb) ? COALESCE(category.data->'payload'->>'category_id',category.id::text)) AND (category.data->>'title' ILIKE ${parameter} OR (category.data->'payload'->'labels')::text ILIKE ${parameter})))`);
       else where.push(`(id::text ILIKE ${parameter} OR owner ILIKE ${parameter} OR data->>'event' ILIKE ${parameter} OR data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);
     }
     if(options.ranking){

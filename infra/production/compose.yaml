@@ -30,7 +30,9 @@ services:
       DATABASE_URL: postgres://joba:${JOBA_DATABASE_PASSWORD:?Set database password}@database:5432/joba
       JOBA_FILE_KEY: ${JOBA_FILE_KEY:?Set the persistent file encryption key}
       JOBA_UPLOAD_DIR: /app/.local/private-files
+      JOBA_SERVER_METRICS_FILE: /run/joba-host/metrics.json
     volumes:
+      - /var/lib/joba-metrics:/run/joba-host:ro
       - private_files:/app/.local
       - antivirus:/var/lib/clamav:ro
     depends_on:

@@ -4,6 +4,7 @@ import 'design_states.dart';
 import '../screens/search_filters.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'l10n.dart';
 import 'api.dart';
 import 'theme.dart';
@@ -980,6 +981,7 @@ class SearchListings extends StatefulWidget {
   final Json initialFilters;
   final VoidCallback? onCreate;
   final ValueChanged<String>? onStatus;
+  final ValueChanged<Json>? onFiltersChanged;
   final Widget Function(Json) tile;
   const SearchListings(
       {required this.api,
@@ -988,6 +990,7 @@ class SearchListings extends StatefulWidget {
       this.initialFilters = const {},
       this.onCreate,
       this.onStatus,
+      this.onFiltersChanged,
       super.key});
   @override
   State<SearchListings> createState() => _SearchListingsState();
@@ -1007,6 +1010,8 @@ class _SearchListingsState extends State<SearchListings> {
     search.text = query;
   }
 
+  void changed() => widget.onFiltersChanged?.call({...filters, if(query.isNotEmpty) 'q':query});
+
   Future<void> chooseFilters() async {
     final result = await Navigator.push<Json>(
         context,
@@ -1016,12 +1021,78 @@ class _SearchListingsState extends State<SearchListings> {
                 initial: {...filters, 'q': query},
                 onClose: () => Navigator.pop(c),
                 onApply: (value) => Navigator.pop(c, value))));
-    if (result != null && mounted)
+    if (result != null && mounted) {
       setState(() {
         query = '${result.remove('q') ?? query}'.trim();
         search.text = query;
         filters = result;
       });
+      changed();
+    }
+  }
+
+  bool choosing = false;
+  Future<void> chooseReference(bool cities) async {
+    if (choosing) return;
+    setState(() => choosing = true);
+    try {
+      final data = await widget.api
+          .request(cities ? '/geo/cities' : '/catalog/categories');
+      if (!mounted) return;
+      final row = await pickReference(context, items(data),
+          cities: cities,
+          initial: '${filters[cities ? 'city' : 'category_id'] ?? ''}',
+          optional: true);
+      if (!mounted || row == null) return;
+      setState(() {
+        final key = cities ? 'city' : 'category_id';
+        if ('${row['id'] ?? ''}'.isEmpty) {
+          filters.remove(key);
+        } else {
+          filters[key] = cities ? referenceName(row) : row['id'];
+        }
+        if (cities) {
+          filters.remove('near_lat');
+          filters.remove('near_lon');
+          filters.remove('radius_km');
+        }
+      });
+      changed();
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorText(context, error))));
+    } finally {
+      if (mounted) setState(() => choosing = false);
+    }
+  }
+
+  Future<void> chooseNearby() async {
+    if (choosing) return;
+    setState(() => choosing = true);
+    try {
+      final point = await const MethodChannel('joba.location')
+          .invokeMapMethod<String, dynamic>('current');
+      if (!mounted) return;
+      if (point == null)
+        throw ApiException('GPS_DENIED', 'Выберите город вручную');
+      setState(() {
+        filters.remove('city');
+        filters.addAll({
+          'near_lat': ((point['latitude'] as num) * 100).round() / 100,
+          'near_lon': ((point['longitude'] as num) * 100).round() / 100,
+          'radius_km': 50
+        });
+      });
+      changed();
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: UiText(
+                'Не удалось определить местоположение. Выберите город.')));
+    } finally {
+      if (mounted) setState(() => choosing = false);
+    }
   }
 
   @override
@@ -1033,43 +1104,62 @@ class _SearchListingsState extends State<SearchListings> {
 
   @override
   Widget build(BuildContext context) => Column(children: [
-        if (widget.path != '/contractors' ||
-            !['empty', 'error', 'offline'].contains(presentation))
+        Padding(
+            padding: widget.path == '/contractors' && presentation == 'loading'
+                ? const EdgeInsets.fromLTRB(20, 20, 20, 0)
+                : const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Row(children: [
+              Expanded(
+                  child: TextField(
+                      controller: search,
+                      style: const TextStyle(
+                          fontSize: 14, color: Color(0xFF627187)),
+                      decoration: InputDecoration(
+                          hintText: localize(context, 'Что ищете?'),
+                          fillColor: canvas,
+                          prefixIcon: const Padding(
+                              padding: EdgeInsets.all(14),
+                              child: JobaIcon('search'))),
+                      onChanged: (v) {
+                        debounce?.cancel();
+                        debounce = Timer(const Duration(milliseconds: 300), () {
+                          if (mounted) {setState(() => query = v.trim());changed();}
+                        });
+                      })),
+              if (widget.path != '/orders') ...[
+                const SizedBox(width: 8),
+                IconButton(
+                    tooltip: localize(context, 'Фильтры'),
+                    onPressed: choosing ? null : chooseFilters,
+                    icon: const JobaIcon('filter'))
+              ]
+            ])),
+        Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Wrap(spacing: 8, runSpacing: 4, children: [
+              OutlinedButton.icon(
+                  onPressed: choosing ? null : () => chooseReference(true),
+                  icon: const Icon(Icons.location_city, size: 18),
+                  label:
+                      Text('${filters['city'] ?? localize(context, 'Город')}')),
+              OutlinedButton.icon(
+                  onPressed: choosing ? null : () => chooseReference(false),
+                  icon: const Icon(Icons.category_outlined, size: 18),
+                  label: UiText(filters.containsKey('category_id')
+                      ? 'Категория выбрана'
+                      : 'Категория')),
+              OutlinedButton.icon(
+                  onPressed: choosing ? null : chooseNearby,
+                  icon: const Icon(Icons.near_me_outlined, size: 18),
+                  label: const UiText('Рядом со мной')),
+            ])),
+        if (filters.containsKey('near_lat'))
           Padding(
-              padding:
-                  widget.path == '/contractors' && presentation == 'loading'
-                      ? const EdgeInsets.fromLTRB(20, 20, 20, 0)
-                      : const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: Row(children: [
-                Expanded(
-                    child: TextField(
-                        controller: search,
-                        style: const TextStyle(
-                            fontSize: 14, color: Color(0xFF627187)),
-                        decoration: InputDecoration(
-                            hintText: localize(context, 'Что ищете?'),
-                            fillColor: canvas,
-                            prefixIcon: const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: JobaIcon('search'))),
-                        onChanged: (v) {
-                          debounce?.cancel();
-                          debounce =
-                              Timer(const Duration(milliseconds: 300), () {
-                            if (mounted) setState(() => query = v.trim());
-                          });
-                        })),
-                if (widget.path != '/contractors' ||
-                    presentation != 'loading') ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                      tooltip: localize(context, 'Фильтры'),
-                      onPressed: chooseFilters,
-                      icon: const JobaIcon('filter'))
-                ]
-              ])),
-        if (filters.isNotEmpty &&
-            ['data', 'domain-error'].contains(presentation))
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: UiText(widget.path == '/orders'
+                  ? 'В радиусе 50 км. Расположение заказа — по городу.'
+                  : 'В радиусе 50 км')),
+        if (filters.isNotEmpty)
           Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(children: [
@@ -1077,7 +1167,7 @@ class _SearchListingsState extends State<SearchListings> {
                     child: Text(filters['city'] ??
                         localize(context, 'Выбрана категория'))),
                 TextButton(
-                    onPressed: () => setState(() => filters = {}),
+                    onPressed: choosing ? null : () {setState(() => filters = {});changed();},
                     child: const UiText('Сбросить'))
               ])),
         Expanded(

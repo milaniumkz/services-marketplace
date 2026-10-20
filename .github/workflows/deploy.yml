@@ -40,6 +40,8 @@ jobs:
           cache: npm
       - run: sudo apt-get update -q && sudo apt-get install -y poppler-utils
       - run: npm ci
+      - name: Verify host resource collector
+        run: python3 scripts/test-server-metrics.py
       - run: npm run verify
       - name: Verify mobile admin layouts and navigation
         run: node scripts/verify-admin-mobile.cjs

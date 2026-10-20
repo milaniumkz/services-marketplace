@@ -25,5 +25,10 @@ test('account management blocks sessions, restores login and queues subject-owne
   const job=await api.store.get(result.deletion_request_id);assert.equal(job.owner,user.user.id);assert.equal(job.type,'delete');assert.equal(job.requested_by,owner.user.id);
   await assert.rejects(async()=>call('unblock',{expected_version:(await current()).version,reason:'Попытка обойти запрос удаления'}),e=>e.getStatus()===409);
   assert.equal((await api.store.all('audit','KZ')).filter(r=>r.target_id===user.user.id).length,3);
+  const metrics=()=>api.handle('GET','/admin/server-metrics',{},'Bearer '+staff.access_token);
+  assert.equal((await metrics()).available,false);
+  await api.store.put({...await api.store.get(owner.user.id),staff_permissions:['administrator']});
+  await assert.rejects(metrics,e=>e.getStatus()===403);
+
  }finally{await api.store.close();}
 });

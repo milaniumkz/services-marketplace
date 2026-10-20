@@ -1,3 +1,4 @@
+import {mountServerMetrics} from './server-metrics.js';
 const names={KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'};
 const states={requested:'В очереди',pending:'Ожидание',retry:'Повтор запланирован',processing:'Обработка',scanning:'Проверка файла',sending:'Отправка',sent:'Доставлено',ready:'Готово',completed:'Завершено',failed:'Ошибка',dead_letter:'Требует разбора',clean:'Проверен',rejected:'Отклонён',infected:'Заблокирован',expired:'Срок истёк'};
 const date=value=>value?new Intl.DateTimeFormat('ru',{dateStyle:'short',timeStyle:'short',timeZone:'UTC'}).format(new Date(value)):'—';
@@ -11,7 +12,7 @@ function exportSummary(data){
  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
  link.href=url;link.download=`JOBA-${data.country}-${data.server_time.slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export async function systemWorkspace({key,api,esc,card,tablecard,note,metric,badge,onRefresh}){
+export async function systemWorkspace({key,api,esc,card,tablecard,note,metric,badge,onRefresh,staffAccess}){
  if(key==='analytics'){
   const params=new URLSearchParams(location.hash.split('?')[1]||''),days=params.get('days')||'7';
   const data=await api('/admin/analytics?'+new URLSearchParams({days})),f=data.funnel;
@@ -26,12 +27,12 @@ export async function systemWorkspace({key,api,esc,card,tablecard,note,metric,ba
   const data=await api('/admin/dashboard?'+new URLSearchParams({days}));
   return {key,id:'A02',title:'Обзор платформы',subtitle:`${names[data.country]} · ${date(data.server_time)} UTC`,section:'Обзор',
    actions:'<button id="dashboard-export" type="button">Экспорт сводки</button>',
-   body:()=>`<div class="filters"><span>${esc(names[data.country])}</span><select id="dashboard-period" aria-label="Период"><option value="7">Последние 7 дней</option><option value="30">Последние 30 дней</option><option value="90">Последние 90 дней</option></select><span class="resultcount">UTC · ${esc(data.from.slice(0,10))} — ${esc(data.server_time.slice(0,10))}</span></div>
+   body:()=>`${staffAccess?.is_owner?'<section id="server-metrics" class="mb" aria-label="Ресурсы сервера"><p role="status">Загрузка показателей сервера…</p></section>':''}<div class="filters"><span>${esc(names[data.country])}</span><select id="dashboard-period" aria-label="Период"><option value="7">Последние 7 дней</option><option value="30">Последние 30 дней</option><option value="90">Последние 90 дней</option></select><span class="resultcount">UTC · ${esc(data.from.slice(0,10))} — ${esc(data.server_time.slice(0,10))}</span></div>
     <div class="grid cols4">${metric('Активные пользователи',data.active_users,'','За выбранный период','users')}${metric('Опубликованные заказы',data.published_orders,'','За выбранный период','briefcase')}${metric('Завершено заказов',data.completed_orders,'','За выбранный период','check')}${metric('Активные подписки',data.active_subscriptions,'','Подтверждены провайдером','credit')}</div>
     <div class="grid split mt">${card(`Заказы за последние ${data.days} дней`,chart(data.series,esc),'<div class="legend"><span>Опубликовано</span><span class="gray">Завершено</span></div>')}${card('Требует внимания',`<div class="lineitem"><div><b>Документы на проверке</b><p>Ожидают решения сотрудника</p></div><div class="tail"><h2>${data.attention.verifications}</h2><a href="#verification">Открыть →</a></div></div><div class="lineitem"><div><b>Поддержка</b><p>${data.attention.unassigned_support} без назначения</p></div><div class="tail"><h2>${data.attention.support}</h2><a href="#support">Открыть →</a></div></div><div class="lineitem"><div><b>Задачи доставки</b><p>Ожидают отправки или повторной обработки</p></div><div class="tail"><h2>${data.attention.outbox}</h2><a href="#jobs">Проверить →</a></div></div>`)}</div>
     <div class="grid split mt">${tablecard('Доход рекламы',['Источник','Предварительно','Подтверждено','Сверка'],[],'<a href="#monetization">Настройки рекламы →</a>','Отчёты рекламной сети ещё не поступили.')}${card('Качество сервиса',`<div class="info-row"><span>Открытых обращений по нарушениям</span><b>${data.attention.cases}</b></div><div class="info-row"><span>Аккаунты в текущей стране</span><b>${data.users}</b></div><div class="info-row"><span>Заказы, все состояния</span><b>${data.orders}</b></div>`)}</div>
     <div class="state-footer"><button id="metric-definitions" type="button">Определения всех метрик</button><div id="metric-definitions-result" hidden>${Object.entries(data.definitions).map(([name,value])=>`<p><b>${esc(({active_users:'Активные пользователи',published_orders:'Опубликованные заказы',completed_orders:'Завершённые заказы',active_subscriptions:'Активные подписки'})[name]||name)}</b>: ${esc(value)}</p>`).join('')}</div></div>`,
-   bind(){const period=document.getElementById('dashboard-period');period.value=String(data.days);period.onchange=()=>{location.hash='dashboard?days='+period.value;};
+   bind(){mountServerMetrics(document.getElementById('server-metrics'),{api,esc,card,metric});const period=document.getElementById('dashboard-period');period.value=String(data.days);period.onchange=()=>{location.hash='dashboard?days='+period.value;};
     document.getElementById('dashboard-export').onclick=()=>exportSummary(data);
     document.getElementById('metric-definitions').onclick=()=>{const result=document.getElementById('metric-definitions-result');result.hidden=!result.hidden;};}};
  }

@@ -10,6 +10,7 @@ async function main(){
  process.env.JOBA_DATA_DIR='memory://';process.env.JOBA_UPLOAD_DIR=files;delete process.env.DATABASE_URL;
  const {NestFactory}=require('@nestjs/core'),{AppModule,getMarketplace}=require('../services/api/dist/app.module');
  console.log('Starting isolated API');
+ process.env.JOBA_SERVER_METRICS_FILE=join(files,'metrics.json');
  const app=await NestFactory.create(AppModule,{logger:false});const api=await getMarketplace();
  let browser,server;
  try{
@@ -31,6 +32,7 @@ async function main(){
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/api/v1/**',async route=>{
    const r=route.request(),u=new URL(r.url());
+   if(u.pathname.endsWith('/admin/server-metrics'))require('node:child_process').execFileSync('python3',[resolve(__dirname,'collect-server-metrics.py'),'--output-dir',files]);
    const response=await fetch(origin+u.pathname+u.search,{method:r.method(),headers:r.headers(),body:['GET','HEAD'].includes(r.method())?undefined:r.postDataBuffer()});
    await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')||'application/json'},body:Buffer.from(await response.arrayBuffer())});
   });
@@ -43,6 +45,8 @@ async function main(){
    for(const route of ['dashboard','users','categories','prices','settings','countries','legal','staff-access']){
     console.log('Checking',width,route);await page.goto(frontend+'/#'+route);await page.locator('.workspace').waitFor();
     await page.waitForLoadState('networkidle');
+    if(route==='dashboard'){await page.locator('#server-metrics').getByText('Сервер — ресурсы и нагрузка',{exact:true}).waitFor();assert(await page.locator('#server-metrics').getByText('Оперативная память',{exact:true}).isVisible());await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/server-metrics')&&r.status()===200),page.locator('#server-metrics [data-server-refresh]').click()]);await page.locator('#server-metrics svg').waitFor();}
+
     const dimensions=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
     assert(dimensions.scroll<=width+1,`${route} overflows ${width}: ${dimensions.scroll}`);
     const menu=page.locator('[data-action="navigation"]');await menu.click();
