@@ -66,6 +66,7 @@ class _Lock extends LocalLock {
 class _SetupLock extends LocalLock {
   final gate = Completer<void>();
   _SetupLock() : super('isolated-biometry-owner');
+  Future<bool> hasPin() async => false;
   Future<void> enableBiometry() => gate.future;
   Future<void> clear() async {}
 }
@@ -165,7 +166,7 @@ void main() {
       await tester.pumpAndSettle();
       if (outcome == 'failure') {
         expect(find.text('Используйте PIN'), findsOneWidget);
-        await tester.tap(find.text('Ввести PIN'));
+        await tester.tap(find.text('Продолжить с PIN'));
         await tester.pumpAndSettle();
         expect(state.route, 'pin-setup');
       } else

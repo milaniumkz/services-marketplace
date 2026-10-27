@@ -151,7 +151,7 @@ void main() {
       protection.gate.complete();
       await pending;
       await tester.pumpAndSettle();
-      expect(state.route, expire ? 'login' : 'terms');
+      expect(state.route, expire ? 'login' : 'biometric');
       expect(state.localProtected, !expire);
       if (expire)
         expect(vault.value, isNull);
