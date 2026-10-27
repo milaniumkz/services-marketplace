@@ -23,6 +23,11 @@ async function main(){
   await api.store.put({id:subjectId,kind:'user',owner:subjectId,country:'KZ',version:1,created_at:created,display_name:'Заявитель проверки',phone:'+77000000123',roles:['customer'],active_role:'customer',locale:'ru',city:'Караганда',status:'active',verification:'not_started'});
   for(const color of ['red','blue','green']){const fileId=randomUUID(),bytes=await require('sharp')({create:{width:32,height:48,channels:3,background:color}}).jpeg().toBuffer();await api.files.write(fileId,bytes);await api.store.put({id:fileId,kind:'upload',owner:subjectId,country:'KZ',version:1,created_at:created,purpose:'identity',verification_id:verificationId,mime:'image/jpeg',size:bytes.length,status:'clean'});photoIds.push(fileId);}
   await api.store.put({id:verificationId,kind:'verification',owner:subjectId,country:'KZ',version:2,created_at:created,status:'pending_review',document_type:'id_card',document_revision:2,document_refs:photoIds,required_pages:['Лицевая сторона удостоверения','Обратная сторона удостоверения','Селфи'],selfie_index:2});
+  const executorId=randomUUID(),contractorId=randomUUID(),portfolioId=randomUUID(),avatarId=randomUUID(),workId=randomUUID();
+  await api.store.put({id:executorId,kind:'user',owner:executorId,country:'KZ',version:1,created_at:created,display_name:'Исполнитель подробной карточки',phone:'+77000000456',roles:['executor'],active_role:'executor',city:'Караганда',status:'active',verification:'passed',avatar_id:avatarId});
+  for(const [fileId,purpose] of [[avatarId,'avatar'],[workId,'portfolio']]){const bytes=await require('sharp')({create:{width:32,height:48,channels:3,background:'purple'}}).jpeg().toBuffer();await api.files.write(fileId,bytes);await api.store.put({id:fileId,kind:'upload',owner:executorId,country:'KZ',version:1,created_at:created,purpose,mime:'image/jpeg',size:bytes.length,status:'clean'});}
+  await api.store.put({id:contractorId,kind:'contractor',owner:executorId,country:'KZ',version:2,created_at:created,title:'Услуги штукатура',description:'Штукатурка стен и отделка помещений',city:'Караганда',gallery_ids:[workId],experience_years:5,service_cities:['Караганда'],travel_radius_km:20,work_modes:['onsite'],languages:['ru'],availability:'available',price:{mode:'hourly',amount_min:500000,currency:'KZT'},status:'pending_review'});
+  await api.store.put({id:portfolioId,kind:'portfolio',owner:executorId,country:'KZ',version:1,created_at:created,title:'Отделка квартиры',description:'Проект отделки квартиры',photos:[workId],status:'pending_review'});
   await app.listen(0,'127.0.0.1');const origin=await app.getUrl();
   const {createServer}=require('node:http');const root=resolve(__dirname,'../apps/admin/dist');
   server=createServer(async(req,res)=>{try{
@@ -48,11 +53,13 @@ async function main(){
   const output=process.env.JOBA_ADMIN_MOBILE_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
   for(const width of [320,360,393,430,768]){
    await page.setViewportSize({width,height:852});
-   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access','monetization','record-live/verification/'+verificationId]){
+   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access','monetization','record-live/verification/'+verificationId,'record-live/contractors/'+contractorId]){
     console.log('Checking',width,route);await page.goto(frontend+'/#'+route);await page.locator('.workspace').waitFor();
     await page.waitForLoadState('networkidle');
     if(route==='dashboard'){await page.locator('#server-metrics').getByText('Сервер — ресурсы и нагрузка',{exact:true}).waitFor();assert(await page.locator('#server-metrics').getByText('Оперативная память',{exact:true}).isVisible());await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/server-metrics')&&r.status()===200),page.locator('#server-metrics [data-server-refresh]').click()]);await page.locator('#server-metrics svg').waitFor();}
 
+    if(route==='dashboard'){assert.equal(await page.locator('#review-queues').getByRole('heading',{name:'Заказчики — проверка личности — 1',exact:true}).count(),1);assert.equal(await page.locator('#review-queues').getByRole('heading',{name:'Портфолио на проверке — 1',exact:true}).count(),1);await page.getByRole('button',{name:'Обновить очереди',exact:true}).click();await page.locator('#review-queues-status').getByText('Обновлено:',{exact:false}).waitFor();}
+    if(route.startsWith('record-live/contractors/')){await page.getByText('Исполнитель подробной карточки',{exact:true}).waitFor();await page.getByText('Отделка квартиры',{exact:true}).waitFor();await page.waitForFunction(()=>document.querySelectorAll('#content-media-result img').length===2&&[...document.querySelectorAll('#content-media-result img')].every(image=>image.complete&&image.naturalWidth>0&&!image.hidden));assert.equal(await page.locator('#content-media-result figcaption').allTextContents().then(x=>x.join('|')),'Фото профиля|Фотография работы 1');await page.locator('#content-media-result').getByRole('button',{name:'Увеличить',exact:true}).first().click();assert.equal(await page.locator('#content-media-result .expanded').count(),1);}
     if(route==='pricing'){assert.equal(await page.locator('#subscription-catalog [name=customer]').inputValue(),'500.00');assert.equal(await page.locator('#subscription-catalog [name=standard]').inputValue(),'1000.00');assert.equal(await page.locator('#subscription-catalog [name=premium]').inputValue(),'1500.00');}
     if(route==='monetization'){await page.locator('#test-payment-mode').waitFor();assert.equal(await page.locator('#test-payment-mode [name=enabled]').isChecked(),true);}
     if(route==='legal'){await page.locator('[data-legal-revise]').first().click();assert.equal(await page.locator('#legal-type').inputValue(),'verification_consent');}
@@ -75,6 +82,7 @@ async function main(){
     if(output&&width===393)await page.screenshot({path:join(output,route.replaceAll('/','-')+'.png'),fullPage:true});
    }
   }
+  await page.goto(frontend+'/#dashboard');await page.locator('#review-queues').waitFor();await page.locator('#review-queues a[href="#verification?status=pending_review&owner_role=customer"]').click();await page.waitForLoadState('networkidle');assert.equal(await page.locator('.workspace [name=status]').inputValue(),'pending_review');assert.equal(await page.locator('.workspace a[href="#record-live/verification/'+verificationId+'"]').count(),1);
   await page.goto(frontend+'/#monetization');await page.locator('#test-payment-mode').waitFor();
   for(const enabled of [false,true]){
     await page.locator('#test-payment-mode [name=enabled]').setChecked(enabled);
@@ -92,7 +100,7 @@ async function main(){
   await page.setViewportSize({width:1440,height:1000});
   assert.equal(await page.locator('.sidebar').evaluate(e=>e.inert),false);
   assert.equal(await page.getByRole('button',{name:'Навигация',exact:true}).isVisible(),false);
-  assert.deepEqual(errors,[]);console.log('Mobile admin verified: 50 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
+  assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.avatar_read'));assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.media_read'));assert.deepEqual(errors,[]);console.log('Mobile admin verified: 55 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
  }finally{if(browser)await browser.close();if(server)await new Promise(resolve=>server.close(resolve));await app.close();await api.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

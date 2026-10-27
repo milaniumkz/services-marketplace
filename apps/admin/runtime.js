@@ -64,8 +64,8 @@ if(!designMode) {
 function formError(form,failure){let alert=form.querySelector('[role=alert]');if(!alert){alert=document.createElement('div');alert.className='note danger';alert.role='alert';form.append(alert);}alert.textContent=failure.message;}
 function formBusy(form,busy){form.querySelectorAll('button,input,textarea,select').forEach(element=>element.disabled=busy);}
 function bind(key) {
-  const filter=document.getElementById('list-filters');if(filter)filter.onsubmit=e=>{e.preventDefault();filters[key]=Object.fromEntries(new FormData(filter));delete cursors[key];draw();};
-  const reset=document.getElementById('reset-filters');if(reset)reset.onclick=()=>{delete filters[key];delete cursors[key];draw();};
+  const filter=document.getElementById('list-filters');if(filter)filter.onsubmit=e=>{e.preventDefault();const values=Object.fromEntries(new FormData(filter));const next='#'+key+'?'+new URLSearchParams({...filters[key],...values});delete cursors[key];if(location.hash===next)draw();else location.hash=next;};
+  const reset=document.getElementById('reset-filters');if(reset)reset.onclick=()=>{delete filters[key];delete cursors[key];if(location.hash==='#'+key)draw();else location.hash=key;};
   const refresh=document.getElementById('refresh-data');if(refresh)refresh.onclick=()=>draw();
   const next=document.getElementById('next-page');if(next)next.onclick=()=>{cursors[key]=cache[key]?.meta?.next_cursor;draw();};
   const first=document.getElementById('first-page');if(first)first.onclick=()=>{delete cursors[key];draw();};
@@ -107,6 +107,7 @@ async function draw(reload=true) {
   disposeWorkspace?.();disposeWorkspace=undefined;
   clearStaffDialogs();
   const key=location.hash.slice(1).split('?')[0]||'dashboard',g=++generation;
+  if(sections[key]){const next=Object.fromEntries(new URLSearchParams(location.hash.split('?')[1]||''));if(JSON.stringify(filters[key])!==JSON.stringify(next))delete cursors[key];filters[key]=next;}
   if(!session&&key!=='login'){location.hash='login';return;}
   if(key==='login')loginDraft=undefined;
   const request=async(...args)=>{if(g!==generation)throw Error('Экран изменился');const data=await api(...args);if(g!==generation)throw Error('Экран изменился');return data;};

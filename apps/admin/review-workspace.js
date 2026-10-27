@@ -6,7 +6,7 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   const base='/admin/'+sections[section][0]+'/'+encodeURIComponent(id);
   const record=await api(base);
   const labels={users:'Аккаунт',orders:'Заказ',portfolio:'Проект портфолио',contractors:'Профиль исполнителя',verification:'Проверка документов',privacy:'Запрос приватности'};
-  const stateNames={pending_review:'Ожидает проверки',passed:'Проверка пройдена',rejected:'Отклонено',expired:'Срок истёк',draft:'Черновик',not_started:'Не пройдена',active:'Активен',blocked:'Заблокирован',deleted:'Удалён'};
+  const stateNames={pending_review:'Ожидает проверки',pending_moderation:'Ожидает модерации',published:'Опубликовано',paused:'Приостановлено',archived:'Архив',passed:'Проверка пройдена',rejected:'Отклонено',expired:'Срок истёк',draft:'Черновик',not_started:'Не пройдена',active:'Активен',blocked:'Заблокирован',deleted:'Удалён'};
   const when=value=>value&&Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat('ru',{dateStyle:'short',timeStyle:'short',timeZone:'UTC'}).format(new Date(value))+' UTC':'Не указано';
   const details=Object.entries({
     'ID':record.id,'Страна':record.country,'Статус':stateNames[record.status]||record.status,'Ревизия':record.version,
@@ -20,7 +20,7 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   const gate=grant=>allowed(grant)?'':' disabled title="Действие не разрешено вашей ролью"';
   const user=record.subject;
   const row=(label,value)=>`<div class="event"><b>${esc(label)}</b><p>${esc(value??'Не указано')}</p></div>`;
-  const subjectCard=section==='verification'?card('Пользователь',user?
+  const subjectCard=['verification','contractors','portfolio'].includes(section)?card('Пользователь',user?
     row('Имя в профиле',user.display_name||'Не указано')+row('ID аккаунта',user.id)+
     row('Телефон',user.phone||user.phone_masked||'Не указан')+`<p id="verification-phone"></p>`+
     row('Город',user.city||'Не указан')+row('Страна',({KZ:'Казахстан',RU:'Россия',BY:'Беларусь',KG:'Кыргызстан'})[user.country]||user.country)+
@@ -41,9 +41,17 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   if(['portfolio','contractors'].includes(section)&&['pending_review','pending_moderation'].includes(record.status))controls=card('Модерация проекта',`<form id="review-decision" class="stack"><label for="review-decision-value">Решение</label><select id="review-decision-value" name="decision"><option value="approve">Опубликовать</option><option value="reject">Отклонить</option></select>${namedField('Основание решения','reason','textarea')}<button class="primary"${gate('POST /admin/'+sections[section][0]+'/{id}/decision')}>Сохранить решение</button></form>`);
   if(section==='privacy')controls+=privacyProgress({record,esc,card,note});
   if(section==='verification'&&record.retention_minimized_at)controls=card('Хранение документов',note('Персональные поля проверки минимизированы по опубликованному сроку аудита. Решение и технические идентификаторы сохранены; файлы удалены.'));
-  const photos=record.photos||record.gallery_ids||[];
-  if(['portfolio','contractors'].includes(section)&&photos.length&&record.status!=='archived')controls+=card('Фотографии текущей ревизии',`<form id="content-media" class="stack" data-staff-read>${namedField('Причина просмотра фотографий','reason','textarea')}<button class="primary"${gate('files.content')}>Показать фотографии</button><div id="content-media-result" class="grid cols2"></div></form>`);
-  return {key,id:section==='verification'?'A07':section==='privacy'?'A11':'A04',title:labels[section],subtitle:record.id,section:sections[section][1],actions:`<a class="btn" href="#${section}">К списку</a><button id="refresh-data" type="button">Обновить</button>`,body:()=>`<div class="grid cols2"><div class="stack">${subjectCard}${card('Сведения',details)}${historyCard}</div><div class="stack">${controls||note('Данные текущей ревизии записи.')}</div></div>`,bind(){
+  const contentSection=['portfolio','contractors'].includes(section);
+  const photos=[...(record.subject?.avatar_id?[{id:record.subject.avatar_id,label:'Фото профиля'}]:[]),...(record.photos||record.gallery_ids||[]).map((id,index)=>({id,label:'Фотография работы '+(index+1)}))];
+  const valueNames={onsite:'На выезде',workshop:'В мастерской',remote:'Удалённо',hybrid:'Смешанный формат',available:'Свободен',busy:'Занят',paused:'Приостановлен',ru:'Русский',kk:'Казахский',ky:'Кыргызский',be:'Белорусский',en:'Английский'};
+  const names=values=>(values||[]).map(v=>valueNames[v]||v).join(', ');
+  const price=record.price;
+  const priceText=!price?'Не указана':price.mode==='negotiable'?'Договорная':`${new Intl.NumberFormat('ru').format(price.amount_min/100)}${price.amount_max!=null?' — '+new Intl.NumberFormat('ru').format(price.amount_max/100):''} ${price.currency} · ${{fixed:'за работу',hourly:'в час',per_unit:'за единицу'}[price.mode]||price.mode}${price.unit?' · '+({job:'работа',hour:'час',day:'день',piece:'штука',m2:'м²',m3:'м³',meter:'метр',visit:'выезд'}[price.unit]||price.unit):''}`;
+  const serviceCard=contentSection?card('Подробности услуги',row('Категории',(record.categories||[]).map(c=>c.name).join(', ')||record.category_id)+row('Стоимость',priceText)+row('Города обслуживания',(record.service_cities||[]).join(', ')||record.city)+row('Радиус выезда, км',record.travel_radius_km)+row('Опыт, лет',record.experience_years)+row('Формат работы',names(record.work_modes))+row('Языки',names(record.languages))+row('Доступность',valueNames[record.availability]||record.availability)+row('Статус публикации',record.public_status)+row('Модерация',record.moderation_status)+row('Причина отклонения',record.rejection_reason||record.reason)+row('Число фотографий работы',(record.photos||record.gallery_ids||[]).length)):'';
+  const relatedCard=contentSection?card('Связанные записи',Object.entries({services:['Услуги','contractors'],portfolio:['Портфолио','portfolio'],verifications:['Проверки личности','verification']}).map(([key,[label,route]])=>`<h3>${label}</h3>${record.related?.[key]?.length?record.related[key].map(r=>`<div class="event"><a href="#record-live/${route}/${encodeURIComponent(r.id)}">${esc(r.title||stateNames[r.status]||r.status)}</a><p>${esc(stateNames[r.status]||r.status)} · ${esc(when(r.created_at))}</p></div>`).join(''):'<p>Записей нет или раздел недоступен вашей роли.</p>'}`).join('')+note('До '+(record.related_limit||20)+' последних записей каждого типа.')):'';
+  if(contentSection&&photos.length&&record.status!=='archived')controls+=card('Фотографии текущей ревизии',`<form id="content-media" class="stack" data-staff-read>${namedField('Причина просмотра фотографий','reason','textarea')}<button class="primary"${gate('files.content')}>Показать фотографии</button><p>Фотографии загружаются автоматически с записью просмотра в журнал.</p><div id="content-media-result" class="verification-media-grid" role="status"></div></form>`);
+  if(contentSection&&!photos.length)controls+=card('Фотографии',note('Фотографии профиля и работ ещё не загружены.'));
+  return {key,id:section==='verification'?'A07':section==='privacy'?'A11':'A04',title:labels[section],subtitle:record.id,section:sections[section][1],actions:`<a class="btn" href="#${section}">К списку</a><button id="refresh-data" type="button">Обновить</button>`,body:()=>`<div class="grid cols2"><div class="stack">${subjectCard}${card('Сведения',details)}${serviceCard}${relatedCard}${historyCard}</div><div class="stack">${controls||note('Данные текущей ревизии записи.')}</div></div>`,bind(){
     const wire=(selector,action)=>{const form=document.querySelector(selector);if(!form)return;form.onsubmit=async event=>{event.preventDefault();const values=Object.fromEntries(new FormData(form));form.querySelectorAll('button').forEach(b=>b.disabled=true);form.querySelector('[role=alert]')?.remove();try{await action(values);}catch(error){const alert=document.createElement('p');alert.role='alert';alert.className='note danger';alert.textContent=error.message;form.append(alert);}finally{form.querySelectorAll('button').forEach(b=>b.disabled=false);}};};
     wire('#account-action',async values=>{
       const grant='POST /admin/users/{id}/'+values.action;
@@ -58,9 +66,26 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
       await api(base+'/decision','POST',{...values,expected_version:record.version,...(section==='verification'?{document_revision:record.document_revision}:{})});await onRefresh();
     });
     wire('#content-media',async({reason})=>{
+      if(!allowed('files.content'))throw Error('Нет права просмотра фотографий контента');
       const result=document.getElementById('content-media-result');result.replaceChildren();
-      for(const id of photos){const ticket=await api('/uploads/'+encodeURIComponent(id)+'/download-url?'+new URLSearchParams({reason}));const url=new URL(ticket.url,location.origin);if(url.origin!==location.origin||!url.pathname.startsWith('/api/v1/private-files/'))throw Error('Некорректный адрес фотографии');const image=document.createElement('img');image.src=url.href;image.alt='Фотография работы';image.style.width='100%';image.style.borderRadius='12px';image.referrerPolicy='no-referrer';result.append(image);}
+      await Promise.all(photos.map(async({id,label})=>{
+        const figure=document.createElement('figure');figure.className='verification-photo';
+        const caption=document.createElement('figcaption');caption.textContent=label;
+        const image=document.createElement('img');image.alt=label;image.referrerPolicy='no-referrer';
+        const message=document.createElement('p');message.role='status';
+        const retry=document.createElement('button');retry.type='button';retry.textContent='Загрузить повторно';retry.hidden=true;
+        const zoom=document.createElement('button');zoom.type='button';zoom.textContent='Увеличить';zoom.setAttribute('aria-expanded','false');zoom.onclick=()=>{const expanded=figure.classList.toggle('expanded');zoom.textContent=expanded?'Уменьшить':'Увеличить';zoom.setAttribute('aria-expanded',String(expanded));};
+        figure.append(caption,image,message,zoom,retry);result.append(figure);
+        const load=async()=>{retry.hidden=true;retry.disabled=true;image.hidden=true;message.textContent='Загрузка фотографии…';try{
+          const ticket=await api('/uploads/'+encodeURIComponent(id)+'/download-url?'+new URLSearchParams({reason}));
+          const url=new URL(ticket.url,location.origin);if(url.origin!==location.origin||!url.pathname.startsWith('/api/v1/private-files/'))throw Error('Некорректный адрес фотографии');
+          image.onload=()=>{image.hidden=false;message.textContent='';};image.onerror=()=>{message.textContent='Не удалось загрузить фотографию';retry.hidden=false;retry.disabled=false;};image.src=url.href;
+        }catch(error){message.textContent=error.message;retry.hidden=false;retry.disabled=false;}};
+        retry.onclick=load;await load();
+      }));
     });
+    if(contentSection&&user&&allowed('sensitive.phone')&&allowed('GET /admin/users/{id}')){const target=document.getElementById('verification-phone');api('/admin/users/'+encodeURIComponent(user.id)+'?'+new URLSearchParams({include_phone:'true',reason:'Проверка контакта по карточке '+record.id})).then(data=>{if(target?.isConnected)target.textContent=data.phone?'Полный телефон: '+data.phone:'';}).catch(()=>{});}
+    if(contentSection){const form=document.getElementById('content-media');if(form&&allowed('files.content')){form.elements.reason.value='Проверка фотографий '+section+' '+record.id;form.requestSubmit();}else if(form){document.getElementById('content-media-result').textContent='Для просмотра требуется право «Файлы контента». Обратитесь к владельцу для назначения доступа.';}}
     wire('#sensitive-read',async({reason})=>{
       const result=document.querySelector('#sensitive-result');
       const data=await api(base+'?'+new URLSearchParams({reason,...(section==='users'?{include_phone:'true'}:{include_documents:'true'})}));
