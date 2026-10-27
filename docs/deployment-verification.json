@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-27T11:45:44.627966+00:00",
-  "server_source_commit": "6fa3b57bb66477b4e5b6eead70f6989cb6c48c8f",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40497430025",
+  "verified_at": "2026-10-27T12:22:34.058260+00:00",
+  "server_source_commit": "d1b430415942fed3f0aee7975e5775eb3b7deb08",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40501536033",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -128,9 +128,9 @@
     "owner_migration_once_verified": true
   },
   "admin_mobile_login_verified": true,
-  "admin_mobile_page_viewport_combinations": 45,
+  "admin_mobile_page_viewport_combinations": 50,
   "flutter_tests": {
-    "passed": 233,
+    "passed": 235,
     "skipped": 2
   },
   "mobile_analysis_issues": 0,
@@ -164,7 +164,7 @@
     "private_documents": true,
     "isolated_lifecycle_tests": "passed"
   },
-  "api_tests_passed": 153,
+  "api_tests_passed": 154,
   "upload_antivirus_smoke": "passed_on_deployed_server_with_benign_jpeg",
   "payment_provider_connected": false,
   "payment_description_matches_editable_prices": true,
@@ -229,5 +229,26 @@
     "customer_and_executor_plans_remain_separate": true,
     "https_frontend_revision_verified": true,
     "apk_built": false
-  }
+  },
+  "test_payments": {
+    "enabled_on_live_kz": true,
+    "real_provider_connected": false,
+    "live_checkout_offer_verified": true,
+    "production_purchase_performed_by_agent": false,
+    "duration_days": 30,
+    "source_marker": "is_test=true",
+    "ledger_operation": "test_purchase",
+    "cash_amount_minor": 0,
+    "owner_control": "/admin/test-payments; monetization page",
+    "disable_expires_test_subscriptions": true,
+    "real_provider_presence_disables_test_offers": true,
+    "api_lifecycle_verified_in_isolated_store": true,
+    "client_checkbox_to_success_verified": true
+  },
+  "document_labels": {
+    "known_published_types_named": true,
+    "opening_or_scrolling_not_required_for_checkbox": true,
+    "published_document_versions_unchanged": true
+  },
+  "pin_keyboard_letters": false
 }
