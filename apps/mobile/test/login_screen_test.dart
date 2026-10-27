@@ -14,6 +14,23 @@ import 'package:services_marketplace/screens/marketplace.dart';
 import 'widget_test.dart' show MemoryVault, ok;
 
 void main() {
+  for (final entry in const {'KZ': '+7', 'RU': '+7', 'BY': '+375', 'KG': '+996'}.entries) {
+    testWidgets('phone fields prefill country prefix ${entry.key}', (t) async {
+      final api = JobaApi('https://isolated.example', vault: MemoryVault(),
+          transport: MockClient((r) async => ok({'items': []})));
+      addTearDown(api.dispose);
+      await t.pumpWidget(JobaApp(api: api));
+      await t.pumpAndSettle();
+      final dynamic state = t.state(find.byType(Marketplace));
+      state.country = entry.key;
+      for (final route in ['login', 'register', 'phone']) {
+        state.go(route);
+        await t.pumpAndSettle();
+        final field = t.widget<TextFormField>(find.byType(TextFormField).first);
+        expect(field.controller!.text, entry.value, reason: route);
+      }
+    });
+  }
   testWidgets(
       'login keyboard sends one exact request, blocks navigation while pending and retains rejected credentials',
       (t) async {
@@ -39,7 +56,9 @@ void main() {
     await t.tap(find.widgetWithText(FilledButton, 'Войти'));
     await t.pumpAndSettle();
     expect(requests, isEmpty);
-    expect(find.text('Заполните поле'), findsNWidgets(2));
+    expect(find.text('Заполните поле'), findsOneWidget);
+    expect(find.text('Введите номер в международном формате с кодом страны'),
+        findsOneWidget);
     final fields = find.byType(TextFormField);
     await t.enterText(fields.at(0), '77000000001');
     await t.enterText(fields.at(1), 'Isolated invalid-format password');

@@ -186,6 +186,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   bool localSetupSubmitting = false, unlockSubmitting = false;
   int authFormRevision = 0, profilePending = 0;
   String authPhoneInitial = '';
+  String get phoneCountryPrefix =>
+      const {'KZ': '+7', 'RU': '+7', 'BY': '+375', 'KG': '+996'}[country] ?? '+7';
   Json? profileDraft;
   String? profileDraftScope;
   bool get authNavigationBlocked =>
@@ -1427,7 +1429,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       AutofillGroup(
         onDisposeAction: AutofillContextAction.cancel,
         child: ActionForm(
-          key: ValueKey(route),
+          key: ValueKey('$route:$country'),
           authLayout: true,
           loginLayout: !register,
           errorResetKey: authFormRevision,
@@ -1467,9 +1469,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             InputSpec(
               'phone',
               'Номер телефона',
-              initial: authPhoneInitial,
+              initial: authPhoneInitial.isEmpty ? phoneCountryPrefix : authPhoneInitial,
               hint:
-                  '${{'KZ': '+7', 'RU': '+7', 'BY': '+375', 'KG': '+996'}[country]} · ${localize(context, 'Номер телефона').toLowerCase()}',
+                  '$phoneCountryPrefix · ${localize(context, 'Номер телефона').toLowerCase()}',
               originalIcon: 'phone',
               keyboard: TextInputType.phone,
               inputAction: TextInputAction.next,
@@ -4667,8 +4669,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Widget phoneScreen() => page(
       'Изменить номер',
       ActionForm(
-          fields: const [
+          key: ValueKey('phone:$country'),
+          fields: [
             InputSpec('new_phone', 'Новый номер',
+                initial: phoneCountryPrefix,
                 keyboard: TextInputType.phone, autofillHints: [AutofillHints.telephoneNumber]),
             InputSpec('current_password', 'Текущий пароль', secret: true)
           ],
