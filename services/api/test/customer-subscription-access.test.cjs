@@ -17,6 +17,7 @@ test('customer 500/30-day subscription requires identity, unlocks only customer 
   await api.store.put({...await api.store.get(session.user.id),verification:'passed'});
   await assert.rejects(publish,e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
   await assert.rejects(()=>call('GET','/contractors'),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
+  for(const [path,query] of [['/top-listings',{}],['/promoted-listings',{placement_id:'home.promoted.services'}],['/contractors/map',{}]])await assert.rejects(()=>call('GET',path,{},query),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
   const payload=pricePayload({product_type:'subscription',plan:'customer',role:'customer',provider:'isolated',product_id:'customer-30',amount_minor:50000,currency:'KZT',period:'days',duration_days:30,time_zone:'Asia/Almaty'},'KZ');
   await api.store.put(row('price_version',session.user.id,{status:'effective',payload}));
   const purchase={user_id:session.user.id,country:'KZ',provider:'isolated',product_id:'customer-30',transaction_id:'customer-paid',original_transaction_id:'customer-paid',environment:'sandbox',amount_minor:50000,currency:'KZT',revision:1,state:'active',valid_until:new Date(Date.now()+30*86400000).toISOString()};

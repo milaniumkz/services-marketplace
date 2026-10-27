@@ -856,7 +856,7 @@ export class Marketplace {
     }
     if(path==='/top-listings'&&method==='GET') {
       if(q.target_type!==undefined&&!['orders','services'].includes(q.target_type)||q.sort!==undefined&&!['popular','new'].includes(q.sort)||q.country!==undefined&&q.country!==a.country||['city','category_id'].some(key=>q[key]!==undefined&&(typeof q[key]!=='string'||q[key].length>100)))fail(400,'VALIDATION_ERROR','Проверьте тип, страну и фильтры Топа');
-      const kind=q.target_type==='orders'?'order':'contractor';await this.entitlement(a,'search_full',kind==='order');
+      const kind=q.target_type==='orders'?'order':'contractor';await this.entitlement(a,kind==='contractor'?'view_contractors':'search_full',kind==='order');
       const config=(await this.store.all('ranking_config',a.country)).find(r=>r.status==='effective');
       const parameters=rankingParameters(config?.payload??{window_days:settings.ranking_window_days,dislike_weight:settings.ranking_dislike_weight,age_days:settings.ranking_age_days});
       const candidates=await this.store.select(kind,a.country,{statuses:[kind==='order'?'open':'published'],publicActor:a.id,city:q.city,category:q.category_id,limit:100,ranking:{...parameters,sort:q.sort??'popular'}});
@@ -864,7 +864,7 @@ export class Marketplace {
       return {items,promotions:[],meta:{algorithm_version:config?.version??1,algorithm_id:config?.id??null,parameters,sort:q.sort??'popular',calculated_at:new Date().toISOString()}};
     }
     const reviews=path.match(/^\/(customers|contractors)\/([^/]+)\/reviews$/);
-    if(reviews&&method==='GET'){await this.entitlement(a,'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status)),q);}
+    if(reviews&&method==='GET'){await this.entitlement(a,reviews[1]==='contractors'?'view_contractors':'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status)),q);}
     if(path==='/me/deletion-preview'&&method==='GET'){
       const active=(await this.store.select('order',a.country,{participant:a.id,statuses:['assigned','in_progress','completion_requested'],limit:1000})).length;
       return {active_orders:active,subscription_relevant:(await this.store.select('subscription',a.country,{owner:a.id,limit:1000})).some(s=>['active','grace','canceled_at_period_end'].includes(s.status)),policy_ready:(await this.store.all('retention_policy',a.country)).some(p=>p.status==='effective'),grace_hours:settings.deletion_grace_hours,retention_plan:await deletionPlan(this.store,a.id,a.country,(await this.store.all('retention_policy',a.country)).find(p=>p.status==='effective'),new Date())};
@@ -972,7 +972,7 @@ export class Marketplace {
     if(path==='/me/referrals'&&method==='GET')return this.growth.referrals(a.id,a.country);
     if(path==='/referrals/attribute'&&method==='POST')return this.growth.attribute(a.id,a.country,text(b,'code',1,50));
     const redeem=path.match(/^\/me\/referral-rewards\/([^/]+)\/redeem$/);if(redeem&&method==='POST')return this.growth.redeem(a.id,a.country,redeem[1]);
-    if(path==='/promoted-listings'&&method==='GET'){const placement=String(q.placement_id??'');if(!promotedPlacements.includes(placement))fail(400,'VALIDATION_ERROR','Неизвестное размещение');await this.entitlement(a,'search_full',placement.includes('.orders.'));return promotedListings(this.store,a.country,a.id,placement,q);}
+    if(path==='/promoted-listings'&&method==='GET'){const placement=String(q.placement_id??'');if(!promotedPlacements.includes(placement))fail(400,'VALIDATION_ERROR','Неизвестное размещение');await this.entitlement(a,placement.includes('.orders.')?'search_full':'view_contractors',placement.includes('.orders.'));return promotedListings(this.store,a.country,a.id,placement,q);}
     if(path==='/boost-offers'&&method==='GET'){await this.entitlement(a,'search_full');return {items:(await this.store.all('price_version',a.country)).filter(x=>x.status==='effective'&&x.payload.product_type==='boost').map(x=>({id:x.id,...x.payload})),placements:(await this.store.all('placement_policy',a.country)).filter(x=>x.status==='effective')};}
     if(path==='/boost-reservations'&&method==='POST'){const target=await this.object(String(b.target_id),a,undefined,true);await this.entitlement(a,'search_full',target.kind==='contractor');return this.growth.reserveBoost(a.id,a.country,b);}
     if(path==='/boost-purchases/verify'&&method==='POST')return this.growth.verifyBoost(a.id,a.country,b);

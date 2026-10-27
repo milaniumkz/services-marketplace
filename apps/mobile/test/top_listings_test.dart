@@ -137,7 +137,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Заказы'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Требуется проверка документа исполнителя'),
+    expect(find.textContaining('Подтвердите личность: документ с двух сторон и селфи.'),
         findsOneWidget);
     expect(find.text('Все города'), findsOneWidget);
     await tester.tap(find.text('Услуги'));
