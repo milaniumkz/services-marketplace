@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-27T10:48:18.644332+00:00",
-  "server_source_commit": "784890550457ffa0f6ed787bf6be3cadadb0993e",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40489981697",
+  "verified_at": "2026-10-27T11:27:39.111438+00:00",
+  "server_source_commit": "157553390dee9e0449df1785a65c42495ad86b9a",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40494369633",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -128,11 +128,10 @@
     "owner_migration_once_verified": true
   },
   "admin_mobile_login_verified": true,
-  "admin_mobile_page_viewport_combinations": 40,
+  "admin_mobile_page_viewport_combinations": 45,
   "flutter_tests": {
-    "status": "passed_in_github_actions",
-    "source_commit": "784890550457ffa0f6ed787bf6be3cadadb0993e",
-    "run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40489981697"
+    "passed": 231,
+    "skipped": 2
   },
   "mobile_analysis_issues": 0,
   "admin_account_management": {
@@ -201,5 +200,23 @@
     "native_camera_physical_device_test": "not_performed",
     "apk_built": false,
     "github_status_evidence": "public_workflow_and_job_pages; CLI credential became unavailable after push"
+  },
+  "identity_review_release": {
+    "applicant_summary_and_account_link": true,
+    "history_limit": 20,
+    "automatic_labeled_photos": 3,
+    "zoom_and_retry": true,
+    "full_phone_separate_permission": "sensitive.phone",
+    "document_permission": "sensitive.identity",
+    "sensitive_reads_audited": true,
+    "local_api_tests_passed": 153,
+    "ci_api_tests_passed": 153,
+    "browser_page_viewport_combinations": 45,
+    "production_applicant_data_verified": true,
+    "production_history_verified": true,
+    "production_private_photos_readable": 3,
+    "production_file_tls_verified": true,
+    "production_browser_rendering": "not_verified_in_local_browser_due_to_proxy_CA_trust; isolated_browser_rendering_passed",
+    "apk_built": false
   }
 }
