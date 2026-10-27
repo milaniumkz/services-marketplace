@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-27T13:23:30.771415+00:00",
-  "server_source_commit": "91513c39d6c8a36ae8cabbb3864abf164325ca49",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40509943409",
+  "verified_at": "2026-10-27T14:33:36.281040+00:00",
+  "server_source_commit": "e48604d8795e4c16447640375ca4f26a9b95cd6f",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40520576338",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -130,7 +130,7 @@
   "admin_mobile_login_verified": true,
   "admin_mobile_page_viewport_combinations": 55,
   "flutter_tests": {
-    "passed": 236,
+    "passed": 242,
     "skipped": 2
   },
   "mobile_analysis_issues": 0,
@@ -164,7 +164,7 @@
     "private_documents": true,
     "isolated_lifecycle_tests": "passed"
   },
-  "api_tests_passed": 156,
+  "api_tests_passed": 159,
   "upload_antivirus_smoke": "passed_on_deployed_server_with_benign_jpeg",
   "payment_provider_connected": false,
   "payment_description_matches_editable_prices": true,
@@ -300,5 +300,41 @@
     "recent_requests_and_decisions": 20,
     "pending_draft_revisions_counted": true,
     "filtered_list_links": true
+  },
+  "osm_maps": {
+    "provider": "OpenStreetMap",
+    "tile_url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "visible_linked_attribution": true,
+    "catalog_placeholder_grid_removed": true,
+    "device_center_on_open": true,
+    "device_location_marker_local_only": true,
+    "recenter_button": true,
+    "permission_denial_manual_selection": true,
+    "city_fallback_from_editable_database": true,
+    "address_search": "OpenStreetMap Nominatim; explicit submit only",
+    "reverse_geocoding": true,
+    "geocoder_cache_ttl_seconds": 86400,
+    "geocoder_global_process_interval_ms": 1100,
+    "browser_geolocation_tests_passed": 2,
+    "map_widget_tests_passed": 5,
+    "map_city_form_override_test_passed": true,
+    "native_precise_permission_and_gps_fallback_source_updated": true,
+    "physical_device_gps_verified": false,
+    "real_browser_map_tiles_rendering": "not_verified_in_local_browser_due_to_proxy_CA_trust; widget_rendering_with_memory_tiles_verified",
+    "production_osm_tile_https_png_verified": true,
+    "production_reverse_and_search_verified": true,
+    "apk_built": false
+  },
+  "order_address": {
+    "map_selection_create_and_edit": true,
+    "gps_can_select_initial_point": true,
+    "manual_address_edit": true,
+    "city_linked_to_reference_id": true,
+    "typed_other_fields_preserved": true,
+    "exact_address_and_location_participants_only": true,
+    "public_location_rounded_decimal_places": 2,
+    "public_nearby_search_uses_approximate_point": true,
+    "changing_city_without_point_clears_old_location": true,
+    "api_lifecycle_privacy_verified": true
   }
 }
