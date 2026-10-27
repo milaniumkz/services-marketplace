@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-27T07:45:00Z",
-  "server_source_commit": "b88fe8e9fa912e09bc8daac7452644c7e87612e1",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40467179604",
+  "verified_at": "2026-10-27T10:00:00.120574+00:00",
+  "server_source_commit": "adebc575d591cca2de592ef684d108c1f0517b65",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40483776635",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -130,7 +130,7 @@
   "admin_mobile_login_verified": true,
   "admin_mobile_page_viewport_combinations": 40,
   "flutter_tests": {
-    "passed": 222,
+    "passed": 227,
     "skipped": 2
   },
   "mobile_analysis_issues": 0,
@@ -167,5 +167,17 @@
   "api_tests_passed": 153,
   "upload_antivirus_smoke": "passed_on_deployed_server_with_benign_jpeg",
   "payment_provider_connected": false,
-  "payment_description_matches_editable_prices": true
+  "payment_description_matches_editable_prices": true,
+  "browser_verification_source_commit": "b88fe8e9fa912e09bc8daac7452644c7e87612e1",
+  "pin_setup_release": {
+    "source_commit": "adebc575d591cca2de592ef684d108c1f0517b65",
+    "https_frontend_revision_verified": true,
+    "browser_tests_passed": 3,
+    "browser_storage": "actual_flutter_secure_storage_web",
+    "browser_kdf": "WebCrypto PBKDF2-HMAC-SHA256 100000 iterations; native-compatible vector verified",
+    "flow": "save_pin_then_offer_biometry_then_continue",
+    "web_biometry": "not_available; continue_with_pin",
+    "physical_device_biometry_verified": false,
+    "apk_built": false
+  }
 }
