@@ -28,6 +28,8 @@ test('both roles submit three private photographs; reviewer sees labeled files a
    const sent=await call('POST','/me/verification-sessions/'+session.id+'/submit',{expected_version:1,upload_ids:ids});assert.equal(sent.status,'pending_review');assert.equal((await call('GET','/me')).avatar_id,undefined);
    const path='/admin/verifications/'+session.id;
    await assert.rejects(()=>call('GET',path,{}, {include_documents:'true',reason:'Недопустимый самостоятельный просмотр'}),e=>e.getStatus()===403);
+   const summary=await call('GET',path,{}, {},staff);assert.equal(summary.subject.id,user.user.id);assert.equal(summary.subject.phone,undefined);assert.ok(summary.subject.phone_masked.endsWith('072'+index));assert.equal(summary.document_refs,undefined);assert.equal(summary.history.length,1);assert.equal(summary.history[0].id,session.id);assert.equal(summary.history[0].document_refs,undefined);
+   const contact=await call('GET',path,{}, {include_phone:'true',reason:'Проверка телефона заявителя'},staff);assert.equal(contact.subject.phone,'+7700000072'+index);
    const detail=await call('GET',path,{}, {include_documents:'true',reason:'Проверка двух сторон и селфи'},staff);assert.deepEqual(detail.document_refs,ids);assert.equal(detail.document_labels[2],'Селфи');
    await call('POST',path+'/decision',{expected_version:sent.version,document_revision:sent.document_revision,decision:'passed',expires_at:new Date(Date.now()+365*86400000).toISOString(),reason:'Фотографии проверены сотрудником'}, {},staff);
    const me=await call('GET','/me');assert.equal(me.verification,'passed');assert.ok(me.avatar_id);assert.equal(ids.includes(me.avatar_id),false);

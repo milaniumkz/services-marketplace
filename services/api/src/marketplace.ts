@@ -1279,12 +1279,20 @@ export class Marketplace {
         const r=await this.object(reviewDetail[2],a,kind);
         if(reviewDetail[1]==='verifications') {
           const {document_refs,...safe}=r;
+          const owner=await this.store.get(r.owner);
+          const subject=owner?.kind==='user'&&owner.country===a.country?{...safeUser(owner),status:owner.status,phone_masked:owner.phone?'•••• '+String(owner.phone).slice(-4):null}:null;
+          const history=subject?(await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='verification' AND country=$1 AND owner=$2 ORDER BY data->>'created_at' DESC,id LIMIT 20",[a.country,r.owner])).rows.map(({data:v})=>({id:v.id,status:v.status,document_type:v.document_type,created_at:v.created_at,decided_at:v.decided_at,expires_at:v.expires_at,reason:v.reason,reviewer_id:v.reviewer_id,document_revision:v.document_revision})):[];
+          const detail:any={...safe,subject,history,history_limit:20};
+          if(q.include_phone==='true') {
+            await this.staff(a,'phone_view');const reason=text(q,'reason',10,1000);
+            if(subject){await this.audit(a,'user.phone_read',subject.id,reason);detail.subject={...subject,phone:owner!.phone};}
+          }
           if(q.include_documents==='true') {
             await this.staff(a,'identity_view');const reason=text(q,'reason',10,1000);
             await this.audit(a,'verification.documents_read',r.id,reason);
-            return {...safe,document_refs,document_labels:r.required_pages??[],selfie_index:r.selfie_index??null};
+            return {...detail,document_refs,document_labels:r.required_pages??[],selfie_index:r.selfie_index??null};
           }
-          return safe;
+          return detail;
         }
         return ['portfolio','contractors'].includes(reviewDetail[1])?editableContent(r):r;
       }

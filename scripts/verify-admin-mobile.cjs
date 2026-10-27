@@ -16,8 +16,13 @@ async function main(){
  let browser,server;
  try{
   const id=randomUUID(),password='Isolated mobile admin password!';
-  await api.store.put({id,kind:'user',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),display_name:'Мобильная проверка',phone:'mobile-admin-test',roles:['customer'],staff_permissions:['platform_owner','administrator','content','billing'],staff_auth_mode:'password',status:'active',fixture:true});
+  await api.store.put({id,kind:'user',owner:id,country:'KZ',version:1,created_at:new Date().toISOString(),display_name:'Мобильная проверка',phone:'mobile-admin-test',roles:['customer'],staff_permissions:['platform_owner','administrator','content','billing','identity_view','verification_reviewer'],staff_auth_mode:'password',status:'active',fixture:true});
   await api.store.db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',['KZ','mobile-admin-test',id,await hash(password)]);
+  const subjectId=randomUUID(),verificationId=randomUUID(),photoIds=[];
+  const created=new Date().toISOString();
+  await api.store.put({id:subjectId,kind:'user',owner:subjectId,country:'KZ',version:1,created_at:created,display_name:'Заявитель проверки',phone:'+77000000123',roles:['customer'],active_role:'customer',locale:'ru',city:'Караганда',status:'active',verification:'not_started'});
+  for(const color of ['red','blue','green']){const fileId=randomUUID(),bytes=await require('sharp')({create:{width:32,height:48,channels:3,background:color}}).jpeg().toBuffer();await api.files.write(fileId,bytes);await api.store.put({id:fileId,kind:'upload',owner:subjectId,country:'KZ',version:1,created_at:created,purpose:'identity',verification_id:verificationId,mime:'image/jpeg',size:bytes.length,status:'clean'});photoIds.push(fileId);}
+  await api.store.put({id:verificationId,kind:'verification',owner:subjectId,country:'KZ',version:2,created_at:created,status:'pending_review',document_type:'id_card',document_revision:2,document_refs:photoIds,required_pages:['Лицевая сторона удостоверения','Обратная сторона удостоверения','Селфи'],selfie_index:2});
   await app.listen(0,'127.0.0.1');const origin=await app.getUrl();
   const {createServer}=require('node:http');const root=resolve(__dirname,'../apps/admin/dist');
   server=createServer(async(req,res)=>{try{
@@ -43,13 +48,21 @@ async function main(){
   const output=process.env.JOBA_ADMIN_MOBILE_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
   for(const width of [320,360,393,430,768]){
    await page.setViewportSize({width,height:852});
-   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access']){
+   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access','record-live/verification/'+verificationId]){
     console.log('Checking',width,route);await page.goto(frontend+'/#'+route);await page.locator('.workspace').waitFor();
     await page.waitForLoadState('networkidle');
     if(route==='dashboard'){await page.locator('#server-metrics').getByText('Сервер — ресурсы и нагрузка',{exact:true}).waitFor();assert(await page.locator('#server-metrics').getByText('Оперативная память',{exact:true}).isVisible());await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/server-metrics')&&r.status()===200),page.locator('#server-metrics [data-server-refresh]').click()]);await page.locator('#server-metrics svg').waitFor();}
 
     if(route==='pricing'){assert.equal(await page.locator('#subscription-catalog [name=customer]').inputValue(),'500.00');assert.equal(await page.locator('#subscription-catalog [name=standard]').inputValue(),'1000.00');assert.equal(await page.locator('#subscription-catalog [name=premium]').inputValue(),'1500.00');}
     if(route==='legal'){await page.locator('[data-legal-revise]').first().click();assert.equal(await page.locator('#legal-type').inputValue(),'verification_consent');}
+    if(route.startsWith('record-live/verification/')){
+      await page.getByText('Заявитель проверки',{exact:true}).waitFor();
+      await page.getByText('Караганда',{exact:true}).waitFor();
+      await page.getByText('Полный телефон: +77000000123',{exact:true}).waitFor();
+      await page.waitForFunction(()=>document.querySelectorAll('.verification-photo img').length===3&&[...document.querySelectorAll('.verification-photo img')].every(image=>image.complete&&image.naturalWidth>0&&!image.hidden));
+      assert.equal(await page.locator('.verification-photo figcaption').allTextContents().then(labels=>labels.join('|')),'Лицевая сторона удостоверения|Обратная сторона удостоверения|Селфи');
+      await page.getByRole('button',{name:'Увеличить',exact:true}).first().click();assert.equal(await page.locator('.verification-photo.expanded').count(),1);
+    }
     const dimensions=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
     assert(dimensions.scroll<=width+1,`${route} overflows ${width}: ${dimensions.scroll}`);
     const menu=page.locator('[data-action="navigation"]');await menu.click();
@@ -58,7 +71,7 @@ async function main(){
     await page.keyboard.press('Escape');assert.equal(await menu.getAttribute('aria-expanded'),'false');
     await menu.click();await page.locator('.mobile-menu-backdrop').click({position:{x:width-5,y:500}});
     assert.equal(await menu.getAttribute('aria-expanded'),'false');
-    if(output&&width===393)await page.screenshot({path:join(output,route+'.png'),fullPage:true});
+    if(output&&width===393)await page.screenshot({path:join(output,route.replaceAll('/','-')+'.png'),fullPage:true});
    }
   }
   await page.setViewportSize({width:393,height:852});await page.goto(frontend+'/#users');await page.locator('.tablewrap').waitFor();
@@ -71,7 +84,7 @@ async function main(){
   await page.setViewportSize({width:1440,height:1000});
   assert.equal(await page.locator('.sidebar').evaluate(e=>e.inert),false);
   assert.equal(await page.getByRole('button',{name:'Навигация',exact:true}).isVisible(),false);
-  assert.deepEqual(errors,[]);console.log('Mobile admin verified: 40 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
+  assert.deepEqual(errors,[]);console.log('Mobile admin verified: 45 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
  }finally{if(browser)await browser.close();if(server)await new Promise(resolve=>server.close(resolve));await app.close();await api.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
