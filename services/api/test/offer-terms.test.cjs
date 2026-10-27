@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {offerTerms,offerPolicy,offerExpired}=require('../dist/offer-terms');
@@ -26,6 +27,7 @@ test('expired offers cannot be selected or reused; complete terms are kept in th
  try{
   const register=(phone)=>call(null,'POST','/auth/register',{country:'KZ',phone,password:'Isolated offer terms password!',display_name:'Участник'});
   const customer=await register('+77006660101'),executor=await register('+77006660102');
+  await paidCustomer(api,customer);
   for(const actor of [customer,executor]){await api.store.put({...await api.store.get(actor.user.id),verification:'passed',roles:['customer','executor']});await api.store.put({id:randomUUID(),kind:'grant',country:'KZ',owner:actor.user.id,created_at:new Date().toISOString(),version:1,valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['send_offer','search_full'],source:'isolated_test'});}
   const draft=await call(customer,'POST','/orders',{title:'Собрать новую кухню',description:'Нужна аккуратная сборка новой кухни и подключение мойки.',category_id:'1',city:'Алматы'});
   const open=await call(customer,'POST',`/orders/${draft.id}/publish`,{expected_version:draft.version});

@@ -11,13 +11,13 @@ import '../core/widgets.dart';
 
 /// S05 and S32 share data, but represent choosing access and managing it.
 class ExecutorAccess extends StatefulWidget {
-  final bool choosing;
+  final bool choosing, customer;
   final List<Json> grants, subscriptions;
   final Json config;
   final DateTime Function() now;
   final void Function(String route, String? id) onGo;
   const ExecutorAccess(
-      {required this.choosing,
+      {this.customer = false, required this.choosing,
       required this.grants,
       required this.subscriptions,
       required this.config,
@@ -31,8 +31,8 @@ class ExecutorAccess extends StatefulWidget {
 class _ExecutorAccessState extends State<ExecutorAccess> {
   Timer? _ticker;
   bool get choosing => widget.choosing;
-  List<Json> get grants => widget.grants;
-  List<Json> get subscriptions => widget.subscriptions;
+  List<Json> get grants => widget.grants.where((r)=>widget.customer ? (r['capabilities'] as List? ?? []).contains('view_contractors') : r['role']!='customer' && r['plan']!='customer').toList();
+  List<Json> get subscriptions => widget.subscriptions.where((r)=>(r['plan']=='customer')==widget.customer).toList();
   Json get config => widget.config;
   void onGo(String route, String? id) => widget.onGo(route, id);
   @override
@@ -149,7 +149,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                 if (grants.isEmpty && subscriptions.isEmpty)
                   const Notice('История доступа пока пуста.'),
                 for (final r in subscriptions)
-                  DataCard(r['plan'] == 'premium' ? 'Премиум' : 'Стандарт',
+                  DataCard(r['plan'] == 'customer' ? 'Заказчик' : r['plan'] == 'premium' ? 'Премиум' : 'Стандарт',
                       translateTitle: true,
                       subtitle: '${r['status']} · ${date(context, r)}'),
                 for (final r in grants)
@@ -187,9 +187,10 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                 letterSpacing: -.9,
                 fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),
-        text('Поиск заказов, публикация услуг и отклики.', color: muted),
+        text(widget.customer ? 'Анкеты исполнителей и размещение заказов на 30 дней.' : 'Поиск заказов, публикация услуг и отклики.', color: muted),
         const SizedBox(height: 20),
-        for (final plan in const ['standard', 'premium'])
+        if(config['verification_status']!=null&&config['verification_status']!='passed') ...[text('Перед использованием подписки подтвердите личность.'),const SizedBox(height:8),action('Подтвердить личность','verification'),const SizedBox(height:16)],
+        for (final plan in (widget.customer ? const ['customer'] : const ['standard', 'premium']))
           Builder(builder: (context) {
             final matching =
                 offers.where((r) => (r['plan'] ?? 'standard') == plan).toList();
@@ -207,9 +208,9 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                 child: card([
                   Row(children: [
                     Expanded(
-                        child: text(plan == 'premium' ? 'Премиум' : 'Стандарт',
+                        child: text(plan == 'customer' ? 'Заказчик' : plan == 'premium' ? 'Премиум' : 'Стандарт',
                             size: 16, bold: true)),
-                    badge('Исполнитель')
+                    badge(widget.customer ? 'Заказчик' : 'Исполнитель')
                   ]),
                   const SizedBox(height: 16),
                   Row(
@@ -232,8 +233,8 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                       size: 10,
                       color: muted),
                   const Divider(height: 29, thickness: 1),
-                  benefit('Находите подходящие заказы'),
-                  benefit('Публикуйте услуги и откликайтесь'),
+                  benefit(widget.customer ? 'Просматривайте анкеты исполнителей' : 'Находите подходящие заказы'),
+                  benefit(widget.customer ? 'Размещайте заказы' : 'Публикуйте услуги и откликайтесь'),
                   benefit('Общайтесь по вашим заказам'),
                   if (plan == 'premium')
                     benefit('Приоритет услуг в Топ-100 на 30 дней'),
@@ -363,7 +364,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         const SizedBox(height: 8),
         text(
             subscription == null
-                ? 'Заказчик пользуется JOBA бесплатно.'
+                ? 'Выберите подписку для своей роли.'
                 : 'Условия подтверждены платёжным провайдером.',
             size: 10,
             color: const Color(0xFFAEBFD9)),

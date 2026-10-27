@@ -133,6 +133,13 @@ import json
 from pathlib import Path
 print(json.dumps([{'type':kind,'locale':'ru','content':Path('docs/legal/kz/'+kind+'.ru.txt').read_text()} for kind in ['payments','refunds','public_offer','contacts']]))
 PYCOMMERCE
+"${joba_compose[@]}" cp scripts/verify-upload-scanner.cjs api:/tmp/joba-verify-upload-scanner.cjs
+"${joba_compose[@]}" exec -T -u root api chmod 0644 /tmp/joba-verify-upload-scanner.cjs
+"${joba_compose[@]}" exec -T -e JOBA_SCANNER_MODULE_ROOT=/app/services/api/dist api node /tmp/joba-verify-upload-scanner.cjs
+# Owner explicitly changed the commercial model and identity requirements on 2026-10-27.
+"${joba_compose[@]}" cp scripts/publish-role-access.cjs api:/tmp/joba-publish-role-access.cjs
+"${joba_compose[@]}" exec -T -u root api chmod 0644 /tmp/joba-publish-role-access.cjs
+"${joba_compose[@]}" exec -T -e JOBA_ROLE_ACCESS=owner-authorized-2026-10-27 -e JOBA_ROLE_STORE_MODULE=/app/services/api/dist/store api node /tmp/joba-publish-role-access.cjs
 # This verifies a trusted public certificate; no -k/self-signed fallback.
 curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors --max-time 15 "https://$joba_domain/health"
 curl --fail --silent --show-error --max-time 15 "https://$joba_domain/" -o /dev/null

@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {randomUUID}=require('node:crypto');
@@ -49,6 +50,9 @@ test('published portfolio media require access, visibility and country ACL',asyn
  const register=(p,country='KZ')=>call(null,'POST','/auth/register',{country,phone:p,password:'Isolated media ACL password!'});
  try{
   const owner=await register('+77000000511'),reader=await register('+77000000512'),unpaid=await register('+77000000513'),foreign=await register('+375291234568','BY');
+  await paidCustomer(api,reader);
+  await api.store.put({...await api.store.get(unpaid.user.id),verification:'passed'});
+  await api.store.put({...await api.store.get(foreign.user.id),verification:'passed'});
   await api.store.put({id:randomUUID(),kind:'grant',owner:reader.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['search_full'],source:'isolated_acl_fixture'});
   const image=await require('sharp')({create:{width:2,height:2,channels:3,background:'#245BDB'}}).png().toBuffer();
   const upload={id:randomUUID(),kind:'upload',owner:owner.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),purpose:'portfolio',mime:'image/png',size:image.length,status:'clean',fixture:true};
@@ -61,13 +65,14 @@ test('published portfolio media require access, visibility and country ACL',asyn
   const verifiedOwner=await api.store.get(owner.user.id);await api.store.put({...verifiedOwner,verification:'passed'});
   const detailPath='/contractors/'+profile.id+'/portfolio/'+project.id;
   const detail=await call(reader,'GET',detailPath);assert.equal(detail.id,project.id);assert.equal(detail.order_id,undefined);assert.equal(detail.draft,undefined);assert.equal(detail.contractor_id,profile.id);
-  assert.equal((await call(unpaid,'GET',detailPath)).id,project.id);
+  await assert.rejects(()=>call(unpaid,'GET',detailPath),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
+  await paidCustomer(api,foreign);
   await api.store.put({id:randomUUID(),kind:'grant',owner:foreign.user.id,country:'BY',version:1,created_at:new Date().toISOString(),valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['search_full'],source:'isolated_foreign_acl_fixture'});
   await assert.rejects(()=>call(foreign,'GET',detailPath),e=>e.getResponse().error.code==='NOT_FOUND');
   await api.store.put({...project,status:'draft'});await assert.rejects(()=>call(reader,'GET',detailPath),e=>e.getResponse().error.code==='NOT_FOUND');
   await api.store.put({...project,status:'published',photos:[upload.id]});
   assert.equal((await call(reader,'GET','/uploads/'+upload.id+'/metadata')).mime,'image/png');
-  assert.equal((await call(unpaid,'GET','/uploads/'+upload.id+'/metadata')).mime,'image/png');
+  await assert.rejects(()=>call(unpaid,'GET','/uploads/'+upload.id+'/metadata'),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
   await api.store.put({...await api.store.get(unpaid.user.id),roles:['customer','executor'],active_role:'executor'});
   await assert.rejects(()=>call(unpaid,'GET',detailPath),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
   await assert.rejects(()=>call(foreign,'GET','/uploads/'+upload.id+'/metadata'),e=>e.getResponse().error.code==='NOT_FOUND');
@@ -115,6 +120,7 @@ test('public search filters blocked and hidden records before cursor pagination'
  try{
   const users=[];for(let i=0;i<4;i++)users.push(await call(null,'POST','/auth/register',{country:'KZ',phone:'+7700000060'+i,password:'Isolated search visibility password!'}));
   const [reader,blocked,hidden,visible]=users;
+  await paidCustomer(api,reader);
   for(const u of users){const account=await api.store.get(u.user.id);await api.store.put({...account,roles:['customer','executor'],verification:'passed'});}
   await api.store.put({id:randomUUID(),kind:'grant',owner:reader.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['search_full']});
   await call(reader,'POST','/me/blocks',{target_user_id:blocked.user.id});

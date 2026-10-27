@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {randomUUID,randomBytes}=require('node:crypto');
@@ -11,6 +12,8 @@ test('published content stays visible while drafts are reviewed; approval record
  const call=(user,method,path,body={},query={})=>api.handle(method,path,body,'Bearer '+user.access_token,randomUUID(),query);
  try{
   const owner=await register('+77000000471'),reader=await register('+77000000473'),staffAccount=await register('+77000000472');
+  await paidCustomer(api,owner);
+  await paidCustomer(api,reader);
   await api.store.put({...await api.store.get(owner.user.id),roles:['customer','executor'],verification:'passed'});
   const secret=randomBytes(20).toString('hex');await api.store.put({...await api.store.get(staffAccount.user.id),roles:[],staff_permissions:['content'],totp_secret:secret});
   const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:'+77000000472',password,mfa_code:totp(secret)},undefined,undefined,{},'content-staff');

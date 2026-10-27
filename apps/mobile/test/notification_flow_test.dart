@@ -151,7 +151,7 @@ void main() {
       if (['offers', 'complete', 'support-chat', 'portfolio-project']
           .contains(entry.value)) expect(state.objectId, id);
       if (entry.value == 'my-access')
-        expect(find.text('Для заказчика бесплатно'), findsOneWidget);
+        expect(find.text('Мой доступ'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
       pending.complete(ok({}));
       await t.pumpAndSettle();

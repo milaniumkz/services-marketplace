@@ -23,7 +23,7 @@ http.Response ok(dynamic data) =>
         headers: {'content-type': 'application/json; charset=utf-8'});
 void main() {
   testWidgets(
-      'verification keeps both page uploads after failure and sends only the selected session',
+      'verification keeps both document sides and selfie after failure and sends only the selected session',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -52,7 +52,7 @@ void main() {
             'document_id': 'legal',
             'document_types': ['id_card', 'passport'],
             'required_pages': {
-              'id_card': ['Лицевая сторона', 'Оборотная сторона'],
+              'id_card': ['Лицевая сторона', 'Оборотная сторона', 'Селфи'],
               'passport': ['Страница с данными']
             },
             'consent_accepted': false
@@ -83,7 +83,7 @@ void main() {
           'policy_version': 1,
           'status': 'draft',
           'document_type': 'id_card',
-          'required_pages': ['Лицевая сторона', 'Оборотная сторона']
+          'required_pages': ['Лицевая сторона', 'Оборотная сторона', 'Селфи']
         });
       if (path.endsWith('/submit')) {
         submissions.add(jsonDecode(request.body) as Json);
@@ -158,21 +158,25 @@ void main() {
     await tester.scrollUntilVisible(find.text('Оборотная сторона'), 100);
     await tester.tap(find.text('Оборотная сторона'));
     await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Отправить на проверку')).onPressed, isNull);
+    await tester.scrollUntilVisible(find.text('Селфи'), 100);
+    await tester.tap(find.text('Селфи'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Условия проверки'), 150);
     await tester.drag(find.byType(ListView), const Offset(0, -100));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Условия проверки'));
     expect(terms, 1);
-    expect(picks, 2);
+    expect(picks, 3);
     await tester.tap(find.text('Отправить на проверку'));
     await tester.pumpAndSettle();
-    expect(uploads['check'], ['photo-1', 'photo-2']);
+    expect(uploads['check'], ['photo-1', 'photo-2', 'photo-3']);
     expect(submissions.length, 1);
     await tester.tap(find.text('Отправить на проверку'));
     await tester.pumpAndSettle();
     expect(submissions.length, 2);
     expect(submissions[0]['upload_ids'], submissions[1]['upload_ids']);
-    expect(picks, 2);
+    expect(picks, 3);
     expect(uploads, isEmpty);
     expect(find.text('Проверяем документ'), findsOneWidget);
   });
@@ -247,7 +251,7 @@ void main() {
             'document_id': 'legal',
             'document_types': ['id_card', 'passport'],
             'required_pages': {
-              'id_card': ['Лицевая сторона', 'Оборотная сторона'],
+              'id_card': ['Лицевая сторона', 'Оборотная сторона', 'Селфи'],
               'passport': ['Страница с данными']
             },
             'consent_accepted': true
@@ -260,7 +264,7 @@ void main() {
               'policy_version': 1,
               'status': 'draft',
               'document_type': 'id_card',
-              'required_pages': ['Лицевая сторона', 'Оборотная сторона'],
+              'required_pages': ['Лицевая сторона', 'Оборотная сторона', 'Селфи'],
               'created_at': '2026-01-01'
             }
           ]

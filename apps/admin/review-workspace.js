@@ -52,13 +52,14 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
       result.replaceChildren();
       if(section==='users'){result.textContent=data.phone;return;}
       if(!data.document_refs?.length){result.textContent='Документы отсутствуют';return;}
-      for(const uploadId of data.document_refs){
-        const button=document.createElement('button');button.type='button';button.textContent='Просмотреть документ';
+      for(const [index,uploadId] of data.document_refs.entries()){
+        const button=document.createElement('button');button.type='button';button.textContent=data.document_labels?.[index]||(index===data.selfie_index?'Селфи':'Документ '+(index+1));
         button.onclick=async()=>{button.disabled=true;try{
           const ticket=await api('/uploads/'+encodeURIComponent(uploadId)+'/download-url?'+new URLSearchParams({reason}));
           // The API issues a short-lived, one-use capability only after checking ACLs.
           const url=new URL(ticket.url,location.origin);if(url.origin!==location.origin||!url.pathname.startsWith('/api/v1/private-files/'))throw Error('Некорректный адрес документа');
-          const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Открыть защищённый файл';button.replaceWith(link);
+          const image=document.createElement('img');image.src=url.href;image.alt=data.document_labels?.[index]||'Фотография для проверки';image.style.maxWidth='100%';image.style.maxHeight='480px';image.referrerPolicy='no-referrer';button.replaceWith(image);return;
+
         }catch(error){const alert=document.createElement('p');alert.role='alert';alert.textContent=error.message;result.append(alert);button.disabled=false;}};
         result.append(button);
       }

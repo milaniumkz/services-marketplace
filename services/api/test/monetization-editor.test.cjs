@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUU
 const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store'),{totp}=require('../dist/totp');
 const password='Isolated monetization editor password!';
 const call=(a,u,method,path,body={})=>a.handle(method,path,body,'Bearer '+u.access_token,randomUUID());
-test('monetization drafts edit with versions, publish independently, preserve regional singleton and expose actual limits without customer subscriptions',async()=>{
+test('monetization drafts edit with versions, publish independently, preserve regional singleton and expose actual limits with role-scoped customer subscriptions',async()=>{
  const a=new Marketplace(new Store('memory://'));await a.initialize();
  try{
   const staff=[];for(const phone of ['+77000000911','+77000000912']){const u=await a.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID()),secret=randomBytes(20).toString('hex');await a.store.put({...await a.store.get(u.user.id),staff_permissions:['billing'],totp_secret:secret});staff.push(await a.handle('POST','/auth/staff-login',{country:'KZ',phone,password,mfa_code:totp(secret)},undefined,randomUUID()));}
@@ -18,7 +18,7 @@ test('monetization drafts edit with versions, publish independently, preserve re
   const preview=await call(a,staff[0],'POST',path+'/preview',{reason,expected_version:2});assert.equal(preview.applied,false);
   d=await call(a,staff[1],'POST',path+'/publish',{reason,expected_version:2});assert.equal(d.status,'effective');
   await assert.rejects(()=>call(a,staff[0],'PATCH',path,{title,reason,payload,expected_version:3}),e=>e.getStatus()===409);
-  let config=await call(a,member,'GET','/me/monetization-config');assert.equal(config.subscription_enabled,false);assert.equal(config.reward_usage.daily_cap,2);assert.deepEqual(config.offers,[]);
+  let config=await call(a,member,'GET','/me/monetization-config');assert.equal(config.subscription_enabled,true);assert.equal(config.reward_usage.daily_cap,2);assert.deepEqual(config.offers,[]);
   const now=new Date();await a.store.put({id:randomUUID(),kind:'ad_session',owner:member.user.id,country:'KZ',version:1,created_at:now.toISOString(),status:'created'});config=await call(a,member,'GET','/me/monetization-config');assert.equal(config.reward_usage.remaining_today,1);assert.equal(Date.parse(config.reward_usage.cooldown_until)-now.getTime(),120000);
   // A replacement supersedes even a legacy scoped head; the runtime reads one regional policy.
   await a.store.put({...await a.store.get(d.id),payload:{...d.payload,role:'executor'}});

@@ -11,7 +11,7 @@ const assert=require('node:assert/strict');
  assert.ok(ready,'Production HTTPS did not become ready');
  for(const path of ['/api/v1/public/config?country=KZ','/assets/fonts/NotoSans-Regular.ttf','/assets/fonts/MaterialIcons-Regular.otf'])assert.equal((await fetch(base+path)).status,200,path);
  const publicConfig=(await (await fetch(base+'/api/v1/public/config')).json()).data;
- assert.equal(publicConfig.subscription_scope,'executor');assert.equal(publicConfig.customer_access,'free');
+ assert.equal(publicConfig.subscription_scope,'customer_and_executor');assert.equal(publicConfig.customer_access,'subscription');
  const legalResponse=await fetch(base+'/api/v1/legal/documents?country=KZ&locale=ru&required=true');assert.equal(legalResponse.status,200);
  const legal=(await legalResponse.json()).data.items;
  assert.ok(['terms','privacy'].every(type=>legal.some(d=>d.type===type&&d.content.length>=1000&&d.hash&&d.published_at)),'Published KZ legal documents are missing');
@@ -40,7 +40,7 @@ const assert=require('node:assert/strict');
   await page.goto(base+'/site/W03.html#terms');await page.locator('.legal-paper').filter({hasText:'ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ JOBA'}).waitFor();
   await page.screenshot({path:'live-web-report/published-terms.png'});assert.deepEqual(errors,[]);
  }catch(error){await page.screenshot({path:'live-web-report/error.png'});await writeFile('live-web-report/error.html',await page.content());throw error;}finally{await browser.close();}
- const result={url:base,https_certificate_verified:true,production_database_ready:true,customer_access_free:true,subscription_scope:'executor',published_kz_legal_documents:true,public_legal_reader_available:true,retired_flutter_worker_not_registered:true,welcome_continue_opens_login:true,admin_login_available:true,admin_mobile_login_verified:true,public_site_available:true,first_render_ms:render,errors};
+ const result={url:base,https_certificate_verified:true,production_database_ready:true,customer_access_free:false,subscription_scope:'customer_and_executor',published_kz_legal_documents:true,public_legal_reader_available:true,retired_flutter_worker_not_registered:true,welcome_continue_opens_login:true,admin_login_available:true,admin_mobile_login_verified:true,public_site_available:true,first_render_ms:render,errors};
  await writeFile('live-web-report/result.json',JSON.stringify(result,null,2));console.log('Verified live HTTPS web:',JSON.stringify(result));
  if(process.env.GITHUB_TOKEN){const r=await fetch('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/check-runs',{method:'POST',headers:{authorization:'Bearer '+process.env.GITHUB_TOKEN,'content-type':'application/json',accept:'application/vnd.github+json'},body:JSON.stringify({name:'live-https-web-verification',head_sha:process.env.GITHUB_SHA,status:'completed',conclusion:'success',output:{title:'Live HTTPS web verified',summary:JSON.stringify(result)}})});assert.ok(r.ok,'Could not publish live verification result');}
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {randomUUID,randomBytes}=require('node:crypto');
@@ -19,7 +20,7 @@ test('staff review protects document references, regional data and sensitive rea
   await api.store.put({id:documentId,kind:'legal_document',country:'KZ',owner:'system',version:1,created_at:new Date().toISOString(),status:'published',hash:'isolated-review-consent'});
   await api.store.put({id:policyId,kind:'verification_policy',country:'KZ',owner:'system',version:1,created_at:new Date().toISOString(),status:'effective',payload:{document_id:documentId,document_types:['passport'],required_pages:{passport:['Страница с данными']}}});
   await call(owner,'POST','/me/consents',{document_id:documentId,document_hash:'isolated-review-consent',accepted:true});
-  const id=randomUUID(),file=randomUUID(),base={kind:'verification',policy_id:policyId,policy_version:1,required_pages:['Страница с данными'],owner:owner.user.id,version:1,created_at:new Date().toISOString(),status:'pending_review',document_type:'passport',document_revision:2,document_refs:[file]};
+  const id=randomUUID(),file=randomUUID(),base={kind:'verification',policy_id:policyId,policy_version:1,required_pages:['Лицевая сторона','Обратная сторона','Селфи'],selfie_index:2,owner:owner.user.id,version:1,created_at:new Date().toISOString(),status:'pending_review',document_type:'passport',document_revision:2,document_refs:[file]};
   await api.store.put({...base,id,country:'KZ'});
   const foreign=randomUUID();await api.store.put({...base,id:foreign,country:'KG'});
   const path='/admin/verifications/'+id;
@@ -41,8 +42,9 @@ test('staff review protects document references, regional data and sensitive rea
   assert.equal(upload.verification_id,otherId);
   // Isolated metadata fixture exercises session binding, not antivirus correctness.
   await api.store.put({...upload,kind:'upload',status:'clean'});
-  await rejected(()=>call(owner,'POST','/me/verification-sessions/'+id+'/submit',{expected_version:2,upload_ids:[upload.id]}),'POLICY_REJECTED');
-  await call(owner,'POST','/me/verification-sessions/'+otherId+'/submit',{expected_version:1,upload_ids:[upload.id]});
+  const uploads=[upload.id];for(let i=0;i<2;i++){const extra=await call(owner,'POST','/uploads/initiate',{purpose:'identity',verification_id:otherId,mime:'image/png',size:100});await api.store.put({...extra,status:'clean'});uploads.push(extra.id);}
+  await rejected(()=>call(owner,'POST','/me/verification-sessions/'+id+'/submit',{expected_version:2,upload_ids:uploads}),'POLICY_REJECTED');
+  await call(owner,'POST','/me/verification-sessions/'+otherId+'/submit',{expected_version:1,upload_ids:uploads});
   assert.equal((await api.store.get(otherId)).status,'pending_review');
 
  }finally{await api.store.close();}
@@ -64,6 +66,7 @@ test('new business commands require current consent and honor withdrawal without
  const api=new Marketplace(new Store('memory://'));await api.initialize();
  try{
   const session=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000461',password:'Isolated legal account password'},undefined,undefined,{},'legal-test');
+  await paidCustomer(api,session);
   const command=(method,path,body={})=>api.handle(method,path,body,'Bearer '+session.access_token,randomUUID());
   const document={id:randomUUID(),kind:'legal_document',owner:'system',country:'KZ',version:2,created_at:new Date().toISOString(),published_at:new Date().toISOString(),status:'published',type:'privacy',locale:'ru',content:'Approved privacy text',hash:'current-legal-hash'};
   await api.store.put(document);

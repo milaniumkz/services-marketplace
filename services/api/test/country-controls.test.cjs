@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {randomUUID}=require('node:crypto');
@@ -11,6 +12,7 @@ test('regional controls require independent approval and stop registration and n
  const call=(user,method,path,body={})=>api.handle(method,path,body,'Bearer '+user.access_token,randomUUID(),{},'country-controls-test');
  try{
   const customer=await register('+77000000096'),executor=await register('+77000000097'),author=await register('+77000000098'),approver=await register('+77000000099');
+  await paidCustomer(api,customer);
   const staff=[];
   for(const session of [author,approver]){
    const user=await api.store.get(session.user.id),secret='00112233445566778899aabbccddeeff00112233';

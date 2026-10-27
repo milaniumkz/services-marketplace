@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { Marketplace } = require('../dist/marketplace');
@@ -16,9 +17,10 @@ test('marketplace lifecycle, access boundaries, command retry and refresh replay
     const stranger = await register('+77000000003');
     const otherRegion = await register('+375291234567','BY');
     const unpaidDraft=await call(customer,'POST','/orders',{title:'Неоплаченный черновик',description:'Описание достаточно длинное для создания черновика заказа.',category_id:'1',city:'Алматы',budget_amount:null});
-    assert.equal((await call(customer,'POST',`/orders/${unpaidDraft.id}/publish`,{expected_version:unpaidDraft.version})).status,'open');
+    await rejects(()=>call(customer,'POST',`/orders/${unpaidDraft.id}/publish`,{expected_version:unpaidDraft.version}),'VERIFICATION_REQUIRED');
     // Synthetic fixture grants only: never expose a client-side self-grant endpoint.
     for (const user of [customer,executor,stranger,otherRegion]) {
+      await paidCustomer(api,user);
       const u=await api.store.get(user.user.id); u.verification='passed';u.roles=['customer','executor']; await api.store.put(u);
       await api.store.put({id:randomUUID(),kind:'grant',owner:u.id,country:u.country,version:1,created_at:new Date().toISOString(),valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['publish_order','search_full','send_offer','select_offer','publish_profile'],source:'test_fixture'});
     }
@@ -76,7 +78,7 @@ test('marketplace lifecycle, access boundaries, command retry and refresh replay
     assert.equal((await api.store.all('review','KZ')).filter(x=>x.status==='published').length,2);
     await rejects(()=>call(stranger,'POST','/reviews',{order_id:order.id,rating:5,text:'Чужой отзыв'}),'FORBIDDEN');
     await rejects(()=>call(customer,'GET','/admin/users'),'FORBIDDEN');
-    await rejects(()=>call(customer,'POST','/billing/verify-purchase',{transaction_reference:'fake',provider:'missing'}),'EXECUTOR_ROLE_REQUIRED');
+    await rejects(()=>call(customer,'POST','/billing/verify-purchase',{transaction_reference:'fake',provider:'missing'}),'PROVIDER_UNAVAILABLE');
     await rejects(()=>call(customer,'POST','/me/verification-sessions',{document_type:'passport'}),'COUNTRY_FLOW_UNAPPROVED');
     const rotated=await call(null,'POST','/auth/refresh',{refresh_token:customer.refresh_token});
     await rejects(()=>call(customer,'GET','/me'),'TOKEN_EXPIRED');

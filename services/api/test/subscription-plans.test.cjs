@@ -8,14 +8,15 @@ test('standard and premium are exactly 30 days; premium rights, expiry and regio
   await a.store.put({...await a.store.get(c.user.id),roles:['executor'],active_role:'executor',verification:'passed'});
   const customer=await a.handle('POST','/auth/register',{country:'KZ',phone:'+77000000692',password:'Isolated plan account password!'},undefined,randomUUID());
   assert.deepEqual((await a.handle('GET','/billing/offers',{},'Bearer '+customer.access_token)).items,[]);
-  assert.deepEqual((await a.commerce.plans('KZ')).items.map(x=>x.amount_minor),[100000,150000]);
+  assert.deepEqual((await a.commerce.plans('KZ')).items.map(x=>x.amount_minor),[100000,150000,50000]);
   await bootstrapStaff(a.store,a.files,{country:'KZ',identifier:'plan-owner',display_name:'Владелец',password:'Isolated plan owner password!',authentication:'password',permissions:['platform_owner'],reason:'Изолированная проверка изменения тарифов'},async()=>{});
   const boss=await a.handle('POST','/auth/staff-login',{country:'KZ',phone:'plan-owner',password:'Isolated plan owner password!'}),auth='Bearer '+boss.access_token;
-  const update={prices:{standard:120000,premium:180000},expected_version:0,reason:'Изменение цен текущей страны владельцем'};
+  const update={prices:{standard:120000,premium:180000,customer:50000},expected_version:0,reason:'Изменение цен текущей страны владельцем'};
   await assert.rejects(()=>a.handle('POST','/admin/subscription-plans',update,'Bearer '+c.access_token,randomUUID()),e=>e.getStatus()===403);
   assert.equal((await a.handle('POST','/admin/subscription-plans',update,auth,randomUUID())).version,1);
   await assert.rejects(()=>a.handle('POST','/admin/subscription-plans',update,auth,randomUUID()),e=>e.getStatus()===409);
   assert.equal((await a.commerce.plans('KG')).items[0].amount_minor,100000);
+  assert.equal((await a.commerce.plans('KG')).items.find(p=>p.code==='customer').amount_minor,null);
   a.providers.billing.set('plan-test',{name:'plan-test'});
   for(const [plan,amount] of [['standard',120000],['premium',180000]]){
    const payload=pricePayload({plan,product_type:'subscription',provider:'plan-test',product_id:plan,amount_minor:amount,currency:'KZT',period:'days',duration_days:30,time_zone:'Asia/Almaty'},'KZ');

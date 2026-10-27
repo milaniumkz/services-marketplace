@@ -101,7 +101,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
               ? 'Проверка документа'
               : session?['status'] == 'rejected'
                   ? 'Нужно новое фото'
-                  : 'Проверка исполнителя');
+                  : 'Проверка личности');
     } catch (e) {
       if (mounted && current == epoch) setState(() => error = e);
     }
@@ -336,7 +336,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
                 child: action('Загрузить заново', () {
                   setState(() => retrying = true);
-                  widget.onTitle?.call('Проверка исполнителя');
+                  widget.onTitle?.call('Проверка личности');
                 }))),
       ]);
   @override
@@ -419,9 +419,9 @@ class _VerificationEditorState extends State<VerificationEditor> {
             rejected ? 'Давайте попробуем ещё раз' : 'Подтвердите документ',
             rejected
                 ? 'Снимите документ при рассеянном свете. Все края должны быть в кадре.'
-                : 'Это нужно, чтобы публиковать услуги, искать заказы и откликаться.'),
+                : 'Для заказчиков и исполнителей: две стороны удостоверения и селфи. После одобрения селфи станет фотографией профиля.'),
         const Notice(
-            'Документ видят только сотрудники проверки. Он не появится в профиле и переписке.',
+            'Удостоверение видят только сотрудники проверки. В профиле будет только селфи после одобрения.',
             icon: 'shield',
             margin: EdgeInsets.zero),
         if (rejected && session?['reason'] != null)
@@ -496,7 +496,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                                     : null)
                           ]))))),
         const SizedBox(height: 10),
-        const UiText('Фото документа',
+        const UiText('Документ и селфи',
             style: TextStyle(fontWeight: FontWeight.w700)),
         if (selected.length < pages.length)
           Padding(
@@ -550,7 +550,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
             onChanged:
                 busy || policy == null ? null : (v) => changeConsent(v == true),
             title: const UiText(
-                'Согласен на обработку документа для проверки личности.',
+                'Согласен на проверку документа и селфи. После одобрения селфи станет фото профиля.',
                 style: TextStyle(fontSize: 12, height: 1.55))),
         TextButton(
             onPressed: widget.onTerms, child: const UiText('Условия проверки')),

@@ -27,7 +27,7 @@ test('account overview counts before pagination without exposing other accounts 
   await put('review',{status:'published',target_id:owner,rating:1,moderation_status:'quarantined'},'KZ',other);
   await put('review',{status:'sealed',target_id:owner,rating:1},'KZ',other);
   await put('portfolio',{status:'published',draft:{status:'pending_review'}});
-  const until=new Date(Date.now()+86400000).toISOString();await put('grant',{source:'subscription',valid_until:until});
+  const until=new Date(Date.now()+86400000).toISOString();await put('grant',{source:'subscription',plan:'customer',role:'customer',valid_until:until});
   const profile=await put('contractor',{status:'published',availability:'busy',title:'Услуги владельца',draft:{description:'Secret draft'}});
   const drafts=await get('/me/orders',{bucket:'drafts',limit:1});assert.equal(drafts.items.length,1);assert.equal(drafts.items[0].status,'draft');
   assert.equal((await get('/me/orders',{bucket:'active'})).meta.has_any,true);

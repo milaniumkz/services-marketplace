@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID,randomBytes}=require('node:crypto');
 const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store'),{totp}=require('../dist/totp'),{categoryPayload}=require('../dist/category-payload');
 const base={labels:{ru:'Сборка мебели',kk:'Жиһаз жинау'},icon:'briefcase',schema:{properties:{count:{type:'integer',title:'Количество',minimum:1,maximum:100}},required:['count']}};
@@ -12,6 +13,7 @@ test('category publication keeps public IDs and order snapshots; cycles, foreign
   const password='Isolated category editor password!',users=[];for(const [i,phone] of ['+77000000871','+77000000872','+77000000873'].entries()){
    const u=await a.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID());if(i<2){const secret=randomBytes(20).toString('hex');await a.store.put({...await a.store.get(u.user.id),staff_permissions:['content'],totp_secret:secret});users.push(await a.handle('POST','/auth/staff-login',{country:'KZ',phone,password,mfa_code:totp(secret)},undefined,randomUUID()));}else users.push(u);
   }
+  await paidCustomer(a,users[2]);
   const [author,approver,customer]=users,reason='Проверка версии и дерева категорий';
   let r=await call(a,author,'POST','/admin/categories',{title:'Категория мебели',reason,payload:base});const stable=r.payload.category_id;assert.equal(stable,r.id);
   await assert.rejects(()=>call(a,customer,'GET','/admin/category-tree'),e=>e.getStatus()===403);

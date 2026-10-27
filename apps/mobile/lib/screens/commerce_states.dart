@@ -516,7 +516,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                       letterSpacing: -.9,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
-              const UiText('Поиск заказов и публикация услуг исполнителя.',
+              UiText((offer?['plan']=='customer'||(data['plans'] as List? ?? []).any((p)=>p['code']=='customer'))?'Доступ к анкетам исполнителей и размещению заказов.':'Поиск заказов и публикация услуг исполнителя.',
                   style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
               const SizedBox(height: 20),
               if (offers.length > 1 || (offer == null && offers.isNotEmpty))
@@ -535,7 +535,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                           color: primary),
                       title: Text(r['plan'] == null
                           ? '${r['title'] ?? r['product_id']}'
-                          : r['plan'] == 'premium'
+                          : r['plan'] == 'customer' ? 'Заказчик' : r['plan'] == 'premium'
                               ? 'Премиум'
                               : 'Стандарт'),
                       subtitle: Text(
@@ -550,11 +550,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                         border: Border.all(color: line),
                         borderRadius: BorderRadius.circular(16)),
                     child: Column(children: [
-                      checkoutFact('Полный доступ', 'Исполнитель'),
+                      checkoutFact('Полный доступ', offer['plan']=='customer'?'Заказчик':'Исполнитель'),
                       if (offer['plan'] != null)
                         checkoutFact(
                             'Тариф',
-                            offer['plan'] == 'premium'
+                            offer['plan'] == 'customer' ? 'Заказчик' : offer['plan'] == 'premium'
                                 ? 'Премиум'
                                 : 'Стандарт'),
                       checkoutFact(

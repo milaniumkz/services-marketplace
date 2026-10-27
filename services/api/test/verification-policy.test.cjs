@@ -19,7 +19,7 @@ test('verification choices follow the effective regional policy and latest expli
   assert.deepEqual(await configuration.validate({...draftPolicy,payload:{...draftPolicy.payload,required_pages:{id_card:['Лицевая сторона','Оборотная сторона']}}}),{valid:true});
   await assert.rejects(()=>configuration.validate({...draftPolicy,payload:{...draftPolicy.payload,required_pages:{id_card:['Лицевая сторона','Лицевая сторона']}}}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
   let response=await call('GET','/me/verification');
-  assert.deepEqual(response.policy,{id:policyId,version:1,document_id:documentId,document_types:['id_card'],required_pages:{},consent_accepted:false});
+  assert.deepEqual(response.policy,{id:policyId,version:1,document_id:documentId,document_types:['id_card'],required_pages:{id_card:['Лицевая сторона удостоверения','Обратная сторона удостоверения','Селфи']},consent_accepted:false});
   await assert.rejects(()=>call('POST','/me/verification-sessions',{document_type:'id_card'}),e=>e.getResponse().error.code==='CONSENT_REQUIRED');
   for(const [sequence,accepted] of [[1,true],[2,false],[3,true]]){
    await api.store.put({id:randomUUID(),kind:'consent',owner:session.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),document_id:documentId,document_hash:'isolated-document-hash',sequence,accepted});
@@ -28,8 +28,8 @@ test('verification choices follow the effective regional policy and latest expli
   await assert.rejects(()=>call('POST','/me/verification-sessions',{document_type:'passport'}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
   const original=await call('POST','/me/verification-sessions',{document_type:'id_card'});assert.equal(original.policy_id,policyId);
   const policy=await api.store.get(policyId);await api.store.put({...policy,version:2,payload:{...policy.payload,required_pages:{id_card:['Лицевая сторона','Оборотная сторона']}}});
-  const check=await call('POST','/me/verification-sessions',{document_type:'id_card'});assert.deepEqual(check.required_pages,['Лицевая сторона','Оборотная сторона']);
-  const uploads=[];for(let i=0;i<2;i++){const id=randomUUID();uploads.push(id);await api.store.put({id,kind:'upload',owner:session.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'clean',purpose:'identity',verification_id:check.id});}
+  const check=await call('POST','/me/verification-sessions',{document_type:'id_card'});assert.deepEqual(check.required_pages,['Лицевая сторона','Оборотная сторона','Селфи']);
+  const uploads=[];for(let i=0;i<3;i++){const id=randomUUID();uploads.push(id);await api.store.put({id,kind:'upload',owner:session.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'clean',purpose:'identity',mime:'image/jpeg',verification_id:check.id});}
   await assert.rejects(()=>call('POST','/me/verification-sessions/'+check.id+'/submit',{expected_version:1,upload_ids:[uploads[0]]}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
   await assert.rejects(()=>call('POST','/me/verification-sessions/'+original.id+'/submit',{expected_version:1,upload_ids:uploads}),e=>e.getResponse().error.code==='POLICY_CHANGED');
   await call('POST','/me/consents',{document_id:documentId,document_hash:'isolated-document-hash',accepted:false});

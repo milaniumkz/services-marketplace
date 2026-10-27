@@ -1,4 +1,4 @@
-import {subscriptionPlans,subscriptionCapabilities} from './subscription-plans';
+import {subscriptionPlans,subscriptionCapabilities,subscriptionPlan} from './subscription-plans';
 import { randomUUID } from 'node:crypto';
 import { RecordData, Store } from './store';
 import { Providers, VerifiedPurchase } from './providers';
@@ -10,12 +10,12 @@ export class Commerce {
   private record(kind:string,owner:string,country:string,data:any):RecordData {return {...data,id:randomUUID(),kind,owner,country,version:1,created_at:new Date().toISOString()};}
   async plans(country:string){
     const config=(await this.store.all('subscription_catalog',country))[0];
-    return {version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
+    return {version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='customer'?(country==='KZ'?50000:null):p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
   }
-  async offers(country:string) {
-    const plans=(await this.plans(country)).items;
-    const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective'&&(!p.payload.plan||plans.find(plan=>plan.code===p.payload.plan)?.amount_minor===p.payload.amount_minor));
-    return {plans,items:prices.filter(p=>p.payload.product_type!=='boost'&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}))};
+  async offers(country:string,role?:string) {
+    const plans=(await this.plans(country)).items.filter(p=>!role||p.role===role);
+    const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective'&&(!role||subscriptionPlan(p.payload.plan).role===role)&&(!p.payload.plan||plans.find(plan=>plan.code===p.payload.plan)?.amount_minor===p.payload.amount_minor));
+    return {plans,items:prices.filter(p=>p.payload.product_type!=='boost'&&p.payload.period==='days'&&p.payload.duration_days===30&&subscriptionPlans.some(plan=>plan.code===p.payload.plan)&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}))};
   }
   async verify(owner:string,country:string,providerName:string,reference:string) {
     const provider=this.providers.billing.get(providerName);if(!provider)fail('PROVIDER_UNAVAILABLE','Платёжный провайдер ещё не подключён');
@@ -42,7 +42,9 @@ export class Commerce {
     p={...p,valid_until:new Date(p.valid_until).toISOString()};
     const u=await this.store.get(p.user_id);if(!u||u.country!==p.country)fail('PURCHASE_OWNERSHIP_MISMATCH','Аккаунт покупки не найден',403);
     const existing=(await this.store.all('subscription',p.country)).find(x=>x.provider===p.provider&&x.original_transaction_id===p.original_transaction_id);
-    if(!existing&&!u.roles?.includes('executor'))fail('EXECUTOR_ROLE_REQUIRED','Подписка доступна только исполнителю',403);
+    const configuredPrice=(await this.store.all('price_version',p.country)).find(x=>x.status==='effective'&&x.payload.provider===p.provider&&x.payload.product_id===p.product_id);
+    const role=subscriptionPlan(existing?.product_id===p.product_id?existing.price_snapshot?.plan:configuredPrice?.payload.plan).role;
+    if(!existing&&!(u.roles??['customer']).includes(role))fail('ROLE_REQUIRED','Настройте роль выбранной подписки',403);
     if(p.state==='pending'){
       const price=(await this.store.all('price_version',p.country)).find(x=>x.status==='effective'&&x.payload.provider===p.provider&&x.payload.product_id===p.product_id&&x.payload.product_type!=='boost');
       if(!price||price.payload.currency!==p.currency||price.payload.amount_minor!==p.amount_minor)fail('PRICE_MISMATCH','Предложение не соответствует покупке',422);
@@ -53,11 +55,11 @@ export class Commerce {
     const price=(await this.store.all('price_version',p.country)).find(x=>x.status==='effective'&&x.payload.provider===p.provider&&x.payload.product_id===p.product_id);
     if(price?.payload.product_type==='boost')fail('PRODUCT_TYPE_MISMATCH','Разовую покупку продвижения нельзя использовать как подписку',422);
     if(!price&&!existing)fail('PRODUCT_NOT_CONFIGURED','Продукт не опубликован в каталоге цен',422);
-    if(price&&(price.payload.currency!==p.currency||price.payload.amount_minor!==p.amount_minor)&&!existing)fail('PRICE_MISMATCH','Цена не совпадает с опубликованной версией',422);
+    if(price&&(price.payload.currency!==p.currency||price.payload.amount_minor!==p.amount_minor)&&(!existing||existing.product_id!==p.product_id))fail('PRICE_MISMATCH','Цена не совпадает с опубликованной версией',422);
     if(existing&&existing.owner!==p.user_id)fail('PURCHASE_OWNERSHIP_MISMATCH','Покупку нельзя перенести на другой аккаунт',403);
     if(existing&&existing.provider_revision>=p.revision)return {subscription:existing,duplicate:true};
     const planPrice=existing?.product_id===p.product_id?existing.price_snapshot:price?.payload;
-    if(planPrice?.plan&&Date.parse(p.valid_until)>Date.now()+30*86400000+60000)fail('INVALID_SUBSCRIPTION_PERIOD','Стандарт и Премиум действуют не более 30 дней',422);
+    if(planPrice?.plan&&Date.parse(p.valid_until)>Date.now()+30*86400000+60000)fail('INVALID_SUBSCRIPTION_PERIOD','Подписки действуют не более 30 дней',422);
     const paid=transactionEvents.find(x=>x.state==='active'&&['purchase','renewal'].includes(x.operation));
     const refunded=paid?(await this.store.db.query<{total:string}>("SELECT COALESCE(sum((data->>'amount_minor')::numeric),0)::text AS total FROM records WHERE kind='payment_transaction' AND country=$1 AND data->>'operation'='refund' AND data->>'original_payment_id'=$2",[p.country,paid.id])).rows[0].total:'0';
     const fullyRefunded=paid&&Number(refunded)>=paid.amount_minor;
@@ -70,7 +72,7 @@ export class Commerce {
     const subscription=await this.store.put({...existing??this.record('subscription',p.user_id,p.country,{}),id:subscriptionId,current_transaction_id:p.transaction_id,price_snapshot:existing?.product_id===p.product_id?existing.price_snapshot:price?.payload??existing?.price_snapshot,provider:p.provider,original_transaction_id:p.original_transaction_id,product_id:p.product_id,status:fullyRefunded?'revoked':p.state,valid_until:p.valid_until,provider_revision:p.revision,version:existing?existing.version+1:1});
     const grant=(await this.store.all('grant',p.country)).find(g=>g.source_id===subscription.id);
     const valid=!fullyRefunded&&['active','grace','canceled_at_period_end'].includes(p.state);
-    await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:subscriptionCapabilities(subscription.price_snapshot?.plan),plan:subscription.price_snapshot?.plan??'standard',version:grant?grant.version+1:1});
+    await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',role:subscriptionPlan(subscription.price_snapshot?.plan).role,source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:subscriptionCapabilities(subscription.price_snapshot?.plan),plan:subscription.price_snapshot?.plan??'standard',version:grant?grant.version+1:1});
     for(const check of await this.store.all('purchase_check',p.country))if(check.owner===p.user_id&&check.provider===p.provider&&check.transaction_id===p.transaction_id)await this.store.put({...check,status:'confirmed',subscription_id:subscription.id,version:check.version+1});
     return {subscription,duplicate:false};
   }

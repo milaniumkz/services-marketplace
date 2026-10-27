@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {randomUUID}=require('node:crypto');
@@ -8,6 +9,7 @@ test('invitations enforce expiry, active pair and daily limit without spending a
  try{
   const register=phone=>api.handle('POST','/auth/register',{country:'KZ',phone,password:'Isolated invitation test!',display_name:'Участник'},undefined,undefined,{},phone);
   const customer=await register('+77000000191'),executor=await register('+77000000192');
+  await paidCustomer(api,customer);
   const now=new Date().toISOString(),until=new Date(Date.now()+86400000).toISOString();
   const put=(kind,owner,data)=>api.store.put({id:randomUUID(),kind,country:'KZ',owner,version:1,created_at:now,...data});
   const user=await api.store.get(executor.user.id);await api.store.put({...user,roles:['executor'],verification:'passed'});

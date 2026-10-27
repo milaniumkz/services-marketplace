@@ -1,3 +1,4 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {randomUUID}=require('node:crypto');
@@ -59,7 +60,7 @@ test('provider pending evidence creates no entitlement; client reward completion
 });
 test('map exposes only eligible rounded public service areas and applies distance before limit',async()=>{
  const a=fixture();await a.initialize();try{
-  const u=await reg(a,'746'),v=await reg(a,'747');await a.store.put({...await a.store.get(v.user.id),verification:'passed'});
+  const u=await reg(a,'746'),v=await reg(a,'747');await paidCustomer(a,u);await a.store.put({...await a.store.get(v.user.id),verification:'passed'});
   await a.store.put(record('grant',u.user.id,{valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['search_full']}));
   const near=record('contractor',v.user.id,{status:'published',public_location:{latitude:43.24,longitude:76.91,approximate:true},title:'Профиль на карте'});await a.store.put(near);
   await a.store.put({...near,id:randomUUID(),public_location:{latitude:50,longitude:80,approximate:true}});

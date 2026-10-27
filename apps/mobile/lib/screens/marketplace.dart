@@ -1087,11 +1087,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'notifications':
         return notificationsScreen();
       case 'access':
-        return executor ? accessScreen() : customerAccessScreen();
+        return accessScreen();
       case 'refunds':
         return page('Платежи и возвраты', RefundsScreen(api: api, onSupport: () => go('support')), titleOffset: -12);
       case 'my-access':
-        return executor ? accessScreen() : customerAccessScreen();
+        return accessScreen();
       case 'checkout':
       case 'manage-subscription':
       case 'subscription-canceled':
@@ -1101,7 +1101,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'reward-nofill':
       case 'reward-pending':
       case 'reward':
-        if (!executor) return customerAccessScreen();
         return page({'checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Доступ за рекламу'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'export':
         return page('Экспорт моих данных',
@@ -1856,7 +1855,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 Expanded(
                     child: listBody([
                   const UiHeading('Сегодня вы…',
-                      'Заказчик пользуется JOBA бесплатно. Подписка нужна только исполнителю.'),
+                      'Заказчик: доступ к анкетам и размещению заказов на 30 дней. Исполнитель: Стандарт или Премиум.'),
                   JobaMenu([
                     JobaMenuEntry(
                         'Заказчик',
@@ -2402,12 +2401,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 if ((me?['city'] ?? '').isNotEmpty) 'city': me!['city']
               });
         } on ApiException catch (error) {
-          if (error.code == 'ENTITLEMENT_REQUIRED')
-            return {'access_required': true};
+          if (error.code == 'ENTITLEMENT_REQUIRED') return {'access_required': true};
+          if (error.code == 'VERIFICATION_REQUIRED') return {'verification_required': true};
           rethrow;
         }
       },
       builder: (c, data, retry) {
+        if (data['verification_required'] == true) return JobaMenu([JobaMenuEntry('Подтвердить личность', 'shield', () => go('verification'), subtitle: 'Удостоверение с двух сторон и селфи')]);
         if (data['access_required'] == true)
           return JobaMenu([
             JobaMenuEntry('Мой доступ', 'card', () => go('my-access'),
@@ -2504,7 +2504,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(children: [
-                    if (executor) JobaMenu([
+                    JobaMenu([
                       JobaMenuEntry(
                           summary['subscription_until'] == null
                               ? 'Мой доступ'
@@ -2517,7 +2517,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           translateSubtitle:
                               summary['subscription_until'] == null)
                     ]),
-                    if (executor) const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                    JobaMenu([JobaMenuEntry('Проверка личности', 'shield', () => go('verification'), subtitle: 'Документ с двух сторон и селфи')]),
+                    const SizedBox(height: 16),
                     JobaMenu([
                       JobaMenuEntry('Мои заказы', 'brief', () => go('orders'),
                           subtitle:
@@ -4326,15 +4328,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     }))));
   }
 
-  Widget customerAccessScreen() => page(
-      'JOBA для заказчика',
-      listBody([
-        const UiHeading('Для заказчика бесплатно'),
-        const Notice(
-            'Поиск исполнителей, публикация заказов и выбор исполнителя доступны без подписки.'),
-        button('Найти исполнителя', () => go('catalog')),
-        button('Мои заказы', () => go('orders'), outline: true),
-      ]));
 
   Widget notificationsScreen() {
     final client = api, generation = api.sessionGeneration;
@@ -4502,7 +4495,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api.request('/me/subscriptions')
               ]),
           builder: (c, data, reload) => ExecutorAccess(
-              choosing: route == 'access', grants: items(data[0]),
+              customer: !executor, choosing: route == 'access', grants: items(data[0]),
               config: Json.from(data[1]), subscriptions: items(data[2]),
               now: () => api.clock.now,
               onGo: (r, id) => go(r, id))), titleOffset: -12);
