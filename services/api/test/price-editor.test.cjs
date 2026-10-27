@@ -9,14 +9,15 @@ test('price fields enforce country currency, exact money, executor-only subscrip
  assert.equal(pricePayload({...payload,currency:'KGS',time_zone:'Asia/Bishkek'},'KG').currency,'KGS');
 });
 test('price drafts are versioned, independently published only after exact provider evidence and separated from boost offers',async()=>{
+ const standardPayload={...payload,plan:'standard',period:'days',duration_days:30};
  const a=new Marketplace(new Store('memory://'));await a.initialize();
  try{
   const password='Isolated price editor password!',staff=[];
   for(const phone of ['+77000000861','+77000000862']){const u=await a.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID()),secret=randomBytes(20).toString('hex');await a.store.put({...await a.store.get(u.user.id),staff_permissions:['billing'],totp_secret:secret});staff.push(await a.handle('POST','/auth/staff-login',{country:'KZ',phone,password,mfa_code:totp(secret)},undefined,randomUUID()));}
-  const reason='Проверка версии и синхронизации цены',title='Месяц доступа';let r=await call(a,staff[0],'POST','/admin/price-versions',{title,reason,payload}),path='/admin/price-versions/'+r.id;
+  const reason='Проверка версии и синхронизации цены',title='Месяц доступа';let r=await call(a,staff[0],'POST','/admin/price-versions',{title,reason,payload:standardPayload}),path='/admin/price-versions/'+r.id;
   assert.equal(r.payload.role,'executor');assert.equal((await call(a,staff[0],'GET',path)).id,r.id);
-  await assert.rejects(()=>call(a,staff[1],'PATCH',path,{expected_version:1,title,reason,payload}),e=>e.getStatus()===409);
-  r=await call(a,staff[0],'PATCH',path,{expected_version:1,title,reason,payload:{...payload,amount_minor:100025}});assert.equal(r.version,2);
+  await assert.rejects(()=>call(a,staff[1],'PATCH',path,{expected_version:1,title,reason,payload:standardPayload}),e=>e.getStatus()===409);
+  r=await call(a,staff[0],'PATCH',path,{expected_version:1,title,reason,payload:{...standardPayload,amount_minor:100025}});assert.equal(r.version,2);
   await assert.rejects(()=>call(a,staff[0],'POST',path+'/validate',{expected_version:1,reason}),e=>e.getStatus()===409);
   await assert.rejects(()=>call(a,staff[1],'POST',path+'/publish',{expected_version:2,reason}),e=>e.getResponse().error.code==='PROVIDER_UNAVAILABLE');assert.equal((await a.store.get(r.id)).status,'draft');
   a.providers.billing.set('isolated-price',{name:'isolated-price',validateProduct:async()=>({product_id:'wrong-sku',amount_minor:100025,currency:'KZT'})});
@@ -24,10 +25,11 @@ test('price drafts are versioned, independently published only after exact provi
   a.providers.billing.set('isolated-price',{name:'isolated-price',validateProduct:async id=>({product_id:id,amount_minor:100025,currency:'KZT'})});
   await assert.rejects(()=>call(a,staff[0],'POST',path+'/publish',{expected_version:2,reason}),e=>e.getStatus()===403);
   const effective=await call(a,staff[1],'POST',path+'/publish',{expected_version:2,reason});assert.equal(effective.status,'effective');assert.equal(effective.preview.provider_verified,true);
-  await assert.rejects(()=>call(a,staff[0],'PATCH',path,{expected_version:3,title,reason,payload}),e=>e.getStatus()===409);
+  await assert.rejects(()=>call(a,staff[0],'PATCH',path,{expected_version:3,title,reason,payload:standardPayload}),e=>e.getStatus()===409);
   await a.store.put({...effective,id:randomUUID(),payload:{...effective.payload,product_type:'boost',product_id:'isolated-boost'}});
   const filtered=await a.handle('GET','/admin/price-versions',{},'Bearer '+staff[0].access_token,undefined,{product_type:'boost',q:'isolated-boost'});assert.equal(filtered.items.length,1);assert.equal(filtered.items[0].payload.product_type,'boost');
   await call(a,staff[0],'POST',path+'/validate',{expected_version:3,reason});assert.ok((await a.store.all('audit','KZ')).some(x=>x.action==='prices.validated'&&x.target_id===r.id));
+  await call(a,staff[0],'POST','/admin/subscription-plans',{prices:{standard:100025,premium:150000,customer:50000},expected_version:0,reason});
   const offers=await a.commerce.offers('KZ');assert.deepEqual(offers.items.map(x=>x.product_type),['subscription']);
   const stopped=await call(a,staff[1],'POST',path+'/stop',{expected_version:3,reason});assert.equal(stopped.status,'stopped');assert.deepEqual((await a.commerce.offers('KZ')).items,[]);
   const rollback=await call(a,staff[0],'POST',path+'/rollback',{expected_version:4,reason});assert.equal(rollback.status,'draft');assert.equal(rollback.rollback_of,r.id);assert.notEqual(rollback.id,r.id);

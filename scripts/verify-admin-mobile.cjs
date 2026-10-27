@@ -12,6 +12,7 @@ async function main(){
  console.log('Starting isolated API');
  process.env.JOBA_SERVER_METRICS_FILE=join(files,'metrics.json');
  const app=await NestFactory.create(AppModule,{logger:false});const api=await getMarketplace();
+ await require('./publish-role-access.cjs').publishRoleAccess(api.store);
  let browser,server;
  try{
   const id=randomUUID(),password='Isolated mobile admin password!';
@@ -42,11 +43,13 @@ async function main(){
   const output=process.env.JOBA_ADMIN_MOBILE_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
   for(const width of [320,360,393,430,768]){
    await page.setViewportSize({width,height:852});
-   for(const route of ['dashboard','users','categories','prices','settings','countries','legal','staff-access']){
+   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access']){
     console.log('Checking',width,route);await page.goto(frontend+'/#'+route);await page.locator('.workspace').waitFor();
     await page.waitForLoadState('networkidle');
     if(route==='dashboard'){await page.locator('#server-metrics').getByText('Сервер — ресурсы и нагрузка',{exact:true}).waitFor();assert(await page.locator('#server-metrics').getByText('Оперативная память',{exact:true}).isVisible());await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/server-metrics')&&r.status()===200),page.locator('#server-metrics [data-server-refresh]').click()]);await page.locator('#server-metrics svg').waitFor();}
 
+    if(route==='pricing'){assert.equal(await page.locator('#subscription-catalog [name=customer]').inputValue(),'500.00');assert.equal(await page.locator('#subscription-catalog [name=standard]').inputValue(),'1000.00');assert.equal(await page.locator('#subscription-catalog [name=premium]').inputValue(),'1500.00');}
+    if(route==='legal'){await page.locator('[data-legal-revise]').first().click();assert.equal(await page.locator('#legal-type').inputValue(),'verification_consent');}
     const dimensions=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
     assert(dimensions.scroll<=width+1,`${route} overflows ${width}: ${dimensions.scroll}`);
     const menu=page.locator('[data-action="navigation"]');await menu.click();
