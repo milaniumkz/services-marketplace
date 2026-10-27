@@ -2,20 +2,20 @@
   "url": "https://joba.com.kz",
   "https_certificate_verified": true,
   "production_database_ready": true,
-  "customer_access_free": true,
-  "subscription_scope": "executor",
+  "customer_access_free": false,
+  "subscription_scope": "customer_and_executor",
   "published_kz_legal_documents": true,
   "public_legal_reader_available": true,
   "retired_flutter_worker_not_registered": true,
   "welcome_continue_opens_login": true,
   "admin_login_available": true,
   "public_site_available": true,
-  "first_render_ms": 13419,
+  "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-20T15:13:03.335293+00:00",
-  "server_source_commit": "0e0c4766ebd7185a904856fe3db5b3d276e3924f",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39443902686",
-  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/39445834159",
+  "verified_at": "2026-10-27T07:45:00Z",
+  "server_source_commit": "b88fe8e9fa912e09bc8daac7452644c7e87612e1",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40467179604",
+  "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
   "external_payment_ads_firebase": "not_connected",
@@ -31,13 +31,25 @@
   "http_redirects_to_https": true,
   "subscription_plans": {
     "standard": {
+      "role": "executor",
       "duration_days": 30,
-      "default_amount_minor": 100000
+      "live_kz_amount_minor": 50000
     },
     "premium": {
+      "role": "executor",
       "duration_days": 30,
-      "default_amount_minor": 150000,
+      "live_kz_amount_minor": 70000,
       "top100": true
+    },
+    "customer": {
+      "role": "customer",
+      "duration_days": 30,
+      "live_kz_amount_minor": 50000,
+      "capabilities": [
+        "view_contractors",
+        "publish_order"
+      ],
+      "other_country_prices": "not_configured"
     }
   },
   "admin_plan_price_save_verified": true,
@@ -73,7 +85,7 @@
     "region_then_city": true,
     "root_then_subcategories": true,
     "global_city_and_category_search": true,
-    "flutter_tests_passed": 218,
+    "flutter_tests_passed": 222,
     "flutter_tests_skipped": 2,
     "api_city_counts": {
       "KZ": 351,
@@ -89,7 +101,8 @@
     "public_download_verified": true,
     "signature_verified": true,
     "update_signature_matches_previous": true,
-    "password_min": 6
+    "password_min": 6,
+    "current_server_client_changes_included": false
   },
   "password_policy": {
     "minimum": 6,
@@ -139,5 +152,20 @@
   },
   "pin_and_session_tests": "passed",
   "job_search_tests": "passed",
-  "android_artifact_this_iteration": "not_published_per_owner_instruction"
+  "android_artifact_this_iteration": "not_published_per_owner_instruction",
+  "identity_verification": {
+    "roles": [
+      "customer",
+      "executor"
+    ],
+    "required_photos": 3,
+    "document_sides": 2,
+    "selfie_profile_avatar": "after_admin_approval",
+    "private_documents": true,
+    "isolated_lifecycle_tests": "passed"
+  },
+  "api_tests_passed": 153,
+  "upload_antivirus_smoke": "passed_on_deployed_server_with_benign_jpeg",
+  "payment_provider_connected": false,
+  "payment_description_matches_editable_prices": true
 }
