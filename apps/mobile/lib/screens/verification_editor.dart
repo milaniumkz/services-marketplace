@@ -3,12 +3,15 @@ import '../core/api.dart';
 import '../core/design_icons.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
+import '../core/photo_file.dart';
 
 class VerificationEditor extends StatefulWidget {
   final JobaApi api;
   final String country;
   final int revision;
   final Future<Json?> Function(String) pick;
+  final Future<PhotoFile?> Function(bool selfie)? choosePhoto;
+  final Future<Json> Function(PhotoFile photo, String sessionId)? uploadPhoto;
   final VoidCallback onTerms, onProfile, onSupport;
   final ValueChanged<String>? onTitle;
   final ValueChanged<Json>? onAppeal;
@@ -18,6 +21,8 @@ class VerificationEditor extends StatefulWidget {
       this.revision = 0,
       required this.country,
       required this.pick,
+      this.choosePhoto,
+      this.uploadPhoto,
       required this.onTerms,
       required this.onProfile,
       required this.onSupport,
@@ -34,7 +39,8 @@ class _VerificationEditorState extends State<VerificationEditor> {
   String? type;
   bool consent = false, busy = false;
   Object? error;
-  int epoch = 0;
+  int epoch = 0, commandGeneration = 0;
+  Object? commandOwner;
   bool refreshQueued = false, retrying = false;
   String? rejectedSession;
   @override
@@ -123,6 +129,8 @@ class _VerificationEditorState extends State<VerificationEditor> {
   Future<void> execute(Future<void> Function(int) command) async {
     if (busy) return;
     final current = epoch;
+    commandGeneration = widget.api.sessionGeneration;
+    commandOwner = widget.api.session?['user']?['id'];
     setState(() {
       busy = true;
       error = null;
@@ -143,7 +151,9 @@ class _VerificationEditorState extends State<VerificationEditor> {
   }
 
   bool valid(int current) =>
-      mounted && epoch == current && widget.api.authenticated;
+      mounted && epoch == current && widget.api.authenticated &&
+      commandGeneration == widget.api.sessionGeneration &&
+      commandOwner == widget.api.session?['user']?['id'];
   Future<void> ensureSession(int current) async {
     final policy = data!['policy'] as Json;
     if (!consent) throw StateError('Требуется согласие на проверку документа');
@@ -204,9 +214,29 @@ class _VerificationEditorState extends State<VerificationEditor> {
   }
 
   Future<void> addPhoto(int index) => execute((current) async {
+        if (!consent) {
+          final accepted = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+            title: const UiText('Согласие на проверку'),
+            content: const UiText('Согласен на проверку документа и селфи. После одобрения селфи станет фото профиля.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialog, false), child: const UiText('Отмена')),
+              FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const UiText('Согласен и продолжить')),
+            ],
+          ));
+          if (!valid(current) || accepted != true) return;
+          setState(() => consent = true);
+        }
+        // Select locally first. No document or consent request precedes the picker.
+        PhotoFile? photo;
+        if (widget.choosePhoto != null) {
+          photo = await widget.choosePhoto!(index == pages.length - 1);
+          if (!valid(current) || photo == null) return;
+        }
         await ensureSession(current);
         if (!valid(current)) return;
-        final file = await widget.pick(session!['id']);
+        final file = photo != null && widget.uploadPhoto != null
+            ? await widget.uploadPhoto!(photo, session!['id'])
+            : await widget.pick(session!['id']);
         if (!valid(current) || file == null) return;
         setState(() {
           if (index < selected.length) {
@@ -507,7 +537,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                       height: 98,
                       width: double.infinity,
                       child: TextButton(
-                          onPressed: busy || policy == null || !consent
+                          onPressed: busy || policy == null
                               ? null
                               : () => addPhoto(selected.length),
                           child: Row(

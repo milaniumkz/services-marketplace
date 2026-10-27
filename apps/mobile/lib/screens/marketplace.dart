@@ -1,3 +1,4 @@
+import '../core/photo_picker.dart';
 import '../core/reference_picker.dart';
 import 'password_change.dart';
 import 'session_list.dart';
@@ -5198,6 +5199,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           id: objectId, pickPhoto: () => pickUpload('portfolio'),
           onGo: (route, id) => go(route, id)), titleOffset: -12);
   Future<Json?> pickUpload(String purpose, {String? verificationId}) async {
+    if (purpose != 'chat') {
+      final client = api, generation = api.sessionGeneration;
+      final photo = await choosePhoto(context);
+      if (photo == null || !mounted || client != api || generation != client.sessionGeneration || !client.authenticated) return null;
+      return client.upload(photo.bytes, photo.mime, purpose, verificationId: verificationId);
+    }
     final selected = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: purpose == 'identity' || purpose == 'chat'
@@ -5232,6 +5239,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               setState(() => verificationTitle = value);
           },
           pick: (id) => pickUpload('identity', verificationId: id),
+          choosePhoto: (selfie) => choosePhoto(context, selfie: selfie),
+          uploadPhoto: (photo, id) => api.upload(photo.bytes, photo.mime, 'identity', verificationId: id),
           onTerms: () => go('terms'),
           onAppeal: (session) => Navigator.push(context, MaterialPageRoute(builder: (c) => Scaffold(
               backgroundColor: canvas, appBar: AppBar(title: const UiText('Обжаловать решение')),

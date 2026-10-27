@@ -58,11 +58,11 @@ jobs:
           "$FLUTTER_ROOT/bin/flutter" pub get --enforce-lockfile
           "$FLUTTER_ROOT/bin/flutter" analyze --no-pub
           "$FLUTTER_ROOT/bin/flutter" test --reporter expanded
-      - name: Verify browser PIN storage and continuation
+      - name: Verify browser PIN and photo selection
         working-directory: apps/mobile
         env:
           CHROME_EXECUTABLE: /usr/bin/google-chrome
-        run: '"$FLUTTER_ROOT/bin/flutter" test --platform chrome test/browser/web_pin_test.dart --reporter expanded'
+        run: '"$FLUTTER_ROOT/bin/flutter" test --platform chrome test/browser --reporter expanded'
       - name: Verify server image without cloud-specific CA mounts
         run: docker build -f services/api/Dockerfile -t joba-api:verified .
       - run: bash scripts/build-web-release.sh

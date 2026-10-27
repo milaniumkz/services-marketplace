@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:services_marketplace/core/api.dart';
+import 'package:services_marketplace/core/photo_file.dart';
 import 'package:services_marketplace/core/theme.dart';
 import 'package:services_marketplace/core/design_icons.dart';
 import 'package:services_marketplace/screens/verification_editor.dart';
@@ -22,6 +24,50 @@ http.Response ok(dynamic data) =>
     http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
         headers: {'content-type': 'application/json; charset=utf-8'});
 void main() {
+  testWidgets('inactive consent prompts explicitly, picker precedes session requests and cancellation uploads nothing', (t) async {
+    final calls = <String>[];
+    var cancel = true, switchOwner = false;
+    final api = JobaApi('https://isolated.example', vault: Vault(), transport: MockClient((r) async {
+      if (r.url.path.endsWith('/me/verification')) return ok({'status': 'not_started', 'items': [], 'policy': {
+        'id':'policy', 'version':1, 'document_id':'legal', 'document_types':['id_card'],
+        'required_pages':{'id_card':['Front','Back','Selfie']}, 'consent_accepted':false,
+      }});
+      if (r.url.path.endsWith('/legal/documents')) return ok({'items':[{'id':'legal','hash':'hash'}]});
+      if (r.url.path.endsWith('/me/consents')) { calls.add('consent'); return ok({}); }
+      if (r.url.path.endsWith('/me/verification-sessions')) {
+        calls.add('session'); return ok({'id':'session','version':1,'document_type':'id_card','status':'draft',
+          'policy_id':'policy','policy_version':1,'required_pages':['Front','Back','Selfie']});
+      }
+      throw StateError('Unexpected request');
+    }));
+    api.session = {'access_token':'token','user':{'id':'owner'}};
+    addTearDown(api.dispose);
+    await t.pumpWidget(MaterialApp(home: Scaffold(body: VerificationEditor(api: api, country:'KZ', uploads:{},
+      pick: (_) async => fail('Legacy upload must not be used'),
+      choosePhoto: (selfie) async { calls.add('picker');
+        if (switchOwner) api.session = {'access_token':'other','user':{'id':'other'}};
+        return cancel ? null : PhotoFile(Uint8List.fromList([255,216,255])); },
+      uploadPhoto: (photo, id) async { expect(id,'session'); calls.add('upload'); return {'id':'uploaded'}; },
+      onTerms:(){}, onProfile:(){}, onSupport:(){},
+    ))));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Добавить фотографии'));
+    await t.tap(find.text('Добавить фотографии'));
+    await t.pumpAndSettle();
+    expect(find.text('Согласие на проверку'),findsOneWidget);
+    await t.tap(find.text('Отмена')); await t.pumpAndSettle();
+    expect(calls,isEmpty);
+    await t.tap(find.text('Добавить фотографии')); await t.pumpAndSettle();
+    await t.tap(find.text('Согласен и продолжить')); await t.pumpAndSettle();
+    expect(calls,['picker']);
+    cancel=false; calls.clear();
+    await t.tap(find.text('Добавить фотографии')); await t.pumpAndSettle();
+    expect(calls,['picker','consent','session','upload']);
+    expect(find.text('Front · ✓'),findsOneWidget);
+    calls.clear(); switchOwner=true;
+    await t.tap(find.text('Добавить фотографии')); await t.pumpAndSettle();
+    expect(calls,['picker']);
+  });
   testWidgets(
       'verification keeps both document sides and selfie after failure and sends only the selected session',
       (tester) async {

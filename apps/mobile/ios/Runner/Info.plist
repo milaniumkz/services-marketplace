@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Съёмка документа, селфи и фотографий для JOBA по вашему выбору.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Выбор фотографий документа, профиля и заказов в JOBA.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Разблокировка сохранённой сессии JOBA на этом устройстве.</string>
 	<key>LSRequiresIPhoneOS</key>
