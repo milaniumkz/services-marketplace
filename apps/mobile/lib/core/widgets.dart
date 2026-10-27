@@ -267,6 +267,8 @@ class ActionForm extends StatefulWidget {
   final Object? errorResetKey;
   final ValueChanged<bool>? onBusyChanged;
   final ValueChanged<Object?>? onErrorChanged;
+  final Map<String,String> initialValues;
+  final ValueChanged<Map<String,String>>? onValuesChanged;
   const ActionForm({
     required this.fields,
     required this.submit,
@@ -276,6 +278,8 @@ class ActionForm extends StatefulWidget {
     this.errorResetKey,
     this.onBusyChanged,
     this.onErrorChanged,
+    this.initialValues = const {},
+    this.onValuesChanged,
     this.stickySubmit = false,
     this.externalBusy = false,
     this.submitEnabled = true,
@@ -313,8 +317,16 @@ class _ActionFormState extends State<ActionForm> {
     super.initState();
     controllers = {
       for (final f in widget.fields)
-        f.key: TextEditingController(text: f.initial),
+        f.key: createController(f),
     };
+  }
+
+  TextEditingController createController(InputSpec field) {
+    final controller=TextEditingController(text:widget.initialValues[field.key]??field.initial);
+    if(widget.onValuesChanged!=null) controller.addListener(() {
+      widget.onValuesChanged?.call(controllers.map((key,value)=>MapEntry(key,value.text)));
+    });
+    return controller;
   }
 
   @override
@@ -333,7 +345,7 @@ class _ActionFormState extends State<ActionForm> {
     for (final field in widget.fields) {
       controllers.putIfAbsent(
         field.key,
-        () => TextEditingController(text: field.initial),
+        () => createController(field),
       );
     }
   }

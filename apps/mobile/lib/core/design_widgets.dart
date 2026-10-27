@@ -200,10 +200,12 @@ class JobaNavigation extends StatelessWidget {
   final String route;
   final bool executor;
   final ValueChanged<String> onSelect;
+  final bool enabled;
   const JobaNavigation(
       {required this.route,
       required this.executor,
       required this.onSelect,
+      this.enabled = true,
       super.key});
   @override
   Widget build(BuildContext context) => Container(
@@ -226,7 +228,7 @@ class JobaNavigation extends StatelessWidget {
                           selected: route == item.$1,
                           button: true,
                           child: InkWell(
-                              onTap: () => onSelect(item.$1),
+                              onTap: enabled ? () => onSelect(item.$1) : null,
                               child: Padding(
                                   padding: const EdgeInsets.only(bottom: 11),
                                   child: Column(

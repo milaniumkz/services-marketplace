@@ -174,6 +174,24 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   String catalogPresentation = 'loading';
   String exportTitle = 'Экспорт готовится';
   String ordersBucket = 'active';
+  final Map<String,String> newOrderValues = {};
+  final Map<String,Map<String,String>> editedOrderValues = {};
+  String? orderFormsScope;
+  bool orderFormSubmitting = false;
+  static const orderNavigationRoutes = {'orders','create','edit-order','publish','published','order','work','offers','select-contractor','access','my-access','checkout','test-payment-success','payment-pending','manage-subscription','subscription-canceled'};
+  String get currentOrderScope => '$country:${api.base}:${api.session?['user']?['id']}';
+  void ensureOrderFormsScope() {
+    if(orderFormsScope==currentOrderScope) return;
+    newOrderValues.clear();editedOrderValues.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;
+    orderFormsScope=currentOrderScope;
+  }
+  void orderBusy(bool value) { if(mounted&&orderFormSubmitting!=value)setState(()=>orderFormSubmitting=value); }
+  void selectMainTab(String next) {
+    if(authNavigationBlocked||onboardingNavigationBlocked||actionBusy||orderFormSubmitting)return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    if(route==next&&objectId==null)return;
+    setState((){history.clear();if(next!='home')history.add(('home',null));listingFilters={};route=next;objectId=null;revision++;if(!executor)executorSetupRequested=false;if(next=='catalog')catalogPresentation='loading';});
+  }
   final List<String> draftPhotos = [];
   final Map<String, List<String>> verificationUploads = {};
   Json? draftWindow;
@@ -280,6 +298,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if (replacement != null) replaceApi(replacement);
       setState(() {
         country = next;
+        orderFormsScope=null;newOrderValues.clear();editedOrderValues.clear();orderFormSubmitting=false;
         executorSetupRequested = false;
         authPhoneInitial = '';
         recovery = null;
@@ -321,6 +340,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       localProtected = false;
       setState(() {
         me = null;
+        orderFormsScope=null;newOrderValues.clear();editedOrderValues.clear();orderFormSubmitting=false;
         executorSetupRequested = false;
         profileDraft = null; profileDraftScope = null;
         ordersHasAny = null;
@@ -464,7 +484,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     setState(() {
       if (!executor && ['home', 'account', 'orders'].contains(next)) executorSetupRequested = false;
       authCredentialFailure = false;
-      history.add((route, objectId));
+      if(next=='test-payment-success'||next=='my-access'&&['checkout','payment-pending','restore'].contains(route)){
+        history..clear()..add(('home',null));if(next=='test-payment-success')history.add(('my-access',null));
+      }else if(next=='published'||next=='publish'&&route=='create'){
+        history..clear()..add(('home',null))..add(('orders',null));
+        ordersBucket=next=='published'?'active':'drafts';
+        if(route=='create'){newOrderValues.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;}
+      }else{history.add((route, objectId));}
       route = next;
       if (next == 'catalog') catalogPresentation = 'loading';
       if (next == 'export-pending') exportTitle = 'Экспорт готовится';
@@ -475,19 +501,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if (next == 'cancel') cancellationReason = 'plans';
       if (next == 'review') reviewRating = 0;
       if (next == 'services') serviceCategories = null;
-      if (next == 'create') {
-        draftPhotos.clear();
-        verificationUploads.clear();
-        draftWindow = null;
-        draftCategory = null;
-      }
       objectId = id;
       revision++;
     });
   }
 
   void back() {
-    if (authNavigationBlocked) return;
+    if (authNavigationBlocked || orderFormSubmitting || actionBusy && orderNavigationRoutes.contains(route)) return;
     if (onboardingNavigationBlocked) return;
     if (route == 'pin-limit') {
       leavePinLimit('login');
@@ -561,7 +581,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           double titleOffset = 0,
           Widget? titleWidget, double? toolbarHeight, double leadingWidth = 72}) =>
       PopScope(
-          canPop: history.isEmpty && route != 'pin-limit' && !onboardingNavigationBlocked && !authNavigationBlocked && !(route == 'login' && authCredentialFailure),
+          canPop: !orderFormSubmitting && !(actionBusy && orderNavigationRoutes.contains(route)) && history.isEmpty && route != 'pin-limit' && !onboardingNavigationBlocked && !authNavigationBlocked && !(route == 'login' && authCredentialFailure),
           onPopInvokedWithResult: (popped, result) {
             if (!popped) back();
           },
@@ -576,7 +596,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       title: Transform.translate(
                           offset: Offset(0, titleOffset), child: titleWidget ?? UiText(title)),
                       leading: IconButton(
-                          onPressed: authNavigationBlocked || onboardingNavigationBlocked ? null : back,
+                          onPressed: authNavigationBlocked || onboardingNavigationBlocked || orderFormSubmitting || actionBusy && orderNavigationRoutes.contains(route) ? null : back,
                           tooltip: localize(context, 'Назад'),
                           icon: const JobaIcon('back')),
                       actions: actions)
@@ -588,14 +608,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       child: SafeArea(
                           bottom: false,
                           child: Container(color: canvas, child: body))),
-              bottomNavigationBar: nav
-                  ? JobaNavigation(
-                      route: route,
+              bottomNavigationBar: (nav || _api?.authenticated==true && !locked && !onboardingNavigationBlocked && orderNavigationRoutes.contains(route))
+                  ? Padding(
+                      padding: EdgeInsets.only(bottom: ['create','edit-order'].contains(route)?MediaQuery.viewInsetsOf(context).bottom:0),
+                      child: JobaNavigation(
+                      route: orderNavigationRoutes.contains(route) ? (['access','my-access','checkout','test-payment-success','payment-pending','manage-subscription','subscription-canceled'].contains(route)?'account':executor?'jobs':'home') : route,
                       executor: executor,
-                      onSelect: (next) {
-                        listingFilters = {};
-                        go(next);
-                      })
+                      enabled: !actionBusy && !orderFormSubmitting && !authNavigationBlocked,
+                      onSelect: selectMainTab))
                   : null));
   Widget listBody(List<Widget> content) =>
       ListView(padding: const EdgeInsets.all(20), children: content);
@@ -775,6 +795,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   Widget screen() {
+    if(['create','edit-order'].contains(route))ensureOrderFormsScope();
     if (!executor && !executorSetupRequested && ['services', 'portfolio', 'portfolio-edit', 'portfolio-photos', 'service-area'].contains(route)) {
       return page('Режим заказчика', listBody([
         const UiHeading('Вы вошли как заказчик', 'Размещайте заказы и выбирайте исполнителей. Услуги заполняются в роли исполнителя.'),
@@ -810,7 +831,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api: api,
                 onSupport: () => go('support'),
                 onPrivacy: () => go('privacy'),
-                onOrders: () => go('orders'),
+                onOrders: () => selectMainTab('orders'),
                 onCase: (id) => go('case', id),
                 onAppeal: (id) => act(() async {
                       final incident = await api.request('/cases/$id') as Json;
@@ -2644,7 +2665,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           key: ValueKey('create:$revision'),
           load: () => Future.wait(
               [api.request('/catalog/categories'), api.request('/geo/cities')]),
-          builder: (c, data, reload) => ActionForm(
+          builder: (c,data,reload) => createOrderForm(data)));
+  Widget createOrderForm(List<dynamic> data) { final scope=currentOrderScope; return ActionForm(
+              initialValues:newOrderValues,
+              onValuesChanged:(values){if(route=='create'&&scope==currentOrderScope)newOrderValues..clear()..addAll(values);},
+              onBusyChanged:orderBusy,
               stickySubmit: true,
               externalBusy: actionBusy,
               beforeField: {
@@ -2732,6 +2757,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               ],
               button: 'Предпросмотр заказа',
               submit: (v) async {
+                if(scope!=currentOrderScope)throw ApiException('SESSION_SUPERSEDED','Аккаунт изменился');
+                final client=api,generation=api.sessionGeneration;
                 final order =
                     await api.request('/orders', method: 'POST', body: {
                   'title': v['title'],
@@ -2745,8 +2772,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   'upload_ids': List<String>.from(draftPhotos),
                   if (draftWindow != null) 'time_window': draftWindow
                 }) as Json;
+                if(!mounted||client!=api||generation!=api.sessionGeneration||scope!=currentOrderScope)return;
                 go('publish', order['id']);
-              })));
+              });
+  }
   Widget draftDateField() => Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -3285,7 +3314,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       'Изменить заказ',
       loaded(
           '/orders/$objectId',
-          (o, reload) => ActionForm(
+          (o,reload) => editOrderForm(o,reload)));
+  Widget editOrderForm(Json o,VoidCallback reload) {final scope=currentOrderScope;final String id=o['id'];return ActionForm(
+              initialValues:editedOrderValues[id]??const {},
+              onValuesChanged:(values){if(route=='edit-order'&&objectId==id&&scope==currentOrderScope)editedOrderValues[id]=Map.from(values);},
+              onBusyChanged:orderBusy,
               fields: [
                 InputSpec('title', 'Название',
                     initial: o['title'], validate: titleCheck),
@@ -3302,7 +3335,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     keyboard: TextInputType.number)
               ],
               submit: (v) async {
-                await api.request('/orders/$objectId', method: 'PATCH', body: {
+                if(scope!=currentOrderScope)throw ApiException('SESSION_SUPERSEDED','Аккаунт изменился');
+                final client=api,generation=api.sessionGeneration;
+                await api.request('/orders/$id', method: 'PATCH', body: {
                   'expected_version': o['version'],
                   'title': v['title'],
                   'description': v['description'],
@@ -3310,6 +3345,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   'budget_amount':
                       v['budget']!.isEmpty ? null : minor(v['budget']!)
                 });
+                if(!mounted||client!=api||generation!=api.sessionGeneration||scope!=currentOrderScope)return;
+                editedOrderValues.remove(id);orderBusy(false);
                 success('Заказ изменён');
                 back();
               },
@@ -3328,7 +3365,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           reload();
                         }),
                     outline: true)
-              ])));
+              ]);
+  }
   void amendmentForm(Json o, VoidCallback reload) => Navigator.push(
       context,
       MaterialPageRoute<void>(
