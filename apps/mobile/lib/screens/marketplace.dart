@@ -1,3 +1,6 @@
+import '../core/device_location.dart';
+import 'osm_location_picker.dart';
+import '../core/osm_map.dart';
 import '../core/photo_picker.dart';
 import '../core/reference_picker.dart';
 import 'password_change.dart';
@@ -175,6 +178,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   String exportTitle = 'Экспорт готовится';
   String ordersBucket = 'active';
   final Map<String,String> newOrderValues = {};
+  Json? draftOrderLocation;
+  final Map<String,Json> editedOrderLocations={};
   final Map<String,Map<String,String>> editedOrderValues = {};
   String? orderFormsScope;
   bool orderFormSubmitting = false;
@@ -182,7 +187,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   String get currentOrderScope => '$country:${api.base}:${api.session?['user']?['id']}';
   void ensureOrderFormsScope() {
     if(orderFormsScope==currentOrderScope) return;
-    newOrderValues.clear();editedOrderValues.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;
+    newOrderValues.clear();editedOrderValues.clear();draftOrderLocation=null;editedOrderLocations.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;
     orderFormsScope=currentOrderScope;
   }
   void orderBusy(bool value) { if(mounted&&orderFormSubmitting!=value)setState(()=>orderFormSubmitting=value); }
@@ -298,7 +303,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if (replacement != null) replaceApi(replacement);
       setState(() {
         country = next;
-        orderFormsScope=null;newOrderValues.clear();editedOrderValues.clear();orderFormSubmitting=false;
+        orderFormsScope=null;newOrderValues.clear();editedOrderValues.clear();draftOrderLocation=null;editedOrderLocations.clear();orderFormSubmitting=false;
         executorSetupRequested = false;
         authPhoneInitial = '';
         recovery = null;
@@ -340,7 +345,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       localProtected = false;
       setState(() {
         me = null;
-        orderFormsScope=null;newOrderValues.clear();editedOrderValues.clear();orderFormSubmitting=false;
+        orderFormsScope=null;newOrderValues.clear();editedOrderValues.clear();draftOrderLocation=null;editedOrderLocations.clear();orderFormSubmitting=false;
         executorSetupRequested = false;
         profileDraft = null; profileDraftScope = null;
         ordersHasAny = null;
@@ -489,7 +494,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       }else if(next=='published'||next=='publish'&&route=='create'){
         history..clear()..add(('home',null))..add(('orders',null));
         ordersBucket=next=='published'?'active':'drafts';
-        if(route=='create'){newOrderValues.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;}
+        if(route=='create'){draftOrderLocation=null;newOrderValues.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;}
       }else{history.add((route, objectId));}
       route = next;
       if (next == 'catalog') catalogPresentation = 'loading';
@@ -1034,7 +1039,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'roles':
         return rolesScreen();
       case 'service-area':
-        return page('Зона обслуживания',ServiceArea(api:api,locate:()async=>await const MethodChannel('joba.location').invokeMapMethod<String,dynamic>('current'),onSaved:()=>go('services')));
+        return page('Зона обслуживания',ServiceArea(api:api,locate:currentDeviceLocation,onSaved:()=>go('services')));
       case 'country-unavailable':
       case 'gps-denied':
       case 'map':
@@ -2139,12 +2144,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   Future<void> nearMe() async {
-    final scope=route;
-    try {final value=await const MethodChannel('joba.location').invokeMapMethod<String,dynamic>('current');
-      if(!mounted||route!=scope)return;
-      if(value==null)throw ApiException('GPS_DENIED','Выберите город вручную');
+    final scope=route,client=api,generation=api.sessionGeneration;
+    try {final value=await currentDeviceLocation();
+      if(!mounted||route!=scope||client!=api||generation!=api.sessionGeneration)return;
       listingFilters={...listingFilters,'near_lat':((value['latitude'] as num)*100).round()/100,'near_lon':((value['longitude'] as num)*100).round()/100,'radius_km':50}..remove('city');go(executor||scope=='jobs'?'jobs':'map');
-    } catch(_){if(mounted)go('gps-denied');}
+    } catch(_){if(mounted&&route==scope&&client==api&&generation==api.sessionGeneration)go('gps-denied');}
   }
   Widget locationScreen() => page(
       'Где искать?',
@@ -2668,12 +2672,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           builder: (c,data,reload) => createOrderForm(data)));
   Widget createOrderForm(List<dynamic> data) { final scope=currentOrderScope; return ActionForm(
               initialValues:newOrderValues,
+              fieldOverrides:{if(draftOrderLocation?['city']?['id']!=null)'city_id':draftOrderLocation!['city']['id']},
               onValuesChanged:(values){if(route=='create'&&scope==currentOrderScope)newOrderValues..clear()..addAll(values);},
               onBusyChanged:orderBusy,
               stickySubmit: true,
               externalBusy: actionBusy,
               beforeField: {
-                'budget': [draftDateField()]
+                'budget': [draftDateField()],
+                'work_mode':[orderAddressField(draftOrderLocation,(value)=>setState(()=>draftOrderLocation=value))]
               },
               afterFields: [
                 const UiText('Фотографии задачи',
@@ -2740,6 +2746,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 const InputSpec('description', 'Опишите задачу',
                     multiline: true, validate: descriptionCheck),
                 InputSpec('city_id', 'Город',
+                    changed:(value){if(draftOrderLocation?['city']?['id']!=null&&draftOrderLocation!['city']['id']!=value)setState(()=>draftOrderLocation=null);},
                     referenceItems: items(data[1]), cityReference: true,
                     translateOptions: false,
                     options: {
@@ -2770,12 +2777,19 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       v['budget']!.isEmpty ? null : minor(v['budget']!),
                   'attributes': attributeValues(items(data[0]), v),
                   'upload_ids': List<String>.from(draftPhotos),
+                  if(draftOrderLocation!=null)...{'exact_address':draftOrderLocation!['address'],'exact_location':{'latitude':draftOrderLocation!['latitude'],'longitude':draftOrderLocation!['longitude']}},
                   if (draftWindow != null) 'time_window': draftWindow
                 }) as Json;
                 if(!mounted||client!=api||generation!=api.sessionGeneration||scope!=currentOrderScope)return;
                 go('publish', order['id']);
               });
   }
+  Widget orderAddressField(Json? location,ValueChanged<Json> onChanged,{String? city})=>Padding(padding:const EdgeInsets.only(bottom:18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    const UiText('Адрес выполнения',style:TextStyle(fontSize:12,fontWeight:FontWeight.w700)),
+    if(location!=null&&location['cleared']!=true)Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Text(location['address']?.toString().isNotEmpty==true?location['address']:'${location['latitude']}, ${location['longitude']}',style:const TextStyle(fontSize:12))),
+    OutlinedButton.icon(onPressed:actionBusy||orderFormSubmitting?null:()async{final scope=currentOrderScope,screen=route,id=objectId,client=api,generation=api.sessionGeneration;final selected=await chooseMapAddress(context,api,initial:location?['cleared']==true?null:location,city:city??me?['city']);if(mounted&&selected!=null&&scope==currentOrderScope&&route==screen&&objectId==id&&client==api&&generation==api.sessionGeneration)onChanged(selected);},icon:const JobaIcon('pin'),label:const UiText('Выбрать адрес на карте')),
+    const UiText('Точный адрес виден только участникам заказа.',style:TextStyle(fontSize:11,color:muted))
+  ]));
   Widget draftDateField() => Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -3246,6 +3260,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           OrderOverview(api: api, order: o, stateLabel: status(o),
               priceLabel: price(o['budget_amount'], o['currency']), timeLabel: compactWindowLabel(o),
               onReport: () => reportObject(o['id'], 'order')),
+          if((owner||assigned)&&o['exact_address']!=null)DataCard('Адрес выполнения',subtitle:o['exact_address']),
+          if((owner||assigned)&&mapPoint(o['exact_location'])!=null)SizedBox(height:260,child:OsmMap(initialCenter:mapPoint(o['exact_location']),selected:mapPoint(o['exact_location']))),
           if ((owner || assigned) && o['revision_reason'] != null) ...[
             const Heading('Комментарий исполнителю'),
             Text('${o['revision_reason']}'),
@@ -3317,6 +3333,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           (o,reload) => editOrderForm(o,reload)));
   Widget editOrderForm(Json o,VoidCallback reload) {final scope=currentOrderScope;final String id=o['id'];return ActionForm(
               initialValues:editedOrderValues[id]??const {},
+              fieldOverrides:{if(editedOrderLocations[id]?['city']?['name']!=null)'city':editedOrderLocations[id]!['city']['name']},
+              afterFields:[orderAddressField(editedOrderLocations[id]??(o['exact_location']==null?null:{...o['exact_location'],'address':o['exact_address']??''}),(value)=>setState(()=>editedOrderLocations[id]=value),city:o['city'])],
               onValuesChanged:(values){if(route=='edit-order'&&objectId==id&&scope==currentOrderScope)editedOrderValues[id]=Map.from(values);},
               onBusyChanged:orderBusy,
               fields: [
@@ -3326,7 +3344,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     initial: o['description'],
                     multiline: true,
                     validate: descriptionCheck),
-                InputSpec('city', 'Город', initial: o['city']),
+                InputSpec('city', 'Город', initial: o['city'],changed:(value){if((o['exact_location']!=null&&value!=o['city'])||(editedOrderLocations[id]?['city']?['name']!=null&&editedOrderLocations[id]!['city']['name']!=value))setState(()=>editedOrderLocations[id]={'cleared':true});}),
                 InputSpec('budget', 'Бюджет',
                     initial: o['budget_amount'] == null
                         ? ''
@@ -3342,11 +3360,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   'title': v['title'],
                   'description': v['description'],
                   'city': v['city'],
+                  if(editedOrderLocations[id]!=null)...{'exact_address':editedOrderLocations[id]!['address'],'exact_location':editedOrderLocations[id]!['cleared']==true?null:{'latitude':editedOrderLocations[id]!['latitude'],'longitude':editedOrderLocations[id]!['longitude']}},
                   'budget_amount':
                       v['budget']!.isEmpty ? null : minor(v['budget']!)
                 });
                 if(!mounted||client!=api||generation!=api.sessionGeneration||scope!=currentOrderScope)return;
-                editedOrderValues.remove(id);orderBusy(false);
+                editedOrderValues.remove(id);editedOrderLocations.remove(id);orderBusy(false);
                 success('Заказ изменён');
                 back();
               },

@@ -25,29 +25,48 @@ class MainActivity : FlutterFragmentActivity() {
         if (locationResult != null) { result.error("LOCATION_BUSY", "Location request is active", null); return }
         locationResult=result
         if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            androidx.core.app.ActivityCompat.requestPermissions(this,arrayOf(android.Manifest.permission.ACCESS_COARSE_LOCATION),locationRequest)
+            androidx.core.app.ActivityCompat.requestPermissions(this,arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION,android.Manifest.permission.ACCESS_COARSE_LOCATION),locationRequest)
         } else readLocation()
     }
     override fun onRequestPermissionsResult(requestCode:Int, permissions:Array<out String>, grants:IntArray) {
         super.onRequestPermissionsResult(requestCode,permissions,grants)
         if(requestCode==locationRequest) {
-            if(grants.isNotEmpty()&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED) readLocation()
+            if(grants.any { it==android.content.pm.PackageManager.PERMISSION_GRANTED }) readLocation()
             else { locationResult?.error("GPS_DENIED","Choose a city manually",null);locationResult=null }
         }
     }
     private fun readLocation() {
         val result=locationResult?:return
         val manager=getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+        val cancellation=android.os.CancellationSignal()
+        var listener:android.location.LocationListener?=null
         fun finish(location:android.location.Location?) {
             if(locationResult!==result)return
             locationResult=null
-            if(location==null)result.error("LOCATION_UNAVAILABLE","Choose a city manually",null)
-            else result.success(mapOf("latitude" to location.latitude,"longitude" to location.longitude))
+            cancellation.cancel()
+            listener?.let { manager.removeUpdates(it) }
+            if(location==null)result.error("LOCATION_UNAVAILABLE","Choose a point manually",null)
+            else result.success(mapOf("latitude" to location.latitude,"longitude" to location.longitude,"accuracy" to location.accuracy))
         }
         try {
-            if(!manager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) { finish(null);return }
-            if(android.os.Build.VERSION.SDK_INT>=30) manager.getCurrentLocation(android.location.LocationManager.NETWORK_PROVIDER,null,mainExecutor){location->finish(location)}
-            else {val location=manager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER);finish(if(location!=null&&System.currentTimeMillis()-location.time<300000)location else null)}
+            val fine=androidx.core.content.ContextCompat.checkSelfPermission(this,android.Manifest.permission.ACCESS_FINE_LOCATION)==android.content.pm.PackageManager.PERMISSION_GRANTED
+            val gps=fine&&manager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+            val network=manager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
+            if(!gps&&!network){finish(null);return}
+            val provider=if(gps)android.location.LocationManager.GPS_PROVIDER else android.location.LocationManager.NETWORK_PROVIDER
+            if(android.os.Build.VERSION.SDK_INT>=30){
+                manager.getCurrentLocation(provider,cancellation,mainExecutor){location->if(location!=null||!gps||!network)finish(location) else manager.getCurrentLocation(android.location.LocationManager.NETWORK_PROVIDER,cancellation,mainExecutor){fallback->finish(fallback)}}
+                if(gps&&network)android.os.Handler(mainLooper).postDelayed({if(locationResult===result)try{manager.getCurrentLocation(android.location.LocationManager.NETWORK_PROVIDER,cancellation,mainExecutor){location->finish(location)}}catch(_:Exception){finish(null)}},8000)
+            }else{
+                listener=object:android.location.LocationListener{
+                    override fun onLocationChanged(location:android.location.Location){finish(location)}
+                    override fun onProviderEnabled(provider:String){}
+                    override fun onProviderDisabled(provider:String){}
+                    @Deprecated("Legacy callback") override fun onStatusChanged(provider:String,status:Int,extras:android.os.Bundle?){}
+                }
+                manager.requestSingleUpdate(provider,listener!!,mainLooper)
+                if(gps&&network)manager.requestSingleUpdate(android.location.LocationManager.NETWORK_PROVIDER,listener!!,mainLooper)
+            }
             android.os.Handler(mainLooper).postDelayed({finish(null)},15000)
         } catch (_:Exception) { finish(null) }
     }

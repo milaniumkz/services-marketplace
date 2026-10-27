@@ -136,7 +136,7 @@ private final class JobaLocationService: NSObject, CLLocationManagerDelegate {
   private let manager = CLLocationManager()
   private var completion: FlutterResult?
   private var generation = 0
-  override init() { super.init(); manager.delegate=self;manager.desiredAccuracy=kCLLocationAccuracyKilometer }
+  override init() { super.init(); manager.delegate=self;manager.desiredAccuracy=kCLLocationAccuracyNearestTenMeters }
   func request(_ result: @escaping FlutterResult) {
     guard completion == nil else { result(FlutterError(code:"LOCATION_BUSY",message:"Location request is active",details:nil));return }
     completion=result

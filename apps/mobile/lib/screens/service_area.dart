@@ -3,6 +3,7 @@ import '../core/api.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../core/widgets.dart';
+import 'osm_location_picker.dart';
 
 class ServiceArea extends StatefulWidget {
   final JobaApi api;
@@ -78,6 +79,27 @@ class _ServiceAreaState extends State<ServiceArea> {
                                 });
                         }),
                 child: const UiText('Указать зону по местоположению')),
+            OutlinedButton.icon(
+                onPressed: busy
+                    ? null
+                    : () => run(() async {
+                          final selected = await chooseMapAddress(
+                              context, widget.api,
+                              initial: point, city: p['city']);
+                          if (mounted && selected != null)
+                            setState(() => point = {
+                                  'latitude':
+                                      ((selected['latitude'] as num) * 100)
+                                              .round() /
+                                          100,
+                                  'longitude':
+                                      ((selected['longitude'] as num) * 100)
+                                              .round() /
+                                          100
+                                });
+                        }),
+                icon: const Icon(Icons.map_outlined),
+                label: const UiText('Выбрать зону на карте')),
             const Notice(
                 'Если геолокация недоступна, поиск по городу продолжает работать. Публиковать зону необязательно.'),
           ],

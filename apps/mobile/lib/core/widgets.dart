@@ -268,6 +268,7 @@ class ActionForm extends StatefulWidget {
   final ValueChanged<bool>? onBusyChanged;
   final ValueChanged<Object?>? onErrorChanged;
   final Map<String,String> initialValues;
+  final Map<String,String> fieldOverrides;
   final ValueChanged<Map<String,String>>? onValuesChanged;
   const ActionForm({
     required this.fields,
@@ -279,6 +280,7 @@ class ActionForm extends StatefulWidget {
     this.onBusyChanged,
     this.onErrorChanged,
     this.initialValues = const {},
+    this.fieldOverrides = const {},
     this.onValuesChanged,
     this.stickySubmit = false,
     this.externalBusy = false,
@@ -322,7 +324,7 @@ class _ActionFormState extends State<ActionForm> {
   }
 
   TextEditingController createController(InputSpec field) {
-    final controller=TextEditingController(text:widget.initialValues[field.key]??field.initial);
+    final controller=TextEditingController(text:widget.fieldOverrides[field.key]??widget.initialValues[field.key]??field.initial);
     if(widget.onValuesChanged!=null) controller.addListener(() {
       widget.onValuesChanged?.call(controllers.map((key,value)=>MapEntry(key,value.text)));
     });
@@ -338,6 +340,7 @@ class _ActionFormState extends State<ActionForm> {
       cooldownSeconds = 0;
       if (widget.loginLayout) visible.clear();
     }
+    for(final entry in widget.fieldOverrides.entries){if(old.fieldOverrides[entry.key]!=entry.value&&controllers.containsKey(entry.key)){pickedLabels.remove(entry.key);controllers[entry.key]!.text=entry.value;}}
     final keys = widget.fields.map((f) => f.key).toSet();
     for (final key in controllers.keys.toList()) {
       if (!keys.contains(key)) controllers.remove(key)!.dispose();

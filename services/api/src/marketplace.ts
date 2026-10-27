@@ -1,3 +1,4 @@
+import {geocode,geoPoint,nearestCity,orderAddress} from './osm-geocoding';
 import {adminReviewQueues} from './admin-review-queues';
 import {adminContentDetail} from './admin-content-detail';
 import {testPaymentSettings,updateTestPayments,simulateSubscription} from './test-payments';
@@ -397,8 +398,11 @@ export class Marketplace {
     if(path==='/contractors/map'&&method==='GET'){
       await this.entitlement(a,'view_contractors');const near=q.near_lat!==undefined||q.near_lon!==undefined?{latitude:Number(q.near_lat),longitude:Number(q.near_lon),radius:Number(q.radius_km??50)}:undefined;if(near&&(!Number.isFinite(near.latitude)||Math.abs(near.latitude)>90||!Number.isFinite(near.longitude)||Math.abs(near.longitude)>180||!Number.isFinite(near.radius)||near.radius<=0||near.radius>500))fail(400,'VALIDATION_ERROR','Проверьте координаты и радиус');const candidates=await this.store.select('contractor',a.country,{publicActor:a.id,statuses:['published'],city:near?undefined:q.city,category:q.category_id,near,limit:100});
       const rows=candidates.filter(r=>r.public_location&&Number.isFinite(r.public_location.latitude)&&Number.isFinite(r.public_location.longitude));
-      return {items:await contractorPresentation(this.store,a.country,rows),meta:{approximate:true,map_provider_configured:false}};
+      return {items:await contractorPresentation(this.store,a.country,rows),meta:{approximate:true,map_provider_configured:true,map_provider:'OpenStreetMap'}};
     }
+    if(path==='/geo/nearest-city'&&method==='GET')return {city:await nearestCity(this.store,a.country,geoPoint(q.latitude,q.longitude))};
+    if(path==='/geo/search'&&method==='GET')return geocode(this.store,a.country,'search',q);
+    if(path==='/geo/reverse'&&method==='GET')return geocode(this.store,a.country,'reverse',q);
     if(path==='/geo/cities'&&method==='GET'){if(q.q!==undefined&&(typeof q.q!=='string'||q.q.length>100))fail(400,'VALIDATION_ERROR','Проверьте запрос города');return cityCatalog(this.store,a.country,q.q??'');}
     if(path==='/me/monetization-config'&&method==='GET') {
       const config=(await this.store.all('monetization_config',a.country)).find(x=>x.status==='effective');
@@ -557,7 +561,7 @@ export class Marketplace {
       const category=(await this.categories(a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
       const city=b.city??await cityName(this.store,a.country,String(b.city_id));if(typeof city!=='string'||city.length<2||city.length>100)fail(400,'VALIDATION_ERROR','Город недоступен');
       const uploads=b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[];
-      return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}},city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
+      return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}},city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,...orderAddress(b),upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
     }
     if(path==='/me/orders'&&method==='GET'){
       const page=await this.page('order',a,q,{owner:a.id,statuses:orderBucket(q.bucket)});
@@ -580,7 +584,7 @@ export class Marketplace {
         const assignment=participant&&o.assignment_id?await this.store.get(o.assignment_id):undefined;
         const review=participant?(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='review' AND country=$1 AND owner=$2 AND data->>'order_id'=$3 LIMIT 1",[a.country,a.id,o.id])).rows[0]?.data:undefined;
         const person=(user:RecordData|undefined)=>user?{id:user.id,display_name:user.display_name,avatar_id:user.avatar_id,city:user.city}:null;
-        return {...(participant?o:publicContent(o)),exact_address:participant?o.exact_address:undefined,customer:person(customer),executor:participant?person(executor):undefined,conversation_id:assignment?.conversation_id,my_review:review,offer_policy:offerPolicy(o,settings.offer_expiry_hours)};
+        return {...(participant?o:publicContent(o)),exact_address:participant?o.exact_address:undefined,exact_location:participant?o.exact_location:undefined,customer:person(customer),executor:participant?person(executor):undefined,conversation_id:assignment?.conversation_id,my_review:review,offer_policy:offerPolicy(o,settings.offer_expiry_hours)};
       }
       if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:await offerPeople(this.store,a.country,(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id).map(x=>presentOffer(x,settings.offer_expiry_hours,new Date(),o)))};}
       if(action==='offers'&&method==='POST') {
@@ -626,10 +630,11 @@ export class Marketplace {
       if(method==='PATCH'&&!action) {
         if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Редактирование недоступно');
         const unchangedCategory=b.category_id===undefined||b.category_id===o.category_id,originalCategory=unchangedCategory?await this.store.get(o.category_id):undefined;const category=(await this.categories(a.country)).find(c=>c.id===(b.category_id??o.category_id))??(unchangedCategory&&originalCategory?.country===a.country&&originalCategory.kind==='category'?{...originalCategory,id:categoryId(originalCategory),record_id:originalCategory.id}:undefined);if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');const snapshot=unchangedCategory?(o.category_snapshot??{id:category!.id,version_id:originalCategory?.id??category!.record_id,title:originalCategory?.payload.labels?.ru??originalCategory?.title??category!.title,labels:originalCategory?.payload.labels??category!.payload.labels,schema:originalCategory?.payload.schema??category!.payload.schema??{properties:{},required:[]}}):{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}};
-        const changes:any={title:b.title===undefined?o.title:text(b,'title',5,120),description:b.description===undefined?o.description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:snapshot,attributes:attributes(snapshot.schema,b.attributes??o.attributes)};
+        const changes:any={...orderAddress(b),title:b.title===undefined?o.title:text(b,'title',5,120),description:b.description===undefined?o.description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:snapshot,attributes:attributes(snapshot.schema,b.attributes??o.attributes)};
         if(b.budget_amount!==undefined){if(b.budget_amount!==null&&(!Number.isSafeInteger(b.budget_amount)||b.budget_amount<0))fail(400,'VALIDATION_ERROR','Проверьте бюджет');changes.budget_amount=b.budget_amount;}
         if(b.city!==undefined)changes.city=text(b,'city',2,100);
         if(b.city_id!==undefined){const city=await cityName(this.store,a.country,String(b.city_id));if(!city)fail(400,'VALIDATION_ERROR','Город недоступен');changes.city=city;}
+        if(changes.city!==undefined&&changes.city!==o.city&&b.exact_location===undefined)Object.assign(changes,{exact_location:null,public_location:null,exact_address:null});
         if(b.work_mode!==undefined){if(!['onsite','remote','hybrid'].includes(b.work_mode))fail(400,'VALIDATION_ERROR','Проверьте формат работы');changes.work_mode=b.work_mode;}
         if(b.upload_ids!==undefined)changes.upload_ids=await this.safeUploads(a,b.upload_ids,'order');
         if(b.time_window!==undefined)changes.time_window=timeWindow(b.time_window);
@@ -674,7 +679,7 @@ export class Marketplace {
       if(method==='GET'&&!offerCommand[2]) {
         const offer=await this.object(offerCommand[1],a,'offer'),order=await this.object(offer.order_id,a,'order');
         if(offer.owner!==a.id&&order.owner!==a.id)fail(404,'NOT_FOUND','Отклик не найден');
-        return {...presentOffer(offer,settings.offer_expiry_hours,new Date(),order),order:{...order,offer_policy:offerPolicy(order,settings.offer_expiry_hours),exact_address:order.owner===a.id||order.executor_id===a.id?order.exact_address:undefined},executor:(await offerPeople(this.store,a.country,[offer]))[0].executor};
+        return {...presentOffer(offer,settings.offer_expiry_hours,new Date(),order),order:{...order,offer_policy:offerPolicy(order,settings.offer_expiry_hours),exact_address:order.owner===a.id||order.executor_id===a.id?order.exact_address:undefined,exact_location:order.owner===a.id||order.executor_id===a.id?order.exact_location:undefined},executor:(await offerPeople(this.store,a.country,[offer]))[0].executor};
       }
       const f=await this.object(offerCommand[1],a,'offer',true);this.version(f,b);
       if(f.status!=='active')fail(409,'STATE_CONFLICT','Отклик больше не активен');
