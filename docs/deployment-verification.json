@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-27T10:00:00.120574+00:00",
-  "server_source_commit": "adebc575d591cca2de592ef684d108c1f0517b65",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40483776635",
+  "verified_at": "2026-10-27T10:48:18.644332+00:00",
+  "server_source_commit": "784890550457ffa0f6ed787bf6be3cadadb0993e",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40489981697",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -130,8 +130,9 @@
   "admin_mobile_login_verified": true,
   "admin_mobile_page_viewport_combinations": 40,
   "flutter_tests": {
-    "passed": 227,
-    "skipped": 2
+    "status": "passed_in_github_actions",
+    "source_commit": "784890550457ffa0f6ed787bf6be3cadadb0993e",
+    "run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40489981697"
   },
   "mobile_analysis_issues": 0,
   "admin_account_management": {
@@ -179,5 +180,26 @@
     "web_biometry": "not_available; continue_with_pin",
     "physical_device_biometry_verified": false,
     "apk_built": false
+  },
+  "photo_selection_release": {
+    "https_frontend_revision_verified": true,
+    "full_flutter_ci": "passed",
+    "browser_tests_passed": 6,
+    "photo_browser_tests_passed": 3,
+    "targeted_photo_widget_tests_passed": 8,
+    "analysis_issues": 0,
+    "sources": [
+      "gallery",
+      "camera"
+    ],
+    "selfie_camera": "front",
+    "document_camera": "rear",
+    "identity_picker_before_api_requests": true,
+    "explicit_consent_required_before_upload": true,
+    "cancel_does_not_upload": true,
+    "account_switch_does_not_upload": true,
+    "native_camera_physical_device_test": "not_performed",
+    "apk_built": false,
+    "github_status_evidence": "public_workflow_and_job_pages; CLI credential became unavailable after push"
   }
 }
