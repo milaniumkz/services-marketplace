@@ -68,8 +68,10 @@ class _OsmMapState extends State<OsmMap> {
         widget.initialCenter != null &&
         widget.initialCenter != old.initialCenter)
       controller.move(widget.initialCenter!, 12);
-    if (ready && widget.selected != null && widget.selected != old.selected)
+    if (ready && widget.selected != null && widget.selected != old.selected) {
+      userMoved = true;
       controller.move(widget.selected!, 15);
+    }
   }
 
   Future<void> locate() async {
@@ -87,7 +89,7 @@ class _OsmMapState extends State<OsmMap> {
             'Не удалось определить местоположение. Выберите точку вручную.');
       setState(() => user = point);
       if (ready && !userMoved) controller.move(point, 14);
-      widget.onLocated?.call(point);
+      if (!userMoved) widget.onLocated?.call(point);
     } catch (error) {
       if (mounted)
         setState(() => status = error is ApiException

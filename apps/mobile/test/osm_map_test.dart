@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +40,30 @@ void main() {
     expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
     expect(t.widget<OsmMap>(find.byType(OsmMap)).selected,
         const LatLng(43.2, 76.9));
+    await t.pumpWidget(const SizedBox());
+  });
+  testWidgets(
+      'late GPS does not move a manually panned map or select a new address',
+      (t) async {
+    final pending = Completer<Json?>();
+    var selected = false;
+    await t.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: OsmMap(
+                initialCenter: const LatLng(49.8, 73.1),
+                tileProvider: TestTiles(),
+                locate: () => pending.future,
+                onLocated: (_) => selected = true))));
+    await t.pumpAndSettle();
+    await t.drag(find.byType(FlutterMap), const Offset(120, 0));
+    await t.pumpAndSettle();
+    final controller =
+        t.widget<FlutterMap>(find.byType(FlutterMap)).mapController!;
+    final manualCenter = controller.camera.center;
+    pending.complete({'latitude': 43.2, 'longitude': 76.9});
+    await t.pumpAndSettle();
+    expect(controller.camera.center, manualCenter);
+    expect(selected, false);
     await t.pumpWidget(const SizedBox());
   });
   testWidgets('denied geolocation still allows manual map selection',
