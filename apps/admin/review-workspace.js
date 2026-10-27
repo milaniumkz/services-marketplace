@@ -95,8 +95,9 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
         form.requestSubmit();
       }else if(form){document.getElementById('sensitive-result').textContent='Для просмотра фотографий требуется право «Просмотр исходников документов».';}
       if(user&&allowed('sensitive.phone')){
+        const target=document.getElementById('verification-phone');
         api(base+'?'+new URLSearchParams({include_phone:'true',reason:'Проверка контакта по заявке '+record.id})).then(data=>{
-          const target=document.getElementById('verification-phone');if(target?.isConnected)target.textContent=data.subject?.phone?'Полный телефон: '+data.subject.phone:'';
+          if(target?.isConnected)target.textContent=data.subject?.phone?'Полный телефон: '+data.subject.phone:'';
         }).catch(()=>{});
       }
     }
