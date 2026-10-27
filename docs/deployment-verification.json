@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-27T11:27:39.111438+00:00",
-  "server_source_commit": "157553390dee9e0449df1785a65c42495ad86b9a",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40494369633",
+  "verified_at": "2026-10-27T11:45:44.627966+00:00",
+  "server_source_commit": "6fa3b57bb66477b4e5b6eead70f6989cb6c48c8f",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40497430025",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -130,7 +130,7 @@
   "admin_mobile_login_verified": true,
   "admin_mobile_page_viewport_combinations": 45,
   "flutter_tests": {
-    "passed": 231,
+    "passed": 233,
     "skipped": 2
   },
   "mobile_analysis_issues": 0,
@@ -217,6 +217,17 @@
     "production_private_photos_readable": 3,
     "production_file_tls_verified": true,
     "production_browser_rendering": "not_verified_in_local_browser_due_to_proxy_CA_trust; isolated_browser_rendering_passed",
+    "apk_built": false
+  },
+  "active_role_separation": {
+    "customer_verification_success_action": "create_order",
+    "customer_verification_pending_action": "own_orders",
+    "customer_services_menu_hidden": true,
+    "customer_executor_editors_guarded": true,
+    "executor_enrollment_requires_explicit_choice": true,
+    "both_role_accounts_verified": true,
+    "customer_and_executor_plans_remain_separate": true,
+    "https_frontend_revision_verified": true,
     "apk_built": false
   }
 }
