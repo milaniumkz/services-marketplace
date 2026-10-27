@@ -154,6 +154,7 @@ void main() {
     state.go('order', 'order-id');
     await t.pumpAndSettle();
     await t.ensureVisible(find.text('Запросить завершение'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Запросить завершение'));
     await t.pumpAndSettle();
     await t.enterText(find.byType(TextFormField), 'Соединения проверены');
@@ -245,7 +246,8 @@ void main() {
     final button = find.widgetWithText(FilledButton, 'Выбрать исполнителя');
     expect(t.widget<FilledButton>(button).onPressed, isNull);
     expect(submitted, isNull);
-    await t.ensureVisible(find.byType(CheckboxListTile));
+    await t.scrollUntilVisible(find.byType(CheckboxListTile), 150);
+    await t.pumpAndSettle();
     await t.tap(find.byType(CheckboxListTile));
     await t.pumpAndSettle();
     await t.tap(button);
