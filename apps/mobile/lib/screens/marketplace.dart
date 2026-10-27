@@ -183,6 +183,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   int reviewRating = 0;
   final List<(String, String?)> history = [];
   bool starting = true, executor = false, actionBusy = false;
+  bool executorSetupRequested = false;
   bool authSubmitting = false, authCredentialFailure = false;
   bool localSetupSubmitting = false, unlockSubmitting = false;
   int authFormRevision = 0, profilePending = 0;
@@ -279,6 +280,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if (replacement != null) replaceApi(replacement);
       setState(() {
         country = next;
+        executorSetupRequested = false;
         authPhoneInitial = '';
         recovery = null;
         objectId = null;
@@ -319,6 +321,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       localProtected = false;
       setState(() {
         me = null;
+        executorSetupRequested = false;
         profileDraft = null; profileDraftScope = null;
         ordersHasAny = null;
         recovery = null;
@@ -459,6 +462,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     if (next == 'languages') pendingLocale = null;
     setState(() {
+      if (!executor && ['home', 'account', 'orders'].contains(next)) executorSetupRequested = false;
       authCredentialFailure = false;
       history.add((route, objectId));
       route = next;
@@ -503,6 +507,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         route = _api?.authenticated == true ? 'home' : 'welcome';
         objectId = null;
       }
+      if (!executor && !['services', 'portfolio', 'portfolio-edit', 'portfolio-photos', 'service-area'].contains(route)) executorSetupRequested = false;
       revision++;
     });
   }
@@ -770,6 +775,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   Widget screen() {
+    if (!executor && !executorSetupRequested && ['services', 'portfolio', 'portfolio-edit', 'portfolio-photos', 'service-area'].contains(route)) {
+      return page('Режим заказчика', listBody([
+        const UiHeading('Вы вошли как заказчик', 'Размещайте заказы и выбирайте исполнителей. Услуги заполняются в роли исполнителя.'),
+        button('Разместить заказ', () => go('create')),
+        button('Моя подписка', () => go('my-access'), outline: true),
+        button('Переключить роль', () => go('roles'), outline: true),
+      ]));
+    }
     switch (route) {
       case 'pin-setup':
       case 'lock-setup':
@@ -1840,8 +1853,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   Future<void> switchRole([String? requested]) async {
     final target = requested ?? (executor ? 'customer' : 'executor');
+    if (target == 'customer' && executorSetupRequested && mounted) setState(() => executorSetupRequested = false);
     if ((me?['active_role'] ?? 'customer') == target) return;
     if (!(me?['roles'] as List? ?? []).contains(target)) {
+      if (target == 'executor') executorSetupRequested = true;
       go('services');
       return;
     }
@@ -1854,6 +1869,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     setState(() {
       me = updated;
       executor = target == 'executor';
+      executorSetupRequested = false;
       if (executor && ordersBucket == 'drafts') ordersBucket = 'active';
       revision++;
     });
@@ -2537,7 +2553,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           subtitle:
                               '${orders['active'] ?? 0} · ${localize(context, 'Активные')} · ${orders['open'] ?? 0} · ${localize(context, 'Открыт')}',
                           translateSubtitle: false),
-                      JobaMenuEntry('Мои услуги и портфолио', 'tool',
+                      if (executor) JobaMenuEntry('Мои услуги и портфолио', 'tool',
                           () => go('services'),
                           subtitle: summary['contractor'] == null
                               ? 'Настройте профиль исполнителя'
@@ -5226,11 +5242,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         verificationId: verificationId);
   }
 
-  String verificationTitle = 'Проверка исполнителя';
+  String verificationTitle = 'Проверка личности';
   Widget verificationScreen() => page(
       verificationTitle,
       VerificationEditor(
           api: api,
+          executor: executor,
           country: country,
           uploads: verificationUploads,
           revision: revision,
@@ -5248,7 +5265,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 initialText: 'Прошу пересмотреть решение по проверке документа № ${session['id']}.\nПричина отказа: ${session['reason'] ?? ''}\n',
                 pickUpload: () => pickUpload('chat'),
                 onCreated: (id) {Navigator.pop(c); go('support-chat', id);})))),
-          onProfile: () => go('services'),
+          onProfile: () => go(executor ? 'services' : 'orders'),
+          onCreateOrder: () => go('create'),
           onSupport: () => go('support')));
   void continueAfterConsent() {
     setState(() {

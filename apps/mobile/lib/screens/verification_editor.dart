@@ -9,22 +9,26 @@ class VerificationEditor extends StatefulWidget {
   final JobaApi api;
   final String country;
   final int revision;
+  final bool executor;
   final Future<Json?> Function(String) pick;
   final Future<PhotoFile?> Function(bool selfie)? choosePhoto;
   final Future<Json> Function(PhotoFile photo, String sessionId)? uploadPhoto;
   final VoidCallback onTerms, onProfile, onSupport;
+  final VoidCallback? onCreateOrder;
   final ValueChanged<String>? onTitle;
   final ValueChanged<Json>? onAppeal;
   final Map<String, List<String>> uploads;
   const VerificationEditor(
       {required this.api,
       this.revision = 0,
+      this.executor = false,
       required this.country,
       required this.pick,
       this.choosePhoto,
       this.uploadPhoto,
       required this.onTerms,
       required this.onProfile,
+      this.onCreateOrder,
       required this.onSupport,
       required this.uploads,
       this.onTitle,
@@ -396,8 +400,12 @@ class _VerificationEditorState extends State<VerificationEditor> {
           heading(
               passed ? 'Документ проверен' : 'Проверяем документ',
               passed
-                  ? 'Вы можете публиковать профиль и портфолио, искать заказы и откликаться.'
-                  : 'Фотографии получены. Решение появится здесь и в уведомлениях. Пока можно заполнить черновик профиля.'),
+                  ? widget.executor
+                      ? 'После подключения подписки исполнителя можно публиковать услуги и портфолио, искать заказы и откликаться.'
+                      : 'После подключения подписки заказчика можно просматривать анкеты исполнителей и размещать заказы.'
+                  : widget.executor
+                      ? 'Фотографии получены. Решение появится здесь и в уведомлениях. Пока можно заполнить черновик профиля.'
+                      : 'Фотографии получены. Решение появится здесь и в уведомлениях. Вы можете вернуться к своим заказам.'),
           if (passed)
             Container(
                 padding: const EdgeInsets.all(16),
@@ -420,15 +428,17 @@ class _VerificationEditorState extends State<VerificationEditor> {
                 ])),
           if (passed)
             const Notice(
-                'В профиле виден только факт проверки. Изображение документа не публикуется.'),
+                'Селфи используется как фото профиля. Изображения удостоверения не публикуются.'),
           TextButton(
               onPressed: widget.onSupport,
               child: const UiText('Вопрос по проверке'))
         ])),
         Padding(
             padding: const EdgeInsets.all(20),
-            child: action(passed ? 'К моим услугам' : 'Заполнить профиль',
-                widget.onProfile))
+            child: action(widget.executor
+                ? (passed ? 'К моим услугам' : 'Заполнить профиль')
+                : (passed ? 'Разместить заказ' : 'К моим заказам'),
+                passed && !widget.executor ? (widget.onCreateOrder ?? widget.onProfile) : widget.onProfile))
       ]);
     final policy = data!['policy'] as Json?;
     return Column(children: [

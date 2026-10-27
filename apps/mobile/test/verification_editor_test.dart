@@ -23,6 +23,21 @@ http.Response ok(dynamic data) =>
     http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
         headers: {'content-type': 'application/json; charset=utf-8'});
 void main() {
+  for (final executor in [false, true]) {
+    testWidgets('verification result follows the active role even with both account roles: $executor', (t) async {
+      final api=JobaApi('https://isolated.example',vault:Vault(),transport:MockClient((r) async => ok({'status':'passed','items':[]})));
+      api.session={'access_token':'token','user':{'id':'both-roles','roles':['customer','executor'],'active_role':executor?'executor':'customer'}};
+      addTearDown(api.dispose);
+      var services=0,orders=0;
+      await t.pumpWidget(MaterialApp(home:Scaffold(body:VerificationEditor(api:api,country:'KZ',executor:executor,uploads:{},pick:(_) async=>null,
+        onTerms:(){},onSupport:(){},onProfile:()=>services++,onCreateOrder:()=>orders++))));
+      await t.pumpAndSettle();
+      expect(find.text('К моим услугам'),executor?findsOneWidget:findsNothing);
+      expect(find.text('Разместить заказ'),executor?findsNothing:findsOneWidget);
+      await t.tap(find.text(executor?'К моим услугам':'Разместить заказ'));await t.pumpAndSettle();
+      expect(services,executor?1:0);expect(orders,executor?0:1);
+    });
+  }
   testWidgets('inactive consent prompts explicitly, picker precedes session requests and cancellation uploads nothing', (t) async {
     final calls = <String>[];
     var cancel = true, switchOwner = false;
