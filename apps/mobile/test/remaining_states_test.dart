@@ -353,7 +353,7 @@ void main() {
     await t.tap(find.text('Включить биометрию'));
     await t.pumpAndSettle();
     expect(find.text('Используйте PIN'), findsOneWidget);
-    await t.tap(find.text('Ввести PIN'));
+    await t.tap(find.text('Продолжить с PIN'));
     expect(fallback, true);
   });
   testWidgets(

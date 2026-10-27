@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../core/design_icons.dart';
 import '../core/design_states.dart';
@@ -8,7 +9,8 @@ import '../core/theme.dart';
 class PinSetup extends StatefulWidget {
   final Future<void> Function(String pin, bool biometry) onSave;
   final Future<void> Function() onPassword;
-  const PinSetup({required this.onSave, required this.onPassword, super.key});
+  final bool showBiometry;
+  const PinSetup({required this.onSave, required this.onPassword, this.showBiometry = true, super.key});
   @override
   State<PinSetup> createState() => _PinSetupState();
 }
@@ -199,7 +201,7 @@ class _PinSetupState extends State<PinSetup> {
                                                                         FontWeight
                                                                             .w500))))))
                                 ])),
-                          SwitchListTile(
+                          if (widget.showBiometry) SwitchListTile(
                               contentPadding: EdgeInsets.zero,
                               title: const UiText('Биометрия'),
                               subtitle: const UiText('Дополнительно к PIN'),
@@ -245,7 +247,8 @@ class _PinSetupState extends State<PinSetup> {
 class BiometrySetup extends StatefulWidget {
   final Future<void> Function() onEnable;
   final VoidCallback onPin;
-  const BiometrySetup({required this.onEnable, required this.onPin, super.key});
+  final Future<void> Function()? onContinue;
+  const BiometrySetup({required this.onEnable, required this.onPin, this.onContinue, super.key});
   @override
   State<BiometrySetup> createState() => _BiometrySetupState();
 }
@@ -253,21 +256,31 @@ class BiometrySetup extends StatefulWidget {
 class _BiometrySetupState extends State<BiometrySetup> {
   bool busy = false;
   Object? error;
+  Future<void> continueWithPin() async {
+    if (busy) return;
+    if (widget.onContinue == null) { widget.onPin(); return; }
+    setState(() { busy = true; error = null; });
+    try { await widget.onContinue!(); }
+    catch (e) { if (mounted) setState(() => error = e); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
   @override
   Widget build(BuildContext context) =>
       ListView(padding: const EdgeInsets.all(20), children: [
         JobaStatePanel(
             icon: 'face',
-            title: error == null
+            title: kIsWeb ? 'PIN сохранён' : error == null
                 ? 'Быстрый вход\nпо биометрии'
                 : 'Используйте PIN',
-            message: error == null
+            message: kIsWeb
+                ? 'В браузере используйте PIN. Touch ID и Face ID доступны в мобильном приложении на поддерживаемых устройствах.'
+                : error == null
                 ? 'Биометрия открывает только сохранённую сессию на этом устройстве. Для нового устройства нужен номер и пароль.'
                 : 'Биометрия сейчас недоступна. Используйте PIN или войдите номером и паролем.',
-            primaryLabel: error == null ? 'Включить биометрию' : 'Ввести PIN',
+            primaryLabel: kIsWeb ? 'Продолжить с PIN' : error == null ? 'Включить биометрию' : 'Продолжить с PIN',
             busy: busy,
-            onPrimary: error != null
-                ? widget.onPin
+            onPrimary: kIsWeb || error != null
+                ? continueWithPin
                 : () async {
                     setState(() => busy = true);
                     try {
@@ -278,7 +291,7 @@ class _BiometrySetupState extends State<BiometrySetup> {
                       if (mounted) setState(() => busy = false);
                     }
                   },
-            secondaryLabel: error == null ? 'Использовать PIN' : null,
-            onSecondary: widget.onPin)
+            secondaryLabel: !kIsWeb && error == null ? 'Использовать PIN' : null,
+            onSecondary: continueWithPin)
       ]);
 }

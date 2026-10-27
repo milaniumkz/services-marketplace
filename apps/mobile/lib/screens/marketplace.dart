@@ -774,7 +774,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'lock-setup':
         return lockSetup();
       case 'biometric':
-        return page('Биометрия',BiometrySetup(onPin:()=>go(locked?'unlock':'pin-setup'),onEnable:()async{
+        return page('Биометрия',BiometrySetup(onPin:()=>go(locked?'unlock':'pin-setup'),onContinue:() async {
+          if (locked) { go('unlock'); return; }
+          if (await lock?.hasPin() != true) { go('pin-setup'); return; }
+          await completeLocalSetup();
+        },onEnable:()async{
           await completeLocalSetup(biometry: true);
         }),titleOffset:-12);
       case 'pin-limit':
@@ -1698,7 +1702,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if (!current()) return;
       localProtected = !passwordOnly;
       setState(() => localSetupSubmitting = false);
-      await finishLocalSetup();
+      if (pin != null && !biometry) {
+        setState(() { route = 'biometric'; objectId = null; revision++; });
+      } else {
+        await finishLocalSetup();
+      }
     } catch (_) {
       if (current() && client.persistSession != wasPersistent) {
         await client.setPersistence(wasPersistent);
@@ -1710,6 +1718,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   Widget lockSetup() => page('Защитите приложение', PinSetup(
+    showBiometry: false,
     onSave: (pin, bio) => completeLocalSetup(pin: pin, biometry: bio),
     onPassword: () => completeLocalSetup(passwordOnly: true),
   ), titleOffset: -12);

@@ -2,23 +2,11 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'pin_kdf_native.dart' if (dart.library.js_interop) 'pin_kdf_web.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
-
-// PBKDF2-HMAC-SHA256. Work executes off the UI isolate; PIN never leaves the device.
-String derivePin(List<String> input) {
-  final prf = Hmac(sha256, utf8.encode(input[0]));
-  var block = prf.convert([...base64Decode(input[1]), 0, 0, 0, 1]).bytes;
-  final result = List<int>.from(block);
-  for (var iteration = 1; iteration < 100000; iteration++) {
-    block = prf.convert(block).bytes;
-    for (var i = 0; i < result.length; i++) {
-      result[i] ^= block[i];
-    }
-  }
-  return base64Encode(result);
-}
+export 'pin_derivation.dart' show derivePin;
 
 class LocalLock {
   final String key;
@@ -40,8 +28,10 @@ class LocalLock {
   Future<bool> configured() async =>
       await storage.read(key: key) != null || await hasBiometry();
   Future<bool> hasBiometry() async =>
-      await storage.read(key: '$key.biometry') == 'enabled';
+      !kIsWeb && await storage.read(key: '$key.biometry') == 'enabled';
   Future<void> enableBiometry() async {
+    if (kIsWeb) throw ApiException('BIOMETRY_UNAVAILABLE',
+        'В браузере используйте PIN. Биометрия доступна в мобильном приложении.');
     final ok = await const MethodChannel('joba.device_security')
         .invokeMethod<bool>('enableBiometry', {'alias': alias});
     if (ok != true)
@@ -72,30 +62,31 @@ class LocalLock {
   Future<void> configure(String pin) async {
     if (!RegExp(r'^\d{6,8}$').hasMatch(pin))
       throw ApiException('PIN_INVALID', 'PIN должен содержать 6–8 цифр');
-    bool available = false;
-    try {
-      available = await const MethodChannel('joba.device_security')
-              .invokeMethod<bool>('secureStorageAvailable') ??
-          false;
-    } on PlatformException {
-      available = false;
-    } on MissingPluginException {
-      available = false;
+    bool available = kIsWeb;
+    if (!kIsWeb) {
+      try {
+        available = await const MethodChannel('joba.device_security')
+                .invokeMethod<bool>('secureStorageAvailable') ??
+            false;
+      } on PlatformException {
+        available = false;
+      } on MissingPluginException {
+        available = false;
+      }
     }
     if (!available)
       throw ApiException('LOCAL_PROTECTION_UNAVAILABLE',
           'На этом устройстве используйте вход с номером и паролем.');
     final random = Random.secure(),
         salt = base64Encode(List.generate(32, (_) => random.nextInt(256)));
-    final hash = await compute(derivePin, [pin, salt]);
-    await storage.write(
-        key: key,
-        value: jsonEncode({
-          'salt': salt,
-          'hash': hash,
-          'failures': 0,
-          'pin_length': pin.length
-        }));
+    final hash = await deriveLocalPin(pin, salt);
+    final record = jsonEncode(
+        {'salt': salt, 'hash': hash, 'failures': 0, 'pin_length': pin.length});
+    await storage.write(key: key, value: record);
+    if (await storage.read(key: key) != record) {
+      throw ApiException('LOCAL_PROTECTION_UNAVAILABLE',
+          'Не удалось сохранить PIN. Разрешите сохранение данных в браузере и повторите.');
+    }
   }
 
   Future<bool> unlock(String pin) async {
@@ -127,8 +118,8 @@ class LocalLock {
     // Persist attempt before KDF, including interrupted attempts.
     await storage.write(
         key: key, value: jsonEncode({...record, 'failures': failures}));
-    final actual = base64Decode(
-        await compute(derivePin, <String>[pin, record['salt'] as String]));
+    final actual =
+        base64Decode(await deriveLocalPin(pin, record['salt'] as String));
     final expected = base64Decode(record['hash']);
     var difference = actual.length ^ expected.length;
     for (var i = 0; i < actual.length && i < expected.length; i++) {
@@ -150,6 +141,7 @@ class LocalLock {
   Future<void> clear() async {
     await storage.delete(key: key);
     await storage.delete(key: '$key.biometry');
+    if (kIsWeb) return;
     try {
       await const MethodChannel('joba.device_security')
           .invokeMethod('clearBiometry', {'alias': alias});

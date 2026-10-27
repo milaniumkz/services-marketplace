@@ -9,11 +9,49 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:services_marketplace/core/api.dart';
+import 'package:services_marketplace/core/local_lock.dart';
 import 'package:services_marketplace/main.dart';
 import 'package:services_marketplace/screens/marketplace.dart';
 import 'widget_test.dart' show MemoryVault, ok;
 
+class SetupFlowLock extends LocalLock {
+  bool saved = false;
+  SetupFlowLock() : super('isolated-setup-flow');
+  @override
+  Future<void> configure(String pin) async { saved = true; }
+  @override
+  Future<bool> hasPin() async => saved;
+}
+
 void main() {
+  testWidgets('saved PIN opens biometry and skipping it completes authenticated setup', (t) async {
+    final vault = MemoryVault();
+    final api = JobaApi('https://isolated.example', vault: vault,
+        transport: MockClient((r) async => ok({'items': []})));
+    addTearDown(api.dispose);
+    await t.pumpWidget(JobaApp(api: api));
+    await t.pumpAndSettle();
+    final dynamic state = t.state(find.byType(Marketplace));
+    final user = {'id': 'pin-owner', 'country': 'KZ', 'locale': 'ru', 'display_name': 'Owner'};
+    api.session = {'access_token': 'isolated-access', 'refresh_token': 'isolated-refresh', 'user': user};
+    await api.setPersistence(false);
+    state.me = user;
+    state.lock = SetupFlowLock();
+    state.go('lock-setup');
+    await t.pumpAndSettle();
+    await state.completeLocalSetup(pin: '123456');
+    await t.pumpAndSettle();
+    expect(state.route, 'biometric');
+    expect(vault.value, isNotNull);
+    expect(state.lock.saved, true);
+    await t.tap(find.text('Использовать PIN'));
+    await t.pumpAndSettle();
+    expect(state.route, 'terms');
+    expect(api.authenticated, true);
+    expect(state.localProtected, true);
+    expect(state.lock.saved, true);
+    expect(t.takeException(), isNull);
+  });
   for (final entry in const {'KZ': '+7', 'RU': '+7', 'BY': '+375', 'KG': '+996'}.entries) {
     testWidgets('phone fields prefill country prefix ${entry.key}', (t) async {
       final api = JobaApi('https://isolated.example', vault: MemoryVault(),
