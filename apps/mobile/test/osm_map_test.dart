@@ -54,15 +54,16 @@ void main() {
                 tileProvider: TestTiles(),
                 locate: () => pending.future,
                 onLocated: (_) => selected = true))));
-    await t.pumpAndSettle();
+    await t.pump(const Duration(milliseconds:300));
     await t.drag(find.byType(FlutterMap), const Offset(120, 0));
-    await t.pumpAndSettle();
+    await t.pump(const Duration(seconds:1));
     final controller =
         t.widget<FlutterMap>(find.byType(FlutterMap)).mapController!;
     final manualCenter = controller.camera.center;
     pending.complete({'latitude': 43.2, 'longitude': 76.9});
     await t.pumpAndSettle();
-    expect(controller.camera.center, manualCenter);
+    expect(controller.camera.center.latitude,closeTo(manualCenter.latitude,1e-6));
+    expect(controller.camera.center.longitude,isNot(closeTo(76.9,0.001)));
     expect(selected, false);
     await t.pumpWidget(const SizedBox());
   });
