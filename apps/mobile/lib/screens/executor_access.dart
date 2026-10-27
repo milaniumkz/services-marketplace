@@ -153,7 +153,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                       translateTitle: true,
                       subtitle: '${r['status']} · ${date(context, r)}'),
                 for (final r in grants)
-                  DataCard(sourceLabel(r),
+                  DataCard(r['is_test']==true?'Тестовая подписка':sourceLabel(r),
                       translateTitle: true,
                       subtitle:
                           '${date(context, r)}${r['balance'] == null ? '' : ' · ${r['balance']}'}')
@@ -180,6 +180,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
     final price = subscription?['price'] as Json?;
     if (choosing)
       return ListView(padding: const EdgeInsets.all(20), children: [
+        if(offers.any((r)=>r['is_test']==true)) const Notice('Тестовый режим оплаты — без списания денег.',icon:'info'),
         const UiText('Ваши возможности',
             style: TextStyle(
                 fontSize: 26,
@@ -302,8 +303,8 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                           fontFamily: 'Noto',
                           fontSize: 14,
                           fontWeight: FontWeight.w700)),
-                  onPressed: () => onGo('restore', null),
-                  child: const UiText('Восстановить'))),
+                  onPressed: () => onGo(offers.any((r)=>r['is_test']==true)?'my-access':'restore', null),
+                  child: UiText(offers.any((r)=>r['is_test']==true)?'Мой доступ':'Восстановить'))),
           const SizedBox(width: 10),
           Expanded(
               child: TextButton(
@@ -320,6 +321,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
     final known =
         subscription ?? (subscriptions.isEmpty ? null : subscriptions.first);
     return ListView(padding: const EdgeInsets.all(20), children: [
+      if(subscription?['is_test']==true) const Notice('Тестовая подписка активна. Деньги не списывались.',icon:'info'),
       card([
         Row(children: [
           Expanded(
@@ -377,9 +379,9 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
             () => onGo(
                 known == null ? 'access' : 'manage-subscription', known?['id']),
             subtitle: known == null
-                ? 'Подписка только для исполнителя'
+                ? (widget.customer?'Анкеты исполнителей и размещение заказов':'Стандарт или Премиум для исполнителя')
                 : 'Проверить или отменить автопродление'),
-        JobaMenuEntry(
+        if(known?['is_test']!=true&&!offers.any((r)=>r['is_test']==true)) JobaMenuEntry(
             'Восстановить покупки', 'refresh', () => onGo('restore', null),
             subtitle: 'Не создаёт новую покупку'),
         JobaMenuEntry('История доступа', 'clock', () => history(context),

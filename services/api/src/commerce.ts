@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { RecordData, Store } from './store';
 import { Providers, VerifiedPurchase } from './providers';
 import { HttpException } from '@nestjs/common';
+import {testPaymentSettings} from './test-payments';
 import { readSettings } from './settings';
 function fail(code:string,message:string,status=503):never{throw new HttpException({error:{code,message,details:{},retryable:status===503}},status);};
 export class Commerce {
@@ -13,9 +14,13 @@ export class Commerce {
     return {version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='customer'?(country==='KZ'?50000:null):p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
   }
   async offers(country:string,role?:string) {
-    const plans=(await this.plans(country)).items.filter(p=>!role||p.role===role);
+    const catalog=await this.plans(country);
+    const test=await testPaymentSettings(this.store,country,this.providers.billing.size>0);
+    const plans=catalog.items.filter(p=>!role||p.role===role);
     const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective'&&(!role||subscriptionPlan(p.payload.plan).role===role)&&(!p.payload.plan||plans.find(plan=>plan.code===p.payload.plan)?.amount_minor===p.payload.amount_minor));
-    return {plans,items:prices.filter(p=>p.payload.product_type!=='boost'&&p.payload.period==='days'&&p.payload.duration_days===30&&subscriptionPlans.some(plan=>plan.code===p.payload.plan)&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}))};
+    const realOffers=prices.filter(p=>p.payload.product_type!=='boost'&&p.payload.period==='days'&&p.payload.duration_days===30&&subscriptionPlans.some(plan=>plan.code===p.payload.plan)&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}));
+    const simulated=test.enabled?plans.filter(p=>Number.isSafeInteger(p.amount_minor)&&p.amount_minor!>=0).map(p=>({...p,plan:p.code,test_settings_version:test.version,catalog_version:catalog.version,id:'test-'+p.code+'-v'+catalog.version+'-s'+test.version,provider:'test',product_id:'test.joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',is_test:true,auto_renew:false})):[];
+    return {plans,items:[...realOffers,...simulated],test_payments_enabled:test.enabled};
   }
   async verify(owner:string,country:string,providerName:string,reference:string) {
     const provider=this.providers.billing.get(providerName);if(!provider)fail('PROVIDER_UNAVAILABLE','Платёжный провайдер ещё не подключён');

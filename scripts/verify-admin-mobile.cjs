@@ -48,12 +48,13 @@ async function main(){
   const output=process.env.JOBA_ADMIN_MOBILE_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
   for(const width of [320,360,393,430,768]){
    await page.setViewportSize({width,height:852});
-   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access','record-live/verification/'+verificationId]){
+   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access','monetization','record-live/verification/'+verificationId]){
     console.log('Checking',width,route);await page.goto(frontend+'/#'+route);await page.locator('.workspace').waitFor();
     await page.waitForLoadState('networkidle');
     if(route==='dashboard'){await page.locator('#server-metrics').getByText('Сервер — ресурсы и нагрузка',{exact:true}).waitFor();assert(await page.locator('#server-metrics').getByText('Оперативная память',{exact:true}).isVisible());await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/server-metrics')&&r.status()===200),page.locator('#server-metrics [data-server-refresh]').click()]);await page.locator('#server-metrics svg').waitFor();}
 
     if(route==='pricing'){assert.equal(await page.locator('#subscription-catalog [name=customer]').inputValue(),'500.00');assert.equal(await page.locator('#subscription-catalog [name=standard]').inputValue(),'1000.00');assert.equal(await page.locator('#subscription-catalog [name=premium]').inputValue(),'1500.00');}
+    if(route==='monetization'){await page.locator('#test-payment-mode').waitFor();assert.equal(await page.locator('#test-payment-mode [name=enabled]').isChecked(),true);}
     if(route==='legal'){await page.locator('[data-legal-revise]').first().click();assert.equal(await page.locator('#legal-type').inputValue(),'verification_consent');}
     if(route.startsWith('record-live/verification/')){
       await page.getByText('Заявитель проверки',{exact:true}).waitFor();
@@ -74,6 +75,13 @@ async function main(){
     if(output&&width===393)await page.screenshot({path:join(output,route.replaceAll('/','-')+'.png'),fullPage:true});
    }
   }
+  await page.goto(frontend+'/#monetization');await page.locator('#test-payment-mode').waitFor();
+  for(const enabled of [false,true]){
+    await page.locator('#test-payment-mode [name=enabled]').setChecked(enabled);
+    await page.locator('#test-payment-mode [name=reason]').fill('Изолированная проверка переключателя тестовой оплаты');
+    await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/test-payments')&&r.request().method()==='PUT'&&r.status()===200),page.locator('#test-payment-mode button').click()]);
+    await page.waitForLoadState('networkidle');assert.equal((await api.store.all('test_payment_settings','KZ'))[0].enabled,enabled);
+  }
   await page.setViewportSize({width:393,height:852});await page.goto(frontend+'/#users');await page.locator('.tablewrap').waitFor();
   assert(await page.locator('.tablewrap').first().evaluate(e=>e.scrollWidth>e.clientWidth));
   await page.locator('.tablewrap').first().evaluate(e=>e.scrollLeft=e.scrollWidth);
@@ -84,7 +92,7 @@ async function main(){
   await page.setViewportSize({width:1440,height:1000});
   assert.equal(await page.locator('.sidebar').evaluate(e=>e.inert),false);
   assert.equal(await page.getByRole('button',{name:'Навигация',exact:true}).isVisible(),false);
-  assert.deepEqual(errors,[]);console.log('Mobile admin verified: 45 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
+  assert.deepEqual(errors,[]);console.log('Mobile admin verified: 50 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
  }finally{if(browser)await browser.close();if(server)await new Promise(resolve=>server.close(resolve));await app.close();await api.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

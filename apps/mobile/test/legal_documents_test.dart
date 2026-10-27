@@ -14,6 +14,11 @@ class _Vault implements SessionVault {
 }
 
 void main() {
+  test('commercial and identity documents have distinct readable titles', () {
+    for(final entry in {'payments':'Условия оплаты','refunds':'Условия возврата и отмены','public_offer':'Публичная оферта','contacts':'Контакты и реквизиты','verification_consent':'Согласие на проверку личности и фото профиля'}.entries) {
+      expect(legalDocumentTitle({'type':entry.key}),entry.value);
+    }
+  });
   testWidgets(
       'public legal catalog requests selected country and language and opens published document with its immutable version',
       (tester) async {

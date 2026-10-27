@@ -86,13 +86,31 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
         final api = widget.api;
         final current = sessionGuard();
         if (!current()) return;
-        final receipt = await widget.gateway.purchase(offer);
+        final Json result;
+        if (offer['is_test'] == true) {
+          result = await api
+              .request('/billing/test-purchase', method: 'POST', body: {
+            'offer_id': offer['id'],
+            'amount_minor': offer['amount_minor'],
+            'currency': offer['currency'],
+            'accepted': true,
+          }) as Json;
+        } else {
+          final receipt = await widget.gateway.purchase(offer);
+          if (!current()) return;
+          result = await api.request('/billing/verify-purchase',
+              method: 'POST', body: receipt) as Json;
+        }
         if (!current()) return;
-        final result = await api.request('/billing/verify-purchase',
-            method: 'POST', body: receipt);
-        if (!current()) return;
-        widget.onGo(result['pending'] == true ? 'payment-pending' : 'my-access',
-            result['check']?['id']);
+        widget.onGo(
+            result['is_test'] == true
+                ? 'test-payment-success'
+                : result['pending'] == true
+                    ? 'payment-pending'
+                    : 'my-access',
+            result['is_test'] == true
+                ? (result['subscription']?['id'])
+                : (result['check']?['id']));
       });
 
   Widget panel(String icon, String title, String message, String label,
@@ -296,6 +314,24 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
   @override
   Widget build(BuildContext context) {
     final mode = widget.mode;
+    if (mode == 'test-payment-success')
+      return ApiView(
+          load: () => widget.api.request('/me/subscriptions/${widget.id}'),
+          builder: (context, r, reload) {
+            final active = r['is_test'] == true &&
+                r['status'] == 'active' &&
+                DateTime.tryParse('${r['valid_until']}')
+                        ?.isAfter(widget.api.clock.now) ==
+                    true;
+            return panel(
+                active ? 'check' : 'info',
+                active ? 'Тестовая оплата прошла' : 'Проверьте статус подписки',
+                active
+                    ? 'Подписка активирована на 30 дней. Это имитация оплаты — деньги не списывались.'
+                    : 'Тестовый доступ не активен.',
+                'Мой доступ',
+                () => widget.onGo('my-access', null));
+          });
     if (mode == 'restore')
       return panel(
           'refresh',
@@ -420,8 +456,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                   'Мой доступ',
                   () => widget.onGo('my-access', null));
             return ListView(padding: const EdgeInsets.all(20), children: [
-              const UiHeading(
-                  'Всё под контролем', 'Исполнитель · поиск заказов и отклики'),
+              UiHeading(
+                  'Всё под контролем',
+                  r?['plan'] == 'customer'
+                      ? 'Заказчик · анкеты исполнителей и размещение заказов'
+                      : 'Исполнитель · поиск заказов и отклики'),
               if (r == null)
                 const Notice('Подписка не найдена.')
               else ...[
@@ -467,27 +506,33 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                           '${money(r['price'])} · ${periodLabel(r['price']?['period'])}',
                           last: true),
                     ])),
-                const SizedBox(height: 20),
-                const UiText(
-                    'Отключение автопродления не закрывает уже оплаченный срок. Для изменения условий откройте управление подпиской и дождитесь подтверждения провайдера.',
-                    style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
-                const SizedBox(height: 20),
-                OutlinedButton(
-                    onPressed: busy
-                        ? null
-                        : () => run(() async {
-                              final current = sessionGuard();
-                              await widget.gateway.manage(r);
-                              if (current()) reload();
-                            }),
-                    child: const UiText('Управлять подпиской')),
-                TextButton(
-                    onPressed: busy
-                        ? null
-                        : () => widget.onGo('subscription-canceled', r['id']),
-                    child: const UiText('Проверить продление')),
-                if (widget.gateway is DisconnectedCommerceGateway)
-                  const Notice('Сервис ещё не подключён.', icon: 'info'),
+                if (r['is_test'] == true)
+                  const Notice(
+                      'Тестовая подписка. Деньги не списываются, автоматического продления нет.'),
+                if (r['is_test'] != true) ...[
+                  const SizedBox(height: 20),
+                  const UiText(
+                      'Отключение автопродления не закрывает уже оплаченный срок. Для изменения условий откройте управление подпиской и дождитесь подтверждения провайдера.',
+                      style:
+                          TextStyle(fontSize: 12, height: 1.5, color: muted)),
+                  const SizedBox(height: 20),
+                  OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () => run(() async {
+                                final current = sessionGuard();
+                                await widget.gateway.manage(r);
+                                if (current()) reload();
+                              }),
+                      child: const UiText('Управлять подпиской')),
+                  TextButton(
+                      onPressed: busy
+                          ? null
+                          : () => widget.onGo('subscription-canceled', r['id']),
+                      child: const UiText('Проверить продление')),
+                  if (widget.gateway is DisconnectedCommerceGateway)
+                    const Notice('Сервис ещё не подключён.', icon: 'info'),
+                ],
               ],
               if (error != null) Notice(errorText(context, error!), error: true)
             ]);
@@ -516,7 +561,12 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                       letterSpacing: -.9,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
-              UiText((offer?['plan']=='customer'||(data['plans'] as List? ?? []).any((p)=>p['code']=='customer'))?'Доступ к анкетам исполнителей и размещению заказов.':'Поиск заказов и публикация услуг исполнителя.',
+              UiText(
+                  (offer?['plan'] == 'customer' ||
+                          (data['plans'] as List? ?? [])
+                              .any((p) => p['code'] == 'customer'))
+                      ? 'Доступ к анкетам исполнителей и размещению заказов.'
+                      : 'Поиск заказов и публикация услуг исполнителя.',
                   style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
               const SizedBox(height: 20),
               if (offers.length > 1 || (offer == null && offers.isNotEmpty))
@@ -535,9 +585,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                           color: primary),
                       title: Text(r['plan'] == null
                           ? '${r['title'] ?? r['product_id']}'
-                          : r['plan'] == 'customer' ? 'Заказчик' : r['plan'] == 'premium'
-                              ? 'Премиум'
-                              : 'Стандарт'),
+                          : r['plan'] == 'customer'
+                              ? 'Заказчик'
+                              : r['plan'] == 'premium'
+                                  ? 'Премиум'
+                                  : 'Стандарт'),
                       subtitle: Text(
                           '${money(r)} · ${r['duration_days'] == 30 ? '30 дней' : r['period'] ?? ''}')),
               if (offer == null)
@@ -550,13 +602,19 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                         border: Border.all(color: line),
                         borderRadius: BorderRadius.circular(16)),
                     child: Column(children: [
-                      checkoutFact('Полный доступ', offer['plan']=='customer'?'Заказчик':'Исполнитель'),
+                      checkoutFact(
+                          'Полный доступ',
+                          offer['plan'] == 'customer'
+                              ? 'Заказчик'
+                              : 'Исполнитель'),
                       if (offer['plan'] != null)
                         checkoutFact(
                             'Тариф',
-                            offer['plan'] == 'customer' ? 'Заказчик' : offer['plan'] == 'premium'
-                                ? 'Премиум'
-                                : 'Стандарт'),
+                            offer['plan'] == 'customer'
+                                ? 'Заказчик'
+                                : offer['plan'] == 'premium'
+                                    ? 'Премиум'
+                                    : 'Стандарт'),
                       checkoutFact(
                           'Период',
                           offer['duration_days'] == 30
@@ -565,7 +623,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                       if (offer['plan'] == 'premium')
                         checkoutFact('Топ-100', 'Приоритет услуг на 30 дней'),
                       checkoutFact('Цена', money(offer)),
-                      checkoutFact('Продление', 'По условиям провайдера',
+                      checkoutFact(
+                          'Продление',
+                          offer['is_test'] == true
+                              ? 'Нет автоматического продления'
+                              : 'По условиям провайдера',
                           last: true),
                     ])),
                 const SizedBox(height: 20),
@@ -574,17 +636,23 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                     style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
                 const SizedBox(height: 20),
               ],
-              const Notice(
-                  'Доступ активируется после подтверждения оплаты. Если платёж обрабатывается, повторная покупка не требуется.',
-                  warning: true,
-                  icon: 'info'),
+              if (offer?['is_test'] == true)
+                const Notice(
+                    'Тестовая оплата: списания денег не будет. После подтверждения подписка активируется на 30 дней.',
+                    icon: 'info')
+              else
+                const Notice(
+                    'Доступ активируется после подтверждения оплаты. Если платёж обрабатывается, повторная покупка не требуется.',
+                    warning: true,
+                    icon: 'info'),
               JobaMenu([
                 JobaMenuEntry('Условия подписки', 'file',
                     () => widget.onGo('legal', null),
                     subtitle: 'Правила и отмена'),
-                JobaMenuEntry('Восстановить покупку', 'refresh',
-                    () => widget.onGo('restore', null),
-                    subtitle: 'Без новой оплаты'),
+                if (offer?['is_test'] != true)
+                  JobaMenuEntry('Восстановить покупку', 'refresh',
+                      () => widget.onGo('restore', null),
+                      subtitle: 'Без новой оплаты'),
               ]),
               const SizedBox(height: 12),
               CheckboxListTile(
@@ -594,7 +662,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                       ? null
                       : (v) => setState(() =>
                           acceptedOffer = v == true ? offerSnapshot : null),
-                  title: const UiText('Ознакомился с условиями подписки.',
+                  title: const UiText('Принимаю условия подписки.',
                       style: TextStyle(fontSize: 12))),
               if (error != null) Notice(errorText(context, error!), error: true)
             ])),

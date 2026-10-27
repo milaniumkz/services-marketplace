@@ -18,6 +18,7 @@ async function publishRoleAccess(store){
  try{
   await store.db.query('SELECT pg_advisory_xact_lock(1752138231)');await correctPriceNotice(store);const result=[];
   for(const country of ['KZ','KG','RU','BY']){
+   if(!(await store.all('test_payment_settings',country)).length){const now=new Date().toISOString();await store.put({id:randomUUID(),kind:'test_payment_settings',owner:'00000000-0000-4000-8000-000000000001',country,version:1,created_at:now,enabled:true,authorization:'Owner requested payment simulation 2026-10-27'});await store.put({id:randomUUID(),kind:'audit',owner:'00000000-0000-4000-8000-000000000001',country,version:1,created_at:now,action:'billing.test_mode_enabled_on_deployment',target_id:country,reason:'Owner requested explicit payment simulation without money movement 2026-10-27'});}
    if((await store.all('access_model_migration',country)).some(x=>x.model==='roles-2026-10-27')){result.push({country,status:'already_applied'});continue;}
    const owner='00000000-0000-4000-8000-000000000001',now=new Date().toISOString();
    const row=(kind,data)=>({id:randomUUID(),kind,owner,country,created_at:now,version:1,...data});

@@ -9,10 +9,15 @@ import '../core/widgets.dart';
 String legalDocumentTitle(Json document) => switch (document['type']) {
       'terms' || 'terms_of_use' => 'Пользовательское соглашение',
       'privacy' || 'privacy_policy' => 'Политика конфиденциальности',
-      'verification' || 'identity_verification' => 'Проверка документа',
-      'subscription' || 'billing' => 'Подписка и отмена',
+      'verification' || 'identity_verification' || 'verification_consent' => 'Согласие на проверку личности и фото профиля',
+      'payments' => 'Условия оплаты',
+      'refunds' => 'Условия возврата и отмены',
+      'public_offer' => 'Публичная оферта',
+      'contacts' => 'Контакты и реквизиты',
+      'community' => 'Правила сообщества',
+      'subscription' || 'subscriptions' || 'billing' => 'Подписка и отмена',
       'promotion' || 'boost' => 'Правила продвижения',
-      _ => 'Правовой документ'
+      _ => (document['title'] as String?)?.trim().isNotEmpty == true ? document['title'] : 'Документ JOBA'
     };
 String legalDocumentVersion(BuildContext context, Json document) {
   final published = DateTime.tryParse('${document['published_at'] ?? ''}');

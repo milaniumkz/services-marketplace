@@ -113,20 +113,9 @@ class _UnlockKeypadState extends State<UnlockKeypad> {
                               key: ValueKey('unlock-key-$id'),
                               onTap: blocked ? null : callback,
                               child: Center(child: child)))))));
-  Widget number(String value, String letters) => keyButton(
+  Widget number(String value) => keyButton(
       value,
-      Transform.translate(
-          offset: const Offset(0, 1),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(value, style: const TextStyle(fontSize: 26, height: 1.45)),
-            if (letters.isNotEmpty)
-              Text(letters,
-                  style: const TextStyle(
-                      fontSize: 8,
-                      height: 1.375,
-                      letterSpacing: 2,
-                      color: muted)),
-          ])),
+      Text(value, style: const TextStyle(fontSize: 26, height: 1.45)),
       () => digit(value),
       value);
   @override
@@ -273,19 +262,7 @@ class _UnlockKeypadState extends State<UnlockKeypad> {
                               if (column > 0) const SizedBox(width: 12),
                               Expanded(
                                   child: row < 3
-                                      ? number(
-                                          '${row * 3 + column + 1}',
-                                          const [
-                                            '',
-                                            'ABC',
-                                            'DEF',
-                                            'GHI',
-                                            'JKL',
-                                            'MNO',
-                                            'PQRS',
-                                            'TUV',
-                                            'WXYZ'
-                                          ][row * 3 + column])
+                                      ? number('${row * 3 + column + 1}')
                                       : column == 0
                                           ? keyButton(
                                               'biometry',
@@ -294,7 +271,7 @@ class _UnlockKeypadState extends State<UnlockKeypad> {
                                               localize(context,
                                                   'Разблокировать биометрией'))
                                           : column == 1
-                                              ? number('0', '')
+                                              ? number('0')
                                               : keyButton(
                                                   'delete',
                                                   const JobaIcon('back'),

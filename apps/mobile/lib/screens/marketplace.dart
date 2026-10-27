@@ -826,7 +826,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             titleOffset: -12);
       case 'legal':
         return page(
-            'Правовые документы',
+            'Документы JOBA',
             LegalDocuments(
                 api: api,
                 country: country,
@@ -1112,6 +1112,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return page('Платежи и возвраты', RefundsScreen(api: api, onSupport: () => go('support')), titleOffset: -12);
       case 'my-access':
         return accessScreen();
+      case 'test-payment-success':
       case 'checkout':
       case 'manage-subscription':
       case 'subscription-canceled':
@@ -1121,7 +1122,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'reward-nofill':
       case 'reward-pending':
       case 'reward':
-        return page({'checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Доступ за рекламу'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
+        return page({'test-payment-success':'Тестовая оплата','checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Доступ за рекламу'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'export':
         return page('Экспорт моих данных',
             ExportIntro(onRequest: () => privacyRequest('export', () {})),
@@ -4577,7 +4578,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 button(
                     'Удалить аккаунт', () => go('delete-account'),
                     outline: true),
-                button('Правовые документы', () => go('legal'), outline: true),
+                button('Документы JOBA', () => go('legal'), outline: true),
                 button('Хранение данных',()=>go('legal-holds'),outline:true),
                 button('Согласия и документы', () => go('consents'),
                     outline: true),
@@ -4916,7 +4917,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 style: TextStyle(fontSize: 12, color: muted))),
         const SizedBox(height: 24),
         JobaMenu([
-          JobaMenuEntry('Правовые документы', 'file', () => go('legal')),
+          JobaMenuEntry('Документы JOBA', 'file', () => go('legal')),
           JobaMenuEntry('Документы и согласия', 'shield', () => go('terms')),
           JobaMenuEntry('Поддержка', 'help', () => go('support'))
         ])
