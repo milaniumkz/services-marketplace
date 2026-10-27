@@ -58,7 +58,7 @@ test('published content stays visible while drafts are reviewed; approval record
   assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.media_read'));
   const current=await api.store.get(project.id);await call(owner,'DELETE','/me/portfolio-projects/'+project.id,{expected_version:current.version});
   assert.equal((await call(reader,'GET','/contractors/'+profile.id+'/portfolio')).items.length,0);
-  const grant=(await api.store.all('grant','KZ')).find(r=>r.owner===owner.user.id);await api.store.put({...grant,valid_until:new Date(Date.now()-1000).toISOString()});
+  const grant=(await api.store.all('grant','KZ')).find(r=>r.owner===owner.user.id&&r.capabilities.includes('publish_profile'));await api.store.put({...grant,valid_until:new Date(Date.now()-1000).toISOString()});
   profile=await call(owner,'PATCH','/me/contractor-profile/availability',{expected_version:profile.version,availability:'paused'});
   assert.equal(profile.status,'paused');await assert.rejects(()=>call(reader,'GET','/contractors/'+profile.id),error=>error.getResponse().error.code==='NOT_FOUND');
   await assert.rejects(()=>call(owner,'PATCH','/me/contractor-profile/availability',{expected_version:profile.version,availability:'available'}),error=>error.getResponse().error.code==='ENTITLEMENT_REQUIRED');
