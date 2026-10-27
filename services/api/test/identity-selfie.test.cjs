@@ -1,12 +1,14 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const {randomUUID}=require('node:crypto');
 const {mkdtemp,rm}=require('node:fs/promises');const {join}=require('node:path');const {tmpdir}=require('node:os');
 const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store'),{PrivateFiles}=require('../dist/private-files'),{Providers}=require('../dist/providers');
-const {bootstrapStaff}=require('../dist/staff-bootstrap');const {publishRoleAccess}=require('../../../scripts/publish-role-access.cjs');
+const {bootstrapStaff}=require('../dist/staff-bootstrap');const {publishRoleAccess,previousNotice}=require('../../../scripts/publish-role-access.cjs');
 const sharp=require('sharp');
 test('both roles submit three private photographs; reviewer sees labeled files and only approved selfie becomes a sanitized avatar',async()=>{
  const directory=await mkdtemp(join(tmpdir(),'joba-identity-')),api=new Marketplace(new Store('memory://'),new Providers(),new PrivateFiles(directory));await api.initialize();
  try{
   const first=await publishRoleAccess(api.store);assert.equal(first.length,4);assert.ok((await publishRoleAccess(api.store)).every(r=>r.status==='already_applied'));
+  const oldId=randomUUID();await api.store.put({id:oldId,kind:'legal_document',owner:'00000000-0000-4000-8000-000000000001',country:'KZ',version:1,created_at:new Date().toISOString(),published_at:new Date().toISOString(),status:'published',type:'payments',locale:'ru',publication_basis:'Explicit owner change 2026-10-27',content:previousNotice+'\nСохранённые реквизиты оператора'});
+  const policiesBefore=(await api.store.all('verification_policy','KZ')).length;await publishRoleAccess(api.store);const revised=(await api.store.all('legal_document','KZ')).find(d=>d.type==='payments'&&d.id!==oldId);assert.ok(revised.content.includes('Сохранённые реквизиты оператора'));assert.ok(!revised.content.includes('1500 тенге'));assert.equal((await api.store.all('verification_policy','KZ')).length,policiesBefore);await publishRoleAccess(api.store);assert.equal((await api.store.all('legal_document','KZ')).filter(d=>d.type==='payments').length,2);
   await bootstrapStaff(api.store,api.files,{country:'KZ',identifier:'identity-owner',display_name:'Проверка',password:'Isolated identity staff!',authentication:'password',permissions:['platform_owner'],reason:'Изолированная проверка фотографий'},async()=>{});
   const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:'identity-owner',password:'Isolated identity staff!'});
   for(const [index,role] of ['customer','executor'].entries()){

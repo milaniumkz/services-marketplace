@@ -1,11 +1,22 @@
 // Owner instruction 2026-10-27: both roles verify identity; customer plan is 500 KZT/30 days.
 const {randomUUID,createHash}=require('node:crypto');
 const pages=['Лицевая сторона удостоверения','Обратная сторона удостоверения','Селфи'];
-const notice='Подписка заказчика открывает анкеты исполнителей и размещение заказов на 30 дней. В Казахстане базовая цена — 500 тенге. Исполнителю доступны Стандарт (1000 тенге на 30 дней) и Премиум (1500 тенге на 30 дней, включая приоритет услуг в Топ-100). Действует цена, показанная перед оплатой; владелец может менять будущие цены в админке. Завершение существующих заказов, переписки и поддержка сохраняются после окончания доступа. Обе роли проходят проверку удостоверения с двух сторон и селфи. Платёж считается подтверждённым только после проверки ответа подключённого платёжного провайдера.';
+const previousNotice='Подписка заказчика открывает анкеты исполнителей и размещение заказов на 30 дней. В Казахстане базовая цена — 500 тенге. Исполнителю доступны Стандарт (1000 тенге на 30 дней) и Премиум (1500 тенге на 30 дней, включая приоритет услуг в Топ-100). Действует цена, показанная перед оплатой; владелец может менять будущие цены в админке. Завершение существующих заказов, переписки и поддержка сохраняются после окончания доступа. Обе роли проходят проверку удостоверения с двух сторон и селфи. Платёж считается подтверждённым только после проверки ответа подключённого платёжного провайдера.';
+const notice='Подписка заказчика открывает анкеты исполнителей и размещение заказов на 30 дней. В Казахстане базовая цена — 500 тенге. Исполнителю доступны Стандарт и Премиум на 30 дней; Премиум включает приоритет услуг в Топ-100. Актуальная цена каждого тарифа отображается в приложении перед оплатой и задаётся владельцем в админке. Стоимость подписки оплачивает доступ к электронным услугам JOBA и не включает расчёты за работу исполнителя. Отдельное добровольное продвижение оплачивается по своему предложению. Завершение существующих заказов, переписки и поддержка сохраняются после окончания доступа. Обе роли проходят проверку удостоверения с двух сторон и селфи. Платёж считается подтверждённым только после проверки ответа подключённого платёжного провайдера.';
+async function correctPriceNotice(store){
+ const documents=await store.all('legal_document','KZ');
+ for(const type of ['payments','public_offer']){
+  const old=documents.filter(d=>d.type===type&&d.locale==='ru'&&d.status==='published').sort((a,b)=>String(b.published_at??b.created_at).localeCompare(String(a.published_at??a.created_at))||(b.version-a.version))[0];
+  if(!old||old.publication_basis!=='Explicit owner change 2026-10-27'||!old.content?.startsWith(previousNotice))continue;
+  const now=new Date().toISOString(),content=notice+old.content.slice(previousNotice.length);
+  const revised={...old,id:randomUUID(),version:old.version+1,content,hash:createHash('sha256').update(content).digest('hex'),created_at:now,published_at:now,publication_basis:'Owner-authorized editable tariff description correction 2026-10-27'};
+  await store.put(revised);await store.put({id:randomUUID(),kind:'audit',owner:old.owner,country:'KZ',version:1,created_at:now,action:'legal.tariff_description_corrected',target_id:revised.id,reason:'Remove stale executor amounts; preserve operator data and point to editable current tariffs'});
+ }
+}
 async function publishRoleAccess(store){
  await store.db.exec('BEGIN');
  try{
-  await store.db.query('SELECT pg_advisory_xact_lock(1752138231)');const result=[];
+  await store.db.query('SELECT pg_advisory_xact_lock(1752138231)');await correctPriceNotice(store);const result=[];
   for(const country of ['KZ','KG','RU','BY']){
    if((await store.all('access_model_migration',country)).some(x=>x.model==='roles-2026-10-27')){result.push({country,status:'already_applied'});continue;}
    const owner='00000000-0000-4000-8000-000000000001',now=new Date().toISOString();
@@ -29,7 +40,7 @@ async function publishRoleAccess(store){
   await store.db.exec('COMMIT');return result;
  }catch(e){await store.db.exec('ROLLBACK');throw e;}
 }
-module.exports={publishRoleAccess};
+module.exports={publishRoleAccess,previousNotice};
 if(require.main===module){
  if(process.env.JOBA_ROLE_ACCESS!=='owner-authorized-2026-10-27')throw Error('Owner authorization marker required');
  const {Store}=require(process.env.JOBA_ROLE_STORE_MODULE||'../services/api/dist/store');const store=new Store();publishRoleAccess(store).then(result=>console.log(JSON.stringify(result))).catch(error=>{console.error(error.message);process.exitCode=1;}).finally(()=>store.close());
