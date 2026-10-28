@@ -17,6 +17,7 @@
         "tags": [
           "admin"
         ],
+        "description": "Three base plans plus a separate addons array containing Top-100. Prices are country-specific integer minor units. Editing all four prices invalidates outstanding server quotes.",
         "security": [
           {
             "BearerAuth": []
@@ -731,6 +732,188 @@
         }
       }
     },
+    "/billing/test-purchase": {
+      "post": {
+        "operationId": "post__billing_test_purchase",
+        "tags": [
+          "billing"
+        ],
+        "description": "Explicit simulation without cash charge, available only while owner test mode is enabled and no real billing adapter is connected. Requires verified identity, accepted payment terms and exact current server quote amount/currency. Repeating a consumed quote returns the same subscription. Future renewal periods issue no grant until their start. New referral bonuses may activate after purchase.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestQuotePurchase"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/test-payments": {
+      "get": {
+        "operationId": "get__admin_test_payments",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put__admin_test_payments",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/category-tree": {
       "get": {
         "operationId": "get__admin_category_tree",
@@ -971,7 +1154,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "description": "Versioned regional campaign draft. payload.reward_kind supports access (legacy capabilities), discount (percent 1–100, services all/standard/premium/customer/renewal/upgrade/top100/boost and max_uses, where zero is unlimited), subscription_days (reward_plan current/standard/premium/customer/top100). Threshold 1–100, reward_duration_seconds 60–31622400. Events registered/completed_order/executor_verified. Existing independent publication rules and accepted reward reservations are preserved.",
         "security": [
           {
             "BearerAuth": []
@@ -5564,6 +5747,7 @@
         "tags": [
           "billing"
         ],
+        "description": "Owner-bound server quotes expire after five minutes and bind role, catalog, subscription periods and personal discount state. In explicit test mode includes 30-day purchase/renewal, prorated Standard-to-Premium upgrade preserving the paid end, and separate Top-100 for active Standard. Renewal starts after paid periods. Final amount and applied personal discount are supplied by the server. Real merchant quote integration remains provider-specific.",
         "security": [
           {
             "BearerAuth": []
@@ -25846,6 +26030,38 @@
             "minLength": 1,
             "maxLength": 64,
             "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TestQuotePurchase": {
+        "type": "object",
+        "required": [
+          "offer_id",
+          "accepted",
+          "amount_minor",
+          "currency"
+        ],
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accepted": {
+            "const": true
+          },
+          "amount_minor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "KZT",
+              "KGS",
+              "RUB",
+              "BYN"
+            ]
           }
         },
         "additionalProperties": false

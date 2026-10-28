@@ -7,6 +7,7 @@ export const periodActive=(r:RecordData,now=new Date())=>['active','grace','canc
 export const basePeriod=(r:RecordData)=>!r.is_upgrade&&periodPlan(r)!=='top100';
 export async function userPeriods(store:Store,user:RecordData){return (await store.select('subscription',user.country,{owner:user.id,limit:1000})).filter(r=>(periodPlan(r)==='customer')===(subscriptionRole(user)==='customer'));}
 export async function activatePeriods(store:Store,user:RecordData,now=new Date()){
+ if(user.status!=='active')return;
  for(const s of await userPeriods(store,user))if(s.status==='scheduled'&&Date.parse(s.valid_from)<=now.getTime()&&Date.parse(s.valid_until)>now.getTime()){
   const id=s.grant_id??randomUUID();
   await store.put({id,kind:'grant',owner:user.id,country:user.country,version:1,created_at:now.toISOString(),source:s.provider==='referral'?'referral_privilege':'subscription',source_id:s.id,role:s.role??subscriptionRole(user),plan:periodPlan(s),requires_base:s.is_upgrade||periodPlan(s)==='top100',is_test:s.is_test===true,valid_until:s.valid_until,capabilities:s.is_upgrade?['top100']:subscriptionCapabilities(periodPlan(s))});

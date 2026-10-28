@@ -19,6 +19,7 @@ test('standard renewal queues, prorated upgrade preserves paid end, separate Top
  const later=new Date(now.getTime()+15*day),upgrade=(await offers(later)).find(o=>o.offer_kind==='upgrade');assert.equal(upgrade.amount_minor,75000);
  const premium=await buy(upgrade,later);assert.equal(premium.subscription.is_upgrade,true);assert.equal(premium.subscription.valid_until,renew.subscription.valid_until);
  assert.equal((await offers(later)).some(o=>o.offer_kind==='upgrade'||o.plan==='top100'),false);
+ await activatePeriods(api.store,{...user,status:'deleted'},new Date(Date.parse(initialEnd)+1000));assert.ok(!(await api.store.all('grant','KZ')).some(g=>g.source_id===renew.subscription.id));
  await activatePeriods(api.store,user,new Date(Date.parse(initialEnd)+1000));assert.ok((await api.store.all('grant','KZ')).some(g=>g.source_id===renew.subscription.id));
  const stale=(await offers(later)).find(o=>o.plan==='standard');await assert.rejects(()=>buy(stale,new Date(later.getTime()+6*60000)),e=>e.getResponse().error.code==='OFFER_CHANGED');
  }finally{await api.store.close();}

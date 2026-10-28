@@ -323,11 +323,16 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                 DateTime.tryParse('${r['valid_until']}')
                         ?.isAfter(widget.api.clock.now) ==
                     true;
+            final queued=r['is_test']==true&&r['status']=='scheduled'&&DateTime.tryParse('${r['valid_from']}')?.isAfter(widget.api.clock.now)==true;
+            final end=DateTime.tryParse('${r['valid_until']}');
+            final endLabel=end==null?'—':DateFormat('dd.MM.yyyy HH:mm').format(end.toLocal());
             return panel(
-                active ? 'check' : 'info',
-                active ? 'Тестовая оплата прошла' : 'Проверьте статус подписки',
-                active
-                    ? 'Подписка активирована на 30 дней. Это имитация оплаты — деньги не списывались.'
+                active||queued ? 'check' : 'info',
+                active||queued ? 'Тестовая оплата прошла' : 'Проверьте статус подписки',
+                queued
+                    ? 'Продление сохранено. Новый период начнётся ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(r['valid_from']).toLocal())} и продлится до $endLabel. Деньги не списывались.'
+                    : active
+                    ? r['is_upgrade']==true?'Премиум включён до $endLabel. Дата окончания оплаченного доступа сохранена. Деньги не списывались.':r['is_addon']==true?'Топ-100 подключён до $endLabel при действующей основной подписке. Деньги не списывались.':'Подписка активирована на 30 дней. Это имитация оплаты — деньги не списывались.'
                     : 'Тестовый доступ не активен.',
                 'Мой доступ',
                 () => widget.onGo('my-access', null));

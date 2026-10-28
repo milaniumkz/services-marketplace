@@ -81,4 +81,17 @@ void main() {
     expect(find.text('Тестовая оплата прошла'), findsOneWidget);
     expect(find.textContaining('деньги не списывались'), findsOneWidget);
   });
+  testWidgets('renewal receipt confirms the scheduled period and upgrade receipt preserves its original end', (t) async {
+    Json subscription={'is_test':true,'status':'scheduled','valid_from':DateTime.now().add(const Duration(days:15)).toUtc().toIso8601String(),'valid_until':DateTime.now().add(const Duration(days:45)).toUtc().toIso8601String()};
+    final api=JobaApi('https://isolated.example',vault:MemoryVault(),transport:MockClient((r)async=>ok(subscription)));
+    addTearDown(api.dispose);
+    api.session={'access_token':'test-token','user':{'id':'customer','active_role':'customer'}};
+    Widget receipt(String id)=>MaterialApp(home:Scaffold(body:CommerceStateScreen(key:ValueKey(id),api:api,mode:'test-payment-success',id:id,onGo:(_,__){})));
+    await t.pumpWidget(receipt('renewal'));await t.pumpAndSettle();
+    expect(find.text('Тестовая оплата прошла'),findsOneWidget);expect(find.textContaining('Продление сохранено'),findsOneWidget);expect(find.text('Тестовый доступ не активен.'),findsNothing);
+    subscription={...subscription,'status':'active','is_upgrade':true};
+    await t.pumpWidget(receipt('upgrade'));await t.pumpAndSettle();
+    expect(find.textContaining('Дата окончания оплаченного доступа сохранена'),findsOneWidget);expect(find.textContaining('активирована на 30 дней'),findsNothing);
+  });
+
 }
