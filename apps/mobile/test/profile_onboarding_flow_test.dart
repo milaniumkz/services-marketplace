@@ -68,6 +68,7 @@ void main() {
     await t.pumpAndSettle();
     expect(t.widget<TextFormField>(find.byType(TextFormField)).controller!.text,
         'Новое имя');
+    await t.scrollUntilVisible(find.text('+77000000001'),150,scrollable:find.byWidgetPredicate((w)=>w is Scrollable&&w.axisDirection==AxisDirection.down).first);await t.pumpAndSettle();
     expect(find.text('+77000000001'), findsOneWidget);
     await t.tap(find.byTooltip('Назад'));
     await t.pumpAndSettle();
@@ -311,7 +312,7 @@ void main() {
           choice == 'logout'
               ? 'login'
               : choice == 'executor'
-                  ? 'services'
+                  ? 'verification'
                   : 'home');
       expect(state.profilePending, 0);
       expect(calls.any((r) => r.url.path.contains('/billing/')), false);

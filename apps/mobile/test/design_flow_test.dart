@@ -44,6 +44,7 @@ void main() {
     final requests = <http.Request>[];
     var user = <String, dynamic>{
       'id': 'design-owner',
+      'verification':'passed',
       'country': 'KZ',
       'city': 'Алматы',
       'display_name': 'Марина П.',
@@ -436,6 +437,7 @@ void main() {
     await capture('S37-referrals');
     await tester.scrollUntilVisible(find.text('Как начисляются бонусы'), 150,
         scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Как начисляются бонусы'));
     await tester.pumpAndSettle();
     expect(find.text('Как получить бонус'), findsOneWidget);
@@ -445,6 +447,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('У меня есть код'), 150,
         scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('У меня есть код'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), 'other-isolated-code');

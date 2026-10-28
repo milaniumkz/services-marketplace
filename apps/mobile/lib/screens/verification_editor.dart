@@ -286,16 +286,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                 color: Color(0xFF627187), fontSize: 12, height: 1.5)),
         const SizedBox(height: 20)
       ]);
-  Widget _resultRow(String label, String value) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(children: [
-        Expanded(
-            child: UiText(label,
-                style:
-                    const TextStyle(color: Color(0xFF627187), fontSize: 12))),
-        Text(value,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))
-      ]));
+  Widget _resultRow(String label,String value)=>Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Row(children:[Expanded(child:UiText(label,style:const TextStyle(color:Color(0xFF627187),fontSize:12))),const SizedBox(width:12),Flexible(flex:2,child:Text(value,textAlign:TextAlign.end,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700)))]));
   Widget rejectionSummary() =>
       Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Expanded(

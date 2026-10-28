@@ -53,18 +53,20 @@ async function main(){
   const output=process.env.JOBA_ADMIN_MOBILE_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
   for(const width of [320,360,393,430,768]){
    await page.setViewportSize({width,height:852});
-   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access','monetization','record-live/verification/'+verificationId,'record-live/contractors/'+contractorId]){
+   for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access','monetization','record-live/verification/'+verificationId,'verification','record-live/contractors/'+contractorId]){
     console.log('Checking',width,route);await page.goto(frontend+'/#'+route);await page.locator('.workspace').waitFor();
     await page.waitForLoadState('networkidle');
     if(route==='dashboard'){await page.locator('#server-metrics').getByText('Сервер — ресурсы и нагрузка',{exact:true}).waitFor();assert(await page.locator('#server-metrics').getByText('Оперативная память',{exact:true}).isVisible());await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/server-metrics')&&r.status()===200),page.locator('#server-metrics [data-server-refresh]').click()]);await page.locator('#server-metrics svg').waitFor();}
 
     if(route==='dashboard'){assert.equal(await page.locator('#review-queues').getByRole('heading',{name:'Заказчики — проверка личности — 1',exact:true}).count(),1);assert.equal(await page.locator('#review-queues').getByRole('heading',{name:'Портфолио на проверке — 1',exact:true}).count(),1);await page.getByRole('button',{name:'Обновить очереди',exact:true}).click();await page.locator('#review-queues-status').getByText('Обновлено:',{exact:false}).waitFor();}
+    if(route==='verification'){await page.locator('.tablewrap').getByText('Ожидает проверки',{exact:true}).waitFor();assert.equal(await page.locator('.tablewrap').getByText('pending_review',{exact:true}).count(),0);}
     if(route.startsWith('record-live/contractors/')){await page.getByText('Исполнитель подробной карточки',{exact:true}).waitFor();await page.getByText('Отделка квартиры',{exact:true}).waitFor();await page.waitForFunction(()=>document.querySelectorAll('#content-media-result img').length===2&&[...document.querySelectorAll('#content-media-result img')].every(image=>image.complete&&image.naturalWidth>0&&!image.hidden));assert.equal(await page.locator('#content-media-result figcaption').allTextContents().then(x=>x.join('|')),'Фото профиля|Фотография работы 1');await page.locator('#content-media-result').getByRole('button',{name:'Увеличить',exact:true}).first().click();assert.equal(await page.locator('#content-media-result .expanded').count(),1);}
     if(route==='pricing'){assert.equal(await page.locator('#subscription-catalog [name=customer]').inputValue(),'500.00');assert.equal(await page.locator('#subscription-catalog [name=standard]').inputValue(),'1000.00');assert.equal(await page.locator('#subscription-catalog [name=premium]').inputValue(),'1500.00');}
     if(route==='monetization'){await page.locator('#test-payment-mode').waitFor();assert.equal(await page.locator('#test-payment-mode [name=enabled]').isChecked(),true);}
     if(route==='legal'){await page.locator('[data-legal-revise]').first().click();assert.equal(await page.locator('#legal-type').inputValue(),'verification_consent');}
     if(route.startsWith('record-live/verification/')){
       await page.getByText('Заявитель проверки',{exact:true}).waitFor();
+      assert.equal(await page.locator('#review-decision [name=expires_at]').count(),0);assert.equal(await page.locator('#review-decision option[value=passed]').textContent(),'Подтвердить личность — бессрочно');
       await page.getByText('Караганда',{exact:true}).waitFor();
       await page.getByText('Полный телефон: +77000000123',{exact:true}).waitFor();
       await page.waitForFunction(()=>document.querySelectorAll('.verification-photo img').length===3&&[...document.querySelectorAll('.verification-photo img')].every(image=>image.complete&&image.naturalWidth>0&&!image.hidden));
@@ -100,7 +102,7 @@ async function main(){
   await page.setViewportSize({width:1440,height:1000});
   assert.equal(await page.locator('.sidebar').evaluate(e=>e.inert),false);
   assert.equal(await page.getByRole('button',{name:'Навигация',exact:true}).isVisible(),false);
-  assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.avatar_read'));assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.media_read'));assert.deepEqual(errors,[]);console.log('Mobile admin verified: 55 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
+  assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.avatar_read'));assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.media_read'));assert.deepEqual(errors,[]);console.log('Mobile admin verified: 60 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
  }finally{if(browser)await browser.close();if(server)await new Promise(resolve=>server.close(resolve));await app.close();await api.store.close();await rm(files,{recursive:true,force:true});}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
