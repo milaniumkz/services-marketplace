@@ -79,7 +79,8 @@ test('marketplace lifecycle, access boundaries, command retry and refresh replay
     await rejects(()=>call(stranger,'POST','/reviews',{order_id:order.id,rating:5,text:'Чужой отзыв'}),'FORBIDDEN');
     await rejects(()=>call(customer,'GET','/admin/users'),'FORBIDDEN');
     await rejects(()=>call(customer,'POST','/billing/verify-purchase',{transaction_reference:'fake',provider:'missing'}),'PROVIDER_UNAVAILABLE');
-    await rejects(()=>call(customer,'POST','/me/verification-sessions',{document_type:'passport'}),'COUNTRY_FLOW_UNAPPROVED');
+    // An already approved account never starts another verification upload flow.
+    await rejects(()=>call(customer,'POST','/me/verification-sessions',{document_type:'passport'}),'VERIFICATION_ALREADY_PASSED');
     const rotated=await call(null,'POST','/auth/refresh',{refresh_token:customer.refresh_token});
     await rejects(()=>call(customer,'GET','/me'),'TOKEN_EXPIRED');
     await rejects(()=>call(null,'POST','/auth/refresh',{refresh_token:customer.refresh_token}),'REFRESH_REPLAY');
