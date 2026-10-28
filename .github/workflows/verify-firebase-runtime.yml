@@ -22,7 +22,7 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-deployment-credential.py
-      - name: Verify Firebase in deployed API container without sending notifications
+      - name: Verify FCM authorization and real delivery to an isolated browser
         env:
           SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
         run: |
@@ -46,7 +46,7 @@ jobs:
           fi
           joba_remote="/tmp/joba-verify-firebase-$GITHUB_SHA.cjs"
           "${joba_scp[@]}" scripts/verify-firebase-server.cjs "root@188.241.217.228:$joba_remote"
-          "${joba_ssh[@]}" -n root@188.241.217.228 "docker cp '$joba_remote' joba-api-1:/tmp/joba-verify-firebase.cjs && docker exec -u root joba-api-1 chmod 644 /tmp/joba-verify-firebase.cjs && docker exec joba-api-1 node /tmp/joba-verify-firebase.cjs; joba_result=\$?; rm -f '$joba_remote'; exit \$joba_result" | tee firebase-runtime-result.json
+          "${joba_ssh[@]}" -n root@188.241.217.228 "docker cp '$joba_remote' joba-api-1:/tmp/joba-verify-firebase.cjs && docker exec -u root joba-api-1 chmod 644 /tmp/joba-verify-firebase.cjs && docker exec joba-api-1 node /tmp/joba-verify-firebase.cjs; joba_result=\$?; rm -f '$joba_remote'; exit \$joba_result" | tee firebase-runtime-result.jsonl
           node scripts/browser-push-smoke.cjs &
           joba_browser_pid=$!
           joba_smoke_token="$RUNNER_TEMP/joba-browser-smoke-token.json"
@@ -70,5 +70,5 @@ jobs:
         with:
           name: firebase-runtime-result
           path: |
-            firebase-runtime-result.json
+            firebase-runtime-result.jsonl
             browser-push-smoke-result.json

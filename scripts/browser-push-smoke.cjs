@@ -23,4 +23,7 @@ const watchdog=setTimeout(()=>{fs.writeFileSync(result,JSON.stringify({received_
  }
  if(!success)throw Error('No system notification received after cold worker restart');
  fs.writeFileSync(result,JSON.stringify({actual_fcm_message_sent:true,isolated_browser_recipient:true,received_system_notification:true,cold_worker_restart:true})+'\n');
-})().catch(()=>{fs.writeFileSync(result,JSON.stringify({received_system_notification:false,phase:token?'delivery':'browser_registration'})+'\n');process.exitCode=1;}).finally(async()=>{clearTimeout(watchdog);if(browser)await browser.close();fs.rmSync(tokenFile,{force:true});});
+})().catch(()=>{fs.writeFileSync(result,JSON.stringify({received_system_notification:false,phase:token?'delivery':'browser_registration'})+'\n');process.exitCode=1;}).finally(async()=>{clearTimeout(watchdog);if(browser){
+ try{const cleanup=await browser.newPage();await cleanup.goto('https://joba.com.kz/',{waitUntil:'domcontentloaded',timeout:10000});await cleanup.evaluate(async()=>{const registration=await navigator.serviceWorker.getRegistration('/firebase-cloud-messaging-push-scope');const subscription=await registration?.pushManager.getSubscription();await subscription?.unsubscribe();await registration?.unregister();});}catch{}
+ await browser.close();
+ }fs.rmSync(tokenFile,{force:true});});
