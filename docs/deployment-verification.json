@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-28T10:42:23.424869+00:00",
-  "server_source_commit": "782cbd6c61dcbf8054f9246705f74009700fd865",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40672490544",
+  "verified_at": "2026-10-28T12:58:50.887855+00:00",
+  "server_source_commit": "3f2f1644fa3aad0a13e9629f3dcd52b6500433b7",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40690493661",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -127,16 +127,20 @@
     "owner_migration_once_verified": true
   },
   "admin_mobile_login_verified": true,
-  "admin_mobile_page_viewport_combinations": 55,
+  "admin_mobile_page_viewport_combinations": 60,
   "flutter_tests": {
-    "passed": 242,
+    "passed": 261,
     "skipped": 2
   },
   "mobile_analysis_issues": 0,
   "admin_account_management": {
     "controls_published": true,
     "block_unblock_delete_api_tests": "passed_in_isolated_database",
-    "audited_full_ip_control_published": true
+    "audited_full_ip_control_published": true,
+    "manual_reason_required": false,
+    "account_id_confirmation_required": false,
+    "immediate_deleted_status": true,
+    "sensitive_reads_automatic": true
   },
   "server_monitoring": {
     "owner_access_verified": true,
@@ -163,7 +167,7 @@
     "private_documents": true,
     "isolated_lifecycle_tests": "passed"
   },
-  "api_tests_passed": 159,
+  "api_tests_passed": 176,
   "upload_antivirus_smoke": "passed_on_deployed_server_with_benign_jpeg",
   "payment_provider_connected": false,
   "payment_description_matches_editable_prices": true,
@@ -401,5 +405,84 @@
       "system_notification_received": true
     }
   },
-  "external_payment_ads": "not_connected"
+  "external_payment_ads": "not_connected",
+  "session_refresh_camera": {
+    "source_commit": "44d54ec282af99188c5e8366a9bb75b4fad11333",
+    "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40685369335",
+    "api_tests_passed": 175,
+    "flutter_tests_passed": 261,
+    "flutter_tests_skipped": 2,
+    "browser_tests_passed": 14,
+    "admin_page_viewports_passed": 60,
+    "late_401_reuses_current_access": true,
+    "cross_tab_refresh_lock": true,
+    "lost_refresh_response_retry": "sealed_receipt_with_persisted_request_uuid",
+    "socket_reconnect_does_not_force_rotation": true,
+    "live_refresh_retry_verified": true,
+    "live_explicit_logout_verified": true,
+    "verified_at": "2026-10-28T12:18:43.323735+00:00",
+    "already_revoked_session_requires_login": true,
+    "apk_built": false,
+    "latest_deployment_source": "3f2f1644fa3aad0a13e9629f3dcd52b6500433b7",
+    "last_live_verified_at": "2026-10-28T12:58:02.527499+00:00",
+    "reported_client": "browser_joba.com.kz",
+    "replay_events_observed_after_fix": 0,
+    "replay_diagnostic_scope": "authenticated_country_KZ_first_page_100_matching_events"
+  },
+  "branding_oct28": {
+    "source_commit": "16204247cabfe903339f39c4a7548722cbefa8ee",
+    "deployed": true,
+    "master": "branding/joba-master-4096.png",
+    "master_pixels": [
+      4096,
+      4096
+    ],
+    "master_sha256": "8ab9c4fade87eb19f38f276f8aa70aac62ced37a02d2e04ca492300be072efb6",
+    "generated_assets": 83,
+    "live_mobile_admin_public_pwa_and_favicon_https_verified": true,
+    "live_512_sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98",
+    "native_source_icons_updated": true,
+    "apk_built": false
+  },
+  "kz_region_order_oct28": {
+    "source_commit": "abfef78de96e9a042bffd339035eabc08909a18e",
+    "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40682295409",
+    "live_first_regions": [
+      "Астана",
+      "Алматы",
+      "Шымкент"
+    ],
+    "baikonur_separate_region": false,
+    "baikonur_city_retained_in": "Кызылординская Область",
+    "city_count": 351,
+    "live_authenticated_catalog_verified": true
+  },
+  "admin_convenience_oct28": {
+    "source_commit": "3f2f1644fa3aad0a13e9629f3dcd52b6500433b7",
+    "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40690493661",
+    "manual_audit_reason_fields_required": false,
+    "extra_confirmation_fields_required": false,
+    "phone_documents_selfie_load_automatically": true,
+    "order_details_and_private_photos_load_automatically": true,
+    "user_overview_links_real_orders_services_portfolio_and_history": true,
+    "new_screen_and_completed_command_events": "no_field_contents_recorded",
+    "past_unrecorded_clicks_reconstructed": false,
+    "activity_chronological_pagination_verified": true,
+    "dynamic_role_boundaries_preserved": true,
+    "navigation_sections_checked": 26,
+    "mobile_page_viewport_combinations_checked": 60,
+    "account_block_unblock_delete_verified": "isolated_real_api_and_browser",
+    "live_phone_and_ip_no_reason_verified_at": "2026-10-28T12:58:04.981814+00:00",
+    "stale_view_hash_guard": true,
+    "physical_selfie_retest_by_owner": "pending",
+    "apk_built": false,
+    "deployed": true,
+    "https_and_exact_frontend_revision_verified": true,
+    "api_tests_passed": 176,
+    "flutter_tests_passed": 261,
+    "flutter_tests_skipped": 2,
+    "browser_tests_passed": 14
+  },
+  "browser_tests_passed": 14,
+  "admin_navigation_sections_verified": 26
 }
