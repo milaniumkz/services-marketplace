@@ -19,3 +19,7 @@ test('mounted public Firebase configuration is whitelisted and supports environm
  assert.equal(firebasePublicConfig({JOBA_FIREBASE_CONFIG_FILE:file,JOBA_FIREBASE_VAPID_KEY:'explicit'}).vapid_key,'explicit');
  }finally{fs.rmSync(directory,{recursive:true,force:true});}
 });
+test('worker configuration is synchronous JavaScript with only public fields',()=>{
+ const {HealthController}=require('../dist/app.module');const vm=require('node:vm');const old=process.env.JOBA_FIREBASE_ENABLED;process.env.JOBA_FIREBASE_ENABLED='1';
+ try{const headers={};let source;new HealthController().workerConfig({setHeader:(k,v)=>headers[k]=v,send:s=>source=s});assert.equal(headers['Cache-Control'],'no-store');assert.ok(headers['Content-Type'].startsWith('application/javascript'));const context={self:{}};vm.runInNewContext(source,context);assert.equal(context.self.JOBA_FIREBASE_CONFIG.projectId,'joba-832c7');assert.equal(source.includes('private_key'),false);assert.equal(source.includes('client_email'),false);}finally{if(old===undefined)delete process.env.JOBA_FIREBASE_ENABLED;else process.env.JOBA_FIREBASE_ENABLED=old;}
+});

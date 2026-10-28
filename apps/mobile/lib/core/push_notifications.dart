@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'api.dart';
 import 'push_permission_controller.dart';
+import 'push_display.dart' if (dart.library.js_interop) 'push_display_web.dart';
 
 @pragma('vm:entry-point')
 Future<void> jobaBackgroundPush(RemoteMessage message) async {
@@ -98,8 +99,14 @@ class JobaPush extends PushPermissionController {
       _registeredToken = null;
       unawaited(_register().catchError((Object _) {}));
     }));
-    _subscriptions.add(FirebaseMessaging.onMessage.listen((_) {
-      if (_api?.authenticated == true) onEvent?.call();
+    _subscriptions.add(FirebaseMessaging.onMessage.listen((message) {
+      if (_api?.authenticated != true) return;
+      onEvent?.call();
+      if (kIsWeb)
+        unawaited(displayForegroundPush(
+            message.notification?.title ?? 'JOBA',
+            message.notification?.body ?? 'Новое событие в JOBA',
+            message.data['event_id'] ?? message.messageId ?? 'joba-event'));
     }));
     _subscriptions.add(FirebaseMessaging.onMessageOpenedApp.listen((_) {
       if (_api?.authenticated == true) onOpen?.call();
@@ -136,6 +143,23 @@ class JobaPush extends PushPermissionController {
       return;
     }
     await _register();
+    notifyListeners();
+  }
+
+  Future<void> testDelivery() async {
+    final api = _api;
+    if (api == null || !api.authenticated)
+      throw ApiException('PUSH_LOGIN_REQUIRED', 'Войдите в аккаунт');
+    final expected = scope(api);
+    await enable();
+    if (_api != api || !api.authenticated || expected != scope(api)) return;
+    if (permissionStatus != AuthorizationStatus.authorized &&
+        permissionStatus != AuthorizationStatus.provisional)
+      throw ApiException('PUSH_PERMISSION_REQUIRED',
+          'Разрешите уведомления в настройках браузера');
+    await api.request('/me/push-test', method: 'POST', body: {});
+    status =
+        'Проверочное уведомление поставлено в очередь. Ожидайте уведомление браузера.';
     notifyListeners();
   }
 

@@ -81,3 +81,10 @@ test('all invalid FCM tokens leave the event waiting for a new device instead of
  await token(a,u,'isolated-replacement-token');a.providers.push={send:async()=>({provider_message_id:randomUUID()})};
  assert.equal((await a.deliverOutbox(now)).sent,1);
 }));
+test('explicit personal push test bypasses quiet hours without changing preferences or reaching another account',()=>fixture(async a=>{
+ const u=await reg(a,'887'),other=await reg(a,'886');await token(a,u,'isolated-own-test-token');await token(a,other,'isolated-other-test-token');
+ const user=await a.store.get(u.user.id);await a.store.put({...user,notification_preferences:{service:false,chat:false,marketing:false,quiet_hours:{start:'00:00',end:'23:59',time_zone:'UTC'}},version:user.version+1});
+ const sent=[];a.providers.push={send:async(value,event)=>{sent.push({value,event});return{provider_message_id:randomUUID()};}};
+ const key=randomUUID(),send=()=>a.handle('POST','/me/push-test',{},'Bearer '+u.access_token,key,{},'isolated-push-test');assert.equal((await send()).queued,true);await send();
+ assert.equal((await a.deliverOutbox()).sent,1);assert.equal(sent.length,1);assert.equal(sent[0].value,'isolated-own-test-token');assert.equal(sent[0].event.body,'Проверка push-уведомлений JOBA');assert.equal((await a.store.get(u.user.id)).notification_preferences.service,false);
+}));

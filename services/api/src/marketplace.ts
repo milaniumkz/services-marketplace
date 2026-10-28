@@ -1,3 +1,5 @@
+import {notificationTitle} from './notification-catalog';
+import {notifyTransition,notificationTransitionKinds} from './notification-transitions';
 import {firebasePublicConfig, InvalidPushToken} from './firebase-push';
 import {unreadCounts} from './unread-counts';
 import {geocode,geoPoint,nearestCity,orderAddress} from './osm-geocoding';
@@ -68,7 +70,6 @@ const countries: Record<string, {currency: string; locales: string[]; cities: st
   RU: {currency:'RUB',locales:['ru'],cities:['Москва','Санкт-Петербург']},
   BY: {currency:'BYN',locales:['ru','be'],cities:['Минск','Гомель']}
 };
-const decisionNoticeTitles:Record<string,string>={'order.selected':'Вас выбрали исполнителем','order.selection_confirmed':'Исполнитель выбран','offer.declined':'Заказчик отказал в работе','offer.not_selected':'Заказчик выбрал другого исполнителя','order.offer_declined':'Вы отказали исполнителю','order.offer_withdrawn':'Исполнитель отказался от работы','offer.withdrawn':'Вы отозвали отклик'};
 export const fail = (status: number, code: string, message: string, details = {}): never => { throw new HttpException({error:{code,message,details,retryable:status===503}},status); };
 const text = (b: any, name: string, min: number, max: number) => {
   const v=b?.[name]; if (typeof v !== 'string' || v.trim().length<min || v.length>max) fail(400,'VALIDATION_ERROR',`Проверьте поле ${name}`,{field:name,min,max});
@@ -97,6 +98,7 @@ export class Marketplace {
   constructor(store = new Store(), providers = new Providers(), files = new PrivateFiles()) {
     this.store=store;this.providers=providers;this.commerce=new Commerce(store,providers);this.refunds=new Refunds(store,providers);this.files=files;
     this.configuration=new Configuration(store,providers);this.growth=new Growth(store,providers);this.branding=new Branding(store,files);
+    store.transitionKinds=notificationTransitionKinds;store.transitionHook=(before,after)=>notifyTransition(store,before,after,(owner,country,type,target)=>this.notify(owner,{id:after.owner,country},type,target));
     const moderation=new Moderation(store);store.contentHook=data=>moderation.check(data);
     if(process.env.JOBA_CLAMSCAN_PATH)providers.scanner=new ClamAvScanner();
     if(process.env.JOBA_PDFTOPPM_PATH)providers.pdfSanitizer=new PopplerPdfSanitizer();
@@ -856,6 +858,10 @@ export class Marketplace {
       if(p.quiet_hours!==undefined&&p.quiet_hours!==null&&(typeof p.quiet_hours!=='object'||Array.isArray(p.quiet_hours)||typeof p.quiet_hours.time_zone!=='string'||!p.quiet_hours.time_zone.trim()))fail(400,'VALIDATION_ERROR','Проверьте часы тишины');
       if(p.quiet_hours){if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.quiet_hours.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.quiet_hours.end)||p.quiet_hours.start===p.quiet_hours.end)fail(400,'VALIDATION_ERROR','Проверьте часы тишины');try{new Intl.DateTimeFormat('ru',{timeZone:p.quiet_hours.time_zone}).format(new Date());}catch{fail(400,'VALIDATION_ERROR','Проверьте часовой пояс');}}
       await this.store.put({...a.user,notification_preferences:{...a.user.notification_preferences,marketing:p.marketing,chat:p.chat,service:p.service,orders:p.orders??a.user.notification_preferences?.orders??p.service,support:p.support??a.user.notification_preferences?.support??p.service,quiet_hours:p.quiet_hours},version:a.user.version+1});return p;
+    }
+    if(path==='/me/push-test'&&method==='POST'){
+      await this.limited('push-test:'+a.id,3);if(!this.providers.push)fail(503,'PUSH_UNAVAILABLE','Отправка push временно недоступна');
+      await this.notify(a.id,a,'push.test',a.id);return {queued:true};
     }
     if(path==='/me/push-tokens'&&method==='POST'){
       if(!['ios','android','web'].includes(b.platform))fail(400,'VALIDATION_ERROR','Проверьте платформу');const value=text(b,'token',10,4096);
@@ -1706,7 +1712,7 @@ export class Marketplace {
     return m;
   }
   private async notify(owner:string,a:Pick<Actor,'id'|'country'>,type:string,target:string) {
-    const notification=this.record('notification',{id:owner,country:a.country},{type,target_id:target,read:false,...(decisionNoticeTitles[type]?{title:decisionNoticeTitles[type]}:{})});await this.store.put(notification);
+    const notification=this.record('notification',{id:owner,country:a.country},{type,target_id:target,read:false,title:notificationTitle(type)});await this.store.put(notification);
     await this.store.db.query('INSERT INTO events(event_id,recipient_id,country,data) VALUES($1,$2,$3,$4)',[notification.id,owner,a.country,JSON.stringify({event_id:notification.id,type,aggregate_id:target,occurred_at:notification.created_at})]);
     await this.store.put(this.record('outbox',a,{type,target_id:target,recipient_id:owner,event_id:notification.id,status:'pending',attempts:0}));
     // Subscribers queue their authorized read behind this transaction; nothing is sent before commit.
@@ -1733,11 +1739,11 @@ export class Marketplace {
             if(!user||user.country!==entry.country||user.status==='deleted'){await update('suppressed');return;}
             const preference=current.type.startsWith('message.')?'chat':current.type.startsWith('marketing.')?'marketing':current.type.startsWith('support.')?'support':notificationCategory(current)==='orders'?'orders':'service';
             const enabled=user.notification_preferences?.[preference]??(['orders','support'].includes(preference)?user.notification_preferences?.service:undefined);
-            if(enabled===false||preference==='marketing'&&user.notification_preferences?.marketing!==true){await update('suppressed');return;}
-            let message:any={event_id:current.event_id,title:'JOBA',body:decisionNoticeTitles[current.type]??'Новое событие в приложении'};
+            if(current.type!=='push.test'&&(enabled===false||preference==='marketing'&&user.notification_preferences?.marketing!==true)){await update('suppressed');return;}
+            let message:any={event_id:current.event_id,title:'JOBA',body:notificationTitle(current.type)};
             if(current.campaign_id){const result=await claimCampaignMessage(this.store,current,user,now);if(result.stop){await update(result.stop);return;}if(result.retry){await update('retry',{next_attempt_at:result.retry});return;}message=result.message;}
             const quiet=user.notification_preferences?.quiet_hours;
-            if(quiet){const clock=new Intl.DateTimeFormat('en-GB',{timeZone:quiet.time_zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(now);const within=quiet.start<quiet.end?clock>=quiet.start&&clock<quiet.end:clock>=quiet.start||clock<quiet.end;if(within){await update('retry',{next_attempt_at:new Date(now.getTime()+60000).toISOString()});return;}}
+            if(quiet&&current.type!=='push.test'){const clock=new Intl.DateTimeFormat('en-GB',{timeZone:quiet.time_zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(now);const within=quiet.start<quiet.end?clock>=quiet.start&&clock<quiet.end:clock>=quiet.start||clock<quiet.end;if(within){await update('retry',{next_attempt_at:new Date(now.getTime()+60000).toISOString()});return;}}
             const tokens=(await this.store.db.query<{data:RecordData}>(`SELECT p.data FROM records p WHERE p.kind='push_token' AND p.country=$1 AND p.owner=$2 AND p.data->>'status'='active' AND EXISTS(SELECT 1 FROM tokens t WHERE t.family::text=p.data->>'session_family' AND t.user_id::text=p.owner AND t.country=p.country AND t.kind='refresh' AND t.revoked=false AND t.used=false AND t.expires_at>$3::timestamptz)`,[entry.country,user.id,now.toISOString()])).rows.map(r=>r.data);
             if(!tokens.length){await update('waiting_token');return;}
             const lease=randomUUID();await update('processing',{lease_id:lease,lease_expires_at:new Date(now.getTime()+60000).toISOString(),claimed_at:now.toISOString()});return {current,tokens,message,lease};

@@ -11,6 +11,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
       - name: Acquire protected deployment credential
         env:
           SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
@@ -42,8 +47,28 @@ jobs:
           joba_remote="/tmp/joba-verify-firebase-$GITHUB_SHA.cjs"
           "${joba_scp[@]}" scripts/verify-firebase-server.cjs "root@188.241.217.228:$joba_remote"
           "${joba_ssh[@]}" -n root@188.241.217.228 "docker cp '$joba_remote' joba-api-1:/tmp/joba-verify-firebase.cjs && docker exec -u root joba-api-1 chmod 644 /tmp/joba-verify-firebase.cjs && docker exec joba-api-1 node /tmp/joba-verify-firebase.cjs; joba_result=\$?; rm -f '$joba_remote'; exit \$joba_result" | tee firebase-runtime-result.json
+          node scripts/browser-push-smoke.cjs &
+          joba_browser_pid=$!
+          joba_smoke_token="$RUNNER_TEMP/joba-browser-smoke-token.json"
+          for joba_wait in $(seq 1 70); do
+            if test -f "$joba_smoke_token" || ! kill -0 "$joba_browser_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if test -f "$joba_smoke_token"; then
+            joba_smoke_remote="/tmp/joba-browser-smoke-$GITHUB_SHA"
+            "${joba_ssh[@]}" -n root@188.241.217.228 "umask 077; mkdir '$joba_smoke_remote'"
+            "${joba_scp[@]}" "$joba_smoke_token" scripts/send-browser-push-smoke.cjs "root@188.241.217.228:$joba_smoke_remote/"
+            "${joba_ssh[@]}" -n root@188.241.217.228 "docker cp '$joba_smoke_remote/joba-browser-smoke-token.json' joba-api-1:/tmp/joba-browser-smoke-token.json && docker cp '$joba_smoke_remote/send-browser-push-smoke.cjs' joba-api-1:/tmp/send-browser-push-smoke.cjs && docker exec -u root joba-api-1 chown node:node /tmp/joba-browser-smoke-token.json && docker exec -u root joba-api-1 chmod 644 /tmp/send-browser-push-smoke.cjs && docker exec joba-api-1 node /tmp/send-browser-push-smoke.cjs; joba_result=\$?; rm -rf '$joba_smoke_remote'; exit \$joba_result"
+            touch "$RUNNER_TEMP/joba-browser-smoke-sent"
+          fi
+          joba_smoke_result=0
+          wait "$joba_browser_pid" || joba_smoke_result=$?
+          if test -f "$RUNNER_TEMP/joba-browser-smoke-result.json"; then cat "$RUNNER_TEMP/joba-browser-smoke-result.json" | tee browser-push-smoke-result.json; fi
+          exit "$joba_smoke_result"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: firebase-runtime-result
-          path: firebase-runtime-result.json
+          path: |
+            firebase-runtime-result.json
+            browser-push-smoke-result.json

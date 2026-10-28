@@ -110,12 +110,14 @@ void main() {
     await t.pumpAndSettle();
     await t.scrollUntilVisible(find.text('Обновить настройки'), 200,
         scrollable: find.byType(Scrollable).first);
+    await t.pumpAndSettle();
     await t.tap(find.text('Обновить настройки'));
     await t.pumpAndSettle();
     expect(writes, 1);
     expect(t.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
     await t.scrollUntilVisible(find.text('Обновить настройки'), 200,
         scrollable: find.byType(Scrollable).first);
+    await t.pumpAndSettle();
     await t.tap(find.text('Обновить настройки'));
     await t.pumpAndSettle();
     expect(

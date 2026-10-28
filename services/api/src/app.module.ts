@@ -10,6 +10,10 @@ let ready: Promise<void> | undefined;
 export async function getMarketplace() {marketplace??=new Marketplace();ready??=(async()=>{await marketplace!.initialize();const config=firebasePublicConfig();if(config.enabled){if(!process.env.JOBA_FIREBASE_PROJECT_ID)throw Error('Firebase project ID required');marketplace!.providers.push=new FirebasePushProvider(config.project_id);}})();await ready;return marketplace;}
 @Controller()
 export class HealthController {
+  @Get('api/v1/public/push-worker-config.js') workerConfig(@Res() response:any) {
+    const config=firebasePublicConfig();response.setHeader('Cache-Control','no-store');response.setHeader('Content-Type','application/javascript; charset=utf-8');response.setHeader('X-Content-Type-Options','nosniff');
+    response.send('self.JOBA_FIREBASE_CONFIG='+JSON.stringify(config.enabled?config.platforms.web??null:null)+';');
+  }
   @Get('health') async health() {
     try {
       const service=await getMarketplace();await service.store.db.query('SELECT 1');

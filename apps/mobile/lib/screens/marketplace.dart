@@ -4509,8 +4509,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         go('chat', r['target_id']);
       else if (type == 'support.message.created')
         go('support-chat', r['target_id']);
-      else if (['offer.declined','offer.not_selected','offer.withdrawn'].contains(type))go('my-offers');
-      else if (type == 'offer.created')
+      else if (['offer.declined','offer.not_selected','offer.withdrawn','offer.expired'].contains(type))go('my-offers');
+      else if (type == 'offer.created' || type == 'offer.updated')
         go('offers', r['target_id']);
       else if (type == 'order.completion_requested')
         go('complete', r['target_id']);
@@ -4530,6 +4530,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         go('portfolio-project', r['target_id']);
       else if (type == 'invite.created')
         go('invitations');
+      else if (type.startsWith('invite.')) {
+        if(['invite.revoked','invite.expired'].contains(type))go('invitations');else go('order',r['target_id']);
+      }
+      else if(type=='review.published')go('reviews');
+      else if(type.startsWith('contractor.'))go('services');
+      else if(type.startsWith('referral.'))go('referrals');
+      else if(type.startsWith('refund.'))go('refunds');
+      else if(type.startsWith('boost.'))go('promotion-history');
+      else if(type.startsWith('support.'))go('support-chat',r['target_id']);
       else if (type.startsWith('amendment.') ||
           type.startsWith('cancel_request.'))
         go('change-requests');

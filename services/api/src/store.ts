@@ -21,6 +21,8 @@ class ServerPostgres implements Database {
 export type RecordData = { id: string; kind: string; owner: string; country: string; version: number; created_at: string; [key: string]: any };
 export class Store {
   readonly db: Database;
+  transitionKinds?:Set<string>;
+  transitionHook?:(before:RecordData|undefined,after:RecordData)=>Promise<void>;
   contentHook?: (data:RecordData)=>Promise<void>;
   constructor(path = process.env.JOBA_DATA_DIR ?? resolve(__dirname, '../../../.local/joba')) {
     if(process.env.NODE_ENV==='production'&&!process.env.DATABASE_URL)throw Error('Production requires a regional PostgreSQL DATABASE_URL');
@@ -121,8 +123,10 @@ export class Store {
     return (await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE id=$1 FOR UPDATE', [id])).rows[0]?.data;
   }
   async put(data: RecordData,options:{skipContentCheck?:boolean}={}) {
+    const before=this.transitionHook&&this.transitionKinds?.has(data.kind)?await this.read(data.id):undefined;
     if(this.contentHook&&!options.skipContentCheck)await this.contentHook(data);
     await this.db.query('INSERT INTO records(id,kind,owner,country,version,data) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data', [data.id,data.kind,data.owner,data.country,data.version,JSON.stringify(data)]);
+    if(this.transitionHook&&this.transitionKinds?.has(data.kind))await this.transitionHook(before,data);
     return data;
   }
   async close() { await this.db.close(); }

@@ -162,14 +162,26 @@ class _NotificationSettingsContentState
             style:
                 TextStyle(fontSize: 12, height: 1.5, color: Color(0xFF627187))),
         const SizedBox(height: 24),
-        ListenableBuilder(listenable: JobaPush.instance, builder: (context, _) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(JobaPush.instance.status),
-          TextButton.icon(icon: const Icon(Icons.notifications_active_outlined), label: const Text('Включить push на этом устройстве'), onPressed: saving ? null : () async {
-            try { if (!JobaPush.instance.configured) await JobaPush.instance.attach(widget.api); await JobaPush.instance.enable(); }
-            catch (e) { if (current) setState(() => error = e); }
-          }),
-        ])),
-
+        ListenableBuilder(
+            listenable: JobaPush.instance,
+            builder: (context, _) =>
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(JobaPush.instance.status),
+                  TextButton.icon(
+                      icon: const Icon(Icons.notifications_active_outlined),
+                      label: const Text('Включить push на этом устройстве'),
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              try {
+                                if (!JobaPush.instance.configured)
+                                  await JobaPush.instance.attach(widget.api);
+                                await JobaPush.instance.enable();
+                              } catch (e) {
+                                if (current) setState(() => error = e);
+                              }
+                            }),
+                ])),
         Container(
             decoration: BoxDecoration(
                 color: Colors.white,
@@ -191,6 +203,25 @@ class _NotificationSettingsContentState
             'Важные события также сохраняются внутри приложения. Разрешение системных push настраивается отдельно.',
             style:
                 TextStyle(fontSize: 12, height: 1.5, color: Color(0xFF627187))),
+        TextButton.icon(
+            icon: const Icon(Icons.send_outlined),
+            label: const Text('Отправить проверочное уведомление'),
+            onPressed: saving
+                ? null
+                : () async {
+                    setState(() {
+                      saving = true;
+                      error = null;
+                    });
+                    try {
+                      await JobaPush.instance.attach(widget.api);
+                      await JobaPush.instance.testDelivery();
+                    } catch (e) {
+                      if (current) setState(() => error = e);
+                    } finally {
+                      if (current) setState(() => saving = false);
+                    }
+                  }),
         const SizedBox(height: 20),
         ExpansionTile(
             tilePadding: EdgeInsets.zero,
