@@ -33,7 +33,7 @@ import {adminReports} from './admin-reports';
 import {boostPresentation} from './boost-presentation';
 import {productAnalytics} from './product-analytics';
 import {rankingParameters,rankingPayload} from './ranking';
-import {accountDecisions,securityEventSummary} from './staff-account';
+import {accountEvents,accountDecisions,securityEventSummary} from './staff-account';
 import {currentLegalDocuments} from './legal-documents';
 import {freezeTarget,visibleCase,resolveEffects,contentHash,targetSnapshot} from './case-evidence';
 import {editableContent,publicContent,editContent,submitContent} from './content-revisions';
@@ -192,6 +192,8 @@ export class Marketplace {
   async handle(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local') {
     if(path.startsWith('/auth/')||path.startsWith('/public/')&&!path.startsWith('/public/recovery-threads')||path.startsWith('/webhooks/'))key=undefined;
     // Serialize commands: version check, idempotency, business writes and outbox commit together.
+    if(path.startsWith('/admin/')&&body&&typeof body==='object'&&!Buffer.isBuffer(body)&&!String(body.reason||'').trim())body={...body,reason:'Действие администратора в панели управления'};
+    if(path.startsWith('/admin/')&&query&&!String(query.reason||'').trim())query={...query,reason:'Просмотр данных администратором'};
     const run = async () => {
       if(method==='GET')return this.dispatch(method,path,body,authorization,query,ip);
       let actor: Actor|undefined;
@@ -216,6 +218,7 @@ export class Marketplace {
         if(cached){if(cached.body_hash!==bodyHash)fail(409,'IDEMPOTENCY_CONFLICT','Ключ уже использован с другими данными');await this.store.db.exec('COMMIT');return cached.result;}
         const rawResult=await this.dispatch(method,path,body,authorization,query,ip);
         const result=JSON.parse(JSON.stringify(rawResult??null));
+        if(actor&&!actor.user.staff_permissions?.length&&!path.startsWith('/me/activity')&&!path.startsWith('/uploads/')&&!path.startsWith('/notifications/')&&!path.startsWith('/push-tokens')&&/^(POST|PATCH|DELETE|PUT)$/.test(method))await this.store.put(this.record('security_event',actor,{event:'app.action_completed',method,action_path:path.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi,'{id}'),target_id:rawResult?.id,ip,occurred_at:new Date().toISOString()}));
         if(key)await this.store.db.query('INSERT INTO idempotency(scope,key,body_hash,result) VALUES($1,$2,$3,$4)',[scope,key,bodyHash,JSON.stringify(result??null)]);
         await this.store.db.exec('COMMIT');return result;
       } catch(e) {
@@ -363,6 +366,7 @@ export class Marketplace {
       await this.store.put(this.record('security_event',a,{event:'sessions.others_revoked',ip,occurred_at:new Date().toISOString()}));
       return {revoked:true,current_session_preserved:true};
     }
+    if(path==='/me/activity'&&method==='POST'){if(a.user.staff_permissions?.length)fail(403,'FORBIDDEN','Журнал пользовательского приложения');const screen=text(b,'screen',1,64);if(!/^[a-z][a-z0-9-]*$/.test(screen))fail(400,'VALIDATION_ERROR','Неизвестный экран');await this.store.put(this.record('security_event',a,{event:'app.screen_opened',screen,ip,occurred_at:new Date().toISOString()}));return {recorded:true};}
     if(path==='/me'&&method==='GET')return {...safeUser(a.user),phone:a.user.phone,phone_status:'unverified',status:a.user.status,version:a.user.version};
     if(path==='/me/security-policy'&&method==='GET')return {password_min:settings.password_min,password_max:128};
     if(path==='/me/overview'&&method==='GET')return accountOverview(this.store,a.id,a.country,subscriptionRole(a.user));
@@ -1349,6 +1353,7 @@ export class Marketplace {
           }
           return detail;
         }
+        if(reviewDetail[1]==='orders'){const canUsers=a.user.staff_access_mode!=='managed'||a.user.staff_grants?.includes('GET /admin/users/{id}');const owner=canUsers?await this.store.get(r.owner):undefined;return {...r,subject:owner?{...safeUser(owner),status:owner.status}:null};}
         return ['portfolio','contractors'].includes(reviewDetail[1])?adminContentDetail(this.store,r,a.user.staff_access_mode==='managed'?a.user.staff_grants:undefined):r;
       }
       const userActivity=path.match(/^\/admin\/users\/([^/]+)\/(orders|cases|support-threads|decisions)$/);
@@ -1379,7 +1384,12 @@ export class Marketplace {
       const securityEvents=path.match(/^\/admin\/users\/([^/]+)\/security-events$/);
       if(securityEvents&&method==='GET') {
         await this.staff(a,'security');const u=await this.object(securityEvents[1],a,'user');const reason=staffReason(q,'Просмотр событий безопасности администратором');
-        await this.audit(a,'security.events_read',u.id,reason);const page=await this.page('security_event',a,{...q,_subject:u.id},{owner:u.id});return {...page,items:page.items.map(securityEventSummary)};
+        await this.audit(a,'security.events_read',u.id,reason);
+        const scoped={...q,_subject:u.id},limit=this.pageLimit(q),after=await this.cursor(scoped),pivot=after?await this.object(after,a,'security_event'):undefined;
+        if(pivot&&pivot.owner!==u.id)fail(400,'VALIDATION_ERROR','Страница относится к другому аккаунту');
+        const rows=await accountEvents(this.store,a.country,u.id,limit+1,pivot),batch=rows.slice(0,limit);
+        if(q.include_ip==='true'){assertStaffOperation(a.user,a.mfa,'POST','/admin/security-events/'+u.id+'/disclose');await this.audit(a,'security.event_disclosed',u.id,'Просмотр IP в полной карточке пользователя');}
+        return {items:batch.map(r=>({...securityEventSummary(r),...(q.include_ip==='true'?{ip:r.ip??null,user_agent:r.user_agent??null}:{})})),meta:{next_cursor:rows.length>limit?await this.nextCursor(batch.at(-1)!.id,scoped):null}};
       }
       if(userDetail&&method==='GET'){
         const u=await this.object(userDetail[1],a,'user');const result:any={...safeUser(u),status:u.status,version:u.version};
@@ -1690,7 +1700,7 @@ export class Marketplace {
   }
   private async list(items:any[],q:any) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
-    const filtered=items.filter(x=>(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.product_type||x.payload?.product_type===q.product_type)&&(!q.order_id||x.order_id===q.order_id)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason,x.type,x.event,x.payload?.product_id,x.payload?.provider].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
+    const filtered=items.filter(x=>(!q.owner||x.owner===q.owner)&&(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.product_type||x.payload?.product_type===q.product_type)&&(!q.order_id||x.order_id===q.order_id)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason,x.type,x.event,x.payload?.product_id,x.payload?.provider].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
     const page=filtered.slice(0,limit);return {items:page,meta:{next_cursor:filtered.length>limit?await this.nextCursor(page.at(-1).id,q):null,total:filtered.length}};
   }
   private async messages(c:RecordData,a:Actor,method:string,b:any,q:any,kind:string) {
@@ -1822,6 +1832,7 @@ export class Marketplace {
       }
       if(u.purpose==='order') {
         const order=(await this.store.all('order',a.country)).find(o=>o.upload_ids?.includes(u.id)||o.revision_upload_ids?.includes(u.id)||o.completion_upload_ids?.includes(u.id));
+        if(order&&a.mfa&&a.user.staff_permissions?.length){assertStaffOperation(a.user,a.mfa,'GET','/admin/orders/'+order.id);if(!['administrator','moderator','content'].some(p=>a.user.staff_permissions?.includes(p)))fail(403,'FORBIDDEN','Нет права просмотра файлов заказа');await this.audit(a,'order.media_read',u.id,staffReason(q,'Просмотр фотографии заказа администратором'));return;}
         if(order&&[order.owner,order.executor_id].includes(a.id))return;
         const owner=order?await this.store.get(order.owner):undefined;
         if(order?.upload_ids?.includes(u.id)&&owner?.status==='active'&&order?.expires_at>new Date().toISOString()&&order?.status==='open'&&!['quarantined','hidden','rejected'].includes(order.moderation_status)&&!await this.blocked(a,order.owner)){await this.entitlement(a,'search_full',true);return;}

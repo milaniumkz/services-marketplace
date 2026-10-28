@@ -528,6 +528,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   void go(String next, [String? id]) {
     if (authNavigationBlocked) return;
+    if(api.authenticated&&!locked&&RegExp(r'^[a-z][a-z0-9-]{0,63}$').hasMatch(next)){
+      api.request('/me/activity',method:'POST',body:{'screen':next}).then<void>((_) {},onError:(Object _,StackTrace __) {});
+    }
     ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     if (next == 'languages') pendingLocale = null;
     setState(() {

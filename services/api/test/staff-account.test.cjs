@@ -43,8 +43,8 @@ test('staff account tabs scope relations, mask security metadata and page immuta
   await assert.rejects(()=>call(owner,'GET','/admin/users/'+owner.user.id+'/orders'),e=>e.getStatus()===403);
   await put('security_event',{event:'test.login',ip:'192.0.2.42',session_family:'private-session-id'});
   assert.ok(Array.isArray((await get('security-events')).items));
-  await assert.rejects(()=>get('security-events',{reason:'             '}),e=>e.getStatus()===400);
-  await assert.rejects(()=>call(staff,'GET','/admin/users/'+owner.user.id,{}, {include_phone:'true',reason:'             '}),e=>e.getStatus()===400);
+  assert.ok(Array.isArray((await get('security-events',{reason:'             '})).items));
+  assert.equal((await call(staff,'GET','/admin/users/'+owner.user.id,{}, {include_phone:'true',reason:'             '})).phone,owner.user.phone);
   assert.equal((await call(staff,'GET','/admin/users/'+owner.user.id,{}, {include_phone:'true'})).phone,owner.user.phone);
   const events=await get('security-events');
   const event=events.items.find(r=>r.event==='test.login');assert.equal(event.ip_summary,'192.0.*.*');assert.equal(event.ip,undefined);assert.equal(event.session_family,undefined);

@@ -56,6 +56,7 @@ async function main(){
    for(const route of ['dashboard','users','categories','pricing','settings','countries','legal','staff-access','monetization','record-live/verification/'+verificationId,'verification','record-live/contractors/'+contractorId]){
     console.log('Checking',width,route);await page.goto(frontend+'/#'+route);await page.locator('.workspace').waitFor();
     await page.waitForLoadState('networkidle');
+    assert.equal(await page.locator('form [name=reason]:visible, form [name=confirm]:visible').count(),0,'No manual audit/confirmation fields on '+route);
     if(route==='dashboard'){await page.locator('#server-metrics').getByText('Сервер — ресурсы и нагрузка',{exact:true}).waitFor();assert(await page.locator('#server-metrics').getByText('Оперативная память',{exact:true}).isVisible());await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/server-metrics')&&r.status()===200),page.locator('#server-metrics [data-server-refresh]').click()]);await page.locator('#server-metrics svg').waitFor();}
 
     if(route==='dashboard'){assert.equal(await page.locator('#review-queues').getByRole('heading',{name:'Заказчики — проверка личности — 1',exact:true}).count(),1);assert.equal(await page.locator('#review-queues').getByRole('heading',{name:'Портфолио на проверке — 1',exact:true}).count(),1);await page.getByRole('button',{name:'Обновить очереди',exact:true}).click();await page.locator('#review-queues-status').getByText('Обновлено:',{exact:false}).waitFor();}
@@ -88,7 +89,6 @@ async function main(){
   await page.goto(frontend+'/#monetization');await page.locator('#test-payment-mode').waitFor();
   for(const enabled of [false,true]){
     await page.locator('#test-payment-mode [name=enabled]').setChecked(enabled);
-    await page.locator('#test-payment-mode [name=reason]').fill('Изолированная проверка переключателя тестовой оплаты');
     await Promise.all([page.waitForResponse(r=>r.url().includes('/admin/test-payments')&&r.request().method()==='PUT'&&r.status()===200),page.locator('#test-payment-mode button').click()]);
     await page.waitForLoadState('networkidle');assert.equal((await api.store.all('test_payment_settings','KZ'))[0].enabled,enabled);
   }

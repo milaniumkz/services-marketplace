@@ -27,6 +27,7 @@ export function staffApi({getSession,saveSession}) {
   }
   const api=async function api(path,method='GET',body={},format='json') {
     const original=getSession();
+    if(path.startsWith('/admin/')&&method!=='GET'&&body&&!(body instanceof Blob)&&typeof body==='object'&&!String(body.reason||'').trim())body={...body,reason:'Действие администратора в панели управления'};
     const cacheable=method!=='GET'&&!['/auth/login','/auth/staff-login','/auth/register','/auth/refresh'].includes(path);
     let fingerprint,key;
     if(cacheable){

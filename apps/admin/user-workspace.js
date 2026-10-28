@@ -1,3 +1,5 @@
+import {mountUserOverview} from './user-overview.js';
+import {userEventLabel} from './user-activity.js';
 import {reviewWorkspace} from './review-workspace.js';
 
 export const userRoutes=new Set(['user-detail','user-orders','user-cases','user-decisions','user-security']);
@@ -27,7 +29,7 @@ export async function userWorkspace({key,api,esc,card,tablecard,note,badge,named
  const page={key,id:'A03',title:titles[tab],section:'Пользователи',subtitle:`${user.id} · ${user.country}`,actions:`<a class="btn" href="#users">К списку</a><button id="refresh-data" type="button">Обновить</button>`};
  if(tab==='user-detail'){
   const detail=await reviewWorkspace({key:'record-live/users/'+user.id,api:(path,...args)=>path===base&&!args.length?Promise.resolve(user):api(path,...args),esc,card,note,namedField,sections,onRefresh,staffAccess});
-  return {...detail,...page,body:()=>summary+navigation+detail.body(),bind:detail.bind};
+  return {...detail,...page,body:()=>summary+navigation+detail.body()+'<div id="user-overview" class="mt"></div>',bind(){detail.bind();mountUserOverview({user,api,esc,card,staffAccess});}};
  }
  if(tab==='user-orders'){
   const data=await api(base+'/orders?'+new URLSearchParams({limit:'20',...(params.get('q')?{q:params.get('q')}:{}),...(params.get('status')?{status:params.get('status')}:{}),...(params.get('cursor')?{cursor:params.get('cursor')}:{})}));
@@ -52,7 +54,7 @@ export async function userWorkspace({key,api,esc,card,tablecard,note,badge,named
    const form=document.getElementById('account-security'),result=document.getElementById('account-security-result'),error=document.getElementById('account-security-error');
    const load=async(reason,cursor)=>{form.querySelector('button').disabled=true;error.textContent='';
     try{const data=await api(base+'/security-events?'+new URLSearchParams({reason,limit:'20',...(cursor?{cursor}:{})}));
-     result.innerHTML=tablecard('События безопасности',['Время UTC','Событие','IP события','MFA',''],data.items.map(r=>[esc(date(r.occurred_at||r.created_at)),esc(r.event),esc(r.ip_summary),r.mfa?'Подтверждён':'—',!staffAccess?.managed||staffAccess.grants.includes('POST /admin/security-events/{id}/disclose')?`<button type="button" data-disclose-event="${esc(r.id)}">Показать полный IP</button>`:'']),'',`${data.items.length} записей на странице`)+(data.meta?.next_cursor?'<button type="button" id="account-security-next">Следующая страница</button>':'');
+     result.innerHTML=tablecard('События безопасности',['Время UTC','Событие','IP события','MFA',''],data.items.map(r=>[esc(date(r.occurred_at||r.created_at)),esc(userEventLabel(r)),esc(r.ip_summary),r.mfa?'Подтверждён':'—',!staffAccess?.managed||staffAccess.grants.includes('POST /admin/security-events/{id}/disclose')?`<button type="button" data-disclose-event="${esc(r.id)}">Показать полный IP</button>`:'']),'',`${data.items.length} записей на странице`)+(data.meta?.next_cursor?'<button type="button" id="account-security-next">Следующая страница</button>':'');
      result.querySelectorAll('[data-disclose-event]').forEach(button=>button.onclick=async()=>{
       button.disabled=true;error.textContent='';
       try{const event=await api('/admin/security-events/'+encodeURIComponent(button.dataset.discloseEvent)+'/disclose','POST',{reason});const value=document.createElement('p');value.setAttribute('role','status');value.textContent='IP: '+(event.ip||'Не записан')+(event.user_agent?' · Устройство: '+event.user_agent:'');button.replaceWith(value);}catch(e){error.textContent=e.message;button.disabled=false;}
@@ -61,5 +63,6 @@ export async function userWorkspace({key,api,esc,card,tablecard,note,badge,named
      result.querySelector('#account-security-next')?.addEventListener('click',()=>load(reason,data.meta.next_cursor));
     }catch(e){error.textContent=e.message;}finally{form.querySelector('button').disabled=false;}};
    form.onsubmit=e=>{e.preventDefault();load('Просмотр безопасности в карточке пользователя');};
+   load('Просмотр безопасности в карточке пользователя');
   }};
 }
