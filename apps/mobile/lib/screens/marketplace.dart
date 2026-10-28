@@ -419,7 +419,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   void connectEvents() {
     closeEvents();
     if (!api.authenticated || !mounted || locked) return;
-    JobaPush.instance.onEvent=(){if(mounted&&!locked)refreshUnread();};
+    JobaPush.instance.onEvent=(){if(mounted&&!locked){refreshUnread();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:const Text('Новое уведомление JOBA'),action:SnackBarAction(label:'Открыть',onPressed:(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');})));}};
     JobaPush.instance.onOpen=(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');};
     unawaited(JobaPush.instance.attach(api));
     if(!pushLinkHandled&&Uri.base.queryParameters['joba_push']=='notifications'){pushLinkHandled=true;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');});}

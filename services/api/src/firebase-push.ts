@@ -21,7 +21,7 @@ export function firebaseMessage(token:string,event:Parameters<PushProvider['send
   return {token,notification:{title:event.title,body:event.body},data:{event_id:event.event_id,route:'notifications'},
     android:{priority:'high',notification:{channelId:'joba_events',tag:event.event_id}},
     apns:{payload:{aps:{sound:'default','thread-id':'joba_events'}}},
-    webpush:{fcmOptions:{link:'/?joba_push=notifications'},notification:{tag:event.event_id,icon:'/icons/Icon-192.png'}}};
+    webpush:{fcmOptions:{link:'https://joba.com.kz/?joba_push=notifications'},notification:{tag:event.event_id,icon:'/icons/Icon-192.png'}}};
 }
 export class FirebasePushProvider implements PushProvider {
   private readonly app;
