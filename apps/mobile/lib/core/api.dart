@@ -17,6 +17,7 @@ class ApiException implements Exception {
   final Json details;
   ApiException(this.code, this.message,
       [this.status = 0, this.details = const {}]);
+  bool get accessRedirected => code=='ENTITLEMENT_REQUIRED'&&details['access_redirected']==true;
   @override
   String toString() => message;
 }
@@ -60,6 +61,7 @@ class JobaApi extends ChangeNotifier {
   bool get sessionExpired => _sessionExpired;
   bool disposed = false;
   bool persistSession = true;
+  bool Function()? onAccessRequired;
   final ServerClock clock;
   String? _serverTime;
   String? get serverTime => _serverTime;
@@ -391,13 +393,13 @@ class JobaApi extends ChangeNotifier {
           capability == null &&
           ['TOKEN_EXPIRED', 'UNAUTHENTICATED', 'REFRESH_REPLAY']
               .contains(errorCode)) await forget(expired: true);
+      final details=responseError['details'] is Map?Map<String,dynamic>.from(responseError['details']):<String,dynamic>{};
+      if(errorCode=='ENTITLEMENT_REQUIRED'&&onAccessRequired?.call()==true)details['access_redirected']=true;
       throw ApiException(
           responseError['code'] ?? 'SERVER_ERROR',
           responseError['message'] ?? 'Не удалось выполнить запрос',
           response.statusCode,
-          responseError['details'] is Map
-              ? Map<String, dynamic>.from(responseError['details'])
-              : const {});
+          details);
     }
     final metadata = decoded['meta'];
     final timestamp = metadata is Map ? metadata['server_time'] : null;

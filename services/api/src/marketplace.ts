@@ -71,8 +71,14 @@ const countries: Record<string, {currency: string; locales: string[]; cities: st
   BY: {currency:'BYN',locales:['ru','be'],cities:['Минск','Гомель']}
 };
 export const fail = (status: number, code: string, message: string, details = {}): never => { throw new HttpException({error:{code,message,details,retryable:status===503}},status); };
+const fieldLabels:Record<string,string>={title:'Название',description:'Описание',reason:'Причина',display_name:'Имя',phone:'Номер телефона',password:'Пароль',city:'Город',city_id:'Город',category_id:'Категория',subject:'Тема',text:'Текст сообщения',locale:'Язык',country:'Страна',confirmation:'Подтверждение',current_password:'Текущий пароль',new_password:'Новый пароль',email:'Электронная почта'};
 const text = (b: any, name: string, min: number, max: number) => {
-  const v=b?.[name]; if (typeof v !== 'string' || v.trim().length<min || v.length>max) fail(400,'VALIDATION_ERROR',name==='reason'?`Укажите причину: от ${min} до ${max} символов.`:`Проверьте поле ${name}`,{field:name,min,max});
+  const v=b?.[name],length=typeof v==='string'?v.trim().length:0,label=fieldLabels[name]??'Значение';
+  if(typeof v!=='string'||length<min||v.length>max){
+    const tooLong=typeof v==='string'&&v.length>max,actual=tooLong?v.length:length;
+    const message=tooLong?`«${label}»: допускается не более ${max} символов. Сейчас ${actual}. Уберите ${actual-max}.`:`«${label}»: нужно не менее ${min} символов. Сейчас ${actual}. Добавьте ещё ${min-actual}.`;
+    fail(400,'VALIDATION_ERROR',message,{field:name,label,min,max,actual,constraint:tooLong?'max_length':length===0?'required':'min_length'});
+  }
   return v.trim();
 };
 const staffReason = (input:any, fallback:string) => input?.reason===undefined||input.reason===null||input.reason===''?fallback:text(input,'reason',3,1000);
@@ -506,7 +512,7 @@ export class Marketplace {
       const old=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(old)this.version(old,b);
       const title=text(b,'title',5,100),description=text(b,'description',20,3000),city=text(b,'city',2,100);
       const categories=(await this.categories(a.country));
-      const category=categories.find(c=>c.id===b.category_id||c.legacy_id===b.category_id);if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
+      const category=categories.find(c=>c.id===b.category_id||c.legacy_id===b.category_id);if(!category)fail(400,'VALIDATION_ERROR','Выберите доступную категорию услуги.',{field:'category_id'});
       let fields:any;try{fields=profileFields({...b,category_id:category!.id},old?editableContent(old):old,countries[a.country].currency,new Set(categories.map(c=>c.id)));}catch(e:any){fail(400,'VALIDATION_ERROR','Проверьте поле '+e.message,{field:e.message});}
       const uploads=b.gallery_ids===undefined?(old?editableContent(old).gallery_ids??[]:[]):await this.safeUploads(a,b.gallery_ids,'portfolio',20);
       if(uploads.length>20)fail(400,'VALIDATION_ERROR','Не более 20 фотографий');
@@ -540,7 +546,7 @@ export class Marketplace {
     if(path==='/me/portfolio-projects'&&method==='POST') {
       const projects=(await this.store.all('portfolio',a.country)).filter(x=>x.owner===a.id&&x.status!=='archived');if(projects.length>=settings.portfolio_projects)fail(422,'LIMIT_EXCEEDED','Максимум 20 проектов');
       if(b.rights_confirmed!==undefined&&typeof b.rights_confirmed!=='boolean')fail(400,'VALIDATION_ERROR','Проверьте подтверждение прав');
-      const category=(await this.categories(a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
+      const category=(await this.categories(a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Выберите доступную категорию услуги.',{field:'category_id'});
       let orderId:string|null=null;if(b.order_id){const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||order.executor_id!==a.id)fail(422,'POLICY_REJECTED','Можно связать только заказ, выполненный вами');orderId=order.id;}
       return this.store.put(this.record('portfolio',a,{title:text(b,'title',5,120),description:text(b,'description',0,3000),category_id:category!.id,order_id:orderId,rights_confirmed:b.rights_confirmed===true,status:'draft',position:projects.length,photos:[]}));
     }
@@ -552,7 +558,7 @@ export class Marketplace {
         const photos=b.upload_ids?await this.safeUploads(a,b.upload_ids,'portfolio'):p.photos;
         if(photos.length>settings.portfolio_photos)fail(422,'LIMIT_EXCEEDED','Превышен лимит фотографий');
         if(b.cover_id&&!photos.includes(b.cover_id))fail(400,'VALIDATION_ERROR','Обложка должна быть фотографией проекта');
-        const category=(await this.categories(a.country)).find(c=>(c.id===(b.category_id??p.category_id)||c.legacy_id===(b.category_id??p.category_id))&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
+        const category=(await this.categories(a.country)).find(c=>(c.id===(b.category_id??p.category_id)||c.legacy_id===(b.category_id??p.category_id))&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Выберите доступную категорию услуги.',{field:'category_id'});
         const cover=b.cover_id??(photos.includes(p.cover_id)?p.cover_id:photos[0]),extra:any={};
         if(b.rights_confirmed!==undefined){if(typeof b.rights_confirmed!=='boolean')fail(400,'VALIDATION_ERROR','Подтвердите права на материалы');extra.rights_confirmed=b.rights_confirmed;}
         if(b.order_id!==undefined){if(b.order_id===null)extra.order_id=null;else{const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||order.executor_id!==a.id)fail(422,'POLICY_REJECTED','Можно связать только заказ, выполненный вами');extra.order_id=order.id;}}
@@ -587,11 +593,11 @@ export class Marketplace {
     if(publicReviews&&method==='GET'){const target=await this.object(publicReviews[1],a,'user');if(target.id!==a.id){if(target.roles?.includes('executor'))await this.entitlement(a,'view_contractors');else await this.entitlement(a,'search_full');if(target.status!=='active'||target.staff_permissions?.length||await this.blocked(a,target.id))fail(404,'NOT_FOUND','Профиль недоступен');}return this.list((await this.store.all('review',a.country)).filter(r=>r.target_id===publicReviews[1]&&r.status==='published'&&!['quarantined','hidden','rejected'].includes(r.moderation_status)),q);}
     if(path==='/orders'&&method==='POST') {
       const budget=b.budget?b.budget.mode==='negotiable'?null:b.budget.amount_minor:(b.budget_amount??null);
-      if(budget!==null && (!Number.isSafeInteger(budget)||budget<0))fail(400,'VALIDATION_ERROR','Бюджет должен быть целым числом в минимальных единицах валюты либо null');
+      if(budget!==null && (!Number.isSafeInteger(budget)||budget<0))fail(400,'VALIDATION_ERROR','В поле «Бюджет» укажите неотрицательную сумму с точностью до двух знаков после запятой.',{field:'budget_amount'});
       if(b.country&&b.country!==a.country||b.budget?.currency&&b.budget.currency!==countries[a.country].currency)fail(400,'VALIDATION_ERROR','Страна и валюта не совпадают с регионом');
-      if(!['onsite','remote','hybrid'].includes(b.work_mode??'onsite'))fail(400,'VALIDATION_ERROR','Проверьте формат работы');
-      const category=(await this.categories(a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');
-      const city=b.city??await cityName(this.store,a.country,String(b.city_id));if(typeof city!=='string'||city.length<2||city.length>100)fail(400,'VALIDATION_ERROR','Город недоступен');
+      if(!['onsite','remote','hybrid'].includes(b.work_mode??'onsite'))fail(400,'VALIDATION_ERROR','Выберите формат работы: на месте, удалённо или смешанный.',{field:'work_mode'});
+      const category=(await this.categories(a.country)).find(c=>(c.id===b.category_id||c.legacy_id===b.category_id)&&c.status==='effective');if(!category)fail(400,'VALIDATION_ERROR','Выберите доступную категорию услуги.',{field:'category_id'});
+      const city=b.city??await cityName(this.store,a.country,String(b.city_id));if(typeof city!=='string'||city.length<2||city.length>100)fail(400,'VALIDATION_ERROR','Выберите город из списка.',{field:'city_id'});
       const uploads=b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[];
       return this.store.put(this.record('order',a,{title:text(b,'title',5,120),description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}},city,budget_amount:budget,currency:countries[a.country].currency,status:'draft',revision:1,...orderAddress(b),upload_ids:uploads,work_mode:b.work_mode??'onsite',attributes:attributes(category!.payload.schema,b.attributes),time_window:timeWindow(b.time_window)}));
     }
@@ -661,13 +667,13 @@ export class Marketplace {
       if(action==='clone'&&method==='POST'){await this.entitlement(a,'publish_order');const category=(await this.categories(a.country)).find(c=>c.id===o.category_id);if(!category)fail(422,'CATEGORY_UNAVAILABLE','Выберите доступную категорию');return this.store.put(this.record('order',a,{title:o.title,description:o.description,category_id:o.category_id,category_snapshot:this.categorySnapshot(category!,a.user.locale),attributes:o.attributes??{},work_mode:o.work_mode??'onsite',time_window:o.time_window,city:o.city,budget_amount:o.budget_amount,currency:o.currency,status:'draft',revision:1,upload_ids:[]}));}
       if(method==='PATCH'&&!action) {
         if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Редактирование недоступно');
-        const unchangedCategory=b.category_id===undefined||b.category_id===o.category_id,originalCategory=unchangedCategory?await this.store.get(o.category_id):undefined;const category=(await this.categories(a.country)).find(c=>c.id===(b.category_id??o.category_id))??(unchangedCategory&&originalCategory?.country===a.country&&originalCategory.kind==='category'?{...originalCategory,id:categoryId(originalCategory),record_id:originalCategory.id}:undefined);if(!category)fail(400,'VALIDATION_ERROR','Категория недоступна');const snapshot=unchangedCategory?(o.category_snapshot??{id:category!.id,version_id:originalCategory?.id??category!.record_id,title:originalCategory?.payload.labels?.ru??originalCategory?.title??category!.title,labels:originalCategory?.payload.labels??category!.payload.labels,schema:originalCategory?.payload.schema??category!.payload.schema??{properties:{},required:[]}}):{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}};
+        const unchangedCategory=b.category_id===undefined||b.category_id===o.category_id,originalCategory=unchangedCategory?await this.store.get(o.category_id):undefined;const category=(await this.categories(a.country)).find(c=>c.id===(b.category_id??o.category_id))??(unchangedCategory&&originalCategory?.country===a.country&&originalCategory.kind==='category'?{...originalCategory,id:categoryId(originalCategory),record_id:originalCategory.id}:undefined);if(!category)fail(400,'VALIDATION_ERROR','Выберите доступную категорию услуги.',{field:'category_id'});const snapshot=unchangedCategory?(o.category_snapshot??{id:category!.id,version_id:originalCategory?.id??category!.record_id,title:originalCategory?.payload.labels?.ru??originalCategory?.title??category!.title,labels:originalCategory?.payload.labels??category!.payload.labels,schema:originalCategory?.payload.schema??category!.payload.schema??{properties:{},required:[]}}):{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}};
         const changes:any={...orderAddress(b),title:b.title===undefined?o.title:text(b,'title',5,120),description:b.description===undefined?o.description:text(b,'description',20,5000),category_id:category!.id,category_snapshot:snapshot,attributes:attributes(snapshot.schema,b.attributes??o.attributes)};
         if(b.budget_amount!==undefined){if(b.budget_amount!==null&&(!Number.isSafeInteger(b.budget_amount)||b.budget_amount<0))fail(400,'VALIDATION_ERROR','Проверьте бюджет');changes.budget_amount=b.budget_amount;}
         if(b.city!==undefined)changes.city=text(b,'city',2,100);
-        if(b.city_id!==undefined){const city=await cityName(this.store,a.country,String(b.city_id));if(!city)fail(400,'VALIDATION_ERROR','Город недоступен');changes.city=city;}
+        if(b.city_id!==undefined){const city=await cityName(this.store,a.country,String(b.city_id));if(!city)fail(400,'VALIDATION_ERROR','Выберите город из списка.',{field:'city_id'});changes.city=city;}
         if(changes.city!==undefined&&changes.city!==o.city&&b.exact_location===undefined)Object.assign(changes,{exact_location:null,public_location:null,exact_address:null});
-        if(b.work_mode!==undefined){if(!['onsite','remote','hybrid'].includes(b.work_mode))fail(400,'VALIDATION_ERROR','Проверьте формат работы');changes.work_mode=b.work_mode;}
+        if(b.work_mode!==undefined){if(!['onsite','remote','hybrid'].includes(b.work_mode))fail(400,'VALIDATION_ERROR','Выберите формат работы: на месте, удалённо или смешанный.',{field:'work_mode'});changes.work_mode=b.work_mode;}
         if(b.upload_ids!==undefined)changes.upload_ids=await this.safeUploads(a,b.upload_ids,'order');
         if(b.time_window!==undefined)changes.time_window=timeWindow(b.time_window);
         return this.store.put({...o,...changes,revision:o.revision+1,version:o.version+1});

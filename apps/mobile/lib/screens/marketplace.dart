@@ -1,3 +1,5 @@
+import 'nearby_contractors.dart';
+import '../core/field_validation.dart';
 import '../core/push_notifications.dart';
 import '../core/navigation_shell.dart';
 import '../core/device_location.dart';
@@ -143,7 +145,7 @@ int minor(String value) {
   final normalized = value.trim().replaceAll(',', '.');
   if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(normalized))
     throw ApiException(
-        'VALIDATION_ERROR', 'Укажите сумму с точностью до сотых');
+        'VALIDATION_ERROR', 'Введите неотрицательную сумму цифрами, не более двух знаков после запятой.',400,{'field':'amount'});
   final parts = normalized.split('.');
   return int.parse(parts[0]) * 100 +
       int.parse(parts.length == 2 ? parts[1].padRight(2, '0') : '0');
@@ -252,6 +254,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             ? DevicePreferences(SecureSessionVault('joba.device.preferences'))
             : null);
     _api?.addListener(sessionChanged);
+    _api?.onAccessRequired=openRequiredAccess;
     initialize();
   }
 
@@ -291,8 +294,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     closeEvents();
     final previous = _api;
     previous?.removeListener(sessionChanged);
+    previous?.onAccessRequired=null;
     _api = next;
     api.addListener(sessionChanged);
+    api.onAccessRequired=openRequiredAccess;
     if (widget.api != previous) previous?.dispose();
     sequence = 0;
   }
@@ -522,6 +527,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     JobaPush.instance.detach();
     closeEvents();
     _api?.removeListener(sessionChanged);
+    _api?.onAccessRequired=null;
     if (widget.api != _api) _api?.dispose();
     super.dispose();
   }
@@ -590,12 +596,21 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           .showSnackBar(SnackBar(content: UiText(text)));
   }
 
+  bool accessRedirectQueued=false;
+  bool openRequiredAccess(){
+    if(!mounted||!api.authenticated||locked||authNavigationBlocked||onboardingNavigationBlocked||['my-access','checkout','payment-pending','test-payment-success','restore'].contains(route))return false;
+    if(accessRedirectQueued)return true;
+    accessRedirectQueued=true;final client=api,generation=api.sessionGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_){accessRedirectQueued=false;if(mounted&&api==client&&client.sessionGeneration==generation&&client.authenticated&&!locked&&!authNavigationBlocked&&!['my-access','checkout','payment-pending','test-payment-success','restore'].contains(route))go('my-access');});
+    WidgetsBinding.instance.ensureVisualUpdate();return true;
+  }
   Future<void> act(Future<void> Function() action) async {
     if (actionBusy) return;
     setState(() => actionBusy = true);
     try {
       await action();
     } catch (e) {
+      if(e is ApiException&&e.code=='ENTITLEMENT_REQUIRED'&&(e.accessRedirected||openRequiredAccess()))return;
       if (mounted)
         await showDialog<void>(
             context: context,
@@ -2193,11 +2208,17 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 ]))));
   }
 
+  Future<Json> Function() locateNearby = currentDeviceLocation;
+  Future<void> nearbyCatalog() async {
+    final client=api,generation=api.sessionGeneration,screen=route;
+    try{final point=await locateNearby();if(!mounted||api!=client||client.sessionGeneration!=generation||route!=screen)return;listingFilters={'near_lat':point['latitude'],'near_lon':point['longitude'],'radius_km':20};go('catalog');}
+    catch(_){if(mounted&&api==client&&route==screen)go('gps-denied');}
+  }
   Future<void> nearMe() async {
     final scope=route,client=api,generation=api.sessionGeneration;
-    try {final value=await currentDeviceLocation();
+    try {final value=await locateNearby();
       if(!mounted||route!=scope||client!=api||generation!=api.sessionGeneration)return;
-      listingFilters={...listingFilters,'near_lat':((value['latitude'] as num)*100).round()/100,'near_lon':((value['longitude'] as num)*100).round()/100,'radius_km':50}..remove('city');go(executor||scope=='jobs'?'jobs':'map');
+      listingFilters={...listingFilters,'near_lat':value['latitude'],'near_lon':value['longitude'],'radius_km':executor?50:20}..remove('city');go(executor||scope=='jobs'?'jobs':'map');
     } catch(_){if(mounted&&route==scope&&client==api&&generation==api.sessionGeneration)go('gps-denied');}
   }
   Widget locationScreen() => page(
@@ -2463,7 +2484,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         ])),
               if(!executor) PromotedListings(api:api,placement:'home.promoted.services',filters:{'city':me?['city']??''},onOpen:(type,id)=>go('contractor',id)),
               JobaSection(executor ? 'Подходящие заказы' : 'Рядом с вами',
-                  () => go(executor ? 'jobs' : 'catalog'),
+                  () => executor ? go('jobs') : act(nearbyCatalog),
                   action: executor ? 'Фильтры' : 'Все'),
               homeListings(),
               if (executor)
@@ -2495,7 +2516,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     UiText(label,
                         style: const TextStyle(fontSize: 11, color: muted))
                   ]))));
-  Widget homeListings() => ApiView(
+  Widget homeListings() => !executor ? NearbyContractors(key:ValueKey('home-nearby:${api.base}:${api.session?['user']?['id']}:$revision'),api:api,locate:locateNearby,itemBuilder:contractorCard,onAccess:()=>go('my-access'),onVerification:()=>go('verification'),onLocation:(point){listingFilters={'near_lat':point['latitude'],'near_lon':point['longitude'],'radius_km':20};}) : ApiView(
       key: ValueKey('home-listings:$executor:$revision'),
       load: () async {
         try {
@@ -2811,7 +2832,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       'hybrid': 'Смешанный'
                     }),
                 const InputSpec('budget', 'Бюджет',
-                    required: false, keyboard: TextInputType.number)
+                    required: false, keyboard: TextInputType.number,validate:budgetCheck)
               ],
               button: 'Предпросмотр заказа',
               submit: (v) async {
@@ -2945,10 +2966,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     return result;
   }
 
+  static String? budgetCheck(String value)=>value.trim().isEmpty||RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(value.trim().replaceAll(',','.'))?null:'В поле «Бюджет» введите сумму цифрами, например 5000 или 5000,50. Не более двух знаков после запятой.';
   static String? titleCheck(String v) =>
-      v.trim().length < 5 || v.length > 120 ? 'От 5 до 120 символов' : null;
+      textLengthProblem(v,5,120,'Название');
   static String? descriptionCheck(String v) =>
-      v.trim().length < 20 || v.length > 5000 ? 'От 20 до 5000 символов' : null;
+      textLengthProblem(v,20,5000,'Описание задачи');
   String windowLabel(Json order) {
     final window = order['time_window'];
     if (window == null) return localize(context, 'По договорённости');

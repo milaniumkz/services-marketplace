@@ -1,3 +1,4 @@
+import 'field_validation.dart';
 import 'package:intl/intl.dart';
 import 'design_widgets.dart' show JobaBadge;
 import 'design_states.dart';
@@ -40,6 +41,7 @@ class _ApiViewState extends State<ApiView> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done)
           return const Center(child: CircularProgressIndicator());
+        if(snapshot.error is ApiException&&(snapshot.error as ApiException).accessRedirected)return const SizedBox.shrink();
         if (snapshot.hasError)
           return Center(
               child: Padding(
@@ -184,8 +186,9 @@ class _PagedListState extends State<PagedList> {
                       ])),
             if (widget.contentBuilder != null && rows.isNotEmpty)
               widget.contentBuilder!(rows)
-            else ...rows.map(widget.tile),
-            if (error != null)
+            else
+              ...rows.map(widget.tile),
+            if (error != null&&!(error is ApiException&&(error as ApiException).accessRedirected))
               rows.isEmpty && widget.errorState != null
                   ? widget.errorState!(error!, () => load(reset: true))
                   : Notice(errorText(context, error!), error: true),
@@ -267,9 +270,9 @@ class ActionForm extends StatefulWidget {
   final Object? errorResetKey;
   final ValueChanged<bool>? onBusyChanged;
   final ValueChanged<Object?>? onErrorChanged;
-  final Map<String,String> initialValues;
-  final Map<String,String> fieldOverrides;
-  final ValueChanged<Map<String,String>>? onValuesChanged;
+  final Map<String, String> initialValues;
+  final Map<String, String> fieldOverrides;
+  final ValueChanged<Map<String, String>>? onValuesChanged;
   const ActionForm({
     required this.fields,
     required this.submit,
@@ -301,6 +304,9 @@ class _ActionFormState extends State<ActionForm> {
   final form = GlobalKey<FormState>();
   late Map<String, TextEditingController> controllers;
   final Set<String> visible = {};
+  final Map<String, String> fieldErrors = {};
+  final Map<String, GlobalKey> fieldAnchors = {};
+  final Map<String, FocusNode> fieldFocus = {};
   final Map<String, String> pickedLabels = {};
   bool busy = false;
   int cooldownSeconds = 0;
@@ -318,16 +324,29 @@ class _ActionFormState extends State<ActionForm> {
   void initState() {
     super.initState();
     controllers = {
-      for (final f in widget.fields)
-        f.key: createController(f),
+      for (final f in widget.fields) f.key: createController(f),
     };
   }
 
   TextEditingController createController(InputSpec field) {
-    final controller=TextEditingController(text:widget.fieldOverrides[field.key]??widget.initialValues[field.key]??field.initial);
-    if(widget.onValuesChanged!=null) controller.addListener(() {
-      widget.onValuesChanged?.call(controllers.map((key,value)=>MapEntry(key,value.text)));
+    final controller = TextEditingController(
+        text: widget.fieldOverrides[field.key] ??
+            widget.initialValues[field.key] ??
+            field.initial);
+    var previousText=controller.text;
+    controller.addListener(() {
+      if(controller.text==previousText)return;
+      previousText=controller.text;
+      if (fieldErrors.remove(field.key) != null && mounted) {
+        setState(() {if(fieldErrors.isEmpty&&error is ApiException&&(error as ApiException).code=='VALIDATION_ERROR')error=null;});
+        form.currentState?.validate();
+      }
     });
+    if (widget.onValuesChanged != null)
+      controller.addListener(() {
+        widget.onValuesChanged
+            ?.call(controllers.map((key, value) => MapEntry(key, value.text)));
+      });
     return controller;
   }
 
@@ -336,11 +355,18 @@ class _ActionFormState extends State<ActionForm> {
     super.didUpdateWidget(old);
     if (widget.errorResetKey != old.errorResetKey) {
       error = null;
+      fieldErrors.clear();
       cooldownTimer?.cancel();
       cooldownSeconds = 0;
       if (widget.loginLayout) visible.clear();
     }
-    for(final entry in widget.fieldOverrides.entries){if(old.fieldOverrides[entry.key]!=entry.value&&controllers.containsKey(entry.key)){pickedLabels.remove(entry.key);controllers[entry.key]!.text=entry.value;}}
+    for (final entry in widget.fieldOverrides.entries) {
+      if (old.fieldOverrides[entry.key] != entry.value &&
+          controllers.containsKey(entry.key)) {
+        pickedLabels.remove(entry.key);
+        controllers[entry.key]!.text = entry.value;
+      }
+    }
     final keys = widget.fields.map((f) => f.key).toSet();
     for (final key in controllers.keys.toList()) {
       if (!keys.contains(key)) controllers.remove(key)!.dispose();
@@ -356,6 +382,9 @@ class _ActionFormState extends State<ActionForm> {
   @override
   void dispose() {
     cooldownTimer?.cancel();
+    for (final node in fieldFocus.values) {
+      node.dispose();
+    }
     for (final c in controllers.values) {
       c.dispose();
     }
@@ -363,11 +392,16 @@ class _ActionFormState extends State<ActionForm> {
   }
 
   Future<void> submit() async {
-    if (disabled ||
-        cooldownSeconds > 0 ||
-        !widget.submitEnabled ||
-        !form.currentState!.validate())
+    if (disabled || cooldownSeconds > 0 || !widget.submitEnabled) return;
+    final invalid = form.currentState!.validateGranularly();
+    if (invalid.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && invalid.first.mounted)
+          Scrollable.ensureVisible(invalid.first.context,
+              duration: const Duration(milliseconds: 250), alignment: .15);
+      });
       return;
+    }
     setState(() {
       busy = true;
       error = null;
@@ -378,7 +412,46 @@ class _ActionFormState extends State<ActionForm> {
       await widget.submit(controllers.map((k, v) => MapEntry(k, v.text)));
     } catch (e) {
       if (mounted) {
-        setState(() => error = e);
+        setState(() => error = e is ApiException&&e.accessRedirected?null:e);
+        if (e is ApiException) {
+          final supplied = e.details['field'] ??
+              RegExp(r'поле\s+([a-zA-Z_][a-zA-Z0-9_.]*)')
+                  .firstMatch(e.message)
+                  ?.group(1);
+          final aliases = {
+            'budget_amount': 'budget',
+            'amount_minor': 'budget',
+            'amount': 'budget',
+            'city': 'city_id'
+          };
+          final name =
+              controllers.containsKey(supplied) ? supplied : aliases[supplied];
+          if (name is String && controllers.containsKey(name)) {
+            final spec = widget.fields.firstWhere((f) => f.key == name),
+                min = e.details['min'],
+                max = e.details['max'];
+            final problem = min is int && max is int
+                ? textLengthProblem(
+                    controllers[name]!.text, min, max, spec.label)
+                : null;
+            fieldErrors[name] = problem ??
+                (e.message.contains('Проверьте поле')
+                    ? 'Проверьте поле «${spec.label}».'
+                    : errorText(context, e));
+            setState(()=>error=ApiException(e.code,'Проверьте выделенное поле и исправьте его.',e.status,e.details));
+            form.currentState?.validate();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final anchor = fieldAnchors[name]?.currentContext;
+              if (mounted && anchor != null) {
+                Scrollable.ensureVisible(anchor,
+                    duration: const Duration(milliseconds: 250),
+                    alignment: .15);
+                if (fieldFocus[name]?.context != null)
+                  fieldFocus[name]!.requestFocus();
+              }
+            });
+          }
+        }
         widget.onErrorChanged?.call(e);
         final seconds = e is ApiException && e.code == 'RATE_LIMITED'
             ? e.details['retry_after_seconds']
@@ -407,332 +480,363 @@ class _ActionFormState extends State<ActionForm> {
   }
 
   String countdownMessage(BuildContext context) => localize(
-    context,
-    Intl.plural(
-      cooldownSeconds,
-      locale: 'ru',
-      one: 'Слишком много попыток. Следующая попытка через {seconds} секунду.',
-      few: 'Слишком много попыток. Следующая попытка через {seconds} секунды.',
-      other: 'Слишком много попыток. Следующая попытка через {seconds} секунд.',
-    ),
-  ).replaceAll('{seconds}', '$cooldownSeconds');
+        context,
+        Intl.plural(
+          cooldownSeconds,
+          locale: 'ru',
+          one:
+              'Слишком много попыток. Следующая попытка через {seconds} секунду.',
+          few:
+              'Слишком много попыток. Следующая попытка через {seconds} секунды.',
+          other:
+              'Слишком много попыток. Следующая попытка через {seconds} секунд.',
+        ),
+      ).replaceAll('{seconds}', '$cooldownSeconds');
 
   Widget content(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(20),
-    children: [
-      if (credentialError)
-        const UiHeading('Попробуйте ещё раз', 'Проверьте номер и пароль.')
-      else
-        ...widget.before,
-      if (error != null && !credentialError)
-        Notice(errorText(context, error!), error: true),
-      for (final field in widget.fields) ...[
-        ...?widget.beforeField[field.key],
-        Padding(
-          padding: EdgeInsets.only(
-            bottom: widget.authLayout && field == widget.fields.last ? 20 : 18,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: UiText(
-                  field.label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: widget.authLayout ? 1.5 : null,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+        padding: const EdgeInsets.all(20),
+        children: [
+          if (credentialError)
+            const UiHeading('Попробуйте ещё раз', 'Проверьте номер и пароль.')
+          else
+            ...widget.before,
+          if (error != null && !credentialError)
+            Notice(errorText(context, error!), error: true),
+          for (final field in widget.fields) ...[
+            ...?widget.beforeField[field.key],
+            Padding(
+              key: fieldAnchors.putIfAbsent(field.key, () => GlobalKey()),
+              padding: EdgeInsets.only(
+                bottom:
+                    widget.authLayout && field == widget.fields.last ? 20 : 18,
               ),
-              if (field.pickerPath != null || field.referenceItems != null)
-                FormField<String>(
-                  initialValue: controllers[field.key]!.text,
-                  validator: (value) => field.required && (value ?? '').isEmpty
-                      ? localize(context, 'Выберите значение')
-                      : null,
-                  builder: (state) => InkWell(
-                    onTap: disabled
-                        ? null
-                        : () async {
-                            final result = field.referenceItems != null
-                                ? await pickReference(context, field.referenceItems!, cities: field.cityReference, initial: controllers[field.key]!.text, optional: !field.required)
-                                : await pickResource(
-                              context,
-                              field.pickerApi!,
-                              field.pickerPath!,
-                              field.pickerQuery,
-                              field.label,
-                              optional: !field.required,
-                            );
-                            if (!mounted || result == null) return;
-                            final id = result['id'] as String;
-                            controllers[field.key]!.text = id;
-                            state.didChange(id);
-                            setState(
-                              () => pickedLabels[field.key] =
-                                  result['name'] ?? result['title'] ?? id,
-                            );
-                            field.changed?.call(id);
-                          },
-                    child: InputDecorator(
-                      decoration: InputDecoration(errorText: state.errorText),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              pickedLabels[field.key] ??
-                                  field.options?[controllers[field.key]!
-                                      .text] ??
-                                  (controllers[field.key]!.text.isEmpty
-                                      ? localize(
-                                          context,
-                                          field.required
-                                              ? 'Выберите значение'
-                                              : 'Без связи с заказом',
-                                        )
-                                      : localize(context, 'Выбранный заказ')),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                          const JobaIcon('down', size: 18),
-                        ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: UiText(
+                      field.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: widget.authLayout ? 1.5 : null,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                )
-              else if (field.options != null)
-                DropdownButtonFormField<String>(
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: navy,
-                    fontFamily: 'Noto',
-                  ),
-                  icon: const JobaIcon('down', size: 18),
-                  isExpanded: true,
-                  initialValue: field.options!.containsKey(field.initial)
-                      ? field.initial
-                      : null,
-                  items: field.options!.entries
-                      .map(
-                        (e) => DropdownMenuItem(
-                          value: e.key,
-                          child: field.translateOptions
-                              ? UiText(e.value)
-                              : Text(e.value),
+                  if (field.pickerPath != null || field.referenceItems != null)
+                    FormField<String>(
+                      initialValue: controllers[field.key]!.text,
+                      validator: (value) =>
+                          fieldErrors[field.key] ??
+                          (field.required && (value ?? '').isEmpty
+                              ? localize(context, 'Выберите «${field.label}».')
+                              : null),
+                      builder: (state) => InkWell(
+                        onTap: disabled
+                            ? null
+                            : () async {
+                                final result = field.referenceItems != null
+                                    ? await pickReference(
+                                        context, field.referenceItems!,
+                                        cities: field.cityReference,
+                                        initial: controllers[field.key]!.text,
+                                        optional: !field.required)
+                                    : await pickResource(
+                                        context,
+                                        field.pickerApi!,
+                                        field.pickerPath!,
+                                        field.pickerQuery,
+                                        field.label,
+                                        optional: !field.required,
+                                      );
+                                if (!mounted || result == null) return;
+                                final id = result['id'] as String;
+                                controllers[field.key]!.text = id;
+                                state.didChange(id);
+                                setState(
+                                  () => pickedLabels[field.key] =
+                                      result['name'] ?? result['title'] ?? id,
+                                );
+                                field.changed?.call(id);
+                              },
+                        child: InputDecorator(
+                          decoration:
+                              InputDecoration(errorText: state.errorText),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  pickedLabels[field.key] ??
+                                      field.options?[
+                                          controllers[field.key]!.text] ??
+                                      (controllers[field.key]!.text.isEmpty
+                                          ? localize(
+                                              context,
+                                              field.required
+                                                  ? 'Выберите значение'
+                                                  : 'Без связи с заказом',
+                                            )
+                                          : localize(
+                                              context, 'Выбранный заказ')),
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                              const JobaIcon('down', size: 18),
+                            ],
+                          ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: disabled
-                      ? null
-                      : (v) {
-                          controllers[field.key]!.text = v ?? '';
-                          field.changed?.call(v ?? '');
-                        },
-                  validator: (v) => field.required && (v == null || v.isEmpty)
-                      ? localize(context, 'Выберите значение')
-                      : null,
-                )
-              else
-                TextFormField(
-                  controller: controllers[field.key],
-                  enabled: !disabled,
-                  onChanged: field.changed,
-                  keyboardType: field.keyboard,
-                  textInputAction: field.inputAction,
-                  autofillHints: field.autofillHints,
-                  onFieldSubmitted:
-                      field == widget.fields.last &&
-                          (widget.authLayout ||
-                              field.inputAction == TextInputAction.done)
-                      ? (_) => submit()
-                      : null,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    letterSpacing: 0,
-                    color: navy,
-                  ),
-                  maxLines: field.multiline ? field.lines : 1,
-                  obscureText: field.secret && !visible.contains(field.key),
-                  autocorrect: !field.secret,
-                  enableSuggestions: !field.secret,
-                  decoration: InputDecoration(
-                    isDense: widget.authLayout ? true : null,
-                    errorText: credentialError && field.secret
-                        ? localize(
-                            context,
-                            'Не удалось войти. Проверьте данные или обратитесь за помощью.',
-                          )
-                        : null,
-                    errorStyle: widget.loginLayout
-                        ? const TextStyle(
-                            fontSize: 11,
-                            height: 1.45,
-                            color: Color(0xFFB73838),
-                          )
-                        : null,
-                    errorMaxLines: widget.loginLayout ? 3 : null,
-                    errorBorder: widget.loginLayout
-                        ? OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFB73838),
+                      ),
+                    )
+                  else if (field.options != null)
+                    DropdownButtonFormField<String>(
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: navy,
+                        fontFamily: 'Noto',
+                      ),
+                      icon: const JobaIcon('down', size: 18),
+                      isExpanded: true,
+                      initialValue: field.options!.containsKey(field.initial)
+                          ? field.initial
+                          : null,
+                      items: field.options!.entries
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e.key,
+                              child: field.translateOptions
+                                  ? UiText(e.value)
+                                  : Text(e.value),
                             ),
                           )
-                        : null,
-                    focusedErrorBorder: widget.loginLayout
-                        ? OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFB73838),
-                              width: 2,
-                            ),
-                          )
-                        : null,
-                    enabledBorder: widget.authLayout
-                        ? OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFDCE3EE),
-                            ),
-                          )
-                        : null,
-                    constraints: widget.authLayout
-                        ? BoxConstraints(minHeight: field.secret ? 74 : 52)
-                        : field.minHeight == null
-                        ? null
-                        : BoxConstraints(minHeight: field.minHeight!),
-                    hintText: field.hint == null
-                        ? null
-                        : localize(context, field.hint!),
-                    hintStyle: const TextStyle(
-                      color: Color(0xFF627187),
-                      fontSize: 14,
-                    ),
-                    prefixIconConstraints:
-                        widget.authLayout && field.originalIcon != null
-                        ? const BoxConstraints(minWidth: 44, maxWidth: 44)
-                        : null,
-                    prefixIcon: field.originalIcon != null
-                        ? Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              14,
-                              14,
-                              widget.authLayout ? 8 : 14,
-                              14,
-                            ),
-                            child: JobaIcon(field.originalIcon!),
-                          )
-                        : field.prefixIcon == null
-                        ? null
-                        : Icon(field.prefixIcon, color: navy),
-                    contentPadding: widget.authLayout
-                        ? EdgeInsets.symmetric(
-                            horizontal: field.secret ? 11 : 14,
-                            vertical: field.secret ? 26 : 15,
-                          )
-                        : null,
-                    suffixIcon: field.secret
-                        ? Padding(
-                            padding: EdgeInsets.only(
-                              right: widget.authLayout ? 15 : 0,
-                            ),
-                            child: IconButton(
-                              tooltip: localize(
+                          .toList(),
+                      onChanged: disabled
+                          ? null
+                          : (v) {
+                              controllers[field.key]!.text = v ?? '';
+                              field.changed?.call(v ?? '');
+                            },
+                      validator: (v) =>
+                          fieldErrors[field.key] ??
+                          (field.required && (v == null || v.isEmpty)
+                              ? localize(context, 'Выберите «${field.label}».')
+                              : null),
+                    )
+                  else
+                    TextFormField(
+                      focusNode:
+                          fieldFocus.putIfAbsent(field.key, () => FocusNode()),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      controller: controllers[field.key],
+                      enabled: !disabled,
+                      onChanged: field.changed,
+                      keyboardType: field.keyboard,
+                      textInputAction: field.inputAction,
+                      autofillHints: field.autofillHints,
+                      onFieldSubmitted: field == widget.fields.last &&
+                              (widget.authLayout ||
+                                  field.inputAction == TextInputAction.done)
+                          ? (_) => submit()
+                          : null,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        letterSpacing: 0,
+                        color: navy,
+                      ),
+                      maxLines: field.multiline ? field.lines : 1,
+                      obscureText: field.secret && !visible.contains(field.key),
+                      autocorrect: !field.secret,
+                      enableSuggestions: !field.secret,
+                      decoration: InputDecoration(
+                        isDense: widget.authLayout ? true : null,
+                        errorText: credentialError && field.secret
+                            ? localize(
                                 context,
-                                visible.contains(field.key)
-                                    ? 'Скрыть пароль'
-                                    : 'Показать пароль',
-                              ),
-                              onPressed: () => setState(
-                                () => visible.contains(field.key)
-                                    ? visible.remove(field.key)
-                                    : visible.add(field.key),
-                              ),
-                              icon: visible.contains(field.key)
-                                  ? const Icon(Icons.visibility_off_outlined)
-                                  : const JobaIcon('eye'),
-                            ),
-                          )
-                        : null,
-                  ),
-                  validator: (v) {
-                    if (field.required && (v ?? '').trim().isEmpty)
-                      return localize(context, 'Заполните поле');
-                    final problem = field.validate?.call(v ?? '');
-                    return problem == null ? null : localize(context, problem);
-                  },
-                ),
-              ...?widget.afterField[field.key],
-            ],
-          ),
-        ),
-      ],
-      ...widget.afterFields,
-      if (cooldownSeconds > 0) ...[
-        Notice(
-          countdownMessage(context),
-          warning: true,
-          backgroundColor: const Color(0xFFFFF5D9),
-          textColor: const Color(0xFF7B5B18),
-          iconSize: 22,
-          icon: 'clock',
-          margin: EdgeInsets.zero,
-        ),
-        const SizedBox(height: 20),
-      ],
-      if (!widget.stickySubmit) submitButton(),
-      if (!widget.stickySubmit) SizedBox(height: widget.authLayout ? 0 : 12),
-      ...(credentialError && widget.credentialFailureAfter != null
-          ? widget.credentialFailureAfter!
-          : widget.after),
-    ],
-  );
-  Widget submitButton() => FilledButton(
-    style: widget.authLayout ? FilledButton.styleFrom(
-        disabledBackgroundColor: line,
-        disabledForegroundColor: const Color(0xFF738095)) : null,
-    onPressed: disabled || cooldownSeconds > 0 || !widget.submitEnabled
-        ? null
-        : submit,
-    child: disabled
-        ? SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: widget.authLayout ? const Color(0xFF738095) : Colors.white,
+                                'Не удалось войти. Проверьте данные или обратитесь за помощью.',
+                              )
+                            : null,
+                        errorStyle: widget.loginLayout
+                            ? const TextStyle(
+                                fontSize: 11,
+                                height: 1.45,
+                                color: Color(0xFFB73838),
+                              )
+                            : null,
+                        errorMaxLines: 5,
+                        errorBorder: widget.loginLayout
+                            ? OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFB73838),
+                                ),
+                              )
+                            : null,
+                        focusedErrorBorder: widget.loginLayout
+                            ? OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFB73838),
+                                  width: 2,
+                                ),
+                              )
+                            : null,
+                        enabledBorder: widget.authLayout
+                            ? OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFDCE3EE),
+                                ),
+                              )
+                            : null,
+                        constraints: widget.authLayout
+                            ? BoxConstraints(minHeight: field.secret ? 74 : 52)
+                            : field.minHeight == null
+                                ? null
+                                : BoxConstraints(minHeight: field.minHeight!),
+                        hintText: field.hint == null
+                            ? null
+                            : localize(context, field.hint!),
+                        hintStyle: const TextStyle(
+                          color: Color(0xFF627187),
+                          fontSize: 14,
+                        ),
+                        prefixIconConstraints: widget.authLayout &&
+                                field.originalIcon != null
+                            ? const BoxConstraints(minWidth: 44, maxWidth: 44)
+                            : null,
+                        prefixIcon: field.originalIcon != null
+                            ? Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  14,
+                                  14,
+                                  widget.authLayout ? 8 : 14,
+                                  14,
+                                ),
+                                child: JobaIcon(field.originalIcon!),
+                              )
+                            : field.prefixIcon == null
+                                ? null
+                                : Icon(field.prefixIcon, color: navy),
+                        contentPadding: widget.authLayout
+                            ? EdgeInsets.symmetric(
+                                horizontal: field.secret ? 11 : 14,
+                                vertical: field.secret ? 26 : 15,
+                              )
+                            : null,
+                        suffixIcon: field.secret
+                            ? Padding(
+                                padding: EdgeInsets.only(
+                                  right: widget.authLayout ? 15 : 0,
+                                ),
+                                child: IconButton(
+                                  tooltip: localize(
+                                    context,
+                                    visible.contains(field.key)
+                                        ? 'Скрыть пароль'
+                                        : 'Показать пароль',
+                                  ),
+                                  onPressed: () => setState(
+                                    () => visible.contains(field.key)
+                                        ? visible.remove(field.key)
+                                        : visible.add(field.key),
+                                  ),
+                                  icon: visible.contains(field.key)
+                                      ? const Icon(
+                                          Icons.visibility_off_outlined)
+                                      : const JobaIcon('eye'),
+                                ),
+                              )
+                            : null,
+                      ),
+                      validator: (v) {
+                        if (fieldErrors[field.key] != null)
+                          return fieldErrors[field.key];
+                        if (field.required && (v ?? '').trim().isEmpty)
+                          return localize(
+                              context,
+                              widget.authLayout
+                                  ? 'Заполните поле'
+                                  : 'Заполните поле «${field.label}».');
+                        final problem = field.validate?.call(v ?? '');
+                        return problem == null
+                            ? null
+                            : localize(context, problem);
+                      },
+                    ),
+                  ...?widget.afterField[field.key],
+                ],
+              ),
             ),
-          )
-        : cooldownSeconds > 0
-        ? Text(
-            '${localize(context, 'Повторить через')} ${(cooldownSeconds ~/ 60).toString().padLeft(2, '0')}:${(cooldownSeconds % 60).toString().padLeft(2, '0')}',
-          )
-        : UiText(credentialError ? 'Повторить' : widget.button),
-  );
+          ],
+          ...widget.afterFields,
+          if (cooldownSeconds > 0) ...[
+            Notice(
+              countdownMessage(context),
+              warning: true,
+              backgroundColor: const Color(0xFFFFF5D9),
+              textColor: const Color(0xFF7B5B18),
+              iconSize: 22,
+              icon: 'clock',
+              margin: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 20),
+          ],
+          if (!widget.stickySubmit) submitButton(),
+          if (!widget.stickySubmit)
+            SizedBox(height: widget.authLayout ? 0 : 12),
+          ...(credentialError && widget.credentialFailureAfter != null
+              ? widget.credentialFailureAfter!
+              : widget.after),
+        ],
+      );
+  Widget submitButton() => FilledButton(
+        style: widget.authLayout
+            ? FilledButton.styleFrom(
+                disabledBackgroundColor: line,
+                disabledForegroundColor: const Color(0xFF738095))
+            : null,
+        onPressed: disabled || cooldownSeconds > 0 || !widget.submitEnabled
+            ? null
+            : submit,
+        child: disabled
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: widget.authLayout
+                      ? const Color(0xFF738095)
+                      : Colors.white,
+                ),
+              )
+            : cooldownSeconds > 0
+                ? Text(
+                    '${localize(context, 'Повторить через')} ${(cooldownSeconds ~/ 60).toString().padLeft(2, '0')}:${(cooldownSeconds % 60).toString().padLeft(2, '0')}',
+                  )
+                : UiText(credentialError ? 'Повторить' : widget.button),
+      );
   @override
   Widget build(BuildContext context) => Form(
-    key: form,
-    child: widget.stickySubmit
-        ? Column(
-            children: [
-              Expanded(child: content(context)),
-              SafeArea(
-                top: false,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(top: BorderSide(color: line)),
+        key: form,
+        child: widget.stickySubmit
+            ? Column(
+                children: [
+                  Expanded(child: content(context)),
+                  SafeArea(
+                    top: false,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(top: BorderSide(color: line)),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                      child: submitButton(),
+                    ),
                   ),
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                  child: submitButton(),
-                ),
-              ),
-            ],
-          )
-        : content(context),
-  );
+                ],
+              )
+            : content(context),
+      );
 }
 
 class DataCard extends StatelessWidget {
@@ -1025,7 +1129,8 @@ class _SearchListingsState extends State<SearchListings> {
     search.text = query;
   }
 
-  void changed() => widget.onFiltersChanged?.call({...filters, if(query.isNotEmpty) 'q':query});
+  void changed() => widget.onFiltersChanged
+      ?.call({...filters, if (query.isNotEmpty) 'q': query});
 
   Future<void> chooseFilters() async {
     final result = await Navigator.push<Json>(
@@ -1138,7 +1243,10 @@ class _SearchListingsState extends State<SearchListings> {
                       onChanged: (v) {
                         debounce?.cancel();
                         debounce = Timer(const Duration(milliseconds: 300), () {
-                          if (mounted) {setState(() => query = v.trim());changed();}
+                          if (mounted) {
+                            setState(() => query = v.trim());
+                            changed();
+                          }
                         });
                       })),
               if (widget.path != '/orders') ...[
@@ -1182,7 +1290,12 @@ class _SearchListingsState extends State<SearchListings> {
                     child: Text(filters['city'] ??
                         localize(context, 'Выбрана категория'))),
                 TextButton(
-                    onPressed: choosing ? null : () {setState(() => filters = {});changed();},
+                    onPressed: choosing
+                        ? null
+                        : () {
+                            setState(() => filters = {});
+                            changed();
+                          },
                     child: const UiText('Сбросить'))
               ])),
         Expanded(
