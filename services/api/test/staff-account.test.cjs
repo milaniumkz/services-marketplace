@@ -42,11 +42,13 @@ test('staff account tabs scope relations, mask security metadata and page immuta
   const foreign=await put('user',{status:'active'},'KG');await assert.rejects(()=>get('orders',{},foreign.id),e=>e.getStatus()===404);
   await assert.rejects(()=>call(owner,'GET','/admin/users/'+owner.user.id+'/orders'),e=>e.getStatus()===403);
   await put('security_event',{event:'test.login',ip:'192.0.2.42',session_family:'private-session-id'});
-  await assert.rejects(()=>get('security-events'),e=>e.getStatus()===400);
+  assert.ok(Array.isArray((await get('security-events')).items));
   await assert.rejects(()=>get('security-events',{reason:'             '}),e=>e.getStatus()===400);
   await assert.rejects(()=>call(staff,'GET','/admin/users/'+owner.user.id,{}, {include_phone:'true',reason:'             '}),e=>e.getStatus()===400);
-  const events=await get('security-events',{reason:'Investigation of account access'});
+  assert.equal((await call(staff,'GET','/admin/users/'+owner.user.id,{}, {include_phone:'true'})).phone,owner.user.phone);
+  const events=await get('security-events');
   const event=events.items.find(r=>r.event==='test.login');assert.equal(event.ip_summary,'192.0.*.*');assert.equal(event.ip,undefined);assert.equal(event.session_family,undefined);
+  assert.equal((await call(staff,'POST','/admin/security-events/'+event.id+'/disclose')).ip,'192.0.2.42');
   assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='security.events_read'&&r.target_id===owner.user.id));
  }finally{await api.store.close();}
 });

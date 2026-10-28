@@ -30,11 +30,11 @@ test('staff review protects document references, regional data and sensitive rea
   await rejected(()=>call(staff,'GET','/admin/verifications/'+foreign),'NOT_FOUND');
   await rejected(()=>call(staff,'GET',path,{}, {include_documents:'true',reason:'Проверка документов по заявке'}),'FORBIDDEN');
   await api.store.put({...await api.store.get(user.id),staff_permissions:['verification_reviewer','identity_view']});
-  await rejected(()=>call(staff,'GET',path,{}, {include_documents:'true'}),'VALIDATION_ERROR');
+  assert.deepEqual((await call(staff,'GET',path,{}, {include_documents:'true'})).document_refs,[file]);
   assert.deepEqual((await call(staff,'GET',path,{}, {include_documents:'true',reason:'Проверка документов по заявке'})).document_refs,[file]);
   assert.ok((await api.store.all('audit','KZ')).some(x=>x.action==='verification.documents_read'));
   await rejected(()=>call(staff,'POST',path+'/decision',{expected_version:1,document_revision:1,decision:'rejected',reason:'Документ не соответствует правилам'}),'STATE_CONFLICT');
-  await call(staff,'POST',path+'/decision',{expected_version:1,document_revision:2,decision:'rejected',reason:'Документ не соответствует правилам'});
+  await call(staff,'POST',path+'/decision',{expected_version:1,document_revision:2,decision:'rejected'});
   assert.equal((await api.store.get(owner.user.id)).verification,'rejected');
   const notice=(await call(owner,'GET','/me/notifications')).items.find(x=>x.type==='verification.updated');assert.equal(notice.target_id,id);assert.equal((await call(owner,'GET','/me/verification')).items[0].reviewer_id,undefined);
   const otherId=randomUUID();await api.store.put({...base,id:otherId,country:'KZ',status:'draft',document_refs:[]});

@@ -104,20 +104,18 @@ async function main(){
   assert.equal(await page.getByRole('button',{name:'Навигация',exact:true}).isVisible(),false);
   // Real UI -> isolated API: contact read and account commands must work without guessing a reason field.
   await page.goto(frontend+'/#record-live/users/'+subjectId);await page.locator('#sensitive-read').waitFor();
-  assert((await page.locator('#sensitive-read [name=reason]').inputValue()).length>=10);
+  assert.equal(await page.locator('#sensitive-read [name=reason]').count(),0);
   await page.getByRole('button',{name:'Показать телефон',exact:true}).click();
   await page.locator('#sensitive-result').getByText('Телефон: +77000000123',{exact:true}).waitFor();
-  page.on('dialog',dialog=>dialog.accept());
+  page.on('dialog',dialog=>{throw Error('Account actions must not open confirmation dialogs');});
   for(const action of ['block','unblock']){
-    await page.locator('#account-action [name=action]').selectOption(action);
-    assert((await page.locator('#account-action [name=reason]').inputValue()).length>=10);
+    assert.equal(await page.locator('#account-action [name=reason]').count(),0);
     assert.equal(await page.locator('#account-action [name=confirmation]').count(),0);
-    await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/users/'+subjectId+'/'+action)&&r.status()===200),page.locator('#account-action button').click()]);
+    await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/users/'+subjectId+'/'+action)&&r.status()===200),page.locator('#account-action button[value='+action+']').click()]);
     await page.waitForLoadState('networkidle');await page.locator('#account-action').waitFor();
     assert.equal((await api.store.get(subjectId)).status,action==='block'?'blocked':'active');
   }
-  await page.locator('#account-action [name=action]').selectOption('delete');
-  await page.locator('#account-action [name=reason]').fill('Удаление тестового аккаунта по запросу владельца');
+  assert.equal(await page.locator('#account-action input, #account-action textarea, #account-action select').count(),0);
   assert.equal(await page.locator('#account-action [name=confirmation]').count(),0);
   await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/users/'+subjectId+'/delete')&&r.status()===200),page.locator('#account-action').getByRole('button',{name:'Удалить аккаунт',exact:true}).click()]);
   await page.waitForURL('**/#users');

@@ -75,6 +75,7 @@ const text = (b: any, name: string, min: number, max: number) => {
   const v=b?.[name]; if (typeof v !== 'string' || v.trim().length<min || v.length>max) fail(400,'VALIDATION_ERROR',name==='reason'?`Укажите причину: от ${min} до ${max} символов.`:`Проверьте поле ${name}`,{field:name,min,max});
   return v.trim();
 };
+const staffReason = (input:any, fallback:string) => input?.reason===undefined||input.reason===null||input.reason===''?fallback:text(input,'reason',3,1000);
 const password = (b: any, name: string,min=6) => {
   const v=b?.[name];if(typeof v!=='string'||v.length<min||v.length>128)fail(400,'VALIDATION_ERROR',`Пароль должен содержать от ${min} до 128 символов`,{min_length:min,max_length:128});
   return v;
@@ -1298,7 +1299,7 @@ export class Marketplace {
       const vd=path.match(/^\/admin\/verifications\/([^/]+)\/decision$/);
       if(vd&&method==='POST') {
         const r=await this.object(vd[1],a,'verification');this.version(r,b);if(!(['passed','rejected'].includes(b.decision)&&r.status==='pending_review'||b.decision==='revoked'&&r.status==='passed')||b.document_revision!==r.document_revision)fail(409,'STATE_CONFLICT','Ревизия документа изменилась');
-        if(!['passed','rejected','revoked'].includes(b.decision))fail(400,'VALIDATION_ERROR','Недопустимое решение');const reason=text(b,'reason',10,1000);
+        if(!['passed','rejected','revoked'].includes(b.decision))fail(400,'VALIDATION_ERROR','Недопустимое решение');const reason=staffReason(b,'Решение администратора по проверке личности');
         const u=(await this.store.get(r.owner))!;
         if(b.decision==='passed'&&(r.selfie_index!==2||r.document_refs?.length!==3))fail(422,'VERIFICATION_PHOTOS_REQUIRED','Нужны две стороны удостоверения и селфи. Запросите новую заявку.');
         let avatarId=u.avatar_id;
@@ -1338,11 +1339,11 @@ export class Marketplace {
           const history=subject?(await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='verification' AND country=$1 AND owner=$2 ORDER BY data->>'created_at' DESC,id LIMIT 20",[a.country,r.owner])).rows.map(({data:v})=>({id:v.id,status:v.status,document_type:v.document_type,created_at:v.created_at,decided_at:v.decided_at,expires_at:v.expires_at,reason:v.reason,reviewer_id:v.reviewer_id,document_revision:v.document_revision})):[];
           const detail:any={...safe,subject,history,history_limit:20};
           if(q.include_phone==='true') {
-            await this.staff(a,'phone_view');const reason=text(q,'reason',10,1000);
+            await this.staff(a,'phone_view');const reason=staffReason(q,'Просмотр телефона администратором');
             if(subject){await this.audit(a,'user.phone_read',subject.id,reason);detail.subject={...subject,phone:owner!.phone};}
           }
           if(q.include_documents==='true') {
-            await this.staff(a,'identity_view');const reason=text(q,'reason',10,1000);
+            await this.staff(a,'identity_view');const reason=staffReason(q,'Просмотр документов администратором');
             await this.audit(a,'verification.documents_read',r.id,reason);
             return {...detail,document_refs,document_labels:r.required_pages??[],selfie_index:r.selfie_index??null};
           }
@@ -1377,12 +1378,12 @@ export class Marketplace {
       const userDetail=path.match(/^\/admin\/users\/([^/]+)$/);
       const securityEvents=path.match(/^\/admin\/users\/([^/]+)\/security-events$/);
       if(securityEvents&&method==='GET') {
-        await this.staff(a,'security');const u=await this.object(securityEvents[1],a,'user');const reason=text(q,'reason',10,1000);
+        await this.staff(a,'security');const u=await this.object(securityEvents[1],a,'user');const reason=staffReason(q,'Просмотр событий безопасности администратором');
         await this.audit(a,'security.events_read',u.id,reason);const page=await this.page('security_event',a,{...q,_subject:u.id},{owner:u.id});return {...page,items:page.items.map(securityEventSummary)};
       }
       if(userDetail&&method==='GET'){
         const u=await this.object(userDetail[1],a,'user');const result:any={...safeUser(u),status:u.status,version:u.version};
-        if(q.include_phone==='true'){await this.staff(a,'phone_view');const reason=text(q,'reason',10,1000);await this.audit(a,'user.phone_read',u.id,reason);result.phone=u.phone;result.phone_status='unverified';}
+        if(q.include_phone==='true'){await this.staff(a,'phone_view');const reason=staffReason(q,'Просмотр телефона администратором');await this.audit(a,'user.phone_read',u.id,reason);result.phone=u.phone;result.phone_status='unverified';}
         return result;
       }
       if(path==='/admin/recovery-threads'&&method==='GET')return this.list((await this.store.all('recovery',a.country)).map(({capability_hash,...r})=>r),q);
@@ -1428,7 +1429,7 @@ export class Marketplace {
         const u=await this.object(accountAction[1],a,'user');this.version(u,b);
         if(u.id===a.id||u.staff_permissions?.length)fail(403,'FORBIDDEN','Управление служебными аккаунтами выполняется в разделе сотрудников');
         if(u.status==='deleted')fail(409,'STATE_CONFLICT','Аккаунт уже удалён');
-        const action=accountAction[2],reason=text(b,'reason',action==='delete'?3:10,1000);
+        const action=accountAction[2],reason=staffReason(b,({block:'Блокировка аккаунта администратором',unblock:'Разблокировка аккаунта администратором',delete:'Удаление аккаунта администратором'} as Record<string,string>)[action]);
         if(action==='delete') {
           const pending=(await this.store.select('privacy',a.country,{owner:u.id,limit:100})).find(r=>r.type==='delete'&&!['canceled','rejected','limited_retention','completed'].includes(r.status));
           const request=pending??await this.store.put(this.record('privacy',{id:u.id,country:u.country},{type:'delete',status:'requested',requested_by:a.id,reason}));
@@ -1567,7 +1568,7 @@ export class Marketplace {
         await this.audit(a,'dictionary.dry_run',d.id,reason);return {dictionary_id:d.id,version:d.version,surface:b.surface,hits,matched:hits.length>0,mutated_content:false};
       }
       const securityDetail=path.match(/^\/admin\/security-events\/([^/]+)\/disclose$/);
-      if(securityDetail&&method==='POST'){const r=await this.object(securityDetail[1],a,'security_event');const reason=text(b,'reason',10,1000);await this.audit(a,'security.event_disclosed',r.id,reason);return {...securityEventSummary(r),ip:r.ip??null,user_agent:r.user_agent??null};}
+      if(securityDetail&&method==='POST'){const r=await this.object(securityDetail[1],a,'security_event');const reason=staffReason(b,'Просмотр полного IP администратором');await this.audit(a,'security.event_disclosed',r.id,reason);return {...securityEventSummary(r),ip:r.ip??null,user_agent:r.user_agent??null};}
       const blacklistDetail=path.match(/^\/admin\/blacklist\/([^/]+)$/);
       if(blacklistDetail&&method==='GET'){const r=await this.object(blacklistDetail[1],a,'blacklist');return {id:r.id,user_id:r.user_id,case_id:r.case_id,status:r.status,scope:r.scope,reason:r.reason,ends_at:r.ends_at,created_at:r.created_at,version:r.version};}
       const dictionaryCommand=path.match(/^\/admin\/moderation-dictionaries\/([^/]+)\/(validate|preview|publish)$/);
@@ -1794,7 +1795,7 @@ export class Marketplace {
     if(u.purpose==='banner'){await this.staff(a,'campaign');return;}
     if(u.purpose==='brand'){if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.some((p:string)=>['content','brand_owner','release','administrator'].includes(p)))fail(403,'FORBIDDEN','Нужны служебные права брендинга и MFA');return;}
     if(u.purpose==='identity') {
-      await this.staff(a,'identity_view');if(!q.reason||String(q.reason).length<10)fail(400,'VALIDATION_ERROR','Требуется служебная причина просмотра');await this.audit(a,'identity.sensitive_read',u.id,String(q.reason));
+      await this.staff(a,'identity_view');await this.audit(a,'identity.sensitive_read',u.id,staffReason(q,'Просмотр фотографии документа администратором'));
     }else if(u.owner!==a.id) {
       const related=(await this.store.all('message',a.country)).find(m=>!m.tombstone&&!['quarantined','hidden','rejected'].includes(m.moderation_status)&&m.upload_ids?.includes(u.id));const c=related?await this.store.get(related.thread_id):undefined;
       if(c?.members.includes(a.id))return;
@@ -1806,13 +1807,13 @@ export class Marketplace {
       const linkedCase=caseMessage?await this.store.get(caseMessage.case_id):(await this.store.all('case',a.country)).find(c=>[...c.upload_ids??[],...c.appeal_upload_ids??[],...c.target_snapshot?.upload_ids??[],...c.target_snapshot?.completion_upload_ids??[],...c.target_snapshot?.gallery_ids??[],...c.target_snapshot?.photos??[],...(c.target_snapshot?.avatar_id?[c.target_snapshot.avatar_id]:[])].includes(u.id));
       if(linkedCase){
         if(linkedCase.upload_ids?.includes(u.id)&&(linkedCase.owner===a.id||!linkedCase.reporter_private&&linkedCase.subject_user_id===a.id))return;
-        if(a.mfa&&(a.user.staff_permissions?.includes('moderator')||a.user.staff_permissions?.includes('administrator'))){await this.staff(a,'moderator');const reason=text(q,'reason',10,1000);await this.audit(a,'case.evidence_read',u.id,reason);return;}
+        if(a.mfa&&(a.user.staff_permissions?.includes('moderator')||a.user.staff_permissions?.includes('administrator'))){await this.staff(a,'moderator');const reason=staffReason(q,'Просмотр фотографии администратором');await this.audit(a,'case.evidence_read',u.id,reason);return;}
       }
       if(u.purpose==='portfolio') {
         if(a.mfa&&(a.user.staff_permissions?.includes('content')||a.user.staff_permissions?.includes('administrator'))) {
           const projects=await this.store.all('portfolio',a.country),profiles=await this.store.all('contractor',a.country);
           const linked=[...projects,...profiles].some(r=>r.owner===u.owner&&r.status!=='archived'&&[...r.photos??[],...r.gallery_ids??[],...r.draft?.photos??[],...r.draft?.gallery_ids??[]].includes(u.id));
-          if(linked){await this.staff(a,'content');const reason=text(q,'reason',10,1000);await this.audit(a,'content.media_read',u.id,reason);return;}
+          if(linked){await this.staff(a,'content');const reason=staffReason(q,'Просмотр фотографии администратором');await this.audit(a,'content.media_read',u.id,reason);return;}
         }
         const project=(await this.store.all('portfolio',a.country)).find(p=>p.status==='published'&&!['quarantined','hidden','rejected'].includes(p.moderation_status)&&p.photos?.includes(u.id));
         const profile=(await this.store.all('contractor',a.country)).find(p=>p.owner===u.owner&&p.status==='published'&&!['quarantined','hidden','rejected'].includes(p.moderation_status)&&(project||p.gallery_ids?.includes(u.id)));
@@ -1827,7 +1828,7 @@ export class Marketplace {
       }
       if(u.purpose==='avatar') {
         const user=await this.store.get(u.owner);
-        if(a.mfa&&user?.avatar_id===u.id&&user.status!=='deleted'&&(a.user.staff_permissions?.includes('content')||a.user.staff_permissions?.includes('administrator'))){await this.staff(a,'content');const reason=text(q,'reason',10,1000);await this.audit(a,'content.avatar_read',u.id,reason);return;}if(user?.status==='active'&&user.avatar_id===u.id&&!await this.blocked(a,u.owner)){await this.entitlement(a,'search_full');return;}
+        if(a.mfa&&user?.avatar_id===u.id&&user.status!=='deleted'&&(a.user.staff_permissions?.includes('content')||a.user.staff_permissions?.includes('administrator'))){await this.staff(a,'content');const reason=staffReason(q,'Просмотр фотографии администратором');await this.audit(a,'content.avatar_read',u.id,reason);return;}if(user?.status==='active'&&user.avatar_id===u.id&&!await this.blocked(a,u.owner)){await this.entitlement(a,'search_full');return;}
       }
       fail(404,'NOT_FOUND','Файл недоступен');
     }
