@@ -44,3 +44,5 @@ test('existing action-only Operator gets reachable lists and detail, staff direc
  await a.store.put({...await a.store.get(employee.id),status:'deleted'});assert.ok(!(await call(boss.access_token,'GET','/admin/access/staff')).items.some(u=>u.id===employee.id));
  }finally{await a.store.close();}
 });
+
+test('nested legal operations include their real collection path, without sibling sensitive reads',()=>{const {completeStaffGrants}=require('../dist/staff-access');const {staffOperations}=require('../dist/staff-operation-catalog');const op=staffOperations.find(o=>o.path.startsWith('/admin/legal/documents/')&&o.method==='POST');assert.ok(op);const grants=completeStaffGrants([op.id]);assert.ok(grants.includes('GET /admin/legal/documents'));assert.ok(!grants.includes('sensitive.identity'));assert.ok(!grants.includes('GET /admin/users'));});

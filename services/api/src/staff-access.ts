@@ -13,8 +13,8 @@ const ids=new Set<string>([...staffOperations.map(x=>x.id),...extra.map(x=>x.id)
 export function completeStaffGrants(input:string[]){
  const grants=new Set(input);
  for(const id of input){const op=staffOperations.find(o=>o.id===id);if(!op)continue;
-  const root=op.path.split('/').slice(0,3).join('/');
-  for(const read of ['GET '+root,...(op.path.startsWith(root+'/{id}')?['GET '+root+'/{id}']:[])])if(ids.has(read))grants.add(read);
+  const parts=op.path.split('/');
+  for(let depth=3;depth<=parts.length;depth++){const read='GET '+parts.slice(0,depth).join('/');if(ids.has(read))grants.add(read);}
  }
  return [...grants];
 }
