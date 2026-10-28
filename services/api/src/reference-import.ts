@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {Store,RecordData} from './store';
 import {referenceId} from './reference-data';
 import {categoryId} from './category-payload';
@@ -30,7 +30,7 @@ export async function normalizeKazakhstanRegions(store:Store){
   if(!Object.keys(patch).length)continue;
   await store.put({...row,...patch,version:row.version+1});changed++;
  }
- if(changed){const id=referenceId('joba:kz-regions-normalization:20261028'),prior=await store.get(id);await store.put({id,kind:'audit',owner:'system',country:'KZ',version:prior?prior.version+1:1,created_at:prior?.created_at??new Date().toISOString(),action:'reference.kz_regions_normalized',actor_id:'system',reason:'По поручению владельца: Астана, Алматы, Шымкент перед областями; Байконур не является отдельным регионом списка',changed});}
+ if(changed){const id=randomUUID();await store.put({id,kind:'audit',owner:'system',country:'KZ',version:1,created_at:new Date().toISOString(),action:'reference.kz_regions_normalized',actor_id:'system',reason:'По поручению владельца: Астана, Алматы, Шымкент перед областями; Байконур не является отдельным регионом списка',changed});}
  return changed;
 }
 export async function importReferenceDataset(store:Store,dataset=referenceDataset()){

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'server_clock.dart';
+import 'session_refresh_lock.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -146,7 +147,14 @@ class JobaApi extends ChangeNotifier {
   Future<void> refresh() {
     if (_refreshing != null) return _refreshing!;
     late Future<void> pending;
-    pending = _rotate().whenComplete(() {
+    final owner = session?['user']?['id'] ?? 'unknown',
+        generation = _generation;
+    pending = withSessionRefreshLock('joba.refresh:$base:$owner', () async {
+      if (generation != _generation || disposed) {
+        throw ApiException('TOKEN_EXPIRED', 'Сессия изменилась', 401);
+      }
+      await _rotate();
+    }).whenComplete(() {
       if (identical(_refreshing, pending)) _refreshing = null;
     });
     _refreshing = pending;
@@ -155,23 +163,72 @@ class JobaApi extends ChangeNotifier {
 
   Future<void> _rotate() async {
     final generation = _generation;
+    if (disposed) return;
+    if (persistSession) {
+      final saved = await vault.read();
+      if (generation != _generation || disposed) {
+        throw ApiException('TOKEN_EXPIRED', 'Сессия изменилась', 401);
+      }
+      if (saved != null) {
+        Json? latest;
+        try {
+          final value = jsonDecode(saved);
+          if (value is Map) latest = Map<String, dynamic>.from(value);
+        } catch (_) {}
+        if (latest?['user']?['id'] != null &&
+            session?['user']?['id'] != null &&
+            latest!['user']['id'] != session!['user']['id']) {
+          await forget(expired: true);
+          throw ApiException(
+              'SESSION_SUPERSEDED', 'В другом окне открыт другой аккаунт', 409);
+        }
+        if (latest?['user']?['id'] == session?['user']?['id'] &&
+            latest?['refresh_token'] != null) {
+          if (latest!['refresh_token'] != session?['refresh_token']) {
+            await _save(latest, generation);
+            return;
+          }
+          if (latest['refresh_request_id'] is String)
+            session = {
+              ...session!,
+              'refresh_request_id': latest['refresh_request_id']
+            };
+        }
+      }
+    }
     final token = session?['refresh_token'];
     if (token == null) {
       if (authenticated) await forget(expired: true);
       throw ApiException('TOKEN_EXPIRED', 'Войдите в аккаунт', 401);
     }
     try {
+      final requestId = session?['refresh_request_id'] is String
+          ? session!['refresh_request_id'] as String
+          : uuid.v4();
+      session = {...session!, 'refresh_request_id': requestId};
+      await _vaultOperation(() async {
+        if (persistSession && generation == _generation)
+          await vault.write(jsonEncode(session));
+      });
+      if (generation != _generation || disposed) {
+        throw ApiException('TOKEN_EXPIRED', 'Сессия изменилась', 401);
+      }
       final result = await request('/auth/refresh',
-          method: 'POST', body: {'refresh_token': token}, authenticated: false);
+          method: 'POST',
+          body: {'refresh_token': token, 'request_id': requestId},
+          authenticated: false);
       await _save(result as Json, generation);
     } on ApiException catch (e) {
-      if (e.status == 401 && generation == _generation)
-        await forget(expired: true);
+      if (e.status == 401 &&
+          generation == _generation &&
+          ['TOKEN_EXPIRED', 'UNAUTHENTICATED', 'REFRESH_REPLAY']
+              .contains(e.code)) await forget(expired: true);
       rethrow;
     }
   }
 
   Future<void> forget({bool expired = false}) async {
+    final previousOwner = session?['user']?['id'];
     _sessionExpired = expired;
     _generation++;
     _refreshing = null;
@@ -179,7 +236,18 @@ class JobaApi extends ChangeNotifier {
     _pendingReads.clear();
     _retryKeys.clear();
     _pendingUploads.clear();
-    await _vaultOperation(vault.clear);
+    await _vaultOperation(() async {
+      final saved = await vault.read();
+      if (previousOwner != null && saved != null) {
+        try {
+          final value = jsonDecode(saved);
+          if (value is Map &&
+              value['user'] is Map &&
+              value['user']['id'] != previousOwner) return;
+        } catch (_) {}
+      }
+      await vault.clear();
+    });
     persistSession = true;
     if (!disposed) notifyListeners();
   }
@@ -246,6 +314,7 @@ class JobaApi extends ChangeNotifier {
   Future<dynamic> _send(
       Uri uri, String method, Json? body, String? key, bool authenticated,
       {bool rotated = false,
+      int authRetries = 0,
       String? capability,
       int? sessionGeneration}) async {
     final generation = sessionGeneration ?? _generation;
@@ -254,11 +323,12 @@ class JobaApi extends ChangeNotifier {
           'SESSION_SUPERSEDED', 'Сессия изменилась. Повторите вход', 401);
     if (authenticated && !this.authenticated)
       throw ApiException('TOKEN_EXPIRED', 'Войдите в аккаунт', 401);
+    final sentAccessToken = accessToken;
     final request = http.Request(method, uri)..followRedirects = false;
     request.headers.addAll({
       'Accept': 'application/json',
       'Content-Type': 'application/json',
-      if (authenticated) 'Authorization': 'Bearer $accessToken',
+      if (authenticated) 'Authorization': 'Bearer $sentAccessToken',
       if (capability != null) 'Authorization': 'Bearer $capability',
       if (key != null) 'Idempotency-Key': key
     });
@@ -296,6 +366,20 @@ class JobaApi extends ChangeNotifier {
         authenticated &&
         capability == null &&
         errorCode == 'TOKEN_EXPIRED' &&
+        sentAccessToken != accessToken) {
+      if (authRetries >= 3)
+        throw ApiException(
+            'SESSION_UPDATING', 'Сессия обновляется. Повторите действие.', 503);
+      return _send(uri, method, body, key, authenticated,
+          rotated: rotated,
+          authRetries: authRetries + 1,
+          capability: capability,
+          sessionGeneration: generation);
+    }
+    if (response.statusCode == 401 &&
+        authenticated &&
+        capability == null &&
+        errorCode == 'TOKEN_EXPIRED' &&
         !rotated) {
       await refresh();
       return _send(uri, method, body, key, authenticated,
@@ -319,6 +403,17 @@ class JobaApi extends ChangeNotifier {
     final timestamp = metadata is Map ? metadata['server_time'] : null;
     if (timestamp is String) serverTime = timestamp;
     return decoded['data'];
+  }
+
+  String? _authCode(String body) {
+    try {
+      final value = jsonDecode(body);
+      return value is Map && value['error'] is Map
+          ? value['error']['code'] as String?
+          : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Json> upload(Uint8List bytes, String mime, String purpose,
@@ -359,12 +454,14 @@ class JobaApi extends ChangeNotifier {
     final id = current['id'];
     if (current['status'] == 'initiated') {
       final key = uuid.v4();
+      String? uploadAccessToken;
       Future<http.Response> put() async {
         checkSession();
+        uploadAccessToken = accessToken;
         final request = http.Request('PUT', url('/uploads/$id/content'))
           ..followRedirects = false;
         request.headers.addAll({
-          'Authorization': 'Bearer $accessToken',
+          'Authorization': 'Bearer $uploadAccessToken',
           'Content-Type': 'application/octet-stream',
           'Idempotency-Key': key
         });
@@ -383,9 +480,14 @@ class JobaApi extends ChangeNotifier {
 
       var response = await put();
       checkSession();
-      if (response.statusCode == 401) {
-        await refresh();
+      for (var attempt = 0;
+          response.statusCode == 401 && attempt < 3;
+          attempt++) {
+        final error = _authCode(response.body);
+        if (error != 'TOKEN_EXPIRED') break;
+        if (uploadAccessToken == accessToken) await refresh();
         response = await put();
+        checkSession();
       }
       checkSession();
       if (response.statusCode != 200 && response.statusCode != 201) {
@@ -439,10 +541,11 @@ class JobaApi extends ChangeNotifier {
     }
 
     guard();
+    final sentAccessToken = accessToken;
     final req =
         http.Request('GET', url('/uploads/$id/download', {'variant': variant}))
           ..followRedirects = false
-          ..headers['Authorization'] = 'Bearer $accessToken';
+          ..headers['Authorization'] = 'Bearer $sentAccessToken';
     late http.Response response;
     try {
       response = await transport
@@ -455,8 +558,10 @@ class JobaApi extends ChangeNotifier {
       throw ApiException('OFFLINE', 'Нет соединения с сервером');
     }
     guard();
-    if (response.statusCode == 401 && !rotated) {
-      await refresh();
+    if (response.statusCode == 401 &&
+        !rotated &&
+        _authCode(response.body) == 'TOKEN_EXPIRED') {
+      if (sentAccessToken == accessToken) await refresh();
       guard();
       return download(id,
           rotated: true, variant: variant, sessionGeneration: generation);
@@ -479,9 +584,10 @@ class JobaApi extends ChangeNotifier {
     }
 
     guard();
+    final sentAccessToken = accessToken;
     final request = http.Request('GET', url('/uploads/$id/download'))
       ..followRedirects = false
-      ..headers['Authorization'] = 'Bearer $accessToken';
+      ..headers['Authorization'] = 'Bearer $sentAccessToken';
     late http.StreamedResponse response;
     try {
       response =
@@ -498,8 +604,12 @@ class JobaApi extends ChangeNotifier {
       rethrow;
     }
     if (response.statusCode == 401 && !rotated) {
-      await response.stream.drain<void>().timeout(const Duration(seconds: 30));
-      await refresh();
+      final body = await response.stream
+          .bytesToString()
+          .timeout(const Duration(seconds: 30));
+      if (_authCode(body) != 'TOKEN_EXPIRED')
+        throw ApiException('DOWNLOAD_UNAVAILABLE', 'Файл недоступен', 401);
+      if (sentAccessToken == accessToken) await refresh();
       guard();
       return downloadToSink(id, sink,
           onProgress: onProgress, rotated: true, sessionGeneration: generation);

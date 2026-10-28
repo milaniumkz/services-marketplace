@@ -383,7 +383,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     catch(_){/* Preserve the last confirmed count while offline. */}
     finally{if(unreadScope==scope&&epoch==unreadEpoch){unreadBusy=false;if(unreadQueued&&mounted)refreshUnread();}}
   }
+  int eventsEpoch=0;
+  bool eventsSuspended=false;
   void closeEvents() {
+    eventsEpoch++;
     unreadTimer?.cancel();
     reconnect?.cancel();
     subscription?.cancel();
@@ -418,7 +421,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   bool pushLinkHandled=false;
   void connectEvents() {
     closeEvents();
-    if (!api.authenticated || !mounted || locked) return;
+    if (!api.authenticated || !mounted || locked || eventsSuspended) return;
+    final connectionEpoch=eventsEpoch;
     JobaPush.instance.onEvent=(){if(mounted&&!locked){refreshUnread();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:const Text('Новое уведомление JOBA'),action:SnackBarAction(label:'Открыть',onPressed:(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');})));}};
     JobaPush.instance.onOpen=(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');};
     unawaited(JobaPush.instance.attach(api));
@@ -465,25 +469,28 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               'offer'
             ].contains(route)) setState(() => revision++);
       } catch (_) {/* Invalid events never become user records. */}
-    }, onError: (Object _) => scheduleReconnect(), onDone: scheduleReconnect);
+    }, onError: (Object _) {if(channel==current&&eventsEpoch==connectionEpoch&&!eventsSuspended)scheduleReconnect();}, onDone: () {if(channel==current&&eventsEpoch==connectionEpoch&&!eventsSuspended)scheduleReconnect();});
   }
 
   void scheduleReconnect() {
     reconnect?.cancel();
-    if (api.authenticated && mounted && !locked)
+    final epoch=eventsEpoch,client=api,generation=api.sessionGeneration;
+    if (api.authenticated && mounted && !locked && !eventsSuspended)
       reconnect = Timer(const Duration(seconds: 5), () async {
-        if (locked || !mounted || !api.authenticated) return;
+        if (locked || !mounted || !api.authenticated || eventsSuspended || epoch!=eventsEpoch || client!=api || generation!=api.sessionGeneration) return;
         try {
-          await api.refresh();
-          connectEvents();
+          // A socket interruption does not itself invalidate the credentials.
+          await client.request('/me');
+          if(mounted&&!locked&&!eventsSuspended&&epoch==eventsEpoch&&client==api&&generation==api.sessionGeneration)connectEvents();
         } catch (_) {
-          scheduleReconnect();
+          if(mounted&&!eventsSuspended&&epoch==eventsEpoch&&client==api)scheduleReconnect();
         }
       });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if(state==AppLifecycleState.resumed)eventsSuspended=false;
     if (state == AppLifecycleState.resumed && _api?.authenticated == true) {
       if (pausedAt != null &&
           DateTime.now().difference(pausedAt!).inSeconds >= 60) {
@@ -503,6 +510,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       }
     }
     if (state == AppLifecycleState.paused) {
+      eventsSuspended=true;
       pausedAt = DateTime.now();
       closeEvents();
     }

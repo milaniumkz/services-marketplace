@@ -308,11 +308,28 @@ export class Marketplace {
     }
     if(path==='/auth/refresh'&&method==='POST') {
       const t=(await db.query<any>('SELECT * FROM tokens WHERE hash=$1 AND kind=\'refresh\' FOR UPDATE',[digest(String(b.refresh_token))])).rows[0];
-      if(t?.used){await db.query('UPDATE tokens SET revoked=true WHERE family=$1',[t.family]);fail(401,'REFRESH_REPLAY','Сессия отозвана');}
+      const requestId=b.request_id;
+      if(requestId!==undefined&&(typeof requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)))fail(400,'VALIDATION_ERROR','Некорректный идентификатор обновления сессии');
       if(!t||t.revoked||new Date(t.expires_at).getTime()<=Date.now())fail(401,'TOKEN_EXPIRED','Сессия истекла');
+      if(t.used){
+        if(requestId){
+          const receipt=(await db.query<any>('SELECT response_sealed FROM refresh_receipts WHERE token_hash=$1 AND request_id=$2 AND expires_at>now()',[t.hash,requestId])).rows[0];
+          if(receipt){
+            const response=JSON.parse(await this.files.unsealSecret(receipt.response_sealed,'refresh-retry:'+t.hash+':'+requestId));
+            const live=(await db.query<any>("SELECT 1 FROM tokens WHERE hash=$1 AND family=$2 AND kind='refresh' AND NOT used AND NOT revoked AND expires_at>now()",[digest(response.refresh_token),t.family])).rows.length;
+            if(live)return response;
+          }
+        }
+        await db.query('UPDATE tokens SET revoked=true WHERE family=$1',[t.family]);
+        await this.store.put(this.record('security_event',{id:t.user_id,country:t.country},{event:'session.refresh_replay',session_family:t.family,occurred_at:new Date().toISOString()}));
+        fail(401,'REFRESH_REPLAY','Сессия отозвана');
+      }
       await db.query('UPDATE tokens SET used=true WHERE hash=$1',[t.hash]);
       await db.query('UPDATE tokens SET revoked=true WHERE family=$1 AND kind=\'access\'',[t.family]);
-      return this.tokens((await this.store.get(t.user_id))!,t.family,t.mfa_verified,ip);
+      const response=await this.tokens((await this.store.get(t.user_id))!,t.family,t.mfa_verified,ip);
+      await db.query('DELETE FROM refresh_receipts WHERE family=$1',[t.family]);
+      if(requestId)await db.query('INSERT INTO refresh_receipts(token_hash,family,request_id,response_sealed,expires_at) VALUES($1,$2,$3,$4,$5)',[t.hash,t.family,requestId,await this.files.sealSecret(JSON.stringify(response),'refresh-retry:'+t.hash+':'+requestId),t.expires_at]);
+      return response;
     }
     if(path==='/public/recovery-threads'&&method==='POST') {
       if(!countries[b.country])fail(400,'VALIDATION_ERROR','Выберите страну');
@@ -1911,6 +1928,7 @@ export class Marketplace {
     const run=async()=>{
       await this.store.db.exec('BEGIN');
       try {
+        await this.store.db.query('DELETE FROM refresh_receipts WHERE expires_at<=$1',[now.toISOString()]);
         for(const r of await this.store.all('offer'))if(r.status==='active'&&offerExpired(r,(await readSettings(this.store,r.country)).offer_expiry_hours,now)){
           await this.store.put({...r,status:'expired',version:r.version+1});
           const chat=r.conversation_id?await this.store.get(r.conversation_id):undefined;

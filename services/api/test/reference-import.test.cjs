@@ -35,6 +35,8 @@ test('KZ republican cities carry server ordering and legacy Baikonur groups are 
   for(const[name,rank]of [['Астана',0],['Алматы',1],['Шымкент',2]]){const city=(await a.store.all('city','KZ')).find(c=>c.region===name);assert.equal(city.region_sort_order,rank);assert.equal(city.region_kind,'republican_city');}
   const catalog=await cityCatalog(a.store,'KZ');assert.equal(catalog.items.some(c=>c.region==='Байконур'),false);assert.ok(catalog.items.find(c=>c.id===astana.id).region_sort_order===0);
   assert.equal((await a.store.all('city','KZ')).length,cities.length);
+  const again=await a.store.get(toretam.id);await a.store.put({...again,region:'Байконур',version:again.version+1});
+  await importReferenceDataset(a.store,dataset);assert.equal((await a.store.get(toretam.id)).region,'Кызылординская Область');
   const version=(await a.store.get(baikonur.id)).version;await importReferenceDataset(a.store,dataset);assert.equal((await a.store.get(baikonur.id)).version,version);
  }finally{await a.store.close();}
 });
