@@ -646,7 +646,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
               ],
               if (offer?['is_test'] == true)
                 const Notice(
-                    'Тестовая оплата: списания денег не будет. После подтверждения подписка активируется на 30 дней.',
+                    'Тестовая оплата без списания денег. Срок и условия выбранного доступа указаны выше.',
                     icon: 'info')
               else
                 const Notice(
@@ -672,7 +672,10 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                           acceptedOffer = v == true ? offerSnapshot : null),
                   title: const UiText('Принимаю условия подписки.',
                       style: TextStyle(fontSize: 12))),
-              if (error != null) Notice(errorText(context, error!), error: true)
+              if (error != null) ...[
+                Notice(errorText(context, error!), error: true),
+                TextButton(onPressed:busy?null:(){setState((){acceptedOffer=null;selected=null;error=null;});reload();},child:const UiText('Обновить условия оплаты')),
+              ]
             ])),
             Container(
                 decoration: const BoxDecoration(
