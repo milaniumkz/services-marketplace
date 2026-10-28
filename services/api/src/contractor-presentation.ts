@@ -14,7 +14,7 @@ export async function contractorPresentation(store:Store, country:string, profil
     GROUP BY data->>'target_id'`,[country,owners])).rows;
   const completed=(await store.db.query<any>(`SELECT data->>'executor_id' AS actor_id,count(*) AS count FROM records WHERE kind='order' AND country=$1 AND data->>'status'='completed' AND data->>'executor_id'=ANY($2::text[]) GROUP BY data->>'executor_id'`,[country,owners])).rows;
   const portfolios=(await store.db.query<any>(`SELECT owner AS actor_id,count(*) AS count FROM records WHERE kind='portfolio' AND country=$1 AND owner=ANY($2::text[]) AND data->>'status'='published' AND COALESCE(data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected') GROUP BY owner`,[country,owners])).rows;
-  const verifications=(await store.db.query<any>(`SELECT owner AS actor_id,max(data->>'decided_at') AS checked_at FROM records WHERE kind='verification' AND country=$1 AND owner=ANY($2::text[]) AND data->>'status'='passed' AND data->>'expires_at'>$3 GROUP BY owner`,[country,owners,new Date().toISOString()])).rows;
+  const verifications=(await store.db.query<any>(`SELECT owner AS actor_id,max(data->>'decided_at') AS checked_at FROM records WHERE kind='verification' AND country=$1 AND owner=ANY($2::text[]) AND data->>'status'='passed' AND (data->>'expires_at' IS NULL OR data->>'expires_at'>$3) GROUP BY owner`,[country,owners,new Date().toISOString()])).rows;
   return profiles.map(profile=>{
     const account=accounts.find(account=>account.data.id===profile.owner)?.data;
     const rating=ratings.find(rating=>rating.target_id===profile.owner);

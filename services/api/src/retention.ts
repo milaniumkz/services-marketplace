@@ -32,7 +32,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
   if(file.purpose==='export'&&file.expires_at<=now.toISOString())reason='export_link_expired';
   if(file.purpose==='identity'){
    const verification=verifications.find(v=>v.id===file.verification_id&&v.country===file.country);
-   if(verification&&['passed','rejected','expired'].includes(verification.status)&&verification.decided_at&&Date.parse(verification.decided_at)+policy.payload.document_days*86400000<=now.getTime())reason='document_retention_expired';
+   if(verification&&['passed','rejected','expired','revoked'].includes(verification.status)&&verification.decided_at&&Date.parse(verification.decided_at)+policy.payload.document_days*86400000<=now.getTime())reason='document_retention_expired';
    if(verification&&['draft','pending_review'].includes(verification.status)&&Date.parse(verification.created_at)+14*86400000<=now.getTime()){
     const held=holds.some(h=>h.country===verification.country&&h.target_id===verification.id&&h.fields.includes('document_refs'));
     if(!held){reason='verification_incomplete_14d';if(verification.status!=='expired'){const current=await store.get(verification.id);if(current?.status!=='expired'){const expired=await store.put({...current!,status:'expired',failure_code:'DOCUMENT_WINDOW_EXPIRED',decided_at:now.toISOString(),version:current!.version+1});if(onExpired)await onExpired(expired);}}}

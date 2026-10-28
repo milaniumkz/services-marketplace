@@ -7,7 +7,7 @@ Future<PhotoFile?> pickPhotoFile(PhotoSource source,
     {bool selfie = false}) async {
   try {
     final file = await ImagePicker().pickImage(
-      source: source == PhotoSource.camera
+      source: selfie || source == PhotoSource.camera
           ? ImageSource.camera
           : ImageSource.gallery,
       preferredCameraDevice: selfie ? CameraDevice.front : CameraDevice.rear,

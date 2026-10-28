@@ -12,7 +12,7 @@ export async function minimizeVerificationHistory(store:Store,job:RecordData,pol
  const rows=await store.db.query<{data:RecordData}>(`SELECT r.data FROM records r WHERE ${scope} AND ($3::uuid IS NULL OR r.id>$3) ORDER BY r.id LIMIT 50 FOR UPDATE`,[job.country,job.owner,previous.scan_cursor??null]);
  let processed=0;
  for(const {data:r} of rows.rows){
-  if(!['passed','rejected','expired'].includes(r.status))continue;
+  if(!['passed','rejected','expired','revoked'].includes(r.status))continue;
   if([r.created_at,r.decided_at,r.updated_at??r.decided_at].some(v=>typeof v!=='string'||!Number.isFinite(Date.parse(v))||Date.parse(v)>cutoff))continue;
   if(!Array.isArray(r.document_refs)||r.document_refs.some((v:any)=>typeof v!=='string'))continue;
   const protection=await store.db.query<{id:string}>(`SELECT id::text AS id FROM records h WHERE h.country=$1 AND (

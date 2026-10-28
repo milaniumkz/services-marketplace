@@ -1,3 +1,4 @@
+import '../core/navigation_shell.dart';
 import '../core/device_location.dart';
 import 'osm_location_picker.dart';
 import '../core/osm_map.dart';
@@ -115,6 +116,10 @@ const eventTitles = {
   'verification.updated': 'Результат проверки документа',
   'offer.created': 'Новый отклик на заказ',
   'order.selected': 'Вы выбраны исполнителем',
+  'order.selection_confirmed':'Исполнитель выбран',
+  'offer.declined':'Заказчик отказал в работе',
+  'offer.not_selected':'Заказчик выбрал другого исполнителя',
+  'order.offer_declined':'Вы отказали исполнителю',
   'order.completion_requested': 'Исполнитель прислал результат работы',
   'invite.created': 'Приглашение в заказ',
   'message.created': 'Новое сообщение',
@@ -144,13 +149,14 @@ int minor(String value) {
 }
 
 class Marketplace extends StatefulWidget {
+  final ValueChanged<NavigationState?>? onNavigationChanged;
   final CommerceGateway commerceGateway;
   final JobaApi? api;
   final ValueChanged<String>? onLocaleChanged;
   final RegionGateway? regions;
   final DevicePreferences? preferences;
   const Marketplace(
-      {this.api, this.commerceGateway=const DisconnectedCommerceGateway(),
+      {this.onNavigationChanged,this.api, this.commerceGateway=const DisconnectedCommerceGateway(),
       this.onLocaleChanged,
       this.regions,
       this.preferences,
@@ -354,6 +360,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         verificationUploads.clear();
         draftWindow = null;
         registrationInProgress = false;
+        messageUnreadCount=0;unreadScope=null;unreadEpoch++;unreadBusy=false;unreadQueued=false;
         notificationCategory = 'all'; notificationUnreadCount = null;
         notificationReadBefore = null; notificationScope = null;
         route = api.sessionExpired ? 'session-expired' : 'login';
@@ -365,7 +372,17 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     }
   }
 
+  int messageUnreadCount=0,unreadEpoch=0;bool unreadBusy=false,unreadQueued=false;String? unreadScope;Timer? unreadTimer;
+  Future<void> refreshUnread()async{
+    if(_api?.authenticated!=true||locked||!mounted)return;final client=api,scope='${api.base}:${api.sessionGeneration}:${api.session?['user']?['id']}';
+    if(unreadScope!=scope){unreadScope=scope;unreadBusy=false;messageUnreadCount=0;notificationUnreadCount=null;}
+    if(unreadBusy){unreadQueued=true;return;}unreadBusy=true;unreadQueued=false;final epoch=++unreadEpoch;
+    try{final data=await client.request('/me/unread-counts');if(mounted&&unreadScope==scope&&epoch==unreadEpoch&&client==api&&api.authenticated){final messages=data['messages'],notifications=data['notifications'];if(messages is int&&notifications is int)setState((){messageUnreadCount=messages;notificationUnreadCount=notifications;});}}
+    catch(_){/* Preserve the last confirmed count while offline. */}
+    finally{if(unreadScope==scope&&epoch==unreadEpoch){unreadBusy=false;if(unreadQueued&&mounted)refreshUnread();}}
+  }
   void closeEvents() {
+    unreadTimer?.cancel();
     reconnect?.cancel();
     subscription?.cancel();
     channel?.sink.close();
@@ -388,9 +405,18 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     } catch (_) {/* Background refresh retains the last confirmed state. */}
   }
 
+  Future<void> refreshChatDecision(String type,dynamic target)async{
+    if(route!='chat'||objectId==null||actionBusy)return;final id=objectId,client=api,generation=api.sessionGeneration;
+    try{final current=await client.request('/conversations/$id');if(!mounted||client!=api||generation!=api.sessionGeneration||route!='chat'||objectId!=id||actionBusy)return;
+      if(![current['offer_id'],current['order_id']].contains(target))return;
+      if(current['blocked']==true){go('messages');success(type=='offer.not_selected'?'Заказчик выбрал другого исполнителя':'Отклик закрыт. Решение доступно в событиях.');}
+      else if(type=='order.selected'&&current['status']=='working')go('order',current['order_id']);
+    }catch(_){/* A later reconnect will replay the authoritative decision. */}
+  }
   void connectEvents() {
     closeEvents();
     if (!api.authenticated || !mounted || locked) return;
+    refreshUnread();unreadTimer=Timer.periodic(const Duration(seconds:30),(_)=>refreshUnread());
     final uri = api
         .url('/events/ws')
         .replace(scheme: api.base.scheme == 'https' ? 'wss' : 'ws');
@@ -407,6 +433,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         final next = event['sequence'] as int;
         if (next <= sequence) return;
         sequence = next;
+        if(!['typing','message.typing','conversation.delivered'].contains(event['type']))refreshUnread();
+        if(['offer.declined','offer.not_selected','order.selected','order.offer_withdrawn'].contains(event['type']))refreshChatDecision('${event['type']}',event['aggregate_id']);
         if ([
           'content.moderated',
           'verification.updated',
@@ -613,12 +641,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       child: SafeArea(
                           bottom: false,
                           child: Container(color: canvas, child: body))),
-              bottomNavigationBar: (nav || _api?.authenticated==true && !locked && !onboardingNavigationBlocked && orderNavigationRoutes.contains(route))
+              bottomNavigationBar: widget.onNavigationChanged==null&&(_api?.authenticated==true && !locked && !onboardingNavigationBlocked)
                   ? Padding(
                       padding: EdgeInsets.only(bottom: ['create','edit-order'].contains(route)?MediaQuery.viewInsetsOf(context).bottom:0),
                       child: JobaNavigation(
                       route: orderNavigationRoutes.contains(route) ? (['access','my-access','checkout','test-payment-success','payment-pending','manage-subscription','subscription-canceled'].contains(route)?'account':executor?'jobs':'home') : route,
                       executor: executor,
+                      messageCount:messageUnreadCount,notificationCount:notificationUnreadCount??0,
                       enabled: !actionBusy && !orderFormSubmitting && !authNavigationBlocked,
                       onSelect: selectMainTab))
                   : null));
@@ -773,6 +802,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           empty: empty);
   @override
   Widget build(BuildContext context) {
+    publishNavigation();
     if (starting)
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     if (locked) return unlockScreen();
@@ -796,11 +826,17 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     }),
                 outline: true)
           ]));
+    publishNavigation();
     return screen();
   }
 
+  int navigationEpoch=0;
+  String get navigationRoute=>['home','jobs','catalog','messages','notifications','account'].contains(route)?route:['chat','support-chat','support','messages-search'].contains(route)?'messages':orderNavigationRoutes.contains(route)||['review','complete','rework','cancel','cancel-pending','amendment','change-requests'].contains(route)?(executor?'jobs':'home'):'account';
+  void selectShellTab(String next){if(authNavigationBlocked||actionBusy||orderFormSubmitting)return;Navigator.of(context).popUntil((r)=>r.isFirst);selectMainTab(next);}
+  void publishNavigation(){if(widget.onNavigationChanged==null)return;final epoch=++navigationEpoch;final value=!starting&&_api?.authenticated==true&&!locked&&!onboardingNavigationBlocked?NavigationState(route:navigationRoute,executor:executor,enabled:!actionBusy&&!orderFormSubmitting&&!authNavigationBlocked,messages:messageUnreadCount,notifications:notificationUnreadCount??0,onSelect:selectShellTab):null;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&epoch==navigationEpoch)widget.onNavigationChanged?.call(value);});}
   Widget screen() {
     if(['create','edit-order'].contains(route))ensureOrderFormsScope();
+    if(executor&& !['passed','pending_review'].contains(me?['verification'])&&['services','portfolio','portfolio-edit','portfolio-photos'].contains(route)){return verificationScreen();}
     if (!executor && !executorSetupRequested && ['services', 'portfolio', 'portfolio-edit', 'portfolio-photos', 'service-area'].contains(route)) {
       return page('Режим заказчика', listBody([
         const UiHeading('Вы вошли как заказчик', 'Размещайте заказы и выбирайте исполнителей. Услуги заполняются в роли исполнителя.'),
@@ -1882,15 +1918,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     final target = requested ?? (executor ? 'customer' : 'executor');
     if (target == 'customer' && executorSetupRequested && mounted) setState(() => executorSetupRequested = false);
     if ((me?['active_role'] ?? 'customer') == target) return;
-    if (!(me?['roles'] as List? ?? []).contains(target)) {
-      if (target == 'executor') executorSetupRequested = true;
-      go('services');
-      return;
-    }
     final fresh = await api.request('/me') as Json;
     final updated = await api.request('/me',
             method: 'PATCH',
-            body: {'expected_version': fresh['version'], 'active_role': target})
+            body: {'expected_version': fresh['version'], 'roles':{...List<String>.from(fresh['roles']),target}.toList(), 'active_role': target})
         as Json;
     if (!mounted) return;
     setState(() {
@@ -1925,7 +1956,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         'brief',
                         () => act(() async {
                               await switchRole('executor');
-                              if (executor) go('home');
+                              if (executor) go(['passed','pending_review'].contains(me?['verification'])?'home':'verification');
                             }),
                         subtitle: 'Находить заказы и предлагать услуги')
                   ]),
@@ -2534,6 +2565,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                 style: const TextStyle(
                                     fontSize: 12, color: muted)),
                             const SizedBox(height: 8),
+                            InkWell(onTap:()=>go('reviews'),child:Padding(padding:const EdgeInsets.only(bottom:8),child:Row(children:[const Icon(Icons.star_rounded,color:Color(0xFFFFC83D),size:20),const SizedBox(width:4),Expanded(child:Text((rating['count']??0)==0?'Рейтинг: пока нет отзывов':'Рейтинг: ${(rating['average'] as num?)?.toStringAsFixed(1)??'—'} / 5 · Отзывов: ${rating['count']}',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700)))]))),
                             Material(
                                 color: const Color(0xFFEAF0FC),
                                 borderRadius: BorderRadius.circular(7),
@@ -2655,7 +2687,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           success('Профиль сохранён');
           if (route == 'onboarding') {
             registrationInProgress = false;
-            go(executor ? 'services' : 'home');
+            go(executor ? (['passed','pending_review'].contains(me?['verification'])?'services':'verification') : 'home');
           } else
             back();
         },
@@ -3927,6 +3959,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     fontSize: 10, color: muted)))
                     ]));
           }));
+  Future<void> decideChatOffer(Json conversation,bool accept,VoidCallback reload)async{
+    final client=api,generation=api.sessionGeneration,id=objectId;
+    if(accept){var consent=false;final confirmed=await showDialog<bool>(context:context,builder:(dialog)=>StatefulBuilder(builder:(dialog,update)=>AlertDialog(title:const UiText('Выбрать этого исполнителя?'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[const UiText('Остальные отклики будут закрыты, участники получат уведомления.'),CheckboxListTile(value:consent,onChanged:(v)=>update(()=>consent=v==true),title:const UiText('Согласен на передачу контактных данных выбранному исполнителю'))])),actions:[TextButton(onPressed:()=>Navigator.pop(dialog,false),child:const UiText('Отмена')),FilledButton(onPressed:consent?()=>Navigator.pop(dialog,true):null,child:const UiText('Принять исполнителя'))])));if(confirmed!=true)return;}
+    if(!mounted||client!=api||generation!=api.sessionGeneration||route!='chat'||objectId!=id)return;
+    await act(()async{try{if(accept){await api.request('/orders/${conversation['order_id']}/select',method:'POST',body:{'expected_version':conversation['order_version'],'offer_id':conversation['offer_id'],'offer_version':conversation['offer_version'],'contact_consent':true});if(mounted&&client==api&&generation==api.sessionGeneration&&route=='chat'&&objectId==id)go('order',conversation['order_id']);}else{await api.request('/offers/${conversation['offer_id']}/decline',method:'POST',body:{'expected_version':conversation['offer_version'],'order_version':conversation['order_version']});if(mounted&&client==api&&generation==api.sessionGeneration&&route=='chat'&&objectId==id)go('messages');}refreshUnread();}finally{if(mounted&&route=='chat'&&objectId==id)reload();}});
+  }
   Widget chatScreen(bool support) {
     if (support) return page('Поддержка JOBA', messageThread(true));
     return ApiView(
@@ -3955,10 +3993,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             ])),
                             const JobaIcon('right', size: 18),
                           ])))),
-                Expanded(child: r['blocked'] == true
+                if(r['can_decide']==true)Padding(padding:const EdgeInsets.fromLTRB(16,0,16,10),child:Row(children:[Expanded(child:FilledButton(onPressed:actionBusy?null:()=>decideChatOffer(r,true,reload),child:const UiText('Принять исполнителя'))),const SizedBox(width:8),Expanded(child:OutlinedButton(onPressed:actionBusy?null:()=>decideChatOffer(r,false,reload),child:const UiText('Отказать')))])),
+                Expanded(child: r['blocked'] == true&&!['conversation_closed','offer_expired'].contains(r['blocked_reason'])
                     ? WorkStateScreen(api: api, mode: 'frozen-chat', id: objectId!,
                         onGo: (r, id) => go(r, id), pickPhoto: () => pickUpload('order'))
-                    : messageThread(false)),
+                    : messageThread(false,readOnly:r['blocked']==true)),
               ]),
               toolbarHeight: 64, leadingWidth: 58,
               titleWidget: Row(children: [
@@ -3987,7 +4026,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   ])]);
         });
   }
-  Widget messageThread(bool support) => MessageThread(
+  Widget messageThread(bool support,{bool readOnly=false}) => MessageThread(
+          readOnly:readOnly,
           key: ValueKey('thread:$objectId'),
           api: api,
           path: support
@@ -3995,6 +4035,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               : '/conversations/$objectId/messages',
           owner: me!['id'],
           conversationId: support ? null : objectId,
+          onRead:refreshUnread,
           revision: revision);
   Widget recoveryChat() {
     if (recovery == null)
@@ -4460,6 +4501,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         go('chat', r['target_id']);
       else if (type == 'support.message.created')
         go('support-chat', r['target_id']);
+      else if (['offer.declined','offer.not_selected','offer.withdrawn'].contains(type))go('my-offers');
       else if (type == 'offer.created')
         go('offers', r['target_id']);
       else if (type == 'order.completion_requested')
@@ -5309,12 +5351,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           country: country,
           uploads: verificationUploads,
           revision: revision,
+          onStatusChanged:(status){if(mounted&&me!=null&&me!['verification']!=status)setState(()=>me={...me!,'verification':status});},
           onTitle: (value) {
             if (mounted && value != verificationTitle)
               setState(() => verificationTitle = value);
           },
           pick: (id) => pickUpload('identity', verificationId: id),
-          choosePhoto: (selfie) => choosePhoto(context, selfie: selfie),
+          choosePhoto: (selfie) => choosePhoto(context, selfie: selfie,identity:true),
           uploadPhoto: (photo, id) => api.upload(photo.bytes, photo.mime, 'identity', verificationId: id),
           onTerms: () => go('terms'),
           onAppeal: (session) => Navigator.push(context, MaterialPageRoute(builder: (c) => Scaffold(
@@ -5323,7 +5366,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 initialText: 'Прошу пересмотреть решение по проверке документа № ${session['id']}.\nПричина отказа: ${session['reason'] ?? ''}\n',
                 pickUpload: () => pickUpload('chat'),
                 onCreated: (id) {Navigator.pop(c); go('support-chat', id);})))),
-          onProfile: () => go(executor ? 'services' : 'orders'),
+          onProfile: () => act(()async{await refreshIdentity();if(mounted)go(executor?'services':'orders');}),
           onCreateOrder: () => go('create'),
           onSupport: () => go('support')));
   void continueAfterConsent() {
@@ -5458,12 +5501,16 @@ class MessageThread extends StatefulWidget {
   final String path, owner;
   final String? capability, conversationId;
   final int revision;
+  final VoidCallback? onRead;
+  final bool readOnly;
   const MessageThread(
       {this.commerceGateway=const DisconnectedCommerceGateway(), required this.api,
       required this.path,
       required this.owner,
       this.capability,
       this.conversationId,
+      this.onRead,
+      this.readOnly=false,
       required this.revision,
       super.key});
   @override
@@ -5659,7 +5706,7 @@ class _MessageThreadState extends State<MessageThread> {
     try {
       await widget.api.request('/conversations/${widget.conversationId}/read',
           method: 'POST', body: {'sequence': sequence});
-      lastReadSequence = sequence;
+      lastReadSequence = sequence;widget.onRead?.call();
     } catch (e) {
       if (mounted) setState(() => error = e);
     } finally {
@@ -5762,7 +5809,7 @@ class _MessageThreadState extends State<MessageThread> {
                       final m = messages[i - (moreHistory ? 1 : 0)],
                           own = m['owner'] == widget.owner;
                       final bubble = GestureDetector(
-                          onLongPress: () => messageMenu(m),
+                          onLongPress: widget.readOnly?null:() => messageMenu(m),
                           child: Align(
                               alignment: own
                                   ? Alignment.centerRight
@@ -5817,7 +5864,7 @@ class _MessageThreadState extends State<MessageThread> {
                         bubble,
                       ]);
                     })),
-        SafeArea(
+        if(widget.readOnly)const Notice('Чат закрыт для новых сообщений. История переписки доступна.') else SafeArea(
             top: false,
             child: Container(
                 decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: line))),

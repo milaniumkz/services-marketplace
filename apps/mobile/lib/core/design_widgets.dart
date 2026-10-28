@@ -201,11 +201,13 @@ class JobaNavigation extends StatelessWidget {
   final bool executor;
   final ValueChanged<String> onSelect;
   final bool enabled;
+  final int messageCount,notificationCount;
   const JobaNavigation(
       {required this.route,
       required this.executor,
       required this.onSelect,
       this.enabled = true,
+      this.messageCount=0,this.notificationCount=0,
       super.key});
   @override
   Widget build(BuildContext context) => Container(
@@ -235,8 +237,7 @@ class JobaNavigation extends StatelessWidget {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         const SizedBox(height: 10),
-                                        JobaIcon(item.$3,
-                                            size: 22, color: navy),
+                                        Badge(isLabelVisible:(item.$1=='messages'?messageCount:item.$1=='notifications'?notificationCount:0)>0,label:Text('${(item.$1=='messages'?messageCount:notificationCount)>99?'99+':item.$1=='messages'?messageCount:notificationCount}'),child:JobaIcon(item.$3,size:22,color:navy)),
                                         const SizedBox(height: 4),
                                         UiText(item.$2,
                                             style: TextStyle(

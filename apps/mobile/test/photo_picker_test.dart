@@ -16,7 +16,7 @@ void main() {
               body: Builder(
                   builder: (context) => TextButton(
                       onPressed: () async {
-                        result = await choosePhoto(context, selfie: true,
+                        result = await choosePhoto(context, selfie: false,
                             sourcePicker: (source,
                                 {required bool selfie}) async {
                           selected = source;
@@ -34,7 +34,7 @@ void main() {
           : 'Сделать фото'));
       await t.pumpAndSettle();
       expect(selected, source);
-      expect(frontCamera, true);
+      expect(frontCamera, false);
       expect(result!.mime, 'image/jpeg');
       selected = null;
       await t.tap(find.text('Add'));

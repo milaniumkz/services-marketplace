@@ -1,3 +1,4 @@
+import 'core/navigation_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/api.dart';
@@ -21,6 +22,13 @@ class JobaApp extends StatefulWidget {
 
 class _JobaAppState extends State<JobaApp> {
   String locale = 'ru';
+  final navigation = ValueNotifier<NavigationState?>(null);
+  @override
+  void dispose() {
+    navigation.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
       locale: Locale(locale),
@@ -34,7 +42,16 @@ class _JobaAppState extends State<JobaApp> {
       title: 'JOBA',
       debugShowCheckedModeBanner: false,
       theme: jobaTheme(),
+      builder: (context, child) => ValueListenableBuilder<NavigationState?>(
+          valueListenable: navigation,
+          builder: (context, value, _) =>
+              NavigationFrame(navigation: value, child: child!)),
       home: Marketplace(
+          onNavigationChanged: (value) {
+            if (mounted &&
+                !(value?.sameAs(navigation.value) ?? navigation.value == null))
+              navigation.value = value;
+          },
           api: widget.api,
           regions: widget.regions,
           preferences: widget.preferences,

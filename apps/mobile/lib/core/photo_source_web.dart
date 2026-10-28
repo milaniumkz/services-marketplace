@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 import 'photo_file.dart';
+import 'web_selfie_camera.dart';
 
 // Called directly from the source button's gesture, before any network request.
 Future<PhotoFile?> pickPhotoFile(PhotoSource source, {bool selfie = false}) {
+  if(selfie)return captureWebSelfie();
   final input = web.HTMLInputElement()
     ..type = 'file'
     ..accept = 'image/jpeg,image/png,.jpg,.jpeg,.png';

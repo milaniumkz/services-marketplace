@@ -13,12 +13,12 @@ void main() {
     test(
         'browser ${source.name} creates input immediately, reads photo and cleans up',
         () async {
-      final pending = pickPhotoFile(source, selfie: true);
+      final pending = pickPhotoFile(source, selfie: false);
       final input = web.document.querySelector('[data-joba-photo-picker]')
           as web.HTMLInputElement;
       expect(input.accept, contains('image/jpeg'));
       expect(input.getAttribute('capture'),
-          source == PhotoSource.camera ? 'user' : isNull);
+          source == PhotoSource.camera ? 'environment' : isNull);
       final transfer = web.DataTransfer();
       final bytes = Uint8List.fromList([255, 216, 255, 0]);
       transfer.items.add(web.File([bytes.toJS].toJS, 'photo.jpg',

@@ -1,3 +1,4 @@
+import {verificationStatus} from './verification-status.js';
 import {privacyProgress} from './privacy-progress.js';
 // Staff review cards use the same country-scoped API as the operational lists.
 export async function reviewWorkspace({key,api,esc,card,note,namedField,sections,onRefresh,staffAccess}) {
@@ -9,12 +10,12 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   const stateNames={pending_review:'Ожидает проверки',pending_moderation:'Ожидает модерации',published:'Опубликовано',paused:'Приостановлено',archived:'Архив',passed:'Проверка пройдена',rejected:'Отклонено',expired:'Срок истёк',draft:'Черновик',not_started:'Не пройдена',active:'Активен',blocked:'Заблокирован',deleted:'Удалён'};
   const when=value=>value&&Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat('ru',{dateStyle:'short',timeStyle:'short',timeZone:'UTC'}).format(new Date(value))+' UTC':'Не указано';
   const details=Object.entries({
-    'ID':record.id,'Страна':record.country,'Статус':stateNames[record.status]||record.status,'Ревизия':record.version,
+    'ID':record.id,'Страна':record.country,'Статус':section==='verification'?verificationStatus(record.status):stateNames[record.status]||record.status,'Ревизия':record.version,
     'Имя':record.display_name,'Название':record.title,'Описание':record.description,
     'Город':record.city,'Категория':record.category_id,'ID пользователя':record.owner,
-    'Исполнитель':record.executor_id,'Проверка аккаунта':record.verification,
+    'Исполнитель':record.executor_id,'Проверка аккаунта':record.verification?verificationStatus(record.verification):undefined,
     'Тип документа':({id_card:'Удостоверение личности',passport:'Паспорт'})[record.document_type]||record.document_type,'Ревизия документов':record.document_revision,
-    'Причина решения':record.reason,'Создано':when(record.created_at),'Решение принято':record.decided_at?when(record.decided_at):undefined,'Действует до':record.expires_at?when(record.expires_at):undefined
+    'Причина решения':record.reason,'Создано':when(record.created_at),'Решение принято':record.decided_at?when(record.decided_at):undefined,'Срок подтверждения':section==='verification'&&record.status==='passed'?'Бессрочно, до ручного отзыва':undefined
   }).filter(([,v])=>v!==undefined&&v!==null).map(([k,v])=>`<div class="event"><b>${esc(k)}</b><p>${esc(v)}</p></div>`).join('');
   const allowed=grant=>!staffAccess?.managed||staffAccess.grants.includes(grant);
   const gate=grant=>allowed(grant)?'':' disabled title="Действие не разрешено вашей ролью"';
@@ -26,17 +27,17 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
     row('Город',user.city||'Не указан')+row('Страна',({KZ:'Казахстан',RU:'Россия',BY:'Беларусь',KG:'Кыргызстан'})[user.country]||user.country)+
     row('Роли',(user.roles||[]).map(role=>({customer:'Заказчик',executor:'Исполнитель'})[role]||role).join(', '))+
     row('Активная роль',({customer:'Заказчик',executor:'Исполнитель'})[user.active_role]||user.active_role)+
-    row('Состояние аккаунта',stateNames[user.status]||user.status)+row('Проверка личности',stateNames[user.verification]||user.verification)+
+    row('Состояние аккаунта',stateNames[user.status]||user.status)+row('Проверка личности',verificationStatus(user.verification))+
     row('Дата регистрации',when(user.created_at))+
     (allowed('GET /admin/users/{id}')?`<a class="btn" href="#user-detail?user_id=${encodeURIComponent(user.id)}">Открыть аккаунт пользователя</a>`:''):
     note('Данные аккаунта недоступны или уже удалены.')):'';
-  const historyCard=section==='verification'?card('История проверок пользователя',record.history?.length?record.history.map(v=>`<div class="event"><b>${esc(stateNames[v.status]||v.status)}${v.id===record.id?' · текущая заявка':''}</b><p>${esc(when(v.created_at))} · ${esc(v.document_type==='id_card'?'Удостоверение личности':v.document_type==='passport'?'Паспорт':v.document_type)}</p>${v.decided_at?`<p>Решение: ${esc(when(v.decided_at))}</p>`:''}${v.reason?`<p>${esc(v.reason)}</p>`:''}${v.reviewer_id?`<small>Сотрудник: ${esc(v.reviewer_id)}</small>`:''}${v.id!==record.id?`<p><a href="#record-live/verification/${encodeURIComponent(v.id)}">Открыть заявку</a></p>`:''}</div>`).join('')+note('Показаны последние '+record.history_limit+' заявок.'):note('Предыдущих заявок нет.')):'';
+  const historyCard=section==='verification'?card('История проверок пользователя',record.history?.length?record.history.map(v=>`<div class="event"><b>${esc(verificationStatus(v.status))}${v.id===record.id?' · текущая заявка':''}</b><p>${esc(when(v.created_at))} · ${esc(v.document_type==='id_card'?'Удостоверение личности':v.document_type==='passport'?'Паспорт':v.document_type)}</p>${v.decided_at?`<p>Решение: ${esc(when(v.decided_at))}</p>`:''}${v.reason?`<p>${esc(v.reason)}</p>`:''}${v.reviewer_id?`<small>Сотрудник: ${esc(v.reviewer_id)}</small>`:''}${v.id!==record.id?`<p><a href="#record-live/verification/${encodeURIComponent(v.id)}">Открыть заявку</a></p>`:''}</div>`).join('')+note('Показаны последние '+record.history_limit+' заявок.'):note('Предыдущих заявок нет.')):'';
   let controls='';
   if(section==='users')controls=card('Доступ к персональным данным',`<form id="sensitive-read" class="stack" data-staff-read>${namedField('Служебная причина просмотра','reason','textarea')}<button class="primary">Показать телефон</button><p id="sensitive-result" role="status"></p></form>`);
   if(section==='users'&&!record.staff_permissions?.length&&record.status!=='deleted'&&['block','unblock','delete'].some(action=>allowed('POST /admin/users/{id}/'+action)))controls+=card('Управление аккаунтом',`<form id="account-action" class="stack"><label>Действие<select name="action">${[['block','Заблокировать (бан)'],['unblock','Разблокировать'],['delete','Удалить аккаунт']].filter(([action])=>allowed('POST /admin/users/{id}/'+action)).map(([action,label])=>`<option value="${action}">${label}</option>`).join('')}</select></label>${namedField('Причина — минимум 10 символов','reason','textarea')}${namedField('Для удаления введите ID аккаунта','confirmation')}<p>Блокировка закрывает вход и завершает сессии. Удаление закрывает доступ сразу; обработка данных выполняется через раздел приватности с учётом текущих заказов и сроков хранения.</p><button class="primary">Выполнить действие</button><p role="status"></p></form>`);
   if(section==='verification') {
     controls=card('Документы',`<form id="sensitive-read" class="stack" data-staff-read>${namedField('Служебная причина просмотра','reason','textarea')}<button class="primary"${gate('sensitive.identity')}>Открыть документы</button><p class="muted">Две стороны удостоверения и селфи загружаются автоматически для сотрудника с правом просмотра. Просмотр записывается в журнал.</p><div id="sensitive-result" class="verification-media-grid" role="status"></div></form>`);
-    if(record.status==='pending_review')controls+=card('Решение по проверке',`<form id="review-decision" class="stack"><label for="review-decision-value">Решение</label><select id="review-decision-value" name="decision"><option value="passed">Проверка пройдена</option><option value="rejected">Отказать</option></select>${namedField('Действует до (UTC)','expires_at','datetime-local')}${namedField('Основание решения','reason','textarea')}<button class="primary"${gate('POST /admin/'+sections[section][0]+'/{id}/decision')}>Сохранить решение</button></form>`);
+    if(['pending_review','passed'].includes(record.status))controls+=card('Решение по проверке',`<form id="review-decision" class="stack"><label for="review-decision-value">Решение</label><select id="review-decision-value" name="decision">${record.status==='passed'?'<option value="revoked">Отозвать подтверждение личности</option>':'<option value="passed">Подтвердить личность — бессрочно</option><option value="rejected">Запросить исправления</option>'}</select><p>Подтверждение действует бессрочно до ручного отзыва. Повторная загрузка по календарю не требуется.</p>${namedField('Основание решения','reason','textarea')}<button class="primary"${gate('POST /admin/'+sections[section][0]+'/{id}/decision')}>Сохранить решение</button></form>`);
   }
   if(['portfolio','contractors'].includes(section)&&['pending_review','pending_moderation'].includes(record.status))controls=card('Модерация проекта',`<form id="review-decision" class="stack"><label for="review-decision-value">Решение</label><select id="review-decision-value" name="decision"><option value="approve">Опубликовать</option><option value="reject">Отклонить</option></select>${namedField('Основание решения','reason','textarea')}<button class="primary"${gate('POST /admin/'+sections[section][0]+'/{id}/decision')}>Сохранить решение</button></form>`);
   if(section==='privacy')controls+=privacyProgress({record,esc,card,note});
@@ -63,6 +64,7 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
     });
     wire('#review-decision',async values=>{
       if(values.expires_at) {const value=new Date(values.expires_at+'Z');if(!Number.isFinite(value.getTime()))throw Error('Проверьте срок действия');values.expires_at=value.toISOString();}
+      if(values.decision==='revoked'&&!window.confirm('Отозвать подтверждение личности? Действия, для которых оно требуется, станут недоступны.'))return;
       await api(base+'/decision','POST',{...values,expected_version:record.version,...(section==='verification'?{document_revision:record.document_revision}:{})});await onRefresh();
     });
     wire('#content-media',async({reason})=>{

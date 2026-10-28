@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'photo_file.dart';
 import 'photo_source_native.dart'
     if (dart.library.js_interop) 'photo_source_web.dart';
@@ -15,8 +16,9 @@ class _PhotoResult {
 }
 
 Future<PhotoFile?> choosePhoto(BuildContext context,
-    {bool selfie = false,
+    {bool selfie = false, bool identity = false,
     PhotoSourcePicker sourcePicker = pickPhotoFile}) async {
+  if(identity||selfie)return sourcePicker(kIsWeb&&!selfie?PhotoSource.gallery:PhotoSource.camera,selfie:selfie);
   var busy = false;
   final result = await showModalBottomSheet<_PhotoResult>(
       context: context,

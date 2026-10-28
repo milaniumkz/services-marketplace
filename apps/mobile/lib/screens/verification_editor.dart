@@ -16,6 +16,7 @@ class VerificationEditor extends StatefulWidget {
   final VoidCallback onTerms, onProfile, onSupport;
   final VoidCallback? onCreateOrder;
   final ValueChanged<String>? onTitle;
+  final ValueChanged<String>? onStatusChanged;
   final ValueChanged<Json>? onAppeal;
   final Map<String, List<String>> uploads;
   const VerificationEditor(
@@ -32,6 +33,7 @@ class VerificationEditor extends StatefulWidget {
       required this.onSupport,
       required this.uploads,
       this.onTitle,
+      this.onStatusChanged,
       this.onAppeal,
       super.key});
   @override
@@ -91,7 +93,8 @@ class _VerificationEditorState extends State<VerificationEditor> {
       setState(() {
         data = result;
         error = null;
-        session = records.isEmpty ? null : records.first;
+        final approved=records.where((r)=>r['status']=='passed').toList()..sort((a,b)=>'${b['decided_at']??b['created_at']}'.compareTo('${a['decided_at']??a['created_at']}'));
+        session=result['status']=='passed'&&approved.isNotEmpty?approved.first:records.isEmpty?null:records.first;
         if (session?['id'] != rejectedSession) {
           retrying = false;
           rejectedSession = session?['id'];
@@ -106,6 +109,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                     : types.first;
         consent = result['policy']?['consent_accepted'] == true;
       });
+      if(result['status'] is String)widget.onStatusChanged?.call(result['status']);
       widget.onTitle?.call(
           result['status'] == 'passed' || session?['status'] == 'pending_review'
               ? 'Проверка документа'
@@ -404,7 +408,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                       ? 'После подключения подписки исполнителя можно публиковать услуги и портфолио, искать заказы и откликаться.'
                       : 'После подключения подписки заказчика можно просматривать анкеты исполнителей и размещать заказы.'
                   : widget.executor
-                      ? 'Фотографии получены. Решение появится здесь и в уведомлениях. Пока можно заполнить черновик профиля.'
+                      ? 'Фотографии получены. Решение появится здесь и в уведомлениях. Пока можно заполнить услуги и портфолио и отправить их на отдельную проверку.'
                       : 'Фотографии получены. Решение появится здесь и в уведомлениях. Вы можете вернуться к своим заказам.'),
           if (passed)
             Container(
@@ -420,6 +424,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                         'Дата',
                         MaterialLocalizations.of(context).formatMediumDate(
                             DateTime.parse(session!['decided_at']).toLocal())),
+                  if (session?['expires_at'] == null) _resultRow('Срок','Бессрочно, до ручного отзыва'),
                   if (session?['expires_at'] != null)
                     _resultRow(
                         'Следующая проверка',
