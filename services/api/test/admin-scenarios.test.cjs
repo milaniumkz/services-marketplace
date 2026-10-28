@@ -5,7 +5,7 @@ const {Store}=require('../dist/store');
 const {Marketplace}=require('../dist/marketplace');
 const {totp}=require('../dist/totp');
 const rec=(kind,owner,fields={})=>({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:new Date().toISOString(),...fields});
-test('staff scenario reads are scoped; dry-run matches the actual engine without changing content; sensitive reads require a reason and audit',async()=>{
+test('staff scenario reads are scoped; dry-run matches the actual engine without changing content; sensitive reads use automatic audit context',async()=>{
  const a=new Marketplace(new Store('memory://'));await a.initialize();try{
   const password='Isolated scenario staff password';const register=phone=>a.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID(),{},phone);
   const u=await register('+77000000851'),member=await register('+77000000852');
@@ -20,7 +20,7 @@ test('staff scenario reads are scoped; dry-run matches the actual engine without
   await assert.rejects(()=>call('POST','/admin/moderation-dictionaries/'+d.id+'/dry-run',{expected_version:2,text:'обман',surface:'order',reason:'Проверка версии для отказа'}),e=>e.getStatus()===409);
   await assert.rejects(()=>call('GET','/admin/languages',{}, {},member),e=>e.getStatus()===403);
   const event=rec('security_event',member.user.id,{event:'session.credentials_issued',ip:'192.0.2.17',session_family:'never-disclose',refresh_token:'never-disclose'});await a.store.put(event);
-  await assert.rejects(()=>call('POST','/admin/security-events/'+event.id+'/disclose',{}),e=>e.getStatus()===400);
+  assert.equal((await call('POST','/admin/security-events/'+event.id+'/disclose',{})).ip,'192.0.2.17');
   const full=await call('POST','/admin/security-events/'+event.id+'/disclose',{reason:'Проверка конкретного события входа'});assert.equal(full.ip,'192.0.2.17');assert.equal(full.refresh_token,undefined);assert.equal(full.session_family,undefined);
   assert.ok((await a.store.all('audit','KZ')).some(r=>r.action==='security.event_disclosed'&&r.target_id===event.id));
   const foreign=rec('blacklist',member.user.id,{country:'KG'});await a.store.put(foreign);await assert.rejects(()=>call('GET','/admin/blacklist/'+foreign.id),e=>e.getStatus()===404);
