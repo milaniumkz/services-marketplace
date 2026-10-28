@@ -13,3 +13,5 @@ html{scroll-behavior:smooth}body{background:#fff}.public-header{height:88px;bord
 
 .public-footer{height:auto;min-height:104px;padding-top:24px;padding-bottom:24px;gap:20px;flex-wrap:wrap}.footer-links{max-width:100%;justify-content:flex-start}
 [data-legal-type] .page-title{overflow-wrap:anywhere}@media(max-width:760px){[data-legal-type] .page-title{font-size:clamp(26px,7vw,32px);line-height:1.25}}
+
+.wordmark{display:inline-flex;align-items:center;gap:10px}.wordmark img{display:block;flex:none;border-radius:9px;object-fit:contain}

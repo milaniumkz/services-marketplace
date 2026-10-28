@@ -20,7 +20,7 @@ Future<bool> displayForegroundPush(
               web.NotificationOptions(
                   body: body,
                   tag: eventId,
-                  icon: '/icons/Icon-192.png',
+                  icon: '/icons/joba-192.png',
                   data: {'joba': true}.jsify()))
           .toDart;
       return true;

@@ -1457,7 +1457,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           Center(
               child: ClipRRect(
                   borderRadius: BorderRadius.circular(31),
-                  child: Image.asset('assets/joba-logo-original.jpeg',
+                  child: Image.asset('assets/joba-logo.png',
                       width: 140, height: 140, fit: BoxFit.contain))),
           const SizedBox(height: 24),
           const UiHeading('Дела становятся проще',
@@ -5024,7 +5024,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       'О приложении',
       listBody([
         Center(
-            child: Image.asset('assets/joba-logo-original.jpeg',
+            child: Image.asset('assets/joba-logo.png',
                 width: 140, height: 140)),
         const SizedBox(height: 24),
         const UiHeading(

@@ -37,7 +37,7 @@ class JobaStatePanel extends StatelessWidget {
         if (brand)
           ClipRRect(
               borderRadius: BorderRadius.circular(31),
-              child: Image.asset('assets/joba-logo-original.jpeg',
+              child: Image.asset('assets/joba-logo.png',
                   width: 140, height: 140))
         else
           Container(

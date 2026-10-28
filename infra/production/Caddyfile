@@ -26,7 +26,7 @@
     file_server
   }
   # Shared design assets have distinct names from Flutter's assets/assets tree.
-  @shared path /assets/fonts/NotoSans-Regular.ttf /assets/fonts/NotoSans-Bold.ttf /assets/joba-logo-original.jpeg
+  @shared path /assets/fonts/NotoSans-Regular.ttf /assets/fonts/NotoSans-Bold.ttf /assets/joba-logo-original.jpeg /assets/joba-logo.png /assets/joba-logo-192.png /assets/joba-logo-source.png /assets/joba-favicon.png
   handle @shared {
     root * /srv/admin
     file_server
