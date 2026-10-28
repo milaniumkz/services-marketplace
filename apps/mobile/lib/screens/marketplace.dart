@@ -4537,6 +4537,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       else if(type.startsWith('contractor.'))go('services');
       else if(type.startsWith('referral.'))go('referrals');
       else if(type.startsWith('refund.'))go('refunds');
+      else if(type.startsWith('account.')||type.startsWith('sanction.'))go('account');
       else if(type.startsWith('boost.'))go('promotion-history');
       else if(type.startsWith('support.'))go('support-chat',r['target_id']);
       else if (type.startsWith('amendment.') ||

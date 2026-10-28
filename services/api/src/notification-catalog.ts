@@ -17,6 +17,7 @@ export const notificationTitles:Record<string,string>={
  'refund.confirmed':'Возврат оплаты подтверждён','refund.failed':'Не удалось выполнить возврат','refund.rejected':'Заявка на возврат отклонена',
  'referral.available':'Вам начислен реферальный бонус','referral.redeemed':'Реферальный бонус использован','referral.expired':'Срок реферального бонуса истёк',
  'boost.active':'Продвижение услуг включено','boost.expired':'Срок продвижения закончился','boost.paused':'Продвижение приостановлено','boost.revoked':'Продвижение отключено',
+ 'account.restored':'Доступ к аккаунту восстановлен','account.updated':'Изменился статус вашего аккаунта',
  'case.message.created':'Новое сообщение по обращению','case.updated':'Обновлено решение по обращению','content.moderated':'Обновлён результат проверки материала','support.resolved':'Обращение в поддержку закрыто','support.reopened':'Обращение в поддержку открыто снова',
  'privacy.export.ready':'Ваш архив данных готов','privacy.hold.created':'Изменились условия хранения данных','privacy.hold.released':'Ограничение удаления данных снято','sanction.created':'Изменились ограничения аккаунта'
 };

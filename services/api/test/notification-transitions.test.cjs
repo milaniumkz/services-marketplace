@@ -21,3 +21,19 @@ test('store changes atomically create an inbox notice, stream event and outbox o
  assert.equal((await s.db.query('SELECT count(*)::int AS n FROM events')).rows[0].n,2);
  }finally{await s.close();}
 });
+test('time-based invitation, subscription and bonus expiry emits once and leaves live access unchanged',async()=>{
+ const s=new Store('memory://'),a=new Marketplace(s);await a.initialize();
+ try{
+ const now=new Date(),past=new Date(now.getTime()-1000).toISOString(),future=new Date(now.getTime()+86400000).toISOString(),owner=randomUUID(),recipient=randomUUID();
+ const invite=row('invite','pending',{owner,recipient_id:recipient,order_id:randomUUID(),expires_at:past});
+ const subscription=row('subscription','active',{owner,valid_until:past});
+ const live=row('subscription','grace',{owner,valid_until:future});
+ const reward=row('referral_reward','available',{owner,expires_at:past});
+ await s.put(invite);await s.put(subscription);await s.put(live);await s.put(reward);
+ const base=(await s.all('notification')).length;
+ await a.maintenance(now);await a.maintenance(now);
+ const notices=(await s.all('notification')).slice();assert.equal(notices.length-base,4);
+ for(const type of ['invite.expired','subscription.expired','referral.expired'])assert.equal(notices.filter(n=>n.type===type).length,type==='invite.expired'?2:1);
+ assert.equal((await s.get(live.id)).status,'grace');assert.equal((await s.get(subscription.id)).status,'expired');
+ }finally{await s.close();}
+});

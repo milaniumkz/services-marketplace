@@ -1112,7 +1112,7 @@ export class Marketplace {
       }
       const permission=({categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing','payment-transactions':'billing','refund-requests':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
-      if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,id)=>this.notify(user,a,'case.updated',id)});if(result!==undefined)return result;}
+      if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,_id)=>this.notify(user,a,'account.updated',user)});if(result!==undefined)return result;}
       if(section==='banner-campaigns'){if(path==='/admin/banner-campaigns'&&method==='GET')return this.page('banner_campaign',a,q,{statuses:q.status?[String(q.status)]:undefined});const result=await bannerCampaigns(this.store,a,method,path,b,{object:id=>this.object(id,a,'banner_campaign'),record:data=>this.record('banner_campaign',a,data),audit:(action,id,reason)=>this.audit(a,action,id,reason)});if(result!==undefined)return result;}
       if(path==='/admin/category-tree'&&method==='GET')return {items:(await this.categories(a.country)).map(r=>({id:r.id,version_id:r.record_id,title:r.title,parent_id:r.payload.parent_id??null,labels:r.payload.labels,icon:r.payload.icon??'briefcase'}))};
       const report=await adminReports(this.store,a.country,method,path,q);if(report!==undefined)return report;
@@ -1917,6 +1917,8 @@ export class Marketplace {
           if(chat?.status==='open')await this.store.put({...chat,status:'closed',version:chat.version+1});
         }
         for(const r of await this.store.all('order'))if(r.status==='open'&&r.expires_at<=now.toISOString())await this.store.put({...r,status:'expired',version:r.version+1});
+        for(const r of await this.store.all('subscription'))if(['active','grace','billing_retry'].includes(r.status)&&r.valid_until&&Date.parse(r.valid_until)<=now.getTime())await this.store.put({...r,status:'expired',version:r.version+1});
+        for(const r of await this.store.all('referral_reward'))if(r.status==='available'&&r.expires_at&&Date.parse(r.expires_at)<=now.getTime())await this.store.put({...r,status:'expired',version:r.version+1});
         for(const r of await this.store.all('boost')) {
           if(['reserved','payment_pending'].includes(r.status)&&r.reservation_expires_at<=now.toISOString()){await this.store.put({...r,status:'expired',version:r.version+1});continue;}
           if(['active','paused','scheduled'].includes(r.status)&&r.ends_at<=now.toISOString()){await this.store.put({...r,status:'expired',version:r.version+1});continue;}
@@ -1926,12 +1928,12 @@ export class Marketplace {
           const disputes=(await this.store.all('case',r.country)).filter(c=>c.target_id===r.order_id&&!['resolved','closed'].includes(c.status));
           if(!disputes.length&&!['quarantined','hidden','rejected'].includes(r.moderation_status))await this.store.put({...r,status:'published',published_at:now.toISOString(),version:r.version+1});
         }
-        for(const kind of ['cancel_request','amendment','ad_session','recovery','auto_hold','blacklist'])for(const r of await this.store.all(kind)) {
+        for(const kind of ['cancel_request','amendment','invite','ad_session','recovery','auto_hold','blacklist'])for(const r of await this.store.all(kind)) {
           const end=r.expires_at??r.ends_at;if(end&&end<=now.toISOString()&&['pending','new','active'].includes(r.status))await this.store.put({...r,status:'expired',version:r.version+1});
         }
         for(const u of await this.store.all('user'))if(u.status==='restricted') {
           const active=(await this.store.all('blacklist',u.country)).some(x=>x.user_id===u.id&&x.status==='active')||(await this.store.all('auto_hold',u.country)).some(x=>x.user_id===u.id&&x.status==='active');
-          if(!active)await this.store.put({...u,status:'active',version:u.version+1});
+          if(!active){await this.store.put({...u,status:'active',version:u.version+1});await this.notify(u.id,{id:u.id,country:u.country},'account.restored',u.id);}
         }
         for(const r of await this.store.all('privacy'))if(r.type==='export'&&((r.status==='requested'&&(!r.next_attempt_at||r.next_attempt_at<=now.toISOString()))||(r.status==='processing'&&r.lease_expires_at<=now.toISOString()))) {
           const job=await this.store.put({...r,status:'processing',lease_expires_at:new Date(now.getTime()+3600000).toISOString(),version:r.version+1});exportJobs.push(job);
