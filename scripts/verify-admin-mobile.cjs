@@ -145,6 +145,15 @@ async function main(){
   const audits=await api.store.all('audit','KZ');
   for(const action of ['user.phone_read','user.block','user.unblock','user.deletion_requested'])assert(audits.some(r=>r.action===action));
   console.log('Contact, block, unblock and simple deletion verified through browser and real isolated API');
+  await page.goto(frontend+'/#referrals?new=1');await page.locator('#referral-editor').waitFor();
+  await page.getByLabel('Название',{exact:true}).fill('Персональная скидка за друзей');await page.getByLabel('Приглашений для награды',{exact:true}).fill('3');await page.getByLabel('Процент скидки',{exact:true}).fill('25');
+  await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/referral-campaigns')&&r.request().method()==='POST'&&r.status()===200),page.getByRole('button',{name:'Создать новый черновик',exact:true}).click()]);
+  await page.waitForFunction(()=>location.hash.includes('referrals?id=')&&!!document.querySelector('#referral-command'));
+  const referralId=new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('id');let campaign=await api.store.get(referralId);assert.equal(campaign.payload.threshold,3);assert.equal(campaign.payload.discount_percent,25);assert.deepEqual(campaign.payload.discount_services,['all']);
+  await page.getByLabel('Награда',{exact:true}).selectOption('subscription_days');await page.getByLabel('Что продлить',{exact:true}).selectOption('top100');
+  await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/referral-campaigns/'+referralId)&&r.request().method()==='PATCH'&&r.status()===200),page.getByRole('button',{name:'Сохранить черновик',exact:true}).click()]);
+  await page.waitForLoadState('networkidle');campaign=await api.store.get(referralId);assert.equal(campaign.payload.reward_kind,'subscription_days');assert.equal(campaign.payload.reward_plan,'top100');
+  console.log('Referral UI saves threshold, personal discount and bonus Top-100 without manual reason fields');
   const employeeRoleId=randomUUID();await api.store.put({id:employeeRoleId,kind:'staff_role',owner:id,country:'KZ',version:1,created_at:created,title:'Наблюдатель аккаунтов',status:'active',grants:['GET /admin/users','GET /admin/users/{id}']});
   await page.goto(frontend+'/#staff-access');await page.locator('#staff-create').waitFor();
   const employeeForm=page.locator('#staff-create');

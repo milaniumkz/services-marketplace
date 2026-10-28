@@ -14,7 +14,7 @@ export async function updateTestPayments(store:Store,country:string,actor:string
  if(b.enabled&&providerReady)fail('TEST_PAYMENTS_UNAVAILABLE','Подключён реальный платёжный провайдер',409);
  const now=new Date().toISOString();await store.put({...existing??row('test_payment_settings',actor,country,{}),enabled:b.enabled,version:(existing?.version??0)+1,updated_at:now});
  if(!b.enabled){
-  for(const subscription of await store.all('subscription',country))if(subscription.is_test&&subscription.status==='active')await store.put({...subscription,status:'revoked',valid_until:now,version:subscription.version+1});
+  for(const subscription of await store.all('subscription',country))if(subscription.is_test&&['active','scheduled'].includes(subscription.status))await store.put({...subscription,status:'revoked',valid_until:now,version:subscription.version+1});
   for(const grant of await store.all('grant',country))if(grant.is_test)await store.put({...grant,valid_until:now,version:grant.version+1});
  }
  await store.put(row('audit',actor,country,{actor_id:actor,action:'billing.test_mode_changed',target_id:country,reason:b.reason,enabled:b.enabled}));

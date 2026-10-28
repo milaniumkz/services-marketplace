@@ -99,7 +99,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
           final receipt = await widget.gateway.purchase(offer);
           if (!current()) return;
           result = await api.request('/billing/verify-purchase',
-              method: 'POST', body: receipt) as Json;
+              method: 'POST', body: {...receipt,'quote_id':offer['id']}) as Json;
         }
         if (!current()) return;
         widget.onGo(
@@ -583,7 +583,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                               ? Icons.radio_button_checked
                               : Icons.radio_button_unchecked,
                           color: primary),
-                      title: Text(r['plan'] == null
+                      title: Text(r['offer_kind']=='upgrade'?'Доплата до Премиума':r['plan']=='top100'?'Топ-100 отдельно':r['plan'] == null
                           ? '${r['title'] ?? r['product_id']}'
                           : r['plan'] == 'customer'
                               ? 'Заказчик'
@@ -603,25 +603,28 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                         borderRadius: BorderRadius.circular(16)),
                     child: Column(children: [
                       checkoutFact(
-                          'Полный доступ',
+                          offer['plan']=='top100'?'Дополнение':offer['offer_kind']=='upgrade'?'Повышение тарифа':'Полный доступ',
                           offer['plan'] == 'customer'
                               ? 'Заказчик'
                               : 'Исполнитель'),
                       if (offer['plan'] != null)
                         checkoutFact(
                             'Тариф',
-                            offer['plan'] == 'customer'
+                            offer['plan']=='top100'?'Топ-100 отдельно':offer['offer_kind']=='upgrade'?'Доплата до Премиума':offer['plan'] == 'customer'
                                 ? 'Заказчик'
                                 : offer['plan'] == 'premium'
                                     ? 'Премиум'
                                     : 'Стандарт'),
                       checkoutFact(
                           'Период',
-                          offer['duration_days'] == 30
+                          offer['offer_kind']=='upgrade'?'До ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(offer['valid_until']).toLocal())}':offer['duration_days'] == 30
                               ? '30 дней'
                               : periodLabel(offer['period'])),
                       if (offer['plan'] == 'premium')
-                        checkoutFact('Топ-100', 'Приоритет услуг на 30 дней'),
+                        checkoutFact('Топ-100', offer['offer_kind']=='upgrade'?'На оставшийся оплаченный срок':'Приоритет услуг на 30 дней'),
+                      if(offer['plan']=='top100')checkoutFact('Условие','Нужен активный Стандарт. Основной доступ не продлевается.'),
+                      if(offer['starts_at']!=null)checkoutFact('Начало нового периода',DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(offer['starts_at']).toLocal())),
+                      if(offer['discount_percent'] is num&&offer['discount_percent']>0)checkoutFact('Персональная скидка','${offer['discount_percent']}%'),
                       checkoutFact('Цена', money(offer)),
                       checkoutFact(
                           'Продление',

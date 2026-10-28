@@ -8,7 +8,7 @@ export function pricePayload(value:any,country:string){
  if(!['subscription','boost'].includes(p.product_type))invalid('Выберите подписку или продвижение');
  if(p.currency!==currencies[country]||!Number.isSafeInteger(p.amount_minor)||p.amount_minor<0)invalid('Проверьте сумму и валюту страны');
  for(const name of ['provider','product_id'])if(typeof p[name]!=='string'||!p[name].trim()||p[name].length>120)invalid('Укажите провайдера и идентификатор продукта');
- if(p.product_type==='subscription'&&p.plan!==undefined&&(!['standard','premium','customer'].includes(p.plan)||p.period!=='days'||p.duration_days!==30))invalid('Подписки действуют ровно 30 дней');
+ if(p.product_type==='subscription'&&p.plan!==undefined&&(!['standard','premium','customer','top100'].includes(p.plan)||p.period!=='days'||p.duration_days!==30))invalid('Подписки действуют ровно 30 дней');
  if(!(p.product_type==='subscription'?(p.plan?['days']:['month','year']):['week','month','year','days']).includes(p.period))invalid('Выберите поддерживаемый период');
  if(p.period==='days'&&(!Number.isInteger(p.duration_days)||p.duration_days<1||p.duration_days>366))invalid('Укажите от 1 до 366 суток');
  if(p.time_zone!==zones[country])invalid('Часовой пояс должен соответствовать стране цены');

@@ -598,10 +598,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   bool accessRedirectQueued=false;
   bool openRequiredAccess(){
-    if(!mounted||!api.authenticated||locked||authNavigationBlocked||onboardingNavigationBlocked||['my-access','checkout','payment-pending','test-payment-success','restore'].contains(route))return false;
+    if(!mounted||!api.authenticated||locked||authNavigationBlocked||onboardingNavigationBlocked||['my-access','access','payment-pending','test-payment-success','restore'].contains(route))return false;
     if(accessRedirectQueued)return true;
     accessRedirectQueued=true;final client=api,generation=api.sessionGeneration;
-    WidgetsBinding.instance.addPostFrameCallback((_){accessRedirectQueued=false;if(mounted&&api==client&&client.sessionGeneration==generation&&client.authenticated&&!locked&&!authNavigationBlocked&&!['my-access','checkout','payment-pending','test-payment-success','restore'].contains(route))go('my-access');});
+    WidgetsBinding.instance.addPostFrameCallback((_){accessRedirectQueued=false;if(mounted&&api==client&&client.sessionGeneration==generation&&client.authenticated&&!locked&&!authNavigationBlocked&&!['my-access','access','payment-pending','test-payment-success','restore'].contains(route))go('access');});
     WidgetsBinding.instance.ensureVisualUpdate();return true;
   }
   Future<void> act(Future<void> Function() action) async {
@@ -5254,6 +5254,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         style: const TextStyle(color: muted, fontSize: 12, height: 1.5))
                   ])),
           const SizedBox(height: 16),
+          for(final discount in (data['discounts'] as List? ?? []).cast<Json>())
+            DataCard('Персональная скидка ${discount['percent']}%',subtitle:'${(discount['services'] as List? ?? []).map((v)=>switch(v){'all'=>'Все услуги','standard'=>'Стандарт','premium'=>'Премиум','customer'=>'Подписка заказчика','renewal'=>'Продление','upgrade'=>'Переход на Премиум','top100'=>'Топ-100','boost'=>'Продвижение',_=>'Услуга'}).join(' · ')}\nДо ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(discount['valid_until']).toLocal())}',status:discount['status']=='active'&&DateTime.parse(discount['valid_until']).isAfter(api.clock.now)?'Действует':discount['status']=='used'?'Использована':'Срок истёк'),
           for (final reward in rewards)
             ReferralRewardCard(now: () => api.clock.now,
                 key: ValueKey('referral-reward:${reward['id']}'),

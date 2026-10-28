@@ -64,6 +64,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
   DateTime? until(Json r) => DateTime.tryParse('${r['valid_until'] ?? ''}');
   bool valid(Json r) =>
       until(r)?.isAfter(widget.now()) == true &&
+      (DateTime.tryParse('${r['valid_from']??''}')?.isAfter(widget.now())!=true) &&
       (r['balance'] == null || r['balance'] > 0);
   String date(BuildContext context, Json r, {bool short = false}) {
     final value = until(r);
@@ -149,9 +150,9 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                 if (grants.isEmpty && subscriptions.isEmpty)
                   const Notice('История доступа пока пуста.'),
                 for (final r in subscriptions)
-                  DataCard(r['plan'] == 'customer' ? 'Заказчик' : r['plan'] == 'premium' ? 'Премиум' : 'Стандарт',
+                  DataCard(r['plan']=='top100'?'Топ-100 отдельно':r['is_upgrade']==true?'Доплата до Премиума':r['plan'] == 'customer' ? 'Заказчик' : r['plan'] == 'premium' ? 'Премиум' : 'Стандарт',
                       translateTitle: true,
-                      subtitle: '${r['status']} · ${date(context, r)}'),
+                      subtitle: '${switch(r['status']){'active'=>'Действует','scheduled'=>'Ожидает начала','grace'=>'Льготный период','expired'=>'Завершена','revoked'=>'Отозвана','canceled_at_period_end'=>'До конца оплаченного срока',_=>'Не активна'}} · ${date(context, r)}'),
                 for (final r in grants)
                   DataCard(r['is_test']==true?'Тестовая подписка':sourceLabel(r),
                       translateTitle: true,
@@ -164,15 +165,27 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         'verified_ad_reward' => 'Рекламная награда',
         _ => 'Доступ JOBA'
       };
+  List<Widget> extraPurchases(BuildContext context,List<Json> offers){
+    if(widget.customer)return [];
+    final upgrade=offers.where((o)=>o['offer_kind']=='upgrade').toList(),top=offers.where((o)=>o['plan']=='top100').toList();
+    final topPeriods=subscriptions.where((s)=>s['plan']=='top100'&&until(s)?.isAfter(widget.now())==true&&s['status']!='revoked').toList()..sort((a,b)=>until(b)!.compareTo(until(a)!));
+    return [
+      if(upgrade.isNotEmpty)Padding(padding:const EdgeInsets.only(bottom:16),child:card([text('Повысить до Премиума',size:18,bold:true),const SizedBox(height:8),text(money(context,upgrade.first),size:24,bold:true),text('Доплата за оставшийся срок Стандарта. Дата окончания оплаченного доступа сохраняется.'),if(upgrade.first['discount_percent'] is num&&upgrade.first['discount_percent']>0)text('Учтена персональная скидка ${upgrade.first['discount_percent']}%.'),action('Перейти на Премиум','checkout',id:upgrade.first['id'])])),
+      if(topPeriods.isNotEmpty)Padding(padding:const EdgeInsets.only(bottom:12),child:Notice('Отдельный Топ-100 оплачен до ${date(context,topPeriods.first)}. Для размещения нужен активный основной доступ.',icon:'crown')),
+      if(top.isNotEmpty)Padding(padding:const EdgeInsets.only(bottom:16),child:card([text('Топ-100 отдельно',size:18,bold:true),const SizedBox(height:8),text('${money(context,top.first)} / 30 дней',size:22,bold:true),text('Приоритет услуг в Топ-100 при активном Стандарте. Основная подписка не продлевается.'),if(top.first['discount_percent'] is num&&top.first['discount_percent']>0)text('Учтена персональная скидка ${top.first['discount_percent']}%.'),action(topPeriods.isEmpty?'Подключить Топ-100':'Продлить Топ-100','checkout',id:top.first['id'])])),
+    ];
+  }
   @override
   Widget build(BuildContext context) {
     final active = subscriptions
         .where((r) =>
-            valid(r) &&
+            r['is_addon']!=true&&r['is_upgrade']!=true&&r['plan']!='top100'&&valid(r) &&
             ['active', 'grace', 'canceled_at_period_end'].contains(r['status']))
         .toList()
       ..sort((a, b) => until(b)!.compareTo(until(a)!));
-    final subscription = active.isEmpty ? null : active.first;
+    final baseSubscription = active.isEmpty ? null : active.first;
+    final upgrades=subscriptions.where((r)=>r['is_upgrade']==true&&valid(r)&&r['status']=='active').toList();
+    final Json? subscription=baseSubscription==null?null:{...baseSubscription,if(upgrades.isNotEmpty)'plan':'premium'};
     final offers = (config['offers'] as List? ?? [])
         .cast<Json>()
         .where((r) => r['product_type'] != 'boost')
@@ -191,10 +204,11 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         text(widget.customer ? 'Анкеты исполнителей и размещение заказов на 30 дней.' : 'Поиск заказов, публикация услуг и отклики.', color: muted),
         const SizedBox(height: 20),
         if(config['verification_status']!=null&&config['verification_status']!='passed') ...[text('Перед использованием подписки подтвердите личность.'),const SizedBox(height:8),action('Подтвердить личность','verification'),const SizedBox(height:16)],
+        ...extraPurchases(context,offers),
         for (final plan in (widget.customer ? const ['customer'] : const ['standard', 'premium']))
           Builder(builder: (context) {
             final matching =
-                offers.where((r) => (r['plan'] ?? 'standard') == plan).toList();
+                offers.where((r) => r['offer_kind']!='upgrade'&&(r['plan'] ?? 'standard') == plan).toList();
             final configured = (config['plans'] as List? ?? [])
                 .where((r) => r['code'] == plan)
                 .toList();
@@ -240,7 +254,9 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                   if (plan == 'premium')
                     benefit('Приоритет услуг в Топ-100 на 30 дней'),
                   const SizedBox(height: 6),
-                  action('Посмотреть условия', 'checkout', id: offer?['id']),
+                  if(offer?['discount_percent'] is num&&offer!['discount_percent']>0)text('Ваша персональная скидка ${offer['discount_percent']}% уже учтена.'),
+                  if(offer?['starts_at']!=null)text('Новый период начнётся ${date(context,{'valid_until':offer!['starts_at']})}. Уже оплаченные дни сохраняются.'),
+                  action(subscription==null?'Посмотреть условия':'Продлить на 30 дней', 'checkout', id: offer?['id']),
                   const SizedBox(height: 12),
                   text(
                       'Автопродление можно отменить. Оплаченный срок сохраняется.',
@@ -318,9 +334,10 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                   child: const UiText('Поддержка')))
         ]),
       ]);
-    final known =
-        subscription ?? (subscriptions.isEmpty ? null : subscriptions.first);
+    final bases=subscriptions.where((r)=>r['is_addon']!=true&&r['is_upgrade']!=true&&r['plan']!='top100').toList();
+    final known=subscription ?? (bases.isEmpty?null:bases.first);
     return ListView(padding: const EdgeInsets.all(20), children: [
+      for(final queued in bases.where((r)=>r['status']=='scheduled')) DataCard('Запланировано продление',subtitle:'${queued['plan']=='premium'?'Премиум':queued['plan']=='customer'?'Заказчик':'Стандарт'} · с ${date(context,{'valid_until':queued['valid_from']})} до ${date(context,queued)}'),
       if(subscription?['is_test']==true) const Notice('Тестовая подписка активна. Деньги не списывались.',icon:'info'),
       card([
         Row(children: [
@@ -372,7 +389,9 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
             color: const Color(0xFFAEBFD9)),
       ], dark: true),
       const SizedBox(height: 20),
+      ...extraPurchases(context,offers),
       JobaMenu([
+        JobaMenuEntry(widget.customer?'Продлить доступ':'Продлить или сменить тариф','card',()=>onGo('access',null),subtitle:'Новые 30 дней добавляются к оплаченному сроку'),
         JobaMenuEntry(
             known == null ? 'Выбрать доступ' : 'Управление подпиской',
             'card',

@@ -225,6 +225,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
                     fact('Размещение', placeLabel(r['placement_id'])),
                     fact('Период', dateRange(r)),
                     fact('Время', '${p?['time_zone'] ?? 'UTC'}'),
+                    if(p?['discount_percent'] is num&&p!['discount_percent']>0)fact('Персональная скидка','${p['discount_percent']}%'),
                     fact(
                         'Итого',
                         p?['currency'] == null

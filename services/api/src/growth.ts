@@ -1,3 +1,7 @@
+import {issueDiscount,bestDiscount,discountedPrice,useDiscount} from './personal-discounts';
+import {createPeriod,periodPlan} from './subscription-periods';
+import {subscriptionRole} from './subscription-plans';
+import {subscriptionState} from './subscription-quotes';
 import { randomUUID } from 'node:crypto';
 import { HttpException } from '@nestjs/common';
 import { RecordData, Store } from './store';
@@ -12,12 +16,13 @@ export class Growth {
   async referrals(owner:string,country:string) {
     let code=(await this.store.all('referral_code',country)).find(x=>x.owner===owner);
     if(!code){code=this.record('referral_code',owner,country,{code:randomUUID().replaceAll('-','').slice(0,12)});await this.store.put(code);}
-    return {code:code.code,campaigns:(await this.store.all('referral_campaign',country)).filter(x=>x.status==='effective').map(x=>({id:x.id,...x.payload})),attributions:(await this.store.all('referral_attribution',country)).filter(x=>x.referrer_id===owner).map(x=>({id:x.id,status:x.status})),rewards:(await this.store.all('referral_reward',country)).filter(x=>x.owner===owner)};
+    return {code:code.code,campaigns:(await this.store.all('referral_campaign',country)).filter(x=>x.status==='effective').map(x=>({id:x.id,...x.payload})),attributions:(await this.store.all('referral_attribution',country)).filter(x=>x.referrer_id===owner).map(x=>({id:x.id,status:x.status})),rewards:(await this.store.all('referral_reward',country)).filter(x=>x.owner===owner),discounts:(await this.store.all('referral_discount',country)).filter(x=>x.owner===owner).map(d=>({id:d.id,percent:d.percent,services:d.services,valid_until:d.valid_until,status:d.status,uses:d.uses,max_uses:d.max_uses}))};
   }
   async attribute(owner:string,country:string,code:string) {
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+country]);
     const previous=(await this.store.all('referral_attribution',country)).find(x=>x.owner===owner);if(previous)fail('ATTRIBUTION_ALREADY_SET','Пригласивший уже закреплён');
     const referrer=(await this.store.all('referral_code',country)).find(x=>x.code===code);if(!referrer||referrer.owner===owner)fail('REFERRAL_INELIGIBLE','Код недоступен',422);
+    const inviter=await this.store.get(referrer.owner);if(!inviter||inviter.status!=='active'||inviter.staff_permissions?.length)fail('REFERRAL_INELIGIBLE','Код недоступен',422);
     const campaign=(await this.store.all('referral_campaign',country)).find(x=>x.status==='effective');if(!campaign)fail('CAMPAIGN_UNAVAILABLE','Активной реферальной кампании нет',422);
     if(campaign.payload.attribution_window_days!==undefined){
       const account=await this.store.get(owner),created=Date.parse(account?.created_at??''),days=campaign.payload.attribution_window_days;
@@ -34,7 +39,7 @@ export class Growth {
       reservation=this.record('referral_reservation',referrer.owner,country,{campaign_id:campaign.id,policy_snapshot:campaign.payload,status:'reserved'});
       await this.store.put(reservation);
     }
-    return this.store.put(this.record('referral_attribution',owner,country,{referrer_id:referrer.owner,campaign_id:campaign.id,reservation_id:reservation.id,campaign_snapshot:reservation.policy_snapshot,status:'pending'}));
+    const saved=await this.store.put(this.record('referral_attribution',owner,country,{referrer_id:referrer.owner,campaign_id:campaign.id,reservation_id:reservation.id,campaign_snapshot:reservation.policy_snapshot,status:'pending'}));if(reservation.policy_snapshot.qualifying_event==='registered')await this.qualify(owner,country,'registered',owner);return (await this.store.get(saved.id))!;
   }
   async qualify(owner:string,country:string,event:string,eventId:string) {
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+country]);
@@ -48,6 +53,7 @@ export class Growth {
       const reward=this.record('referral_reward',attribution.referrer_id,country,{campaign_id:attribution.campaign_id,reservation_id:reservation.id,policy_snapshot:reservation.policy_snapshot,status:'available',expires_at:new Date(Date.now()+30*86400000).toISOString(),qualifying_attributions:qualified.map(x=>x.id)});
       await this.store.put(reward);
       await this.store.put({...reservation,status:'issued',reward_id:reward.id,version:reservation.version+1});
+      await this.redeemEligible(attribution.referrer_id,country);
       return;
     }
     const all=(await this.store.all('referral_attribution',country)).filter(x=>x.referrer_id===attribution.referrer_id&&x.campaign_id===attribution.campaign_id&&x.status==='qualified');
@@ -56,13 +62,31 @@ export class Growth {
     const policy=attribution.campaign_snapshot;
     if(Math.floor(all.length/policy.threshold)<=own.length||rewards.length>=policy.budget_units)return;
     await this.store.put(this.record('referral_reward',attribution.referrer_id,country,{campaign_id:attribution.campaign_id,policy_snapshot:policy,status:'available',expires_at:new Date(Date.now()+30*86400000).toISOString(),qualifying_attributions:all.map(x=>x.id)}));
+    await this.redeemEligible(attribution.referrer_id,country);
   }
   async redeem(owner:string,country:string,id:string) {
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+country]);
     const r=await this.store.get(id);if(!r||r.kind!=='referral_reward'||r.owner!==owner||r.country!==country)fail('NOT_FOUND','Награда не найдена',404);
     if(r.status==='redeemed')return r;if(r.status!=='available'||r.expires_at<=new Date().toISOString())fail('REWARD_EXPIRED','Награда больше не доступна');
+    if(r.policy_snapshot.reward_kind==='discount'){const discount=await issueDiscount(this.store,r);return this.store.put({...r,status:'redeemed',discount_id:discount.id,version:r.version+1});}
+    if(r.policy_snapshot.reward_kind==='subscription_days'){
+      const user=await this.store.get(owner);if(!user||user.status!=='active')fail('FORBIDDEN','Аккаунт недоступен',403);
+      const state=await subscriptionState(this.store,user),role=subscriptionRole(user),p=r.policy_snapshot;
+      const plan=p.reward_plan==='current'?(role==='customer'?'customer':state.premium?'premium':'standard'):p.reward_plan;
+      if((plan==='customer')!==(role==='customer'))fail('ROLE_REQUIRED','Награда предназначена для другой роли',403);
+      if(plan==='top100'&&!state.current.length)fail('ENTITLEMENT_REQUIRED','Для бонусного Топ-100 нужен основной доступ',403);
+      const topEnd=state.periods.filter(s=>periodPlan(s)==='top100'||periodPlan(s)==='premium').reduce((v,s)=>Math.max(v,Date.parse(s.valid_until)),Date.now());
+      const from=new Date(plan==='top100'?topEnd:state.paid_until).toISOString();
+      const period=await createPeriod(this.store,user,{plan,seconds:p.reward_duration_seconds,from,price:{plan,amount_minor:0,currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country],period:'days',reward_id:r.id},provider:'referral',referral_reward_id:r.id});
+      return this.store.put({...r,status:'redeemed',subscription_id:period.id,grant_id:period.grant_id,version:r.version+1});
+    }
     const grant=this.record('grant',owner,country,{source:'referral_privilege',source_id:r.id,valid_until:new Date(Date.now()+r.policy_snapshot.reward_duration_seconds*1000).toISOString(),capabilities:r.policy_snapshot.capabilities});
     await this.store.put(grant);return this.store.put({...r,status:'redeemed',grant_id:grant.id,version:r.version+1});
+  }
+  async redeemEligible(owner:string,country:string){
+    const user=await this.store.get(owner);if(!user||user.status!=='active'||user.staff_permissions?.length)return;
+    const rewards=(await this.store.select('referral_reward',country,{owner,statuses:['available'],limit:100})).filter(r=>r.policy_snapshot?.reward_kind&&r.expires_at>new Date().toISOString());
+    for(const r of rewards){try{await this.redeem(owner,country,r.id);}catch(error){const code=(error as any).getResponse?.()?.error?.code;if(!['ROLE_REQUIRED','ENTITLEMENT_REQUIRED'].includes(code))throw error;}}
   }
   async reserveBoost(owner:string,country:string,b:any) {
     const settings=await readSettings(this.store,country);
@@ -77,7 +101,9 @@ export class Growth {
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-target:'+country+':'+b.target_id]);
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-capacity:'+country+':'+b.placement_id]);
     await this.previewAdminBoost(country,{...b,ends_at:end});
-    return this.store.put(this.record('boost',owner,country,{target_id:target.id,placement_id:b.placement_id,price_snapshot:price.payload,policy_snapshot:policy.payload,status:'reserved',starts_at:new Date().toISOString(),ends_at:end,reservation_expires_at:new Date(Date.now()+settings.boost_reservation_minutes*60000).toISOString()}));
+    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['personal-discount:'+country+':'+owner]);
+    const buyer=await this.store.get(owner),discount=buyer?await bestDiscount(this.store,buyer,'boost'):undefined;
+    return this.store.put(this.record('boost',owner,country,{target_id:target.id,placement_id:b.placement_id,price_snapshot:{...price.payload,...discountedPrice(price.payload.amount_minor,discount)},policy_snapshot:policy.payload,status:'reserved',starts_at:new Date().toISOString(),ends_at:end,reservation_expires_at:new Date(Date.now()+settings.boost_reservation_minutes*60000).toISOString()}));
   }
   async verifyBoost(owner:string,country:string,b:any) {
     const boost=await this.store.get(b.reservation_id);if(!boost||boost.kind!=='boost'||boost.owner!==owner||boost.country!==country)fail('NOT_FOUND','Резерв не найден',404);
@@ -105,6 +131,7 @@ export class Growth {
       if(!(e instanceof HttpException)||!['TARGET_INELIGIBLE','PLACEMENT_UNAVAILABLE','TARGET_EXPIRES_EARLY','BOOST_OVERLAP','PLACEMENT_FULL'].includes((e.getResponse() as any)?.error?.code))throw e;
       resolution=true;
     }
+    if(!resolution)try{await useDiscount(this.store,owner,country,boost.price_snapshot,new Date(),boost.id);}catch(error){if((error as any).getResponse?.()?.error?.code!=='OFFER_CHANGED')throw error;resolution=true;}
     return this.store.put({...boost,status:resolution?'resolution_required':'active',provenance:'paid',provider:p.provider,transaction_id:p.transaction_id,confirmed_at:new Date().toISOString(),version:boost.version+1});
   }
   async previewAdminBoost(country:string,b:any,excludedId?:string) {

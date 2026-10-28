@@ -1,3 +1,5 @@
+import {checkoutOffers,buyTestQuote} from './subscription-quotes';
+import {activatePeriods,presentSubscription} from './subscription-periods';
 import {notificationTitle} from './notification-catalog';
 import {notifyTransition,notificationTransitionKinds} from './notification-transitions';
 import {firebasePublicConfig, InvalidPushToken} from './firebase-push';
@@ -174,6 +176,7 @@ export class Marketplace {
     if(capability==='select_offer')return;
     if(capability==='search_full'&&!verified&&subscriptionRole(a.user)!=='executor')return;
     if(capability==='view_contractors'&&a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Подтвердите личность: документ с двух сторон и селфи');
+    await activatePeriods(this.store,a.user);
     if(capability==='publish_order'||capability==='view_contractors'&&subscriptionRole(a.user)!=='executor') {
       if(a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Подтвердите личность: документ с двух сторон и селфи');
       const required=capability==='view_contractors'?'view_contractors':'publish_order';
@@ -182,6 +185,7 @@ export class Marketplace {
       return;
     }
     if(capability==='view_contractors')capability='search_full';
+    await activatePeriods(this.store,a.user);
     await this.promotionGrant(a);
     const grants=(await this.store.select('grant',a.country,{owner:a.id,limit:1000})).filter(r=>r.owner===a.id && r.valid_until>new Date().toISOString() && r.capabilities.includes(capability)&&r.role!=='customer'&&r.plan!=='customer'&&(r.balance===undefined||r.balance>0));
     if(!grants.length)fail(403,'ENTITLEMENT_REQUIRED','Нужен действующий доступ',{capability});
@@ -447,9 +451,9 @@ export class Marketplace {
       const usedToday=Number(usage.used),dailyCap=config?.payload.daily_cap??5;
       const last=usage.last?Date.parse(usage.last):0;
       const cooldownUntil=last?new Date(last+(config?.payload.cooldown_seconds??300)*1000).toISOString():null;
-      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:testMode.enabled,test_payments_enabled:testMode.enabled,verification_status:a.user.verification,subscription_enabled:config?.payload.subscription_enabled!==false,subscription_scope:'customer_and_executor',plans:(await this.commerce.plans(a.country)).items.filter(p=>p.role===(subscriptionRole(a.user))),country_gate:'unverified',offers:config?.payload.subscription_enabled!==false?(await this.commerce.offers(a.country,subscriptionRole(a.user))).items:[]};
+      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:testMode.enabled,test_payments_enabled:testMode.enabled,verification_status:a.user.verification,subscription_enabled:config?.payload.subscription_enabled!==false,subscription_scope:'customer_and_executor',plans:(await this.commerce.plans(a.country)).items.filter(p=>p.role===(subscriptionRole(a.user))),country_gate:'unverified',offers:config?.payload.subscription_enabled!==false?(await checkoutOffers(this.store,this.commerce,a.user)).items:[],addons:(await this.commerce.plans(a.country)).addons};
     }
-    if(path==='/me/entitlements'&&method==='GET'){await this.promotionGrant(a);return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};}
+    if(path==='/me/entitlements'&&method==='GET'){await activatePeriods(this.store,a.user);await this.promotionGrant(a);return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};}
     if(path==='/me/verification'&&method==='GET') {
       const policy=(await this.store.all('verification_policy',a.country)).filter(x=>x.status==='effective').sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id))[0];
       const consent=policy?(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id&&x.document_id===policy!.payload.document_id).sort((x,y)=>(y.sequence??0)-(x.sequence??0)||y.created_at.localeCompare(x.created_at))[0]:null;
@@ -1004,12 +1008,12 @@ export class Marketplace {
       }
       return this.store.put(this.record('case_message',a,{case_id:c.id,author_type:'participant',text:text(b,'text',1,3000),upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[]}));
     }
-    if(path==='/billing/test-purchase'&&method==='POST')return simulateSubscription(this.store,a.user,b,(await this.commerce.offers(a.country,subscriptionRole(a.user))).items);
-    if(path==='/billing/offers'&&method==='GET')return this.commerce.offers(a.country,subscriptionRole(a.user));
+    if(path==='/billing/test-purchase'&&method==='POST'){const result=await buyTestQuote(this.store,this.commerce,a.user,b);await this.growth.redeemEligible(a.id,a.country);return result;}
+    if(path==='/billing/offers'&&method==='GET')return checkoutOffers(this.store,this.commerce,a.user);
     if(['/billing/verify-purchase','/billing/restore'].includes(path)&&method==='POST'){return this.commerce.verify(a.id,a.country,String(b.provider),text(b,'transaction_reference',1,10000));}
     const purchaseCheck=path.match(/^\/me\/purchase-checks\/([^/]+)$/);if(purchaseCheck&&method==='GET'){const r=await this.object(purchaseCheck[1],a,'purchase_check',true);return {id:r.id,status:r.status,subscription_id:r.subscription_id??null};}
-    const ownSubscription=path.match(/^\/me\/subscriptions\/([^/]+)$/);if(ownSubscription&&method==='GET'){const r=await this.object(ownSubscription[1],a,'subscription',true);return {id:r.id,provider:r.provider,product_id:r.product_id,plan:r.price_snapshot?.plan??'standard',is_test:r.is_test===true,auto_renew:r.auto_renew,top100:r.price_snapshot?.plan==='premium',status:r.status,valid_until:r.valid_until,price:r.price_snapshot?{amount_minor:r.price_snapshot.amount_minor,currency:r.price_snapshot.currency,period:r.price_snapshot.period}:null};}
-    if(path==='/me/subscriptions'&&method==='GET')return {items:(await this.store.all('subscription',a.country)).filter(x=>x.owner===a.id).map(r=>({id:r.id,provider:r.provider,product_id:r.product_id,plan:r.price_snapshot?.plan??'standard',is_test:r.is_test===true,auto_renew:r.auto_renew,top100:r.price_snapshot?.plan==='premium',status:r.status,valid_until:r.valid_until,price:r.price_snapshot?{amount_minor:r.price_snapshot.amount_minor,currency:r.price_snapshot.currency,period:r.price_snapshot.period}:null}))};
+    const ownSubscription=path.match(/^\/me\/subscriptions\/([^/]+)$/);if(ownSubscription&&method==='GET'){await activatePeriods(this.store,a.user);return presentSubscription(await this.object(ownSubscription[1],a,'subscription',true));}
+    if(path==='/me/subscriptions'&&method==='GET'){await activatePeriods(this.store,a.user);return {items:(await this.store.all('subscription',a.country)).filter(x=>x.owner===a.id).map(r=>presentSubscription(r))};}
     if(path==='/billing/refundable-payments'&&method==='GET'){
       const limit=this.pageLimit(q),after=await this.cursor(q);
       const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND country=$1 AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
@@ -1105,7 +1109,8 @@ export class Marketplace {
         const old=(await this.store.all('subscription_catalog',a.country))[0];
         if(b.expected_version!==(old?.version??0))fail(409,'STATE_CONFLICT','Цены изменились. Обновите страницу');
         if(!b.prices||['standard','premium','customer'].some(k=>!Number.isSafeInteger(b.prices[k])||b.prices[k]<1||b.prices[k]>100000000000))fail(422,'VALIDATION_ERROR','Укажите положительную цену трёх тарифов');
-        const r=await this.store.put({...old??this.record('subscription_catalog',a,{}),prices:{standard:b.prices.standard,premium:b.prices.premium,customer:b.prices.customer},version:(old?.version??0)+1});
+        if(b.prices.top100!==undefined&&(!Number.isSafeInteger(b.prices.top100)||b.prices.top100<1||b.prices.top100>100000000000))fail(422,'VALIDATION_ERROR','Укажите положительную цену отдельного Топ-100');
+        const r=await this.store.put({...old??this.record('subscription_catalog',a,{}),prices:{standard:b.prices.standard,premium:b.prices.premium,customer:b.prices.customer,top100:b.prices.top100??old?.prices?.top100??50000},version:(old?.version??0)+1});
         await this.audit(a,'subscriptions.prices_updated',r.id,reason);return this.commerce.plans(a.country);
       }
 
@@ -1952,7 +1957,9 @@ export class Marketplace {
           if(chat?.status==='open')await this.store.put({...chat,status:'closed',version:chat.version+1});
         }
         for(const r of await this.store.all('order'))if(r.status==='open'&&r.expires_at<=now.toISOString())await this.store.put({...r,status:'expired',version:r.version+1});
-        for(const r of await this.store.all('subscription'))if(['active','grace','billing_retry'].includes(r.status)&&r.valid_until&&Date.parse(r.valid_until)<=now.getTime())await this.store.put({...r,status:'expired',version:r.version+1});
+        const due=(await this.store.db.query<{owner:string,country:string}>("SELECT DISTINCT owner,country FROM records WHERE kind='subscription' AND data->>'status'='scheduled' AND data->>'valid_from'<=$1 LIMIT 200",[now.toISOString()])).rows;for(const entry of due){const user=await this.store.get(entry.owner);if(user&&user.country===entry.country)await activatePeriods(this.store,user,now);}
+        await this.store.db.query("DELETE FROM records WHERE kind='checkout_quote' AND data->>'status'='available' AND data->>'expires_at'<$1",[new Date(now.getTime()-86400000).toISOString()]);
+        for(const r of await this.store.all('subscription'))if(['active','grace','billing_retry','scheduled'].includes(r.status)&&r.valid_until&&Date.parse(r.valid_until)<=now.getTime())await this.store.put({...r,status:'expired',version:r.version+1});
         for(const r of await this.store.all('referral_reward'))if(r.status==='available'&&r.expires_at&&Date.parse(r.expires_at)<=now.getTime())await this.store.put({...r,status:'expired',version:r.version+1});
         for(const r of await this.store.all('boost')) {
           if(['reserved','payment_pending'].includes(r.status)&&r.reservation_expires_at<=now.toISOString()){await this.store.put({...r,status:'expired',version:r.version+1});continue;}

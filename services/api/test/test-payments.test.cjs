@@ -33,8 +33,10 @@ test('explicit owner test mode simulates role-specific 30-day access, records ze
   await assert.rejects(()=>buy(offer),e=>e.getResponse().error.code==='OFFER_CHANGED');
   const premium=await buy(executorOffers.find(o=>o.plan==='premium'));assert.equal(premium.subscription.price_snapshot.plan,'premium');
   assert.ok((await call('GET','/me/entitlements')).items.some(g=>g.plan==='premium'&&g.capabilities.includes('top100')));
-  await buy(executorOffers.find(o=>o.plan==='standard'));
-  assert.ok(!(await call('GET','/me/entitlements')).items.some(g=>g.plan==='premium'&&g.valid_until>new Date().toISOString()));
+  await assert.rejects(()=>buy(executorOffers.find(o=>o.plan==='standard')),e=>e.getResponse().error.code==='OFFER_CHANGED');
+  const renewal=await buy((await getOffer()).find(o=>o.plan==='standard'));
+  assert.equal(renewal.subscription.status,'scheduled');assert.equal(renewal.subscription.valid_from,premium.subscription.valid_until);
+  assert.ok((await call('GET','/me/entitlements')).items.some(g=>g.plan==='premium'&&g.valid_until>new Date().toISOString()));
   const settings=await owner('GET','/admin/test-payments');await owner('PUT','/admin/test-payments',{enabled:false,expected_version:settings.version,reason});
   assert.equal((await getOffer()).length,0);await assert.rejects(()=>buy(executorOffers[0]),e=>e.getStatus()===409);
   assert.ok((await call('GET','/me/entitlements')).items.every(g=>g.valid_until<=new Date().toISOString()));

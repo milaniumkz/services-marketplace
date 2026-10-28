@@ -8,7 +8,8 @@ test('referral budget is reserved before attribution and accepted promises survi
   const inviterOne=randomUUID(),inviterTwo=randomUUID(),inviteeOne=randomUUID(),inviteeTwo=randomUUID(),inviteeThree=randomUUID();
   const api=new Marketplace(new Store('memory://'));await api.initialize();
   try{
-    const campaign=record('referral_campaign','system',{status:'effective',payload:{threshold:2,budget_units:1,reward_duration_seconds:3600,qualifying_event:'completed_order',capabilities:['search_full']}});
+    for(const id of [inviterOne,inviterTwo])await api.store.put({...record('user',id,{status:'active'}),id});
+  const campaign=record('referral_campaign','system',{status:'effective',payload:{threshold:2,budget_units:1,reward_duration_seconds:3600,qualifying_event:'completed_order',capabilities:['search_full']}});
     await api.store.put(campaign);
     const first=await api.growth.referrals(inviterOne,'KZ'),second=await api.growth.referrals(inviterTwo,'KZ');
     const a=await api.growth.attribute(inviteeOne,'KZ',first.code);
@@ -37,6 +38,7 @@ test('attribution window rejects late codes before reserving budget but preserve
  const inviter=randomUUID();
  const api=new Marketplace(new Store('memory://'));await api.initialize();
  try{
+  await api.store.put({...record('user',inviter,{status:'active'}),id:inviter});
   const campaign=record('referral_campaign','system',{status:'effective',payload:{threshold:1,budget_units:2,reward_duration_seconds:3600,qualifying_event:'completed_order',capabilities:['search_full'],attribution_window_days:1}});await api.store.put(campaign);
   const referrer=await api.growth.referrals(inviter,'KZ');
   const late=record('user','late',{created_at:new Date(Date.now()-2*86400000).toISOString()});await api.store.put(late);

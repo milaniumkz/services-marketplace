@@ -1,4 +1,4 @@
-import {subscriptionPlans,subscriptionCapabilities,subscriptionPlan} from './subscription-plans';
+import {subscriptionPlans,subscriptionCapabilities,subscriptionPlan,top100Addon} from './subscription-plans';
 import { randomUUID } from 'node:crypto';
 import { RecordData, Store } from './store';
 import { Providers, VerifiedPurchase } from './providers';
@@ -11,14 +11,15 @@ export class Commerce {
   private record(kind:string,owner:string,country:string,data:any):RecordData {return {...data,id:randomUUID(),kind,owner,country,version:1,created_at:new Date().toISOString()};}
   async plans(country:string){
     const config=(await this.store.all('subscription_catalog',country))[0];
-    return {version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='customer'?(country==='KZ'?50000:null):p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
+    const currency=({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country];
+    return {addons:[{...top100Addon,amount_minor:config?.prices?.top100??50000,currency}],version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='customer'?(country==='KZ'?50000:null):p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
   }
-  async offers(country:string,role?:string) {
+  async offers(country:string,role?:string,includeTop100=false) {
     const catalog=await this.plans(country);
     const test=await testPaymentSettings(this.store,country,this.providers.billing.size>0);
-    const plans=catalog.items.filter(p=>!role||p.role===role);
+    const plans=[...catalog.items,...(includeTop100?catalog.addons:[])].filter(p=>!role||p.role===role);
     const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective'&&(!role||subscriptionPlan(p.payload.plan).role===role)&&(!p.payload.plan||plans.find(plan=>plan.code===p.payload.plan)?.amount_minor===p.payload.amount_minor));
-    const realOffers=prices.filter(p=>p.payload.product_type!=='boost'&&p.payload.period==='days'&&p.payload.duration_days===30&&subscriptionPlans.some(plan=>plan.code===p.payload.plan)&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}));
+    const realOffers=prices.filter(p=>p.payload.product_type!=='boost'&&p.payload.period==='days'&&p.payload.duration_days===30&&[...subscriptionPlans,top100Addon].some(plan=>plan.code===p.payload.plan)&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}));
     const simulated=test.enabled?plans.filter(p=>Number.isSafeInteger(p.amount_minor)&&p.amount_minor!>=0).map(p=>({...p,plan:p.code,test_settings_version:test.version,catalog_version:catalog.version,id:'test-'+p.code+'-v'+catalog.version+'-s'+test.version,provider:'test',product_id:'test.joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',is_test:true,auto_renew:false})):[];
     return {plans,items:[...realOffers,...simulated],test_payments_enabled:test.enabled};
   }
@@ -63,6 +64,7 @@ export class Commerce {
     if(price&&(price.payload.currency!==p.currency||price.payload.amount_minor!==p.amount_minor)&&(!existing||existing.product_id!==p.product_id))fail('PRICE_MISMATCH','Цена не совпадает с опубликованной версией',422);
     if(existing&&existing.owner!==p.user_id)fail('PURCHASE_OWNERSHIP_MISMATCH','Покупку нельзя перенести на другой аккаунт',403);
     if(existing&&existing.provider_revision>=p.revision)return {subscription:existing,duplicate:true};
+    if(!existing&&price?.payload.plan==='top100'){const grants=await this.store.select('grant',p.country,{owner:p.user_id,limit:1000});if(!grants.some(g=>g.plan==='standard'&&g.valid_until>new Date().toISOString()&&g.capabilities?.includes('publish_profile')))fail('ENTITLEMENT_REQUIRED','Для отдельного Топ-100 нужен активный Стандарт',403);}
     const planPrice=existing?.product_id===p.product_id?existing.price_snapshot:price?.payload;
     if(planPrice?.plan&&Date.parse(p.valid_until)>Date.now()+30*86400000+60000)fail('INVALID_SUBSCRIPTION_PERIOD','Подписки действуют не более 30 дней',422);
     const paid=transactionEvents.find(x=>x.state==='active'&&['purchase','renewal'].includes(x.operation));
@@ -77,7 +79,7 @@ export class Commerce {
     const subscription=await this.store.put({...existing??this.record('subscription',p.user_id,p.country,{}),id:subscriptionId,current_transaction_id:p.transaction_id,price_snapshot:existing?.product_id===p.product_id?existing.price_snapshot:price?.payload??existing?.price_snapshot,provider:p.provider,original_transaction_id:p.original_transaction_id,product_id:p.product_id,status:fullyRefunded?'revoked':p.state,valid_until:p.valid_until,provider_revision:p.revision,version:existing?existing.version+1:1});
     const grant=(await this.store.all('grant',p.country)).find(g=>g.source_id===subscription.id);
     const valid=!fullyRefunded&&['active','grace','canceled_at_period_end'].includes(p.state);
-    await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',role:subscriptionPlan(subscription.price_snapshot?.plan).role,source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:subscriptionCapabilities(subscription.price_snapshot?.plan),plan:subscription.price_snapshot?.plan??'standard',version:grant?grant.version+1:1});
+    await this.store.put({...grant??this.record('grant',p.user_id,p.country,{}),source:'subscription',requires_base:subscription.price_snapshot?.plan==='top100',role:subscriptionPlan(subscription.price_snapshot?.plan).role,source_id:subscription.id,valid_until:valid?p.valid_until:new Date().toISOString(),capabilities:subscriptionCapabilities(subscription.price_snapshot?.plan),plan:subscription.price_snapshot?.plan??'standard',version:grant?grant.version+1:1});
     for(const check of await this.store.all('purchase_check',p.country))if(check.owner===p.user_id&&check.provider===p.provider&&check.transaction_id===p.transaction_id)await this.store.put({...check,status:'confirmed',subscription_id:subscription.id,version:check.version+1});
     return {subscription,duplicate:false};
   }
