@@ -139,3 +139,8 @@ Firebase-адаптер опубликован: исходники `22902c7`, [�
 ### Firebase подключён 28 октября
 
 Web и Android, публичный VAPID и серверный ключ установлены. [Деплой](https://github.com/milaniumkz/services-marketplace/actions/runs/40662716385) и [FCM-проверка из production-контейнера](https://github.com/milaniumkz/services-marketplace/actions/runs/40664287215) успешны. Приватный JSON передан одноразовым зашифрованным каналом, в Git и артефакты открытым текстом не помещался. `/api/v1/public/push-config` отдаёт `enabled=true`, платформы Web и Android. API: 167, Flutter: 249 (2 пропущены), браузер: 11; админка: 60 сочетаний. Реальное получение после разрешения устройства ещё не проверено. APK не собирался: старому APK требуется обновление с Firebase SDK. Для iOS дополнительно нужны Apple/APNs. [Инструкция и проверка](JOBA-firebase-setup.ru.md).
+
+
+### Автоматическое предложение уведомлений в веб-версии
+
+После входа и разблокировки JOBA сама предлагает включить push. Кнопка открывает системный запрос браузера, согласие регистрирует текущий браузер в API. «Позже» сохраняется на семь дней, повторный запрос после запрета не навязывается. [Описание и проверки](../web-push-permission-update.md). [Деплой](https://github.com/milaniumkz/services-marketplace/actions/runs/40665898572), [FCM в обновлённом контейнере](https://github.com/milaniumkz/services-marketplace/actions/runs/40667329233) успешны. 255 Flutter (2 пропущены), 12 Chrome, 167 API. APK не собирался.
