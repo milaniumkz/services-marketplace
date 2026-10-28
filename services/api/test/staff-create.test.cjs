@@ -26,3 +26,21 @@ test('owner creates a password employee with regional dynamic roles, safe audit,
   await assert.rejects(()=>call(employee.access_token,'GET','/admin/users'),e=>e.getStatus()===403);
  }finally{await a.store.close();}
 });
+test('existing action-only Operator gets reachable lists and detail, staff directory names assigned roles, sensitive and unrelated actions remain denied',async()=>{
+ const a=new Marketplace(new Store('memory://'));await a.initialize();try{
+ const pwd='Owner isolated password',owner=await a.handle('POST','/auth/register',{country:'KZ',phone:'+77000000965',password:pwd});
+ await a.store.put({...await a.store.get(owner.user.id),staff_permissions:['platform_owner']});
+ const boss=await a.handle('POST','/auth/staff-login',{country:'KZ',phone:owner.user.phone,password:pwd});const call=(token,m,p,b={})=>a.handle(m,p,b,'Bearer '+token,randomUUID());
+ // Reproduce a previously saved role from production, without list grants.
+ const role={id:randomUUID(),kind:'staff_role',owner:owner.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'active',title:'Оператор',grants:['POST /admin/users/{id}/unblock','GET /admin/referral-campaigns/{id}']};await a.store.put(role);
+ const auto=await call(boss.access_token,'POST','/admin/access/roles',{title:'Блокировка без ручных зависимостей',grants:['POST /admin/users/{id}/block']});assert.deepEqual(new Set(auto.grants),new Set(['POST /admin/users/{id}/block','GET /admin/users','GET /admin/users/{id}']));
+ const employee=await call(boss.access_token,'POST','/admin/access/staff',{display_name:'тест',login:'test.operator',password:'Pass12',role_ids:[role.id]});
+ const session=await a.handle('POST','/auth/staff-login',{country:'KZ',phone:'test.operator',password:'Pass12'}),access=await call(session.access_token,'GET','/admin/access/me');
+ for(const grant of ['GET /admin/users','GET /admin/users/{id}','GET /admin/referral-campaigns'])assert.ok(access.grants.includes(grant));
+ await call(session.access_token,'GET','/admin/users');await call(session.access_token,'GET','/admin/users/'+owner.user.id);await call(session.access_token,'GET','/admin/referral-campaigns');
+ for(const [m,p] of [['GET','/admin/orders'],['POST','/admin/users/'+owner.user.id+'/delete'],['GET','/admin/users/'+owner.user.id+'/phone'],['GET','/admin/access/staff']])await assert.rejects(()=>call(session.access_token,m,p),e=>e.getStatus()===403);
+ const directory=await call(boss.access_token,'GET','/admin/access/staff'),entry=directory.items.find(u=>u.id===employee.id);assert.deepEqual(entry.role_names,['Оператор']);assert.equal(entry.effective_grant_count,5);
+ const canonical=(await call(boss.access_token,'GET','/admin/access/roles')).items.find(r=>r.id===role.id);assert.ok(canonical.grants.includes('GET /admin/users'));
+ await a.store.put({...await a.store.get(employee.id),status:'deleted'});assert.ok(!(await call(boss.access_token,'GET','/admin/access/staff')).items.some(u=>u.id===employee.id));
+ }finally{await a.store.close();}
+});

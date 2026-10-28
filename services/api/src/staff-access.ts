@@ -8,6 +8,16 @@ export const isStaffOwner=(u:RecordData)=>u.staff_access_mode!=='managed'&&u.sta
 const commands=['assign','resolve','wait_user','wait_support','reopen'];
 const extra=[...commands.map(command=>({id:'support.command.'+command,block:'support-threads',label:({assign:'Назначать обращение',resolve:'Закрывать обращение',wait_user:'Ожидать ответа пользователя',wait_support:'Возвращать в поддержку',reopen:'Повторно открывать обращение'} as Record<string,string>)[command]})),{id:'sensitive.identity',block:'verifications',label:'Просмотр исходников документов'},{id:'sensitive.phone',block:'users',label:'Просмотр полного телефона пользователя'},{id:'files.moderator',block:'files',label:'Материалы дел — просмотр файлов с основанием'},{id:'files.content',block:'files',label:'Файлы контента — служебный просмотр'},{id:'files.support',block:'files',label:'Файлы обращений поддержки — просмотр'},{id:'files.upload',block:'files',label:'Загрузка и статус собственных служебных файлов'}];
 const ids=new Set<string>([...staffOperations.map(x=>x.id),...extra.map(x=>x.id)]);
+// A selected action/detail needs its own section list to remain reachable in the UI.
+// This adds only basic reads for the same resource; sensitive reads stay explicit.
+export function completeStaffGrants(input:string[]){
+ const grants=new Set(input);
+ for(const id of input){const op=staffOperations.find(o=>o.id===id);if(!op)continue;
+  const root=op.path.split('/').slice(0,3).join('/');
+  for(const read of ['GET '+root,...(op.path.startsWith(root+'/{id}')?['GET '+root+'/{id}']:[])])if(ids.has(read))grants.add(read);
+ }
+ return [...grants];
+}
 const sections:Record<string,string>={categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','privacy-requests':'privacy',blacklist:'senior_moderator','cases':'moderator','brand-icons':'content'};
 function permission(op:typeof staffOperations[number]):string{if(op.block==='brand-icons')return op.path.endsWith('/approve')?'brand_owner':op.path.endsWith('/generate')?'release':'content';if(['price-versions','monetization-configs','monetization-summary','payment-transactions','refund-requests','promotions'].includes(op.block))return 'billing';if(['referral-campaigns','push-campaigns'].includes(op.block))return 'campaign';if(op.block==='moderation-dictionaries')return 'moderator_manager';if(op.block==='ranking-configs')return 'content';if(['boost-grants','boost-reports','placement-policies'].includes(op.block))return 'promotion';return sections[op.block]??'administrator';}
 export async function resolveStaffUser(store:Store,u:RecordData):Promise<RecordData>{
@@ -15,7 +25,7 @@ export async function resolveStaffUser(store:Store,u:RecordData):Promise<RecordD
  if(u.staff_access_mode!=='managed')return u;
  const roleIds=Array.isArray(u.staff_role_ids)?u.staff_role_ids:[];
  const rows=await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='staff_role' AND country=$1 AND id::text=ANY($2::text[]) AND data->>'status'='active'",[u.country,roleIds]);
- const grants=[...new Set<string>(rows.rows.flatMap(x=>x.data.grants??[]))].filter(id=>ids.has(id));const permissions=new Set<string>(['dynamic_staff']);
+ const grants=[...new Set<string>(rows.rows.flatMap(x=>completeStaffGrants(x.data.grants??[])))].filter(id=>ids.has(id));const permissions=new Set<string>(['dynamic_staff']);
  for(const op of staffOperations)if(grants.includes(op.id)){const p=permission(op);if(p!=='administrator')permissions.add(p);if(op.path.endsWith('/internal-notes'))permissions.add('support_internal');if(op.path.endsWith('/security-events'))permissions.add('security');if(op.path.endsWith('/blacklist'))permissions.add('senior_moderator');if(op.path.includes('phone'))permissions.add('phone_view');if(op.path.endsWith('/appeal-decision'))permissions.add('senior_moderator');}
  if(grants.includes('sensitive.identity'))permissions.add('identity_view');if(grants.includes('sensitive.phone'))permissions.add('phone_view');for(const p of ['moderator','content','support'])if(grants.includes('files.'+p))permissions.add(p);
  return {...u,staff_permissions:[...permissions],staff_grants:grants,staff_role_names:rows.rows.map(x=>x.data.title)};
@@ -46,8 +56,8 @@ export async function staffAccess(store:Store,a:{id:string,country:string,user:R
  if(method!=='GET')await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['staff-access:'+a.country]);
  const audit=async(action:string,target:string,details:any={})=>{if(typeof b.reason!=='string'||b.reason.trim().length<10||b.reason.length>1000)fail('VALIDATION_ERROR','Укажите основание изменения');await store.put({id:randomUUID(),kind:'audit',owner:a.id,country:a.country,created_at:new Date().toISOString(),version:1,actor_id:a.id,action,target_id:target,reason:b.reason.trim(),...details});};
  if(path==='/admin/access/catalog'&&method==='GET')return {items:[...staffOperations,...extra]};
- if(path==='/admin/access/roles'&&method==='GET')return {items:await store.all('staff_role',a.country)};
- if(path==='/admin/access/staff'&&method==='GET')return {items:(await store.all('user',a.country)).filter(u=>u.staff_permissions?.length).map(u=>({id:u.id,display_name:u.display_name,identifier:u.phone,status:u.status,version:u.version,is_owner:isStaffOwner(u),managed:u.staff_access_mode==='managed',role_ids:u.staff_role_ids??[]}))};
+ if(path==='/admin/access/roles'&&method==='GET')return {items:(await store.all('staff_role',a.country)).map(r=>({...r,grants:completeStaffGrants(r.grants??[])}))};
+ if(path==='/admin/access/staff'&&method==='GET')return {items:await Promise.all((await store.all('user',a.country)).filter(u=>u.staff_permissions?.length&&u.status!=='deleted').map(async u=>{const effective=await resolveStaffUser(store,u);return {id:u.id,display_name:u.display_name,identifier:u.phone,status:u.status,version:u.version,is_owner:isStaffOwner(u),managed:u.staff_access_mode==='managed',role_ids:u.staff_role_ids??[],role_names:effective.staff_role_names??[],effective_grant_count:effective.staff_grants?.length??0};}))};
  if(path==='/admin/access/staff'&&method==='POST'){
   const name=typeof b.display_name==='string'?b.display_name.trim():'',login=typeof b.login==='string'?b.login.trim():'';
   if(name.length<2||name.length>120)fail('VALIDATION_ERROR','Имя сотрудника должно содержать от 2 до 120 символов');
@@ -71,7 +81,7 @@ export async function staffAccess(store:Store,a:{id:string,country:string,user:R
   if(method!==(old?'PATCH':'POST')||old?.status==='archived')fail('STATE_CONFLICT','Создайте новую активную роль',409);
   if(typeof b.title!=='string'||b.title.trim().length<2||b.title.trim().length>80||!Array.isArray(b.grants)||!b.grants.length||b.grants.length>500||b.grants.some((g:any)=>typeof g!=='string'||!ids.has(g)))fail('VALIDATION_ERROR','Проверьте название и выбранные функции');
   const duplicate=(await store.all('staff_role',a.country)).some(r=>r.id!==old?.id&&r.status==='active'&&r.title.toLocaleLowerCase()===b.title.trim().toLocaleLowerCase());if(duplicate)fail('ROLE_NAME_TAKEN','Название уже используется',409);
-  const r={...(old??{id:randomUUID(),kind:'staff_role',owner:a.id,country:a.country,created_at:new Date().toISOString(),version:0}),title:b.title.trim(),grants:[...new Set([...b.grants,...(b.grants.some((g:string)=>g.startsWith('support.command.'))?['POST /admin/support-threads/{id}/commands']:[])])],status:'active',version:(old?.version??0)+1};await audit(old?'staff.role_updated':'staff.role_created',r.id,{before:{title:old?.title,grants:old?.grants??[]},after:{title:r.title,grants:r.grants}});return store.put(r);
+  const r={...(old??{id:randomUUID(),kind:'staff_role',owner:a.id,country:a.country,created_at:new Date().toISOString(),version:0}),title:b.title.trim(),grants:completeStaffGrants([...new Set([...b.grants,...(b.grants.some((g:string)=>g.startsWith('support.command.'))?['POST /admin/support-threads/{id}/commands']:[])])]),status:'active',version:(old?.version??0)+1};await audit(old?'staff.role_updated':'staff.role_created',r.id,{before:{title:old?.title,grants:old?.grants??[]},after:{title:r.title,grants:r.grants}});return store.put(r);
  }
  if(assignment&&method==='PUT'){
   const target=await store.get(assignment[1]);if(!target||target.kind!=='user'||target.country!==a.country||!target.staff_permissions?.length)fail('NOT_FOUND','Служебная учётная запись не найдена',404);

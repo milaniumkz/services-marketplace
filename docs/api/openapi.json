@@ -213,7 +213,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
         "security": [
           {
             "BearerAuth": []
@@ -258,7 +258,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
         "security": [
           {
             "BearerAuth": []
@@ -326,7 +326,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
         "security": [
           {
             "BearerAuth": []
@@ -481,7 +481,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Returns a visible staff directory with role_names and effective_grant_count; deleted accounts are excluded.",
         "security": [
           {
             "BearerAuth": []
