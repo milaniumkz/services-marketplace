@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-28T08:41:17.858626+00:00",
-  "server_source_commit": "0f6aed9c564aad224e261ef40c2e1938b28e96d6",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40657293815",
+  "verified_at": "2026-10-28T09:02:08.704663+00:00",
+  "server_source_commit": "22902c7cd2e50f2805c327cfe7764b163a78c13b",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40659286415",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -355,6 +355,15 @@
     "actual_delivery_verified": false,
     "apk_built": false,
     "android_config_received": true,
-    "android_package": "kz.joba.services_marketplace"
+    "android_package": "kz.joba.services_marketplace",
+    "server_adapter_deployed": true,
+    "live_push_enabled": false,
+    "public_config_endpoint_verified": true,
+    "android_config_source_commit": "cef1b08",
+    "android_config_deployed": false,
+    "api_tests_passed": 166,
+    "flutter_tests_passed": 249,
+    "flutter_tests_skipped": 2,
+    "browser_tests_passed": 11
   }
 }
