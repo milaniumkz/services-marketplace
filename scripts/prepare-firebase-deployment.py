@@ -15,6 +15,8 @@ PROJECT = 'joba-832c7'
 
 def prepare(env, destination):
     values = [env.get(name, '').strip() for name in NAMES]
+    if values[0]:
+        values[2] = values[2] or (Path(__file__).resolve().parent.parent / 'services/api/firebase-vapid-public.txt').read_text().strip()
     if values[0] or values[2]:
         values[1] = values[1] or json.dumps(json.loads((Path(__file__).resolve().parent.parent / 'services/api/firebase-client-config.json').read_text())['web'])
     if not any(values):

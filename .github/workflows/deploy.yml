@@ -3,6 +3,11 @@ on:
   push:
     branches: [deploy/joba]
   workflow_dispatch:
+    inputs:
+      firebase_setup:
+        description: Receive the owner supplied Firebase credential over a single-job encrypted channel
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -40,7 +45,9 @@ jobs:
           cache: npm
       - run: sudo apt-get update -q && sudo apt-get install -y poppler-utils
       - name: Verify protected Firebase setup
-        run: python3 scripts/test-firebase-deployment.py
+        run: |
+          python3 scripts/test-firebase-deployment.py
+          python3 scripts/test-firebase-envelope.py
       - run: npm ci
       - name: Verify host resource collector
         run: python3 scripts/test-server-metrics.py
@@ -92,6 +99,11 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-deployment-credential.py
+      - name: Acquire protected Firebase configuration
+        env:
+          JOBA_FIREBASE_HANDOFF: ${{ inputs.firebase_setup && '1' || '0' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/acquire-firebase-configuration.py
       - name: Deploy exact Git revision and verify HTTPS
         env:
           JOBA_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.JOBA_FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -119,7 +131,7 @@ jobs:
             joba_ssh=(sshpass -e "${joba_ssh[@]}")
             joba_scp=(sshpass -e "${joba_scp[@]}")
           fi
-          joba_firebase_stage="$RUNNER_TEMP/joba-firebase-$GITHUB_SHA"
+          joba_firebase_stage="${JOBA_FIREBASE_PREPARED_DIR:-$RUNNER_TEMP/joba-firebase-$GITHUB_SHA}"
           joba_firebase_remote=""
           joba_cleanup_firebase() {
             rm -rf "$joba_firebase_stage"
@@ -128,7 +140,7 @@ jobs:
             fi
           }
           trap joba_cleanup_firebase EXIT
-          python3 scripts/prepare-firebase-deployment.py "$joba_firebase_stage"
+          if test -z "${JOBA_FIREBASE_PREPARED_DIR:-}"; then python3 scripts/prepare-firebase-deployment.py "$joba_firebase_stage"; fi
           if test -d "$joba_firebase_stage"; then
             joba_firebase_remote="/tmp/joba-firebase-$GITHUB_SHA"
             "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "umask 077; mkdir '$joba_firebase_remote'"

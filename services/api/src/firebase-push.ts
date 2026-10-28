@@ -1,5 +1,5 @@
 import {existsSync, readFileSync} from 'node:fs';
-import {firebaseClientPlatforms} from './firebase-client-config';
+import {firebaseClientPlatforms, firebaseDefaultVapidKey} from './firebase-client-config';
 import {applicationDefault, getApps, initializeApp} from 'firebase-admin/app';
 import {getMessaging, Message} from 'firebase-admin/messaging';
 import {PushProvider} from './providers';
@@ -18,7 +18,7 @@ export function firebasePublicConfig(env:NodeJS.ProcessEnv=process.env) {
     if(!options.apiKey||!options.appId||!options.messagingSenderId||options.projectId!==(env.JOBA_FIREBASE_PROJECT_ID??'joba-832c7'))throw Error('Invalid Firebase public configuration: '+platform);
     platforms[platform]=options;
   }
-  return {enabled:env.JOBA_FIREBASE_ENABLED==='1',project_id:env.JOBA_FIREBASE_PROJECT_ID??'joba-832c7',platforms,vapid_key:env.JOBA_FIREBASE_VAPID_KEY||saved.vapid_key||''};
+  return {enabled:env.JOBA_FIREBASE_ENABLED==='1',project_id:env.JOBA_FIREBASE_PROJECT_ID??'joba-832c7',platforms,vapid_key:env.JOBA_FIREBASE_VAPID_KEY||saved.vapid_key||firebaseDefaultVapidKey};
 }
 
 export function firebaseMessage(token:string,event:Parameters<PushProvider['send']>[1]):Message {
