@@ -351,7 +351,7 @@
   },
   "firebase_push": {
     "project_id_from_screenshot": "joba-832c7",
-    "status": "android_configured_web_vapid_server_credentials_missing",
+    "status": "android_web_configured_vapid_server_credentials_missing",
     "actual_delivery_verified": false,
     "apk_built": false,
     "android_config_received": true,
@@ -364,6 +364,9 @@
     "api_tests_passed": 166,
     "flutter_tests_passed": 249,
     "flutter_tests_skipped": 2,
-    "browser_tests_passed": 11
+    "browser_tests_passed": 11,
+    "web_config_received": true,
+    "protected_actions_installation_prepared": true,
+    "configuration_install_tests_passed": 4
   }
 }

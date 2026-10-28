@@ -12,3 +12,10 @@ test('FCM payload supports Android, Apple and HTTPS web without arbitrary redire
  const message=firebaseMessage('device-token',{event_id:'event-1',title:'JOBA',body:'Новое событие',deep_link:{route:'https://evil.example',id:'secret'}});
  assert.equal(message.token,'device-token');assert.equal(message.android.priority,'high');assert.equal(message.apns.payload.aps.sound,'default');assert.equal(message.data.route,'notifications');assert.equal(message.webpush.fcmOptions.link,'https://joba.com.kz/?joba_push=notifications');assert.equal(JSON.stringify(message).includes('evil.example'),false);assert.equal(JSON.stringify(message).includes('secret'),false);
 });
+test('mounted public Firebase configuration is whitelisted and supports environment override',()=>{
+ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');const directory=fs.mkdtempSync(path.join(os.tmpdir(),'joba-firebase-public-'));
+ try{const file=path.join(directory,'client.json');fs.writeFileSync(file,JSON.stringify({platforms:{web:{apiKey:'public',appId:'1:105743015687:web:test',messagingSenderId:'105743015687',projectId:'joba-832c7',private_key:'never-public'}},vapid_key:'mounted-public-key'}));
+ const config=firebasePublicConfig({JOBA_FIREBASE_ENABLED:'1',JOBA_FIREBASE_CONFIG_FILE:file});assert.equal(config.platforms.web.projectId,'joba-832c7');assert.ok(config.platforms.android);assert.equal(config.vapid_key,'mounted-public-key');assert.equal(JSON.stringify(config).includes('never-public'),false);
+ assert.equal(firebasePublicConfig({JOBA_FIREBASE_CONFIG_FILE:file,JOBA_FIREBASE_VAPID_KEY:'explicit'}).vapid_key,'explicit');
+ }finally{fs.rmSync(directory,{recursive:true,force:true});}
+});

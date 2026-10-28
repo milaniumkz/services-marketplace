@@ -36,6 +36,7 @@ services:
       JOBA_FIREBASE_ANDROID_CONFIG: ${JOBA_FIREBASE_ANDROID_CONFIG:-}
       JOBA_FIREBASE_IOS_CONFIG: ${JOBA_FIREBASE_IOS_CONFIG:-}
       JOBA_FIREBASE_VAPID_KEY: ${JOBA_FIREBASE_VAPID_KEY:-}
+      JOBA_FIREBASE_CONFIG_FILE: /run/joba-firebase/client-config.json
       GOOGLE_APPLICATION_CREDENTIALS: /run/joba-firebase/service-account.json
       JOBA_SERVER_METRICS_FILE: /run/joba-host/metrics.json
     volumes:
