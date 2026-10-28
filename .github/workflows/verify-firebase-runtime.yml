@@ -1,0 +1,49 @@
+name: JOBA Firebase runtime verification
+on:
+  push:
+    branches: [deploy/firebase-check]
+permissions:
+  contents: read
+  checks: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Acquire protected deployment credential
+        env:
+          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
+          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/acquire-deployment-credential.py
+      - name: Verify Firebase in deployed API container without sending notifications
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          export SSHPASS="${JOBA_RUNTIME_SSH_PASSWORD:-}"
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          ssh-keyscan -T 10 -t ed25519 188.241.217.228 > "$HOME/.ssh/known_hosts"
+          test "$(ssh-keygen -lf "$HOME/.ssh/known_hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Bt3HkaktjLmWe4tB1pOK9b8gOnHuxp+tvp1hhEDtxp8'
+          joba_ssh=(ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+          joba_scp=(scp -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+          if test -n "$SSH_PRIVATE_KEY"; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/joba_deploy"
+            joba_ssh+=(-i "$HOME/.ssh/joba_deploy" -o IdentitiesOnly=yes)
+            joba_scp+=(-i "$HOME/.ssh/joba_deploy" -o IdentitiesOnly=yes)
+          else
+            sudo apt-get update -q
+            sudo apt-get install -y sshpass
+            joba_ssh=(sshpass -e "${joba_ssh[@]}")
+            joba_scp=(sshpass -e "${joba_scp[@]}")
+          fi
+          joba_remote="/tmp/joba-verify-firebase-$GITHUB_SHA.cjs"
+          "${joba_scp[@]}" scripts/verify-firebase-server.cjs "root@188.241.217.228:$joba_remote"
+          "${joba_ssh[@]}" -n root@188.241.217.228 "docker cp '$joba_remote' joba-api-1:/tmp/joba-verify-firebase.cjs && docker exec -u root joba-api-1 chmod 644 /tmp/joba-verify-firebase.cjs && docker exec joba-api-1 node /tmp/joba-verify-firebase.cjs; joba_result=\$?; rm -f '$joba_remote'; exit \$joba_result" | tee firebase-runtime-result.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: firebase-runtime-result
+          path: firebase-runtime-result.json
