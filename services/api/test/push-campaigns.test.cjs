@@ -71,3 +71,13 @@ test('FCM permanently invalid token is revoked without blocking other devices',(
  const tokens=await a.store.all('push_token','KZ');assert.equal(tokens.find(t=>t.status==='revoked').token,'');assert.equal(tokens.filter(t=>t.status==='active').length,1);
  assert.equal((await a.store.all('outbox','KZ')).find(r=>r.campaign_id===c.id).status,'sent');
 }));
+test('all invalid FCM tokens leave the event waiting for a new device instead of falsely sent',()=>fixture(async a=>{
+ const {InvalidPushToken}=require('../dist/firebase-push');
+ const u=await reg(a,'899');await marketing(a,u);await token(a,u,'isolated-only-invalid-token');
+ const now=new Date(),c=await campaign(a,u.user.id,payload(now));await a.maintenance(now);
+ a.providers.push={send:async()=>{throw new InvalidPushToken();}};
+ assert.equal((await a.deliverOutbox(now)).sent,0);
+ assert.equal((await a.store.all('outbox','KZ')).find(r=>r.campaign_id===c.id).status,'waiting_token');
+ await token(a,u,'isolated-replacement-token');a.providers.push={send:async()=>({provider_message_id:randomUUID()})};
+ assert.equal((await a.deliverOutbox(now)).sent,1);
+}));
