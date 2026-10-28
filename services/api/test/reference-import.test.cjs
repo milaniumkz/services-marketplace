@@ -22,3 +22,19 @@ test('full reference import preserves edits and IDs; city searches and descendan
   assert.equal((await a.store.all('audit')).filter(x=>x.action==='reference.catalog_import').length,4);
  }finally{await a.store.close();}
 });
+test('KZ republican cities carry server ordering and legacy Baikonur groups are corrected without deleting cities',async()=>{
+ const a=new Marketplace(new Store('memory://'));await a.initialize();
+ try{
+  const dataset=referenceDataset();await importReferenceDataset(a.store,dataset);
+  const cities=await a.store.all('city','KZ'),baikonur=cities.find(c=>c.geonames_id===1521368),toretam=cities.find(c=>c.geonames_id===9858283);
+  assert.ok(baikonur&&toretam);assert.equal(baikonur.region,'Кызылординская Область');
+  await a.store.put({...baikonur,region:'Байконур',name:'Байконур — имя, изменённое владельцем',version:baikonur.version+1});
+  const astana=cities.find(c=>c.geonames_id===1526273);await a.store.put({...astana,region_sort_order:undefined,region_kind:undefined,version:astana.version+1});
+  assert.equal((await importReferenceDataset(a.store,dataset)).unchanged,true);
+  assert.equal((await a.store.get(baikonur.id)).name,'Байконур — имя, изменённое владельцем');assert.equal((await a.store.get(baikonur.id)).region,'Кызылординская Область');
+  for(const[name,rank]of [['Астана',0],['Алматы',1],['Шымкент',2]]){const city=(await a.store.all('city','KZ')).find(c=>c.region===name);assert.equal(city.region_sort_order,rank);assert.equal(city.region_kind,'republican_city');}
+  const catalog=await cityCatalog(a.store,'KZ');assert.equal(catalog.items.some(c=>c.region==='Байконур'),false);assert.ok(catalog.items.find(c=>c.id===astana.id).region_sort_order===0);
+  assert.equal((await a.store.all('city','KZ')).length,cities.length);
+  const version=(await a.store.get(baikonur.id)).version;await importReferenceDataset(a.store,dataset);assert.equal((await a.store.get(baikonur.id)).version,version);
+ }finally{await a.store.close();}
+});

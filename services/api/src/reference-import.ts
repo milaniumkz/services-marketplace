@@ -19,11 +19,26 @@ export function validateReferenceDataset(dataset:ReturnType<typeof referenceData
   for(const c of rows){if(!Number.isSafeInteger(c.geonames_id)||ids.has(c.geonames_id)||typeof c.display_name!=='string'||c.display_name.length>100||names.has(c.display_name.toLocaleLowerCase('ru'))||!Number.isFinite(c.latitude)||Math.abs(c.latitude)>90||!Number.isFinite(c.longitude)||Math.abs(c.longitude)>180)throw Error('Invalid city record');ids.add(c.geonames_id);names.add(c.display_name.toLocaleLowerCase('ru'));}
  }
 }
+/** Correct only imported geographic classification; preserve IDs, names and operator edits. */
+export async function normalizeKazakhstanRegions(store:Store){
+ const priorities:Record<string,number>={'Астана':0,'Алматы':1,'Шымкент':2};let changed=0;
+ for(const row of await store.all('city','KZ')){
+  if(row.source!=='geonames')continue;
+  const patch:Record<string,any>={};
+  if(row.region==='Байконур'){patch.region='Кызылординская Область';patch.region_kind='oblast';patch.region_sort_order=undefined;}
+  else if(priorities[row.region]!==undefined){if(row.region_sort_order===undefined)patch.region_sort_order=priorities[row.region];if(row.region_kind!=='republican_city')patch.region_kind='republican_city';}
+  if(!Object.keys(patch).length)continue;
+  await store.put({...row,...patch,version:row.version+1});changed++;
+ }
+ if(changed){const id=referenceId('joba:kz-regions-normalization:20261028'),prior=await store.get(id);await store.put({id,kind:'audit',owner:'system',country:'KZ',version:prior?prior.version+1:1,created_at:prior?.created_at??new Date().toISOString(),action:'reference.kz_regions_normalized',actor_id:'system',reason:'По поручению владельца: Астана, Алматы, Шымкент перед областями; Байконур не является отдельным регионом списка',changed});}
+ return changed;
+}
 export async function importReferenceDataset(store:Store,dataset=referenceDataset()){
  validateReferenceDataset(dataset);await store.db.exec('BEGIN');
  try{
   await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['reference-catalog-import']);
   for(const country of ['BY','KG','KZ','RU'])await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['category-publish:'+country]);
+  await normalizeKazakhstanRegions(store);
   const markerId=referenceId('joba:reference-import:'+dataset.hash);
   if(await store.get(markerId)){await store.db.exec('COMMIT');return {unchanged:true,hash:dataset.hash};}
   const now=new Date().toISOString(),existing=await store.all('category'),result:Record<string,any>={};
@@ -44,7 +59,7 @@ export async function importReferenceDataset(store:Store,dataset=referenceDatase
     if(ids.has(id)){if(!active.some(r=>categoryId(r)===id))inactive.add(node.key);continue;}
     records.push({id,kind:'category',owner:'system',country,version:1,created_at:now,status:'effective',title:node.name,payload:{category_id:id,parent_id:parent,labels:{ru:node.name},icon:node.depth===1?'layers':'briefcase',schema:{properties:{},required:[]},source:'joba_service_catalog',source_key:node.key,depth:node.depth,sort_order:sortOrder,translation_status:'ru_complete_other_locales_fallback'}});ids.add(id);
    }
-   const cityRecords:RecordData[]=dataset.cities[country].map((c:any)=>({id:legacyCities[String(c.geonames_id)]?referenceId(`joba:city:${country}:${legacyCities[String(c.geonames_id)]}`):referenceId(`joba:geonames:city:${country}:${c.geonames_id}`),kind:'city',owner:'system',country,version:1,created_at:now,status:'active',name:c.display_name,local_name:c.name,region:c.region,geonames_id:c.geonames_id,latitude:c.latitude,longitude:c.longitude,population:c.population,aliases:c.aliases,labels:c.labels,source:'geonames',license:'CC BY 4.0'}));
+   const cityRecords:RecordData[]=dataset.cities[country].map((c:any)=>({id:legacyCities[String(c.geonames_id)]?referenceId(`joba:city:${country}:${legacyCities[String(c.geonames_id)]}`):referenceId(`joba:geonames:city:${country}:${c.geonames_id}`),kind:'city',owner:'system',country,version:1,created_at:now,status:'active',name:c.display_name,local_name:c.name,region:c.region,region_kind:c.region_kind,region_sort_order:c.region_sort_order,geonames_id:c.geonames_id,latitude:c.latitude,longitude:c.longitude,population:c.population,aliases:c.aliases,labels:c.labels,source:'geonames',license:'CC BY 4.0'}));
    result[country]={categories_added:await bulk(records),cities_added:await bulk(cityRecords),categories_expected:dataset.categories.length,cities_expected:cityRecords.length};
    await store.put({id:referenceId('joba:reference-audit:'+dataset.hash+':'+country),kind:'audit',owner:'system',country,version:1,created_at:now,actor_id:'system',action:'reference.catalog_import',reason:'Владелец поручил заполнить города и категории 20.10.2026',counts:result[country],dataset_hash:dataset.hash});
   }

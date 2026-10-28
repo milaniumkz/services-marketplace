@@ -7,7 +7,7 @@ export async function cityCatalog(store:Store,country:string,query=''){
  let entry=countries.get(country);
  if(!entry||Date.now()-entry.at>30000){
   const rows=(await store.all('city',country)).filter(x=>x.status==='active');
-  const items=rows.length?rows.sort((a,b)=>(b.population??0)-(a.population??0)||a.name.localeCompare(b.name,'ru')).map(r=>({id:r.id,name:r.name,country,region:r.region,geonames_id:r.geonames_id,aliases:r.aliases??[],latitude:r.latitude,longitude:r.longitude})):(fallbackCities[country]??[]).map(name=>({id:referenceId(`joba:city:${country}:${name}`),name,country}));
+  const items=rows.length?rows.sort((a,b)=>(b.population??0)-(a.population??0)||a.name.localeCompare(b.name,'ru')).map(r=>({id:r.id,name:r.name,country,region:r.region,region_kind:r.region_kind,region_sort_order:r.region_sort_order,geonames_id:r.geonames_id,aliases:r.aliases??[],latitude:r.latitude,longitude:r.longitude})):(fallbackCities[country]??[]).map(name=>({id:referenceId(`joba:city:${country}:${name}`),name,country}));
   entry={at:Date.now(),items};if(rows.length)countries.set(country,entry);
  }
  const normalized=query.trim().toLocaleLowerCase('ru').replaceAll('ё','е');

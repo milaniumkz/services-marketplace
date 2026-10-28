@@ -100,12 +100,28 @@ class _ReferenceSelectorState extends State<ReferenceSelector> {
     final needle = _fold(search.text.trim());
     final index = byId;
     final groups = <String, int>{};
+    final regionRanks = <String, int>{};
+    final regionKinds = <String, String>{};
     if (widget.cities) {
       for (final row in widget.rows) {
-        groups.update(region(row), (n) => n + 1, ifAbsent: () => 1);
+        final name = region(row), rawRank = row['region_sort_order'];
+        final rank = rawRank is num
+            ? rawRank.toInt()
+            : name.isEmpty
+                ? 20000
+                : 10000;
+        groups.update(name, (n) => n + 1, ifAbsent: () => 1);
+        regionRanks.update(name, (old) => rank < old ? rank : old,
+            ifAbsent: () => rank);
+        if (row['region_kind'] is String)
+          regionKinds[name] = row['region_kind'];
       }
     }
-    final regions = groups.keys.toList()..sort((a, b) => a.compareTo(b));
+    final regions = groups.keys.toList()
+      ..sort((a, b) {
+        final order = regionRanks[a]!.compareTo(regionRanks[b]!);
+        return order != 0 ? order : a.compareTo(b);
+      });
     final showingRegions = widget.cities && parent == null && needle.isEmpty;
     final visible = widget.rows.where((row) {
       if (needle.isNotEmpty) {
@@ -192,7 +208,9 @@ class _ReferenceSelectorState extends State<ReferenceSelector> {
                       title: Text(name.isEmpty
                           ? localize(context, 'Без указанного региона')
                           : name),
-                      subtitle: Text('${groups[name]}'),
+                      subtitle: Text(regionKinds[name] == 'republican_city'
+                          ? localize(context, 'Город республиканского значения')
+                          : '${groups[name]}'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: busy
                           ? null
@@ -207,8 +225,8 @@ class _ReferenceSelectorState extends State<ReferenceSelector> {
                       child: UiText(
                           'Ничего не найдено. Попробуйте другое название.'));
                 final row = visible[i];
-                final hasChildren = !widget.cities &&
-                    parents.contains(row['id']);
+                final hasChildren =
+                    !widget.cities && parents.contains(row['id']);
                 return ListTile(
                     selected: selected?['id'] == row['id'],
                     selectedTileColor: const Color(0xFFF0F4FF),
