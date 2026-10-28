@@ -60,7 +60,7 @@ export async function scenarioWorkspace({key,api,esc,card,tablecard,note,namedFi
  }
  if(key==='security-full'){
   const s=await selection('/admin/security-events','Событие');
-  return result('Защищённый просмотр события',s.picker+(s.record?card('Разрешение просмотра',`<p>${esc(s.record.event)} · ${esc(s.record.created_at)}</p><form id="security-disclose" class="stack">${namedField('Служебная причина раскрытия','reason','textarea')}<button class="primary">Показать полные данные события</button>${alerts}</form>${note('Просмотр фиксируется в неизменяемом аудите. Токены и секреты не раскрываются.')}`):''),()=>{s.bind();wire('#security-disclose',v=>api('/admin/security-events/'+s.record.id+'/disclose','POST',v));});
+  return result('Защищённый просмотр события',s.picker+(s.record?card('Разрешение просмотра',`<p>${esc(s.record.event)} · ${esc(s.record.created_at)}</p><form id="security-disclose" class="stack"><button class="primary">Показать полные данные события</button>${alerts}</form>${note('Просмотр фиксируется в неизменяемом аудите. Токены и секреты не раскрываются.')}`):''),()=>{s.bind();wire('#security-disclose',v=>api('/admin/security-events/'+s.record.id+'/disclose','POST',v));});
  }
  if(key==='blacklist-detail'){
   const s=await selection('/admin/blacklist','Ограничение');const r=s.record?await api('/admin/blacklist/'+s.record.id):null;
