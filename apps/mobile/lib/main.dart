@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'core/push_notifications.dart';
+import 'screens/web_push_permission_prompt.dart';
 import 'core/navigation_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -44,8 +47,13 @@ class _JobaAppState extends State<JobaApp> {
       theme: jobaTheme(),
       builder: (context, child) => ValueListenableBuilder<NavigationState?>(
           valueListenable: navigation,
-          builder: (context, value, _) =>
-              NavigationFrame(navigation: value, child: child!)),
+          builder: (context, value, _) => NavigationFrame(
+              navigation: value,
+              child: Stack(fit: StackFit.expand, children: [
+                child!,
+                if (kIsWeb && value != null)
+                  WebPushPermissionPrompt(controller: JobaPush.instance)
+              ]))),
       home: Marketplace(
           onNavigationChanged: (value) {
             if (mounted &&
