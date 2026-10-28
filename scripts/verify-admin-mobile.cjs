@@ -144,6 +144,16 @@ async function main(){
   const audits=await api.store.all('audit','KZ');
   for(const action of ['user.phone_read','user.block','user.unblock','user.deletion_requested'])assert(audits.some(r=>r.action===action));
   console.log('Contact, block, unblock and simple deletion verified through browser and real isolated API');
+  const employeeRoleId=randomUUID();await api.store.put({id:employeeRoleId,kind:'staff_role',owner:id,country:'KZ',version:1,created_at:created,title:'Наблюдатель аккаунтов',status:'active',grants:['GET /admin/users','GET /admin/users/{id}']});
+  await page.goto(frontend+'/#staff-access');await page.locator('#staff-create').waitFor();
+  const employeeForm=page.locator('#staff-create');
+  await employeeForm.getByLabel('Имя сотрудника',{exact:true}).fill('Сотрудник из админки');await employeeForm.getByLabel('Логин сотрудника',{exact:true}).fill('browser.observer');await employeeForm.getByLabel('Пароль сотрудника',{exact:true}).fill('Pass12');
+  await employeeForm.getByRole('button',{name:'Показать пароль',exact:true}).click();assert.equal(await employeeForm.locator('[name=password]').getAttribute('type'),'text');await employeeForm.getByRole('button',{name:'Скрыть пароль',exact:true}).click();
+  await employeeForm.locator('[name=role_ids][value="'+employeeRoleId+'"]').check();
+  await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/access/staff')&&r.request().method()==='POST'&&r.status()===200),employeeForm.getByRole('button',{name:'Создать сотрудника',exact:true}).click()]);
+  await employeeForm.locator('[role=status]').getByText('Сотрудник «Сотрудник из админки» создан.',{exact:false}).waitFor();assert.equal(await employeeForm.locator('[name=password]').inputValue(),'');
+  await page.locator('#staff-logout').click();await page.getByLabel('Логин',{exact:true}).waitFor();await page.getByLabel('Логин',{exact:true}).fill('browser.observer');await page.getByLabel('Пароль',{exact:true}).fill('Pass12');await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.waitForURL('**/#users');await page.locator('.tablewrap').waitFor();assert.equal(await page.locator('.nav a[href="#staff-access"]:visible').count(),0);
+  console.log('Owner creates employee in UI; six-character password login opens only assigned users section');
   assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.avatar_read'));assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.media_read'));assert.deepEqual(errors,[]);console.log('Mobile admin verified: 60 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
  }finally{if(browser)await browser.close();if(server)await new Promise(resolve=>server.close(resolve));await app.close();await api.store.close();await rm(files,{recursive:true,force:true});}
 }

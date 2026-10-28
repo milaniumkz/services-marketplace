@@ -1,3 +1,4 @@
+import {hash} from '@node-rs/argon2';
 import {HttpException} from '@nestjs/common';
 import {randomUUID} from 'node:crypto';
 import {Store,RecordData} from './store';
@@ -47,6 +48,21 @@ export async function staffAccess(store:Store,a:{id:string,country:string,user:R
  if(path==='/admin/access/catalog'&&method==='GET')return {items:[...staffOperations,...extra]};
  if(path==='/admin/access/roles'&&method==='GET')return {items:await store.all('staff_role',a.country)};
  if(path==='/admin/access/staff'&&method==='GET')return {items:(await store.all('user',a.country)).filter(u=>u.staff_permissions?.length).map(u=>({id:u.id,display_name:u.display_name,identifier:u.phone,status:u.status,version:u.version,is_owner:isStaffOwner(u),managed:u.staff_access_mode==='managed',role_ids:u.staff_role_ids??[]}))};
+ if(path==='/admin/access/staff'&&method==='POST'){
+  const name=typeof b.display_name==='string'?b.display_name.trim():'',login=typeof b.login==='string'?b.login.trim():'';
+  if(name.length<2||name.length>120)fail('VALIDATION_ERROR','Имя сотрудника должно содержать от 2 до 120 символов');
+  if(!/^[a-z][a-z0-9._@+-]{2,63}$/.test(login))fail('VALIDATION_ERROR','Логин: от 3 до 64 символов, первая — строчная латинская буква. Разрешены строчные буквы, цифры и . _ @ + -');
+  if(typeof b.password!=='string'||b.password.length<6||b.password.length>128)fail('VALIDATION_ERROR','Пароль сотрудника должен содержать от 6 до 128 символов');
+  if(!Array.isArray(b.role_ids)||!b.role_ids.length||b.role_ids.length>20||b.role_ids.some((id:any)=>typeof id!=='string'))fail('VALIDATION_ERROR','Выберите хотя бы одну роль сотрудника');
+  const roles=await store.all('staff_role',a.country);if(b.role_ids.some((id:string)=>!roles.some(r=>r.id===id&&r.status==='active')))fail('VALIDATION_ERROR','Выберите действующие роли этой страны');
+  const exists=(await store.db.query('SELECT user_id FROM credentials WHERE country=$1 AND phone=$2',[a.country,login])).rows.length;
+  if(exists)fail('STAFF_LOGIN_TAKEN','Этот логин уже используется. Укажите другой.',409);
+  const id=randomUUID(),roleIds=[...new Set(b.role_ids)],employee={id,owner:id,kind:'user',country:a.country,created_at:new Date().toISOString(),version:1,status:'active',display_name:name,phone:login,roles:[],locale:'ru',staff_permissions:['dynamic_staff'],staff_access_mode:'managed',staff_auth_mode:'password',staff_role_ids:roleIds};
+  await store.put(employee);
+  await store.db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',[a.country,login,id,await hash(b.password)]);
+  await audit('staff.account_created',id,{after:{display_name:name,login,role_ids:roleIds}});
+  return {id,display_name:name,identifier:login,country:a.country,status:'active',version:1,is_owner:false,managed:true,role_ids:roleIds};
+ }
  const rolePath=path.match(/^\/admin\/access\/roles\/([^/]+)(?:\/(archive))?$/),assignment=path.match(/^\/admin\/access\/staff\/([^/]+)\/roles$/);
  if(path==='/admin/access/roles'&&method==='POST'||rolePath&&['PATCH','POST'].includes(method)){
   const old=rolePath?await store.get(rolePath[1]):undefined;if(rolePath&&(!old||old.kind!=='staff_role'||old.country!==a.country))fail('NOT_FOUND','Роль не найдена',404);
