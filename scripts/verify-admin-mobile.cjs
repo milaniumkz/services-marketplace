@@ -109,6 +109,7 @@ async function main(){
   await page.locator('.sidebar a[href="#categories"]').click();await page.waitForURL('**/#categories');
   assert.equal(await page.locator('.sidebar.open').count(),0);
   await page.setViewportSize({width:1440,height:1000});
+  await page.waitForFunction(()=>document.querySelector('.sidebar')?.inert===false);
   assert.equal(await page.locator('.sidebar').evaluate(e=>e.inert),false);
   assert.equal(await page.getByRole('button',{name:'Навигация',exact:true}).isVisible(),false);
   const orderPhotoId=randomUUID(),orderId=randomUUID();
