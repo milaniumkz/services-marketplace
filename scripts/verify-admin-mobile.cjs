@@ -40,7 +40,7 @@ async function main(){
   const frontend='http://127.0.0.1:'+server.address().port;console.log('API and built frontend ready');
   browser=await chromium.launch({executablePath:process.env.JOBA_CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
   const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
-  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  const errors=[];page.on('pageerror',error=>{console.error('Browser error at',page.url(),error.stack);errors.push(error.message);});
   await page.route('**/api/v1/**',async route=>{
    const r=route.request(),u=new URL(r.url());
    if(u.pathname.endsWith('/admin/server-metrics'))require('node:child_process').execFileSync('python3',[resolve(__dirname,'collect-server-metrics.py'),'--output-dir',files]);
@@ -85,6 +85,15 @@ async function main(){
     if(output&&width===393)await page.screenshot({path:join(output,route.replaceAll('/','-')+'.png'),fullPage:true});
    }
   }
+  await page.setViewportSize({width:393,height:852});
+  await page.goto(frontend+'/#dashboard');await page.locator('#review-queues').waitFor();
+  const sectionRoutes=await page.locator('.nav a[href^="#"]').evaluateAll(links=>[...new Set(links.filter(a=>!a.hidden&&a.style.display!=='none').map(a=>a.hash.slice(1)))]);
+  for(const route of sectionRoutes){
+    console.log('Checking full section',route);await page.goto(frontend+'/#'+route);await page.locator('.workspace').waitFor();await page.waitForLoadState('networkidle');
+    assert.equal(await page.locator('form [name=reason]:visible,form [name=confirm]:visible').count(),0,'No manual reason/confirmation in '+route);
+    assert.equal(await page.getByRole('heading',{name:'Карточка недоступна',exact:true}).count(),0,'Section is accessible: '+route);
+  }
+  console.log('All navigation sections verified:',sectionRoutes.length,sectionRoutes.join(', '));
   await page.goto(frontend+'/#dashboard');await page.locator('#review-queues').waitFor();await page.locator('#review-queues a[href="#verification?status=pending_review&owner_role=customer"]').click();await page.waitForLoadState('networkidle');assert.equal(await page.locator('.workspace [name=status]').inputValue(),'pending_review');assert.equal(await page.locator('.workspace a[href="#record-live/verification/'+verificationId+'"]').count(),1);
   await page.goto(frontend+'/#monetization');await page.locator('#test-payment-mode').waitFor();
   for(const enabled of [false,true]){
@@ -102,11 +111,20 @@ async function main(){
   await page.setViewportSize({width:1440,height:1000});
   assert.equal(await page.locator('.sidebar').evaluate(e=>e.inert),false);
   assert.equal(await page.getByRole('button',{name:'Навигация',exact:true}).isVisible(),false);
+  const orderPhotoId=randomUUID(),orderId=randomUUID();
+  const orderBytes=await require('sharp')({create:{width:32,height:48,channels:3,background:'orange'}}).jpeg().toBuffer();
+  await api.files.write(orderPhotoId,orderBytes);await api.store.put({id:orderPhotoId,kind:'upload',owner:subjectId,country:'KZ',version:1,created_at:created,purpose:'order',mime:'image/jpeg',size:orderBytes.length,status:'clean'});
+  await api.store.put({id:orderId,kind:'order',owner:subjectId,country:'KZ',version:1,created_at:created,title:'Проверка подробной карточки заказа',description:'Отделка стен в жилом доме',city:'Караганда',exact_address:'Тестовый адрес заказа',budget_amount:500000,currency:'KZT',status:'open',upload_ids:[orderPhotoId]});
+  await page.goto(frontend+'/#record-live/orders/'+orderId);await page.getByText('Тестовый адрес заказа',{exact:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelectorAll('#content-media-result img').length===1&&[...document.querySelectorAll('#content-media-result img')].every(image=>image.complete&&image.naturalWidth>0&&!image.hidden));
+  assert.equal(await page.locator('#content-media [name=reason]').count(),0);
+  console.log('Detailed order and its private photograph open automatically');
   // Real UI -> isolated API: contact read and account commands must work without guessing a reason field.
   await page.goto(frontend+'/#record-live/users/'+subjectId);await page.locator('#sensitive-read').waitFor();
   assert.equal(await page.locator('#sensitive-read [name=reason]').count(),0);
-  await page.getByRole('button',{name:'Показать телефон',exact:true}).click();
   await page.locator('#sensitive-result').getByText('Телефон: +77000000123',{exact:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelectorAll('[data-user-section=identity] img').length===3&&[...document.querySelectorAll('[data-user-section=identity] img')].every(image=>image.complete&&image.naturalWidth>0));
+  console.log('Phone, two document sides and selfie open automatically in complete user overview');
   page.on('dialog',dialog=>{throw Error('Account actions must not open confirmation dialogs');});
   for(const action of ['block','unblock']){
     assert.equal(await page.locator('#account-action [name=reason]').count(),0);
