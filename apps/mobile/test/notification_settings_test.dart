@@ -265,7 +265,8 @@ void main() {
     });
     addTearDown(api.dispose);
     await mount(t, api, () {});
-    await t.ensureVisible(find.text('Часы тишины'));
+    await t.scrollUntilVisible(find.text('Часы тишины'), 200, scrollable: find.byType(Scrollable).first);
+    await t.pumpAndSettle();
     await t.tap(find.text('Часы тишины'));
     await t.pumpAndSettle();
     await t.ensureVisible(find.text('Включены'));

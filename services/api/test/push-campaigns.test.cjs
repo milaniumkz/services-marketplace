@@ -61,3 +61,13 @@ test('weekly marketing cap and cancellation between devices prevent further clai
  const c=await campaign(a,u.user.id,payload(now));await a.maintenance(now);a.providers.push={send:async()=>{sends++;await cancelPushCampaign(a.store,await a.store.get(c.id));return {provider_message_id:'isolated-accepted'};}};await a.deliverOutbox(now);assert.equal(sends,1);let o=(await a.store.all('outbox')).find(o=>o.campaign_id===c.id);assert.equal(o.status,'canceled');assert.equal(o.accepted_tokens.length,1);
  const recovered=await campaign(a,u.user.id,payload(now));await a.maintenance(now);o=(await a.store.all('outbox')).find(o=>o.campaign_id===recovered.id);await a.store.put({...o,status:'processing',lease_id:randomUUID(),lease_expires_at:new Date(now.getTime()-1000).toISOString(),accepted_tokens:[]});a.providers.push={send:async()=>({provider_message_id:'isolated-recovered-'+(++sends)})};await a.deliverOutbox(now);assert.equal((await a.store.get(o.id)).status,'sent');assert.equal(sends,3);
 }));
+test('FCM permanently invalid token is revoked without blocking other devices',()=>fixture(async a=>{
+ const {InvalidPushToken}=require('../dist/firebase-push');
+ const u=await reg(a,'898');await marketing(a,u);await token(a,u,'isolated-invalid-token');await token(a,u,'isolated-valid-token');
+ const now=new Date(),c=await campaign(a,u.user.id,payload(now));await a.maintenance(now);
+ const sent=[];a.providers.push={send:async(value)=>{if(value==='isolated-invalid-token')throw new InvalidPushToken();sent.push(value);return {provider_message_id:randomUUID()};}};
+ await a.deliverOutbox(now);
+ assert.deepEqual(sent,['isolated-valid-token']);
+ const tokens=await a.store.all('push_token','KZ');assert.equal(tokens.find(t=>t.status==='revoked').token,'');assert.equal(tokens.filter(t=>t.status==='active').length,1);
+ assert.equal((await a.store.all('outbox','KZ')).find(r=>r.campaign_id===c.id).status,'sent');
+}));

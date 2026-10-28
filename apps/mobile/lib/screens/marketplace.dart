@@ -1,3 +1,4 @@
+import '../core/push_notifications.dart';
 import '../core/navigation_shell.dart';
 import '../core/device_location.dart';
 import 'osm_location_picker.dart';
@@ -341,6 +342,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   void sessionChanged() {
     if (!mounted) return;
     if (!api.authenticated) {
+      JobaPush.instance.detach();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
       });
@@ -413,9 +415,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       else if(type=='order.selected'&&current['status']=='working')go('order',current['order_id']);
     }catch(_){/* A later reconnect will replay the authoritative decision. */}
   }
+  bool pushLinkHandled=false;
   void connectEvents() {
     closeEvents();
     if (!api.authenticated || !mounted || locked) return;
+    JobaPush.instance.onEvent=(){if(mounted&&!locked)refreshUnread();};
+    JobaPush.instance.onOpen=(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');};
+    unawaited(JobaPush.instance.attach(api));
+    if(!pushLinkHandled&&Uri.base.queryParameters['joba_push']=='notifications'){pushLinkHandled=true;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');});}
     refreshUnread();unreadTimer=Timer.periodic(const Duration(seconds:30),(_)=>refreshUnread());
     final uri = api
         .url('/events/ws')
@@ -504,6 +511,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    JobaPush.instance.detach();
     closeEvents();
     _api?.removeListener(sessionChanged);
     if (widget.api != _api) _api?.dispose();

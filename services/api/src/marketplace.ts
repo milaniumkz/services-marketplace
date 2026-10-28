@@ -1,3 +1,4 @@
+import {firebasePublicConfig, InvalidPushToken} from './firebase-push';
 import {unreadCounts} from './unread-counts';
 import {geocode,geoPoint,nearestCity,orderAddress} from './osm-geocoding';
 import {adminReviewQueues} from './admin-review-queues';
@@ -237,6 +238,7 @@ export class Marketplace {
     path=path.replace(/\/select-offer$/, '/select').replace(/\/request-completion$/, '/complete');
     const orderReview=path.match(/^\/orders\/([^/]+)\/reviews$/);if(orderReview){b={...b,order_id:orderReview[1]};path='/reviews';}
     if(path==='/reports')path='/cases';
+    if(path==='/public/push-config'&&method==='GET')return firebasePublicConfig();
     if(path==='/public/config'&&method==='GET') {
       const controls=await this.store.all('country_control');
       return {countries:await Promise.all(Object.entries(countries).map(async ([code,c])=>{
@@ -1749,7 +1751,7 @@ export class Marketplace {
           if((delivery.current.accepted_tokens??[]).includes(token.id))continue;
           const live=await this.exclusive(async()=>{const r=await this.store.get(entry.id);if(r?.status!=='processing'||r.lease_id!==delivery.lease)return false;const checkedAt=new Date(Math.max(Date.now(),now.getTime()));const user=await this.store.get(r.recipient_id);const decision=r.campaign_id&&user?await claimCampaignMessage(this.store,r,user,checkedAt):undefined;const stop=!user||user.status==='deleted'?'suppressed':decision?.stop;if(stop){await this.store.put({...r,status:stop,lease_expires_at:null,version:r.version+1});return false;}await this.store.put({...r,lease_expires_at:new Date(checkedAt.getTime()+60000).toISOString(),version:r.version+1});return true;});
           if(!live)break;
-          const result=await Promise.race([this.providers.push.send(token.token,delivery.message),new Promise<never>((_,reject)=>{const timer=setTimeout(()=>reject(Error('Push timeout')),10000);timer.unref();})]);
+          let result;try{result=await Promise.race([this.providers.push.send(token.token,delivery.message),new Promise<never>((_,reject)=>{const timer=setTimeout(()=>reject(Error('Push timeout')),10000);timer.unref();})]);}catch(e){if(!(e instanceof InvalidPushToken))throw e;await this.exclusive(async()=>{const t=await this.store.get(token.id);if(t&&t.token===token.token)await this.store.put({...t,status:'revoked',token:'',version:t.version+1});});continue;}
           await this.exclusive(async()=>{const r=await this.store.get(entry.id);if(r?.status!=='processing'||r.lease_id!==delivery.lease)return;await this.store.put({...r,accepted_tokens:[...new Set([...(r.accepted_tokens??[]),token.id])],provider_message_ids:[...(r.provider_message_ids??[]),result.provider_message_id],version:r.version+1});});
         }
         const completed=await this.exclusive(async()=>{const r=await this.store.get(entry.id);if(r?.status!=='processing'||r.lease_id!==delivery.lease)return false;await this.store.put({...r,status:'sent',sent_at:now.toISOString(),lease_expires_at:null,version:r.version+1});return true;});if(completed)sent++;

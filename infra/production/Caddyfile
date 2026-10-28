@@ -35,6 +35,7 @@
     root * /srv/mobile
     header /flutter_bootstrap.js Cache-Control "no-cache"
     header /index.html Cache-Control "no-cache"
+    header /firebase-messaging-sw.js Cache-Control "no-cache"
     header /flutter_service_worker.js Cache-Control "no-cache"
     header /main.dart.js Cache-Control "no-cache"
     try_files {path} /index.html

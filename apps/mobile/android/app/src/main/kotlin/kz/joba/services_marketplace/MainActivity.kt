@@ -19,6 +19,13 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKeyFactory
 
 class MainActivity : FlutterFragmentActivity() {
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager=getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            manager.createNotificationChannel(android.app.NotificationChannel("joba_events", "Сообщения и события JOBA", android.app.NotificationManager.IMPORTANCE_HIGH))
+        }
+    }
     private var locationResult: MethodChannel.Result? = null
     private val locationRequest = 18035
     private fun locate(result: MethodChannel.Result) {

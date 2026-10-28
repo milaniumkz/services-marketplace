@@ -12,9 +12,9 @@
   "public_site_available": true,
   "first_render_ms": 4898,
   "errors": [],
-  "verified_at": "2026-10-27T14:33:36.281040+00:00",
-  "server_source_commit": "e48604d8795e4c16447640375ca4f26a9b95cd6f",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40520576338",
+  "verified_at": "2026-10-28T08:41:17.858626+00:00",
+  "server_source_commit": "0f6aed9c564aad224e261ef40c2e1938b28e96d6",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40657293815",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -336,5 +336,23 @@
     "public_nearby_search_uses_approximate_point": true,
     "changing_city_without_point_clears_old_location": true,
     "api_lifecycle_privacy_verified": true
+  },
+  "oct28_identity_navigation_chat": {
+    "api_tests_passed": 162,
+    "flutter_tests_passed": 248,
+    "flutter_tests_skipped": 2,
+    "browser_tests_passed": 11,
+    "admin_page_viewports_passed": 60,
+    "known_expired_approval_restored": true,
+    "identity_validity": "until_manual_revocation",
+    "pending_identity_allows_content_submission": true,
+    "physical_camera_test": "pending",
+    "apk_built": false
+  },
+  "firebase_push": {
+    "project_id_from_screenshot": "joba-832c7",
+    "status": "source_prepared_configuration_missing",
+    "actual_delivery_verified": false,
+    "apk_built": false
   }
 }

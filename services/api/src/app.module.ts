@@ -1,3 +1,4 @@
+import {FirebasePushProvider, firebasePublicConfig} from './firebase-push';
 import {pipeline} from 'node:stream/promises';
 import { All, Controller, Get, Module, Req, Res, ServiceUnavailableException, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import express from 'express';
@@ -6,7 +7,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { HttpErrors } from './http-errors';
 let marketplace: Marketplace | undefined;
 let ready: Promise<void> | undefined;
-export async function getMarketplace() {marketplace??=new Marketplace();ready??=marketplace.initialize();await ready;return marketplace;}
+export async function getMarketplace() {marketplace??=new Marketplace();ready??=(async()=>{await marketplace!.initialize();const config=firebasePublicConfig();if(config.enabled){if(!process.env.JOBA_FIREBASE_PROJECT_ID)throw Error('Firebase project ID required');marketplace!.providers.push=new FirebasePushProvider(config.project_id);}})();await ready;return marketplace;}
 @Controller()
 export class HealthController {
   @Get('health') async health() {
