@@ -32,5 +32,4 @@ __pycache__/
 
 # Firebase service-account private credentials never belong in source control.
 *service-account*.json
-apps/mobile/android/app/google-services.json
 apps/mobile/ios/Runner/GoogleService-Info.plist

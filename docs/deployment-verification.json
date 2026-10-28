@@ -351,8 +351,10 @@
   },
   "firebase_push": {
     "project_id_from_screenshot": "joba-832c7",
-    "status": "source_prepared_configuration_missing",
+    "status": "android_configured_web_vapid_server_credentials_missing",
     "actual_delivery_verified": false,
-    "apk_built": false
+    "apk_built": false,
+    "android_config_received": true,
+    "android_package": "kz.joba.services_marketplace"
   }
 }

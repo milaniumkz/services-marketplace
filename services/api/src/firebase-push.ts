@@ -1,3 +1,4 @@
+import {firebaseClientPlatforms} from './firebase-client-config';
 import {applicationDefault, getApps, initializeApp} from 'firebase-admin/app';
 import {getMessaging, Message} from 'firebase-admin/messaging';
 import {PushProvider} from './providers';
@@ -7,10 +8,11 @@ export function firebasePublicConfig(env:NodeJS.ProcessEnv=process.env) {
   const platforms:Record<string,Record<string,string>>={};
   for(const platform of ['web','android','ios']) {
     const raw=env['JOBA_FIREBASE_'+platform.toUpperCase()+'_CONFIG'];
-    if(!raw)continue;
-    const parsed=JSON.parse(raw),options:Record<string,string>={};
+    const parsed=raw?JSON.parse(raw):(firebaseClientPlatforms as Record<string,Record<string,string>>)[platform];
+    if(!parsed)continue;
+    const options:Record<string,string>={};
     for(const key of ['apiKey','appId','messagingSenderId','projectId','authDomain','storageBucket','iosBundleId'])if(typeof parsed[key]==='string')options[key]=parsed[key];
-    if(!options.apiKey||!options.appId||!options.messagingSenderId||options.projectId!==env.JOBA_FIREBASE_PROJECT_ID)throw Error('Invalid Firebase public configuration: '+platform);
+    if(!options.apiKey||!options.appId||!options.messagingSenderId||options.projectId!==(env.JOBA_FIREBASE_PROJECT_ID??'joba-832c7'))throw Error('Invalid Firebase public configuration: '+platform);
     platforms[platform]=options;
   }
   return {enabled:env.JOBA_FIREBASE_ENABLED==='1',project_id:env.JOBA_FIREBASE_PROJECT_ID??'joba-832c7',platforms,vapid_key:env.JOBA_FIREBASE_VAPID_KEY??''};
