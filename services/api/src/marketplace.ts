@@ -72,7 +72,7 @@ const countries: Record<string, {currency: string; locales: string[]; cities: st
 };
 export const fail = (status: number, code: string, message: string, details = {}): never => { throw new HttpException({error:{code,message,details,retryable:status===503}},status); };
 const text = (b: any, name: string, min: number, max: number) => {
-  const v=b?.[name]; if (typeof v !== 'string' || v.trim().length<min || v.length>max) fail(400,'VALIDATION_ERROR',`Проверьте поле ${name}`,{field:name,min,max});
+  const v=b?.[name]; if (typeof v !== 'string' || v.trim().length<min || v.length>max) fail(400,'VALIDATION_ERROR',name==='reason'?`Укажите причину: от ${min} до ${max} символов.`:`Проверьте поле ${name}`,{field:name,min,max});
   return v.trim();
 };
 const password = (b: any, name: string,min=6) => {
@@ -1428,15 +1428,14 @@ export class Marketplace {
         const u=await this.object(accountAction[1],a,'user');this.version(u,b);
         if(u.id===a.id||u.staff_permissions?.length)fail(403,'FORBIDDEN','Управление служебными аккаунтами выполняется в разделе сотрудников');
         if(u.status==='deleted')fail(409,'STATE_CONFLICT','Аккаунт уже удалён');
-        const reason=text(b,'reason',10,1000),action=accountAction[2];
+        const action=accountAction[2],reason=text(b,'reason',action==='delete'?3:10,1000);
         if(action==='delete') {
-          if(b.confirmation!==u.id)fail(422,'VALIDATION_ERROR','Введите ID аккаунта для подтверждения удаления');
           const pending=(await this.store.select('privacy',a.country,{owner:u.id,limit:100})).find(r=>r.type==='delete'&&!['canceled','rejected','limited_retention','completed'].includes(r.status));
           const request=pending??await this.store.put(this.record('privacy',{id:u.id,country:u.country},{type:'delete',status:'requested',requested_by:a.id,reason}));
-          await this.store.put({...u,status:'blocked',admin_blocked:true,deletion_request_id:request.id,version:u.version+1});
+          await this.store.put({...u,status:'deleted',admin_blocked:true,deletion_request_id:request.id,deleted_at:new Date().toISOString(),version:u.version+1});
           await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[u.id]);
           await this.audit(a,'user.deletion_requested',u.id,reason);
-          return {id:u.id,status:'blocked',deletion_request_id:request.id,deletion_status:request.status};
+          return {id:u.id,status:'deleted',deletion_request_id:request.id,deletion_status:request.status};
         }
         if(action==='unblock'&&u.deletion_request_id){const job=await this.store.get(u.deletion_request_id);if(job&&!['canceled','cancelled','rejected'].includes(job.status))fail(409,'STATE_CONFLICT','Сначала рассмотрите запрос удаления в разделе приватности');}
         const restricted=action==='unblock'&&(await Promise.all(['blacklist','auto_hold'].map(kind=>this.store.all(kind,a.country)))).flat().some(r=>r.user_id===u.id&&r.status==='active'&&(! (r.ends_at??r.expires_at)||(r.ends_at??r.expires_at)>new Date().toISOString()));

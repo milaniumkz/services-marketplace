@@ -33,8 +33,8 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
     note('Данные аккаунта недоступны или уже удалены.')):'';
   const historyCard=section==='verification'?card('История проверок пользователя',record.history?.length?record.history.map(v=>`<div class="event"><b>${esc(verificationStatus(v.status))}${v.id===record.id?' · текущая заявка':''}</b><p>${esc(when(v.created_at))} · ${esc(v.document_type==='id_card'?'Удостоверение личности':v.document_type==='passport'?'Паспорт':v.document_type)}</p>${v.decided_at?`<p>Решение: ${esc(when(v.decided_at))}</p>`:''}${v.reason?`<p>${esc(v.reason)}</p>`:''}${v.reviewer_id?`<small>Сотрудник: ${esc(v.reviewer_id)}</small>`:''}${v.id!==record.id?`<p><a href="#record-live/verification/${encodeURIComponent(v.id)}">Открыть заявку</a></p>`:''}</div>`).join('')+note('Показаны последние '+record.history_limit+' заявок.'):note('Предыдущих заявок нет.')):'';
   let controls='';
-  if(section==='users')controls=card('Доступ к персональным данным',`<form id="sensitive-read" class="stack" data-staff-read>${namedField('Служебная причина просмотра','reason','textarea')}<button class="primary">Показать телефон</button><p id="sensitive-result" role="status"></p></form>`);
-  if(section==='users'&&!record.staff_permissions?.length&&record.status!=='deleted'&&['block','unblock','delete'].some(action=>allowed('POST /admin/users/{id}/'+action)))controls+=card('Управление аккаунтом',`<form id="account-action" class="stack"><label>Действие<select name="action">${[['block','Заблокировать (бан)'],['unblock','Разблокировать'],['delete','Удалить аккаунт']].filter(([action])=>allowed('POST /admin/users/{id}/'+action)).map(([action,label])=>`<option value="${action}">${label}</option>`).join('')}</select></label>${namedField('Причина — минимум 10 символов','reason','textarea')}${namedField('Для удаления введите ID аккаунта','confirmation')}<p>Блокировка закрывает вход и завершает сессии. Удаление закрывает доступ сразу; обработка данных выполняется через раздел приватности с учётом текущих заказов и сроков хранения.</p><button class="primary">Выполнить действие</button><p role="status"></p></form>`);
+  if(section==='users')controls=card('Доступ к персональным данным',`<form id="sensitive-read" class="stack" data-staff-read>${namedField('Цель просмотра телефона','reason','textarea')}<small>Цель уже заполнена. При необходимости уточните её — просмотр записывается в журнал.</small><button class="primary"${gate('sensitive.phone')}>Показать телефон</button><p id="sensitive-result" role="status"></p></form>`);
+  if(section==='users'&&!record.staff_permissions?.length&&record.status!=='deleted'&&['block','unblock','delete'].some(action=>allowed('POST /admin/users/{id}/'+action)))controls+=card('Управление аккаунтом',`<form id="account-action" class="stack"><label>Действие<select name="action">${[['block','Заблокировать (бан)'],['unblock','Разблокировать'],['delete','Удалить аккаунт']].filter(([action])=>allowed('POST /admin/users/{id}/'+action)).map(([action,label])=>`<option value="${action}">${label}</option>`).join('')}</select></label>${namedField('Причина действия','reason','textarea')}<p>Блокировка закрывает вход. Для удаления выберите действие, укажите причину и нажмите «Удалить аккаунт». Доступ закрывается сразу.</p><button class="primary">Выполнить действие</button><p role="status"></p></form>`);
   if(section==='verification') {
     controls=card('Документы',`<form id="sensitive-read" class="stack" data-staff-read>${namedField('Служебная причина просмотра','reason','textarea')}<button class="primary"${gate('sensitive.identity')}>Открыть документы</button><p class="muted">Две стороны удостоверения и селфи загружаются автоматически для сотрудника с правом просмотра. Просмотр записывается в журнал.</p><div id="sensitive-result" class="verification-media-grid" role="status"></div></form>`);
     if(['pending_review','passed'].includes(record.status))controls+=card('Решение по проверке',`<form id="review-decision" class="stack"><label for="review-decision-value">Решение</label><select id="review-decision-value" name="decision">${record.status==='passed'?'<option value="revoked">Отозвать подтверждение личности</option>':'<option value="passed">Подтвердить личность — бессрочно</option><option value="rejected">Запросить исправления</option>'}</select><p>Подтверждение действует бессрочно до ручного отзыва. Повторная загрузка по календарю не требуется.</p>${namedField('Основание решения','reason','textarea')}<button class="primary"${gate('POST /admin/'+sections[section][0]+'/{id}/decision')}>Сохранить решение</button></form>`);
@@ -54,12 +54,26 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   if(contentSection&&!photos.length)controls+=card('Фотографии',note('Фотографии профиля и работ ещё не загружены.'));
   return {key,id:section==='verification'?'A07':section==='privacy'?'A11':'A04',title:labels[section],subtitle:record.id,section:sections[section][1],actions:`<a class="btn" href="#${section}">К списку</a><button id="refresh-data" type="button">Обновить</button>`,body:()=>`<div class="grid cols2"><div class="stack">${subjectCard}${card('Сведения',details)}${serviceCard}${relatedCard}${historyCard}</div><div class="stack">${controls||note('Данные текущей ревизии записи.')}</div></div>`,bind(){
     const wire=(selector,action)=>{const form=document.querySelector(selector);if(!form)return;form.onsubmit=async event=>{event.preventDefault();const values=Object.fromEntries(new FormData(form));form.querySelectorAll('button').forEach(b=>b.disabled=true);form.querySelector('[role=alert]')?.remove();try{await action(values);}catch(error){const alert=document.createElement('p');alert.role='alert';alert.className='note danger';alert.textContent=error.message;form.append(alert);}finally{form.querySelectorAll('button').forEach(b=>b.disabled=false);}};};
+    const phoneForm=section==='users'?document.querySelector('#sensitive-read'):null;
+    if(phoneForm){const reason=phoneForm.elements.reason;reason.value='Просмотр контактного телефона в карточке пользователя';reason.required=true;reason.minLength=10;reason.maxLength=1000;}
+    const accountForm=document.querySelector('#account-action');
+    if(accountForm){
+      const reasons={block:'Блокировка аккаунта по решению администратора',unblock:'Разблокировка аккаунта по решению администратора',delete:'Удаление аккаунта по решению администратора'};
+      const reason=accountForm.elements.reason;
+      reason.required=true;reason.minLength=10;reason.maxLength=1000;
+      let previousDefault='';
+      const updateAction=()=>{const action=accountForm.elements.action.value;if(!reason.value.trim()||reason.value===previousDefault)reason.value=action==='delete'?'':reasons[action];previousDefault=reasons[action];reason.minLength=action==='delete'?3:10;reason.placeholder='Причина действия: от '+reason.minLength+' до 1000 символов';accountForm.querySelector('button').textContent=({block:'Заблокировать',unblock:'Разблокировать',delete:'Удалить аккаунт'})[action];};
+      accountForm.elements.action.addEventListener('change',updateAction);updateAction();
+    }
     wire('#account-action',async values=>{
       const grant='POST /admin/users/{id}/'+values.action;
       if(!allowed(grant))throw Error('Действие не разрешено вашей ролью');
-      if(!window.confirm(({block:'Заблокировать',unblock:'Разблокировать',delete:'Удалить'}[values.action]||'Изменить')+' аккаунт '+record.id+'?'))return;
-      const result=await api(base+'/'+values.action,'POST',{expected_version:record.version,reason:values.reason,confirmation:values.confirmation});
-      if(result.deletion_request_id){location.hash='record-live/privacy/'+encodeURIComponent(result.deletion_request_id);return;}
+      values.reason=String(values.reason||'').trim();
+      const minimum=values.action==='delete'?3:10;
+      if(values.reason.length<minimum||values.reason.length>1000)throw Error('Укажите причину действия: от '+minimum+' до 1000 символов.');
+      if(values.action!=='delete'&&!window.confirm(({block:'Заблокировать',unblock:'Разблокировать',delete:'Удалить'}[values.action]||'Изменить')+' аккаунт '+record.id+'?'))return;
+      const result=await api(base+'/'+values.action,'POST',{expected_version:record.version,reason:values.reason});
+      if(result.deletion_request_id){location.hash='users';return;}
       await onRefresh();
     });
     wire('#review-decision',async values=>{
@@ -90,9 +104,10 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
     if(contentSection){const form=document.getElementById('content-media');if(form&&allowed('files.content')){form.elements.reason.value='Проверка фотографий '+section+' '+record.id;form.requestSubmit();}else if(form){document.getElementById('content-media-result').textContent='Для просмотра требуется право «Файлы контента». Обратитесь к владельцу для назначения доступа.';}}
     wire('#sensitive-read',async({reason})=>{
       const result=document.querySelector('#sensitive-result');
+      reason=String(reason||'').trim();if(reason.length<10||reason.length>1000)throw Error('Укажите цель просмотра: от 10 до 1000 символов.');
       const data=await api(base+'?'+new URLSearchParams({reason,...(section==='users'?{include_phone:'true'}:{include_documents:'true'})}));
       result.replaceChildren();
-      if(section==='users'){result.textContent=data.phone;return;}
+      if(section==='users'){result.textContent=data.phone?'Телефон: '+data.phone:'Телефон не указан в аккаунте';return;}
       if(!data.document_refs?.length){result.textContent='Документы отсутствуют';return;}
       await Promise.all(data.document_refs.map(async(uploadId,index)=>{
         const figure=document.createElement('figure');figure.className='verification-photo';

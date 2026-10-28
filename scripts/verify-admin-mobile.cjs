@@ -102,6 +102,29 @@ async function main(){
   await page.setViewportSize({width:1440,height:1000});
   assert.equal(await page.locator('.sidebar').evaluate(e=>e.inert),false);
   assert.equal(await page.getByRole('button',{name:'Навигация',exact:true}).isVisible(),false);
+  // Real UI -> isolated API: contact read and account commands must work without guessing a reason field.
+  await page.goto(frontend+'/#record-live/users/'+subjectId);await page.locator('#sensitive-read').waitFor();
+  assert((await page.locator('#sensitive-read [name=reason]').inputValue()).length>=10);
+  await page.getByRole('button',{name:'Показать телефон',exact:true}).click();
+  await page.locator('#sensitive-result').getByText('Телефон: +77000000123',{exact:true}).waitFor();
+  page.on('dialog',dialog=>dialog.accept());
+  for(const action of ['block','unblock']){
+    await page.locator('#account-action [name=action]').selectOption(action);
+    assert((await page.locator('#account-action [name=reason]').inputValue()).length>=10);
+    assert.equal(await page.locator('#account-action [name=confirmation]').count(),0);
+    await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/users/'+subjectId+'/'+action)&&r.status()===200),page.locator('#account-action button').click()]);
+    await page.waitForLoadState('networkidle');await page.locator('#account-action').waitFor();
+    assert.equal((await api.store.get(subjectId)).status,action==='block'?'blocked':'active');
+  }
+  await page.locator('#account-action [name=action]').selectOption('delete');
+  await page.locator('#account-action [name=reason]').fill('Удаление тестового аккаунта по запросу владельца');
+  assert.equal(await page.locator('#account-action [name=confirmation]').count(),0);
+  await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/users/'+subjectId+'/delete')&&r.status()===200),page.locator('#account-action').getByRole('button',{name:'Удалить аккаунт',exact:true}).click()]);
+  await page.waitForURL('**/#users');
+  assert.equal((await api.store.get(subjectId)).status,'deleted');
+  const audits=await api.store.all('audit','KZ');
+  for(const action of ['user.phone_read','user.block','user.unblock','user.deletion_requested'])assert(audits.some(r=>r.action===action));
+  console.log('Contact, block, unblock and simple deletion verified through browser and real isolated API');
   assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.avatar_read'));assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.media_read'));assert.deepEqual(errors,[]);console.log('Mobile admin verified: 60 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
  }finally{if(browser)await browser.close();if(server)await new Promise(resolve=>server.close(resolve));await app.close();await api.store.close();await rm(files,{recursive:true,force:true});}
 }

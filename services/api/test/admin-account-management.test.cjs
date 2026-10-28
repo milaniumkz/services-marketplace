@@ -20,8 +20,10 @@ test('account management blocks sessions, restores login and queues subject-owne
   await assert.rejects(()=>api.handle('POST','/auth/login',{country:'KZ',phone:user.user.phone,password},undefined,undefined,{},'blocked-login'),e=>e.getResponse().error.code==='ACCOUNT_BLOCKED');
   await call('unblock',await body());assert.equal((await current()).status,'active');
   assert.ok((await api.handle('POST','/auth/login',{country:'KZ',phone:user.user.phone,password},undefined,undefined,{},'unblocked-login')).access_token);
-  await assert.rejects(async()=>call('delete',{expected_version:(await current()).version,reason:'Удаление без подтверждения'}),e=>e.getStatus()===422);
-  const result=await call('delete',{...await body(),confirmation:user.user.id});
+  await assert.rejects(async()=>call('delete',{expected_version:(await current()).version,reason:''}),e=>e.getResponse().error.message.includes('Укажите причину'));
+  const result=await call('delete',{...await body(),reason:'Спам'});assert.equal(result.status,'deleted');assert.equal((await current()).status,'deleted');
+  await assert.rejects(()=>api.handle('GET','/me',{},'Bearer '+user.access_token),e=>e.getStatus()===401);
+  await assert.rejects(()=>api.handle('POST','/auth/login',{country:'KZ',phone:user.user.phone,password},undefined,undefined,{},'deleted-login'),e=>e.getStatus()===401);
   const job=await api.store.get(result.deletion_request_id);assert.equal(job.owner,user.user.id);assert.equal(job.type,'delete');assert.equal(job.requested_by,owner.user.id);
   await assert.rejects(async()=>call('unblock',{expected_version:(await current()).version,reason:'Попытка обойти запрос удаления'}),e=>e.getStatus()===409);
   assert.equal((await api.store.all('audit','KZ')).filter(r=>r.target_id===user.user.id).length,3);
