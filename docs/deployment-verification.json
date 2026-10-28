@@ -13,8 +13,8 @@
   "first_render_ms": 4898,
   "errors": [],
   "verified_at": "2026-10-28T12:58:50.887855+00:00",
-  "server_source_commit": "3f2f1644fa3aad0a13e9629f3dcd52b6500433b7",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40690493661",
+  "server_source_commit": "dd3e7b62ed7e7b96b13c023cc65bd9740c5dd0fb",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40712832868",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -484,5 +484,32 @@
     "browser_tests_passed": 14
   },
   "browser_tests_passed": 14,
-  "admin_navigation_sections_verified": 26
+  "admin_navigation_sections_verified": 26,
+  "latest_change_verified_at": "2026-10-28T15:20:49Z",
+  "staff_directory_with_role_names": true,
+  "staff_required_navigation_reads_automatic": true,
+  "existing_operator_navigation_corrected": true,
+  "deleted_staff_hidden": true,
+  "subscription_renewal_preserves_paid_days": true,
+  "premium_upgrade_prorated_test_mode_verified": true,
+  "separate_top100_addon": {
+    "duration_days": 30,
+    "live_kz_amount_minor": 50000,
+    "editable_in_admin": true
+  },
+  "referral_reward_types": [
+    "access",
+    "discount",
+    "subscription_days"
+  ],
+  "personal_discount_subscription_real_provider_integration": "pending",
+  "latest_checks": {
+    "api_passed": 185,
+    "flutter_passed": 270,
+    "flutter_skipped": 2,
+    "browser_flutter_passed": 14,
+    "admin_page_viewport_combinations": 60,
+    "admin_navigation_sections": 26
+  },
+  "latest_apk_built": false
 }
