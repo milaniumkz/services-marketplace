@@ -1114,7 +1114,7 @@ export class Marketplace {
         if(query.length<2)return {items:[],kinds:allowed};
         const pattern='%'+query.replace(/[\\%_]/g,'\\$&')+'%';
         const rows=(await db.query<{data:RecordData}>(`SELECT data FROM records WHERE country=$1 AND kind=ANY($2::text[])
-          AND (kind<>'user' OR COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0)
+          AND (kind<>'user' OR (COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0 AND COALESCE(data->>'status','')<>'deleted'))
           AND (id::text ILIKE $3 OR data->>'display_name' ILIKE $3 OR data->>'title' ILIKE $3 OR data->>'subject' ILIKE $3 OR data->>'reason_code' ILIKE $3)
           ORDER BY id LIMIT 20`,[a.country,q.kind?[q.kind]:allowed,pattern])).rows;
         return {kinds:allowed,items:rows.map(({data:r})=>({id:r.id,kind:r.kind,country:r.country,status:r.status,
@@ -1323,7 +1323,7 @@ export class Marketplace {
         const result=await this.store.put({...r,status:b.decision,expires_at:null,validity_policy:'until_revoked',reason,reviewer_id:a.id,decided_at:new Date().toISOString(),version:r.version+1});await this.audit(a,'verification.'+b.decision,r.id,reason);if(b.decision==='passed'&&u.roles?.includes('executor'))await this.growth.qualify(r.owner,a.country,'executor_verified',r.id);await this.notify(r.owner,a,'verification.updated',r.id);return {...result,document_refs:undefined};
       }
       if(path==='/admin/users'&&method==='GET'){
-        const page=await this.page('user',a,q,{endUserOnly:true,statuses:q.status?[String(q.status)]:undefined});
+        const page=await this.page('user',a,q,{endUserOnly:true,excludeDeleted:true,statuses:q.status?[String(q.status)]:undefined});
         return {...page,items:page.items.map(u=>({...safeUser(u),version:u.version,status:u.status}))};
       }
       if(method==='GET'&&section==='verifications'&&path.split('/').length===3){
@@ -1392,7 +1392,7 @@ export class Marketplace {
         return {items:batch.map(r=>({...securityEventSummary(r),...(q.include_ip==='true'?{ip:r.ip??null,user_agent:r.user_agent??null}:{})})),meta:{next_cursor:rows.length>limit?await this.nextCursor(batch.at(-1)!.id,scoped):null}};
       }
       if(userDetail&&method==='GET'){
-        const u=await this.object(userDetail[1],a,'user');const result:any={...safeUser(u),status:u.status,version:u.version};
+        const u=await this.object(userDetail[1],a,'user');if(u.status==='deleted')fail(404,'NOT_FOUND','Пользователь не найден');const result:any={...safeUser(u),status:u.status,version:u.version};
         if(q.include_phone==='true'){await this.staff(a,'phone_view');const reason=staffReason(q,'Просмотр телефона администратором');await this.audit(a,'user.phone_read',u.id,reason);result.phone=u.phone;result.phone_status='unverified';}
         return result;
       }
@@ -1670,7 +1670,7 @@ export class Marketplace {
   private async nextCursor(id:string,q:any) {
     const payload=Buffer.from(JSON.stringify({after:id,filter_hash:this.filterHash(q),expires_at:new Date(Date.now()+86400000).toISOString()})).toString('base64url');return payload+'.'+await this.files.requestDigest(payload);
   }
-  private async page(kind:string,a:Actor,q:any,options:{member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean}={}) {
+  private async page(kind:string,a:Actor,q:any,options:{member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const filters:any={};
     if(kind==='contractor'&&options.publicActor){

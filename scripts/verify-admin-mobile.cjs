@@ -138,6 +138,9 @@ async function main(){
   await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/users/'+subjectId+'/delete')&&r.status()===200),page.locator('#account-action').getByRole('button',{name:'Удалить аккаунт',exact:true}).click()]);
   await page.waitForURL('**/#users');
   assert.equal((await api.store.get(subjectId)).status,'deleted');
+  await page.waitForLoadState('networkidle');
+  assert.equal(await page.locator('.tablewrap a[href*="'+subjectId+'"]').count(),0);
+  assert.equal(await page.locator('.tablewrap').getByText('Заявитель проверки',{exact:true}).count(),0);
   const audits=await api.store.all('audit','KZ');
   for(const action of ['user.phone_read','user.block','user.unblock','user.deletion_requested'])assert(audits.some(r=>r.action===action));
   console.log('Contact, block, unblock and simple deletion verified through browser and real isolated API');

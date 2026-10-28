@@ -50,11 +50,12 @@ export class Store {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
+  async select(kind:string,country:string,options:{member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
     const args:any[]=[kind,country],where=['kind=$1','country=$2'];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
     if(options.member)where.push("COALESCE(data->'members','[]'::jsonb) ? "+bind(options.member));
+    if(options.excludeDeleted)where.push("COALESCE(data->>'status','')<>'deleted'");
     if(options.endUserOnly)where.push("COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0");
     if(options.recipient)where.push("data->>'recipient_id'="+bind(options.recipient));
     if(options.subjectUser)where.push(`data->>'subject_user_id'=${bind(options.subjectUser)}`);
