@@ -10,7 +10,12 @@
     "android_rewarded_ad_unit_id": "ca-app-pub-5590941579295248/6068875357",
     "app_ads_txt": [
       "google.com, pub-5590941579295248, DIRECT, f08c47fec0942fa0"
-    ]
+    ],
+    "web_ads_txt": [
+      "google.com, pub-5590941579295248, DIRECT, f08c47fec0942fa0"
+    ],
+    "web_site": "joba.com.kz",
+    "web_site_status_from_screenshot": "requires_verification"
   },
   "yandex": {
     "application_id": "20254161",
