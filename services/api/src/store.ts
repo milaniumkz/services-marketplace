@@ -55,6 +55,7 @@ export class Store {
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.owner)where.push('owner='+bind(options.owner));
     if(options.member)where.push("COALESCE(data->'members','[]'::jsonb) ? "+bind(options.member));
+    if(kind==='order')where.push("COALESCE(data->>'status','')<>'deleted'");
     if(options.excludeDeleted)where.push("COALESCE(data->>'status','')<>'deleted'");
     if(options.endUserOnly)where.push("COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0");
     if(options.recipient)where.push("data->>'recipient_id'="+bind(options.recipient));

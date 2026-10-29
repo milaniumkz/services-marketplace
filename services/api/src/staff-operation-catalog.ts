@@ -1,5 +1,7 @@
 // Explicit reviewable API operation catalogue. No wildcards may be assigned.
 export const staffOperations=[
+{id:'DELETE /admin/orders/{id}',method:'DELETE',path:'/admin/orders/{id}',block:'orders',label:'Удалять заказ'},
+{id:'PUT /admin/languages',method:'PUT',path:'/admin/languages',block:'languages',label:'Изменять список языков общения'},
   {id:'POST /admin/users/{id}/block',method:'POST',path:'/admin/users/{id}/block',block:'users',label:'Блокировать аккаунт'},
   {id:'POST /admin/users/{id}/unblock',method:'POST',path:'/admin/users/{id}/unblock',block:'users',label:'Разблокировать аккаунт'},
   {id:'POST /admin/users/{id}/delete',method:'POST',path:'/admin/users/{id}/delete',block:'users',label:'Удалять аккаунт'},

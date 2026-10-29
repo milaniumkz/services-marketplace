@@ -120,6 +120,9 @@ async function main(){
   await page.waitForFunction(()=>document.querySelectorAll('#content-media-result img').length===1&&[...document.querySelectorAll('#content-media-result img')].every(image=>image.complete&&image.naturalWidth>0&&!image.hidden));
   assert.equal(await page.locator('#content-media [name=reason]').count(),0);
   console.log('Detailed order and its private photograph open automatically');
+  await page.getByText('Опубликован',{exact:true}).waitFor();await page.getByRole('button',{name:'Удалить заказ',exact:true}).click();await page.waitForURL('**/#orders');await page.locator('.tablewrap').waitFor();assert.equal(await page.locator('.tablewrap a[href*="'+orderId+'"]').count(),0);assert.equal((await api.store.get(orderId)).status,'deleted');
+  await page.goto(frontend+'/#languages');await page.locator('#communication-languages').waitFor();await page.locator('#communication-languages [name=ky]').fill('Киргизский');await page.locator('#communication-languages button').click();await page.locator('#communication-languages [role=status]').getByText('Языки сохранены.',{exact:true}).waitFor();assert.equal((await api.store.all('communication_language_catalog','KZ'))[0].items.find(l=>l.code==='ky').title,'Киргизский');
+
   // Real UI -> isolated API: contact read and account commands must work without guessing a reason field.
   await page.goto(frontend+'/#record-live/users/'+subjectId);await page.locator('#sensitive-read').waitFor();
   assert.equal(await page.locator('#sensitive-read [name=reason]').count(),0);

@@ -12,7 +12,7 @@ export class Commerce {
   async plans(country:string){
     const config=(await this.store.all('subscription_catalog',country))[0];
     const currency=({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country];
-    return {addons:[{...top100Addon,amount_minor:config?.prices?.top100??50000,currency}],version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='customer'?(country==='KZ'?50000:null):p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
+    return {addons:[{...top100Addon,amount_minor:config?.prices?.top100??50000,currency}],version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='customer'?50000:p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
   }
   async offers(country:string,role?:string,includeTop100=false) {
     const catalog=await this.plans(country);

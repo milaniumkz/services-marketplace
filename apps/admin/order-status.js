@@ -1,0 +1,2 @@
+export const orderStatuses={draft:'Черновик',open:'Опубликован',assigned:'Исполнитель назначен',in_progress:'В работе',pending_acceptance:'Ожидает приёмки',completion_requested:'Ожидает приёмки',completed:'Завершён',canceled:'Отменён',cancelled:'Отменён',expired:'Срок истёк',paused:'Приостановлен',disputed:'Спор',pending_review:'На проверке',pending_moderation:'На модерации',deleted:'Удалён',archived:'Архив'};
+export const orderStatus=value=>orderStatuses[value]||'Неизвестный статус';

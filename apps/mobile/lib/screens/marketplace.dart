@@ -2490,7 +2490,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               if (executor)
                 JobaMenu([
                   JobaMenuEntry('Мои отклики', 'chat', () => go('my-offers')),
-                  JobaMenuEntry('Топ-100', 'crown', () => go('top'))
+                  JobaMenuEntry('Рейтинг Топ-100', 'crown', () => go('top'))
                 ])
             ]))
       ]),
@@ -2641,7 +2641,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               ? 'Выбор доступа'
                               : dateLabel(summary['subscription_until']),
                           translateSubtitle:
-                              summary['subscription_until'] == null)
+                              summary['subscription_until'] == null),
+                      if(executor)JobaMenuEntry('Подключить Топ-100','crown',()=>go('my-access'),subtitle:'Отдельно к Стандарту · в Премиуме включён')
                     ]),
                     const SizedBox(height: 16),
                     JobaMenu([JobaMenuEntry('Проверка личности', 'shield', () => go('verification'), subtitle: 'Документ с двух сторон и селфи')]),
@@ -2662,7 +2663,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               ? 'Отзывов пока нет'
                               : '${NumberFormat('0.0', locale).format(rating['average'])} · ${rating['count']}',
                           translateSubtitle: (rating['count'] ?? 0) == 0),
-                      JobaMenuEntry('Топ-100', 'crown', () => go('top'),
+                      JobaMenuEntry('Рейтинг Топ-100', 'crown', () => go('top'),
                           subtitle: 'Популярные услуги и заказы'),
                       JobaMenuEntry(
                           'Продвижение', 'spark', () => go('promotion'),
@@ -3699,7 +3700,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       initial: '${p?['experience_years'] ?? ''}',
                       required: false,
                       keyboard: TextInputType.number),
-                  InputSpec('languages', 'Языки общения (ru, kk, sr, be, en)',
+                  InputSpec('languages', 'Языки общения',multiSelect:true,translateOptions:false,options:{for(final language in (result['communication_languages'] as List? ?? []).cast<Json>())language['code']:language['title']},
                       initial: (p?['languages'] as List?)?.join(', ') ?? 'ru'),
                   InputSpec('availability', 'Доступность',
                       initial: p?['availability'] ?? 'available',

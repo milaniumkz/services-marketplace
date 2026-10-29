@@ -9,7 +9,7 @@ export function profileFields(body:any, previous:any, currency:string, categoryI
   const categories=list('category_ids',[body.category_id??previous?.category_id],categoryIds);
   if(body.category_id!==undefined&&body.category_ids===undefined&&body.category_id!==previous?.category_id){categories.splice(0,categories.length,body.category_id);}
   const modes=list('work_modes',['onsite'],new Set(['onsite','workshop','remote','hybrid']),4);
-  const languages=list('languages',['ru'],new Set(['ru','kk','sr','be','en']),5);
+  const languages=list('languages',['ru'],new Set(['ru','kk','ky','sr','be','en']),5);
   const cities=list('service_cities',[body.city??previous?.city],undefined,20);
   const radius=value('travel_radius_km',0),experience=value('experience_years',null);
   if(typeof radius!=='number'||!Number.isFinite(radius)||radius<0||radius>1000)invalid('travel_radius_km');

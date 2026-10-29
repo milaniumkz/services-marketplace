@@ -1,3 +1,4 @@
+import {orderStatuses} from './order-status.js';
 import {mountUserOverview} from './user-overview.js';
 import {userEventLabel} from './user-activity.js';
 import {reviewWorkspace} from './review-workspace.js';
@@ -6,7 +7,7 @@ export const userRoutes=new Set(['user-detail','user-orders','user-cases','user-
 const tabs=[['Обзор','user-detail'],['Безопасность','user-security'],['Заказы','user-orders'],['Обращения','user-cases'],['Решения','user-decisions']];
 const auditLabels={'verification.passed':'Документ проверен','verification.rejected':'Проверка документа отклонена','security.events_read':'Служебный просмотр безопасности','user.phone_read':'Служебный просмотр контакта','job.retry_requested':'Повторная обработка запрошена','content.approved':'Материал опубликован','content.rejected':'Материал отклонён'};
 const titles={'user-detail':'Карточка пользователя','user-orders':'Заказы пользователя','user-cases':'Обращения пользователя','user-decisions':'История решений','user-security':'Безопасность пользователя'};
-const statuses={open:'Открыто',draft:'Черновик',published:'Опубликовано',in_progress:'В работе',completed:'Завершено',cancelled:'Отменено',resolved:'Решено',closed:'Закрыто',assigned:'Назначено',waiting_support:'Ожидает поддержки',active:'Активен',blocked:'Заблокирован',restricted:'Ограничен',deleted:'Удалён',passed:'Документ проверен',not_started:'Документ не проверен',rejected:'Проверка отклонена'};
+const statuses={...orderStatuses,open:'Открыто',draft:'Черновик',published:'Опубликовано',in_progress:'В работе',completed:'Завершено',cancelled:'Отменено',resolved:'Решено',closed:'Закрыто',assigned:'Назначено',waiting_support:'Ожидает поддержки',active:'Активен',blocked:'Заблокирован',restricted:'Ограничен',deleted:'Удалён',passed:'Документ проверен',not_started:'Документ не проверен',rejected:'Проверка отклонена'};
 const date=value=>value?new Intl.DateTimeFormat('ru',{dateStyle:'short',timeStyle:'short',timeZone:'UTC'}).format(new Date(value))+' UTC':'—';
 const route=(key,id,extra={})=>'#'+key+'?'+new URLSearchParams({user_id:id,...extra});
 

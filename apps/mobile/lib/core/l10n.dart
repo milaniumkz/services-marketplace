@@ -71,7 +71,7 @@ String errorText(BuildContext context, Object error) {
     'password': 'Пароль',
     'new_password': 'Новый пароль',
     'category_id': 'Категория',
-    'languages': 'Языки общения (ru, kk, sr, be, en)',
+    'languages': 'Языки общения',
     'travel_radius_km': 'Радиус выезда, км'
   }[error.details['field']];
   return localize(context, message) +

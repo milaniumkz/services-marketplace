@@ -31,7 +31,7 @@ void main(){
   await tester.tap(find.text('Разместить заказ'));await tester.pumpAndSettle();expect(state.route,'create');
   state.go('access');await tester.pumpAndSettle();expect(find.text('Стандарт'),findsNothing);expect(find.text('Премиум'),findsNothing);expect(find.textContaining('500'),findsWidgets);expect(find.text('Размещайте заказы'),findsOneWidget);expect(find.text('Для заказчика бесплатно'),findsNothing);
   expect(requests.contains('/me/entitlements'),true);expect(requests.contains('/me/subscriptions'),true);
-  user['active_role']='executor';state.executor=true;state.go('access');await tester.pumpAndSettle();expect(find.text('Стандарт'),findsOneWidget);expect(find.text('Премиум'),findsOneWidget);expect(find.text('Размещайте заказы'),findsNothing);
+  user['active_role']='executor';state.executor=true;state.go('access');await tester.pumpAndSettle();expect(find.text('Стандарт'),findsOneWidget);await tester.scrollUntilVisible(find.text('Премиум'),250);expect(find.text('Премиум'),findsOneWidget);expect(find.text('Размещайте заказы'),findsNothing);
   user['roles']=['customer'];user['active_role']='customer';state.me=user;state.executor=false;
   await state.switchRole('executor');await tester.pumpAndSettle();
   expect(state.executor,true);expect(user['roles'],contains('executor'));state.go('services');await tester.pumpAndSettle();expect(find.text('Вы вошли как заказчик'),findsNothing);await state.switchRole('customer');

@@ -214,7 +214,7 @@ class _PagedListState extends State<PagedList> {
 class InputSpec {
   final String key, label;
   final String initial;
-  final bool secret, multiline;
+  final bool secret, multiline, multiSelect;
   final bool required, translateOptions;
   final int lines;
   final double? minHeight;
@@ -240,6 +240,7 @@ class InputSpec {
     this.prefixIcon,
     this.originalIcon,
     this.secret = false,
+    this.multiSelect=false,
     this.multiline = false,
     this.lines = 5,
     this.minHeight,
@@ -333,6 +334,7 @@ class _ActionFormState extends State<ActionForm> {
         text: widget.fieldOverrides[field.key] ??
             widget.initialValues[field.key] ??
             field.initial);
+    if(field.multiSelect&&field.options!=null)controller.text=controller.text.split(',').map((v)=>v.trim()).where(field.options!.containsKey).toSet().join(',');
     var previousText=controller.text;
     controller.addListener(() {
       if(controller.text==previousText)return;
@@ -588,6 +590,8 @@ class _ActionFormState extends State<ActionForm> {
                         ),
                       ),
                     )
+                  else if(field.multiSelect&&field.options!=null)
+                    FormField<String>(initialValue:controllers[field.key]!.text,validator:(v)=>fieldErrors[field.key]??(field.required&&(v??'').isEmpty?localize(context,'Выберите хотя бы один язык общения.'):null),builder:(state){final selected=controllers[field.key]!.text.split(',').map((x)=>x.trim()).where((x)=>field.options!.containsKey(x)).toSet();return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[for(final entry in field.options!.entries)CheckboxListTile(contentPadding:EdgeInsets.zero,title:Text(entry.value),value:selected.contains(entry.key),onChanged:disabled?null:(checked){if(checked==true)selected.add(entry.key);else selected.remove(entry.key);final value=field.options!.keys.where(selected.contains).join(',');controllers[field.key]!.text=value;state.didChange(value);field.changed?.call(value);setState((){});}),if(state.hasError)Text(state.errorText!,style:const TextStyle(color:Colors.red))]);})
                   else if (field.options != null)
                     DropdownButtonFormField<String>(
                       style: const TextStyle(

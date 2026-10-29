@@ -168,11 +168,31 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
   List<Widget> extraPurchases(BuildContext context,List<Json> offers){
     if(widget.customer)return [];
     final upgrade=offers.where((o)=>o['offer_kind']=='upgrade').toList(),top=offers.where((o)=>o['plan']=='top100').toList();
-    final topPeriods=subscriptions.where((s)=>s['plan']=='top100'&&until(s)?.isAfter(widget.now())==true&&s['status']!='revoked').toList()..sort((a,b)=>until(b)!.compareTo(until(a)!));
+    final activeBase=subscriptions.where((s)=>valid(s)&&s['is_upgrade']!=true&&s['plan']!='top100'&&['active','grace','canceled_at_period_end'].contains(s['status'])).toList();
+    final premium=activeBase.isNotEmpty&&subscriptions.any((s)=>valid(s)&&s['plan']=='premium'&&['active','grace','canceled_at_period_end'].contains(s['status']));
+    final standard=activeBase.any((s)=>s['plan']=='standard');
+    final topPeriods=subscriptions.where((s)=>s['plan']=='top100'&&until(s)?.isAfter(widget.now())==true&&['active','scheduled','grace','canceled_at_period_end'].contains(s['status'])).toList()..sort((a,b)=>until(b)!.compareTo(until(a)!));
+    final configured=(config['addons'] as List? ?? []).cast<Json>().where((p)=>p['code']=='top100').toList();
+    final Json? topPrice=top.isNotEmpty?top.first:configured.isEmpty?null:configured.first;
+    if(choosing&&activeBase.isEmpty&&top.isEmpty)return [const Notice('Отдельный Топ-100 доступен после подключения Стандарта. В Премиуме он уже включён.',icon:'crown')];
     return [
-      if(upgrade.isNotEmpty)Padding(padding:const EdgeInsets.only(bottom:16),child:card([text('Повысить до Премиума',size:18,bold:true),const SizedBox(height:8),text(money(context,upgrade.first),size:24,bold:true),text('Доплата за оставшийся срок Стандарта. Дата окончания оплаченного доступа сохраняется.'),if(upgrade.first['discount_percent'] is num&&upgrade.first['discount_percent']>0)text('Учтена персональная скидка ${upgrade.first['discount_percent']}%.'),action('Перейти на Премиум','checkout',id:upgrade.first['id'])])),
-      if(topPeriods.isNotEmpty)Padding(padding:const EdgeInsets.only(bottom:12),child:Notice('Отдельный Топ-100 оплачен до ${date(context,topPeriods.first)}. Для размещения нужен активный основной доступ.',icon:'crown')),
-      if(top.isNotEmpty)Padding(padding:const EdgeInsets.only(bottom:16),child:card([text('Топ-100 отдельно',size:18,bold:true),const SizedBox(height:8),text('${money(context,top.first)} / 30 дней',size:22,bold:true),text('Приоритет услуг в Топ-100 при активном Стандарте. Основная подписка не продлевается.'),if(top.first['discount_percent'] is num&&top.first['discount_percent']>0)text('Учтена персональная скидка ${top.first['discount_percent']}%.'),action(topPeriods.isEmpty?'Подключить Топ-100':'Продлить Топ-100','checkout',id:top.first['id'])])),
+      Padding(padding:const EdgeInsets.only(bottom:16),child:card([
+        text('Топ-100 отдельно',size:18,bold:true),const SizedBox(height:8),
+        if(premium) ...[text('Топ-100 уже включён в Премиум',size:16,bold:true),text('Дополнительно оплачивать его не нужно.')]
+        else ...[
+          if(topPrice!=null)text('${money(context,topPrice)} / 30 дней',size:22,bold:true),
+          text('Приоритет услуг в Топ-100 при активном Стандарте. Основная подписка не продлевается.'),
+          if(topPeriods.isNotEmpty)text('Отдельный Топ-100 оплачен до ${date(context,topPeriods.first)}. Для размещения нужен активный основной доступ.'),
+          if(top.isNotEmpty) ...[
+            if(top.first['discount_percent'] is num&&top.first['discount_percent']>0)text('Учтена персональная скидка ${top.first['discount_percent']}%.'),
+            action(topPeriods.isEmpty?'Подключить Топ-100':'Продлить Топ-100','checkout',id:top.first['id'])
+          ]else if(!standard) ...[
+            text(choosing?'Сначала выберите Стандарт ниже. Затем Топ-100 можно оплатить отдельно.':'Для отдельного Топ-100 сначала подключите Стандарт. В Премиуме Топ-100 уже включён.'),
+            if(!choosing)action('Выбрать Стандарт','access')
+          ]else text('Оплата Топ-100 пока недоступна. Действующий основной доступ сохраняется.'),
+        ]
+      ])),
+      if(upgrade.isNotEmpty&&!choosing)Padding(padding:const EdgeInsets.only(bottom:16),child:card([text('Повысить до Премиума',size:18,bold:true),const SizedBox(height:8),text(money(context,upgrade.first),size:24,bold:true),text('Премиум включится сразу после оплаты. Доплата рассчитана за оставшийся срок Стандарта; дата окончания доступа сохраняется.'),if(upgrade.first['discount_percent'] is num&&upgrade.first['discount_percent']>0)text('Учтена персональная скидка ${upgrade.first['discount_percent']}%.'),action('Перейти на Премиум','checkout',id:upgrade.first['id'])])),
     ];
   }
   @override
@@ -208,7 +228,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         for (final plan in (widget.customer ? const ['customer'] : const ['standard', 'premium']))
           Builder(builder: (context) {
             final matching =
-                offers.where((r) => r['offer_kind']!='upgrade'&&(r['plan'] ?? 'standard') == plan).toList();
+                offers.where((r) => (r['plan'] ?? 'standard') == plan).toList()..sort((a,b)=>(a['offer_kind']=='upgrade'?0:1).compareTo(b['offer_kind']=='upgrade'?0:1));
             final configured = (config['plans'] as List? ?? [])
                 .where((r) => r['code'] == plan)
                 .toList();
@@ -218,6 +238,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                     ? null
                     : Json.from(configured.first);
             final offer = matching.isEmpty ? null : matching.first;
+            final upgrading=offer?['offer_kind']=='upgrade';
             return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: card([
@@ -236,7 +257,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                             child: text(money(context, displayPrice),
                                 size: 30, bold: true)),
                         const SizedBox(width: 6),
-                        text('/ 30 дней', color: muted)
+                        text(upgrading?'за оставшийся срок':'/ 30 дней', color: muted)
                       ]),
                   const SizedBox(height: 8),
                   text(
@@ -252,11 +273,12 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                   benefit(widget.customer ? 'Размещайте заказы' : 'Публикуйте услуги и откликайтесь'),
                   benefit('Общайтесь по вашим заказам'),
                   if (plan == 'premium')
-                    benefit('Приоритет услуг в Топ-100 на 30 дней'),
+                    benefit(upgrading?'Топ-100 включается сразу на оставшийся срок':'Приоритет услуг в Топ-100 на 30 дней'),
                   const SizedBox(height: 6),
                   if(offer?['discount_percent'] is num&&offer!['discount_percent']>0)text('Ваша персональная скидка ${offer['discount_percent']}% уже учтена.'),
                   if(offer?['starts_at']!=null)text('Новый период начнётся ${date(context,{'valid_until':offer!['starts_at']})}. Уже оплаченные дни сохраняются.'),
-                  action(subscription==null?'Посмотреть условия':'Продлить на 30 дней', 'checkout', id: offer?['id']),
+                  if(upgrading)text('Премиум включится сразу после оплаты. Оплаченный срок сохраняется.'),
+                  action(upgrading?'Перейти на Премиум сейчас':subscription==null?'Посмотреть условия':'Продлить на 30 дней', 'checkout', id: offer?['id']),
                   const SizedBox(height: 12),
                   text(
                       'Автопродление можно отменить. Оплаченный срок сохраняется.',
@@ -337,6 +359,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
     final bases=subscriptions.where((r)=>r['is_addon']!=true&&r['is_upgrade']!=true&&r['plan']!='top100').toList();
     final known=subscription ?? (bases.isEmpty?null:bases.first);
     return ListView(padding: const EdgeInsets.all(20), children: [
+      ...extraPurchases(context,offers),
       for(final queued in bases.where((r)=>r['status']=='scheduled')) DataCard('Запланировано продление',subtitle:'${queued['plan']=='premium'?'Премиум':queued['plan']=='customer'?'Заказчик':'Стандарт'} · с ${date(context,{'valid_until':queued['valid_from']})} до ${date(context,queued)}'),
       if(subscription?['is_test']==true) const Notice('Тестовая подписка активна. Деньги не списывались.',icon:'info'),
       card([
@@ -361,7 +384,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
             color: Colors.white,
             bold: true),
         const SizedBox(height: 8),
-        text('Исполнитель · поиск заказов и отклики',
+        text(subscription==null?'Исполнитель · доступ не активен':'Исполнитель · '+(subscription['plan']=='premium'?'Премиум':'Стандарт'),
             color: const Color(0xFFD5DFEE)),
         const Divider(height: 40, color: Color(0x26FFFFFF)),
         Row(children: [
@@ -389,7 +412,6 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
             color: const Color(0xFFAEBFD9)),
       ], dark: true),
       const SizedBox(height: 20),
-      ...extraPurchases(context,offers),
       JobaMenu([
         JobaMenuEntry(widget.customer?'Продлить доступ':'Продлить или сменить тариф','card',()=>onGo('access',null),subtitle:'Новые 30 дней добавляются к оплаченному сроку'),
         JobaMenuEntry(

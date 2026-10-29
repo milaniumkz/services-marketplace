@@ -1,3 +1,4 @@
+import {communicationLanguages} from './communication-languages';
 import {HttpException} from '@nestjs/common';
 import {Store} from './store';
 const fail=(message:string):never=>{throw new HttpException({error:{code:'VALIDATION_ERROR',message,retryable:false}},400);};
@@ -5,9 +6,9 @@ const fail=(message:string):never=>{throw new HttpException({error:{code:'VALIDA
 export async function adminReports(store:Store,country:string,method:string,path:string,query:any) {
  if(method!=='GET')return undefined;
  if(path==='/admin/languages'){
-  const languages=[{code:'ru',title:'Русский'},{code:'kk',title:'Қазақша'},{code:'sr',title:'Српски'},{code:'be',title:'Беларуская'}];
+  const catalog=await communicationLanguages(store,country),languages=catalog.items;
   const rows=await store.db.query<{locale:string,count:string}>("SELECT COALESCE(data->>'locale','ru') AS locale,count(*)::text FROM records WHERE kind='user' AND country=$1 AND data->>'status'<>'deleted' GROUP BY 1",[country]);
-  return {country,items:languages.map(l=>({...l,active_users:Number(rows.rows.find(r=>r.locale===l.code)?.count??0)})),read_only:true};
+  return {country,version:catalog.version,items:languages.map(l=>({...l,active_users:Number(rows.rows.find(r=>r.locale===l.code)?.count??0)})),read_only:false};
  }
  if(path==='/admin/revenue'){
   const days=query.days===undefined?30:Number(query.days);if(![7,30,90].includes(days))fail('Выберите период 7, 30 или 90 дней');

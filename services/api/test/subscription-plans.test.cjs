@@ -16,7 +16,7 @@ test('standard and premium are exactly 30 days; premium rights, expiry and regio
   assert.equal((await a.handle('POST','/admin/subscription-plans',update,auth,randomUUID())).version,1);
   await assert.rejects(()=>a.handle('POST','/admin/subscription-plans',update,auth,randomUUID()),e=>e.getStatus()===409);
   assert.equal((await a.commerce.plans('KG')).items[0].amount_minor,100000);
-  assert.equal((await a.commerce.plans('KG')).items.find(p=>p.code==='customer').amount_minor,null);
+  assert.equal((await a.commerce.plans('KG')).items.find(p=>p.code==='customer').amount_minor,50000);
   a.providers.billing.set('plan-test',{name:'plan-test'});
   for(const [plan,amount] of [['standard',120000],['premium',180000]]){
    const payload=pricePayload({plan,product_type:'subscription',provider:'plan-test',product_id:plan,amount_minor:amount,currency:'KZT',period:'days',duration_days:30,time_zone:'Asia/Almaty'},'KZ');

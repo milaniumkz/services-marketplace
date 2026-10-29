@@ -140,6 +140,14 @@ PYCOMMERCE
 "${joba_compose[@]}" cp scripts/publish-role-access.cjs api:/tmp/joba-publish-role-access.cjs
 "${joba_compose[@]}" exec -T -u root api chmod 0644 /tmp/joba-publish-role-access.cjs
 "${joba_compose[@]}" exec -T -e JOBA_ROLE_ACCESS=owner-authorized-2026-10-27 -e JOBA_ROLE_STORE_MODULE=/app/services/api/dist/store api node /tmp/joba-publish-role-access.cjs
+# Owner request 2026-10-29: publish missing regional documents and enable registration.
+"${joba_compose[@]}" cp scripts/publish-country-readiness.cjs api:/tmp/joba-publish-countries.cjs
+"${joba_compose[@]}" exec -T -u root api chmod 0644 /tmp/joba-publish-countries.cjs
+python3 - <<'PYCOUNTRIES' | "${joba_compose[@]}" exec -T -e JOBA_COUNTRY_READINESS=owner-authorized-2026-10-29 -e JOBA_COUNTRY_STORE_MODULE=/app/services/api/dist/store api node /tmp/joba-publish-countries.cjs
+import json
+from pathlib import Path
+print(json.dumps([{'country':country,'type':kind,'locale':'ru','content':Path('docs/legal/'+country.lower()+'/'+kind+'.ru.txt').read_text()} for country in ['KZ','RU','BY','KG'] for kind in ['terms','privacy','payments','refunds','public_offer','contacts','verification_consent']]))
+PYCOUNTRIES
 # This verifies a trusted public certificate; no -k/self-signed fallback.
 curl --fail --silent --show-error --retry 20 --retry-delay 5 --retry-all-errors --max-time 15 "https://$joba_domain/health"
 curl --fail --silent --show-error --max-time 15 "https://$joba_domain/" -o /dev/null

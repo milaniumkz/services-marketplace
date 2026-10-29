@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store');
-const {checkoutOffers,buyTestQuote}=require('../dist/subscription-quotes');
+const {checkoutOffers,buyTestQuote,subscriptionState}=require('../dist/subscription-quotes');
 const {activatePeriods}=require('../dist/subscription-periods');
 const {bestDiscount,useDiscount}=require('../dist/personal-discounts');
 const {referralPolicy}=require('../dist/referral-policy');
@@ -11,13 +11,14 @@ test('standard renewal queues, prorated upgrade preserves paid end, separate Top
  const {api,user,offers,buy}=await setup();try{
  const now=new Date(),standard=await buy((await offers(now)).find(o=>o.plan==='standard'),now);
  const initialEnd=standard.subscription.valid_until;
+ const premiumOptions=(await offers(now)).filter(o=>o.plan==='premium');assert.equal(premiumOptions.length,1);assert.equal(premiumOptions[0].offer_kind,'upgrade');
  const addon=(await offers(now)).find(o=>o.plan==='top100');assert.equal(addon.amount_minor,50000);
  const top=await buy(addon,now);assert.equal(top.subscription.valid_until,initialEnd);assert.equal((await buy(addon,now)).subscription.id,top.subscription.id);
  const renew=await buy((await offers(now)).find(o=>o.plan==='standard'),now);assert.equal(renew.subscription.status,'scheduled');assert.equal(renew.subscription.valid_from,initialEnd);
  assert.equal(Date.parse(renew.subscription.valid_until)-Date.parse(initialEnd),30*day);
  assert.ok(!(await api.store.all('grant','KZ')).some(g=>g.source_id===renew.subscription.id));
  const later=new Date(now.getTime()+15*day),upgrade=(await offers(later)).find(o=>o.offer_kind==='upgrade');assert.equal(upgrade.amount_minor,75000);
- const premium=await buy(upgrade,later);assert.equal(premium.subscription.is_upgrade,true);assert.equal(premium.subscription.valid_until,renew.subscription.valid_until);
+ const premium=await buy(upgrade,later);assert.equal(premium.subscription.is_upgrade,true);assert.equal(premium.subscription.status,'active');assert.equal(premium.subscription.valid_from,later.toISOString());assert.equal((await subscriptionState(api.store,user,later)).premium,true);assert.equal(premium.subscription.valid_until,renew.subscription.valid_until);
  assert.equal((await offers(later)).some(o=>o.offer_kind==='upgrade'||o.plan==='top100'),false);
  await activatePeriods(api.store,{...user,status:'deleted'},new Date(Date.parse(initialEnd)+1000));assert.ok(!(await api.store.all('grant','KZ')).some(g=>g.source_id===renew.subscription.id));
  await activatePeriods(api.store,user,new Date(Date.parse(initialEnd)+1000));assert.ok((await api.store.all('grant','KZ')).some(g=>g.source_id===renew.subscription.id));

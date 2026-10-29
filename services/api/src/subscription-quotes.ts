@@ -26,7 +26,7 @@ export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordDa
  const raw=await commerce.offers(user.country,role,role==='executor'&&state.standard&&!state.premium);
  if(!settings.enabled||commerce.providers.billing.size)return {...raw,subscription_state:{paid_until:new Date(state.paid_until).toISOString(),premium:state.premium,standard:state.standard}};
  const prior=(await store.select('checkout_quote',user.country,{owner:user.id,limit:1000})).filter(q=>q.status==='available'&&q.context===context&&q.expires_at>now.toISOString());
- const templates:any[]=raw.items.filter(o=>o.is_test).map(o=>({...o,offer_kind:o.plan==='top100'?'addon':state.bases.length?'renewal':'purchase'}));
+ const templates:any[]=raw.items.filter(o=>o.is_test&&!(role==='executor'&&state.standard&&!state.premium&&o.plan==='premium')).map(o=>({...o,offer_kind:o.plan==='top100'?'addon':state.bases.length?'renewal':'purchase'}));
  if(role==='executor'&&state.standard&&!state.premium){
   const current=state.current.filter(s=>periodPlan(s)==='standard').sort((a,b)=>Date.parse(a.valid_until)-Date.parse(b.valid_until))[0];
   const futurePremium=state.bases.filter(s=>periodPlan(s)==='premium'&&Date.parse(s.valid_from??s.created_at)>now.getTime()).sort((a,b)=>Date.parse(a.valid_from??a.created_at)-Date.parse(b.valid_from??b.created_at))[0];
@@ -65,6 +65,7 @@ export async function buyTestQuote(store:Store,commerce:Commerce,user:RecordData
  if(b.amount_minor!==offer.amount_minor||b.currency!==offer.currency)fail('OFFER_CHANGED','Итоговая цена изменилась. Обновите условия оплаты');
  if(subscriptionRole(user)!==offer.role||!(user.roles??['customer']).includes(offer.role))fail('ROLE_REQUIRED','Выберите тариф текущей роли',403);
  if(user.verification!=='passed')fail('VERIFICATION_REQUIRED','Сначала подтвердите личность',403);
+ if(offer.plan==='premium'&&offer.offer_kind!=='upgrade'&&state.standard&&!state.premium)fail('OFFER_CHANGED','Для перехода со Стандарта выберите немедленное повышение до Премиума с доплатой');
  if(offer.plan==='top100'&&(!state.standard||state.premium))fail('ENTITLEMENT_REQUIRED','Для отдельного Топ-100 нужен активный Стандарт',403);
  if(offer.offer_kind==='upgrade'&&(!state.standard||state.premium))fail('OFFER_CHANGED','Текущий тариф изменился');
  await useDiscount(store,user.id,user.country,offer,now);

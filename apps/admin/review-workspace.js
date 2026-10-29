@@ -1,3 +1,4 @@
+import {orderStatus} from './order-status.js';
 import {userState} from './user-activity.js';
 import {verificationStatus} from './verification-status.js';
 import {privacyProgress} from './privacy-progress.js';
@@ -11,7 +12,7 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   const stateNames={pending_review:'Ожидает проверки',pending_moderation:'Ожидает модерации',published:'Опубликовано',paused:'Приостановлено',archived:'Архив',passed:'Проверка пройдена',rejected:'Отклонено',expired:'Срок истёк',draft:'Черновик',not_started:'Не пройдена',active:'Активен',blocked:'Заблокирован',deleted:'Удалён'};
   const when=value=>value&&Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat('ru',{dateStyle:'short',timeStyle:'short',timeZone:'UTC'}).format(new Date(value))+' UTC':'Не указано';
   const details=Object.entries({
-    'ID':record.id,'Страна':record.country,'Статус':section==='verification'?verificationStatus(record.status):stateNames[record.status]||userState(record.status),'Ревизия':record.version,
+    'ID':record.id,'Страна':record.country,'Статус':section==='verification'?verificationStatus(record.status):section==='orders'?orderStatus(record.status):stateNames[record.status]||userState(record.status),'Ревизия':record.version,
     'Имя':record.display_name,'Название':record.title,'Описание':record.description,
     'Город':record.city,'Категория':record.category_id,'ID пользователя':record.owner,
     'Исполнитель':record.executor_id,'Проверка аккаунта':record.verification?verificationStatus(record.verification):undefined,
@@ -36,6 +37,7 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   let controls='';
   if(section==='users')controls=card('Доступ к персональным данным',`<form id="sensitive-read" class="stack" data-staff-read><button class="primary"${gate('sensitive.phone')}>Показать телефон</button><p id="sensitive-result" role="status"></p></form>`);
   if(section==='users'&&!record.staff_permissions?.length&&record.status!=='deleted'&&['block','unblock','delete'].some(action=>allowed('POST /admin/users/{id}/'+action)))controls+=card('Управление аккаунтом',`<form id="account-action" class="stack"><div class="actions">${[['block','Заблокировать'],['unblock','Разблокировать'],['delete','Удалить аккаунт']].filter(([action])=>allowed('POST /admin/users/{id}/'+action)).map(([action,label])=>`<button class="${action==='delete'?'danger':'primary'}" name="action" value="${action}" type="submit">${label}</button>`).join('')}</div><p role="status"></p></form>`);
+  if(section==='orders'&&allowed('DELETE /admin/orders/{id}'))controls+=card('Управление заказом','<form id="order-delete"><button class="danger">Удалить заказ</button></form>');
   if(section==='verification') {
     controls=card('Документы',`<form id="sensitive-read" class="stack" data-staff-read><button class="primary"${gate('sensitive.identity')}>Открыть документы</button><p class="muted">Две стороны удостоверения и селфи загружаются автоматически для сотрудника с правом просмотра. Просмотр записывается в журнал.</p><div id="sensitive-result" class="verification-media-grid" role="status"></div></form>`);
     if(['pending_review','passed'].includes(record.status))controls+=card('Решение по проверке',`<form id="review-decision" class="stack"><label for="review-decision-value">Решение</label><select id="review-decision-value" name="decision">${record.status==='passed'?'<option value="revoked">Отозвать подтверждение личности</option>':'<option value="passed">Подтвердить личность — бессрочно</option><option value="rejected">Запросить исправления</option>'}</select><p>Подтверждение действует бессрочно до ручного отзыва. Повторная загрузка по календарю не требуется.</p><button class="primary"${gate('POST /admin/'+sections[section][0]+'/{id}/decision')}>Сохранить решение</button></form>`);
@@ -55,6 +57,7 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   if(mediaSection&&!photos.length)controls+=card('Фотографии',note('Фотографии профиля и работ ещё не загружены.'));
   return {key,id:section==='verification'?'A07':section==='privacy'?'A11':'A04',title:labels[section],subtitle:record.id,section:sections[section][1],actions:`<a class="btn" href="#${section}">К списку</a><button id="refresh-data" type="button">Обновить</button>`,body:()=>`<div class="grid cols2"><div class="stack">${subjectCard}${card('Сведения',details)}${serviceCard}${relatedCard}${historyCard}</div><div class="stack">${controls||note('Данные текущей ревизии записи.')}</div></div>`,bind(){
     const wire=(selector,action)=>{const form=document.querySelector(selector);if(!form)return;form.onsubmit=async event=>{event.preventDefault();const values=Object.fromEntries(new FormData(form));if(event.submitter?.name)values[event.submitter.name]=event.submitter.value;form.querySelectorAll('button').forEach(b=>b.disabled=true);form.querySelector('[role=alert]')?.remove();try{await action(values);}catch(error){const alert=document.createElement('p');alert.role='alert';alert.className='note danger';alert.textContent=error.message;form.append(alert);}finally{form.querySelectorAll('button').forEach(b=>b.disabled=false);}};};
+    wire('#order-delete',async()=>{await api(base,'DELETE',{expected_version:record.version});location.hash='orders';});
     wire('#account-action',async values=>{
       const grant='POST /admin/users/{id}/'+values.action;
       if(!allowed(grant))throw Error('Действие не разрешено вашей ролью');
