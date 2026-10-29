@@ -1,0 +1,22 @@
+{
+  "updated_on": "2026-10-29",
+  "status": "identifiers_received_sdk_integration_pending",
+  "android_package": "kz.joba.services_marketplace",
+  "developer_website": "https://joba.com.kz",
+  "google": {
+    "publisher_id": "pub-5590941579295248",
+    "android_app_id": null,
+    "android_banner_ad_unit_id": "ca-app-pub-5590941579295248/9567708649",
+    "android_rewarded_ad_unit_id": "ca-app-pub-5590941579295248/6068875357",
+    "app_ads_txt": [
+      "google.com, pub-5590941579295248, DIRECT, f08c47fec0942fa0"
+    ]
+  },
+  "yandex": {
+    "application_id": "20254161",
+    "android_banner_ad_unit_id": "R-M-20254161-1",
+    "android_rewarded_ad_unit_id": null,
+    "app_ads_txt": []
+  },
+  "web_ad_units_received": false
+}
