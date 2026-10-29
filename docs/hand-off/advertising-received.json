@@ -61,7 +61,9 @@
     "web_rejection_specific_reason_received": true,
     "web_ads_txt": [],
     "web_integration_complete": false,
-    "web_rejection_reason": "Площадка не соответствует правилам участия по иным причинам"
+    "web_rejection_reason": "Площадка не соответствует правилам участия по иным причинам",
+    "web_site_status_owner_report": "approved_after_support_request",
+    "web_repeat_submission_required": false
   },
   "web_ad_units_received": true,
   "web_ad_units_received_by_network": {
