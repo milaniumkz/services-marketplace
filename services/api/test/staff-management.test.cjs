@@ -6,6 +6,7 @@ test('owner edits, blocks and deletes staff and roles; revocation is immediate, 
  await a.store.put({...await a.store.get(owner.user.id),staff_permissions:['platform_owner']});
  const boss=await a.handle('POST','/auth/staff-login',{country:'KZ',phone:owner.user.phone,password:secret});
  const call=(token,m,p,b={})=>a.handle(m,p,b,'Bearer '+token,randomUUID()),own=(m,p,b)=>call(boss.access_token,m,p,b);
+ const archived={id:randomUUID(),kind:'staff_role',owner:owner.user.id,country:'KZ',created_at:new Date().toISOString(),version:1,status:'archived',title:'Архивная роль',grants:['GET /admin/users']};await a.store.put(archived);const renamedArchive=await own('PATCH','/admin/access/roles/'+archived.id,{expected_version:1,title:'Архивная роль переименована',grants:['GET /admin/users']});assert.equal(renamedArchive.status,'archived');
  const role=await own('POST','/admin/access/roles',{title:'Оператор теста управления',grants:['GET /admin/users']});
  let employee=await own('POST','/admin/access/staff',{display_name:'Тест управления',login:'Test.Operator',password:'Pass12',role_ids:[role.id]});assert.equal(employee.identifier,'test.operator');
  const login=(phone='TEST.OPERATOR',password='Pass12')=>a.handle('POST','/auth/staff-login',{country:'KZ',phone,password});
