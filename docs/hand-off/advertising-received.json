@@ -15,7 +15,28 @@
       "google.com, pub-5590941579295248, DIRECT, f08c47fec0942fa0"
     ],
     "web_site": "joba.com.kz",
-    "web_site_status_from_screenshot": "requires_verification"
+    "web_site_status_from_screenshot": "requires_verification",
+    "seller_files_publication": {
+      "verified_at": "2026-10-29T11:46:21.399290+00:00",
+      "files": [
+        {
+          "url": "https://joba.com.kz/ads.txt",
+          "http_status": 200,
+          "content_type": "text/plain; charset=utf-8",
+          "exact_owner_line_verified": true,
+          "sha256": "89ed2c16ef312d6a4d74c04fb67143d581e9d67edbf886ff74493d0106906f1a"
+        },
+        {
+          "url": "https://joba.com.kz/app-ads.txt",
+          "http_status": 200,
+          "content_type": "text/plain; charset=utf-8",
+          "exact_owner_line_verified": true,
+          "sha256": "89ed2c16ef312d6a4d74c04fb67143d581e9d67edbf886ff74493d0106906f1a"
+        }
+      ],
+      "sdk_integrated": false,
+      "google_account_or_site_approval_verified": false
+    }
   },
   "yandex": {
     "application_id": "20254161",

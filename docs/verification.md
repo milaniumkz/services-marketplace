@@ -94,3 +94,12 @@ CI: 190 API, 276 Flutter (+2 условных пропуска), 14 браузе
 CI: 192 API; 276 Flutter (+2 условных пропуска); 14 browser Flutter — passed. Browser real isolated API: 60 page/viewport combinations, 26 nav sections, колонка страны, оба фильтра, карточка Беларуси, составной фильтр заказов по статусу/городу/валюте/сумме/адресу/формату/дням, сохранение критериев и сброс на мобильной ширине — passed. Первая попытка CI обнаружила гонку в тесте сброса: ожидание networkidle не гарантировало нового рендера SPA. Проверка теперь ждёт конечный hash и пустое поле; повторный CI полностью прошёл.
 
 Владелец видит общий операционный обзор. Сотрудники сохраняют свои права и служебный регион; API-тест проверяет отказ межрегионального обхода. Региональные настройки не объединяются в одну валюту/политику, домашний регион в режиме ALL явно указан. Подробнее: [admin-country-overview.md](admin-country-overview.md). APK не собирался.
+
+
+## 2026-10-29 — Google app-ads.txt / ads.txt
+
+Опубликован `2505a5deebf9f534df005cb07865f68820c9ee7b`, [GitHub Actions 40866129003](https://github.com/milaniumkz/services-marketplace/actions/runs/40866129003), success. Предыдущая сборка только app-ads.txt (40865117683) отменена до deploy после получения данных AdSense, чтобы опубликовать оба файла одним релизом.
+
+29 октября в 16:46 по Екатеринбургу проверены https://joba.com.kz/ads.txt и https://joba.com.kz/app-ads.txt: 200, text/plain; charset=utf-8, точная строка владельца с LF, SHA-256 обоих файлов `89ed2c16ef312d6a4d74c04fb67143d581e9d67edbf886ff74493d0106906f1a`. TLS проверен; /health production/database ready; frontend bootstrap содержит точный SHA. CI: 192 API, 276 Flutter (+2 условных пропуска), 14 browser Flutter, 60 admin page/viewport combinations — passed.
+
+Все четыре основных параметра Android Google AdMob сохранены в hand-off inventory: App ID, Banner, Rewarded, publisher seller line. Из скриншота AdSense подтверждены добавленный joba.com.kz и требуемая проверка через ads.txt; подтверждение/одобрение внутри Google не выполнялось и не объявляется успешным. SDK/веб-код и серверная проверка наград по-прежнему требуют интеграции; реальные показы не включались. APK не собирался. Итоговая инструкция: [JOBA-advertising-next-steps.ru.md](hand-off/JOBA-advertising-next-steps.ru.md).

@@ -13,8 +13,8 @@
   "first_render_ms": 4898,
   "errors": [],
   "verified_at": "2026-10-28T12:58:50.887855+00:00",
-  "server_source_commit": "40779114424a6764e4399cda09023fbee02a7c6e",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40838032479",
+  "server_source_commit": "2505a5deebf9f534df005cb07865f68820c9ee7b",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40866129003",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -485,7 +485,7 @@
   },
   "browser_tests_passed": 14,
   "admin_navigation_sections_verified": 26,
-  "latest_change_verified_at": "2026-10-29T08:04:40Z",
+  "latest_change_verified_at": "2026-10-29T11:46:21.399290+00:00",
   "staff_directory_with_role_names": true,
   "staff_required_navigation_reads_automatic": true,
   "existing_operator_navigation_corrected": true,
@@ -598,5 +598,18 @@
   ],
   "admin_order_filters_apply_before_pagination": true,
   "admin_order_filter_currency_and_bounds_errors_inline": true,
-  "admin_employee_regional_permissions_preserved": true
+  "admin_employee_regional_permissions_preserved": true,
+  "google_advertising_seller_files": {
+    "verified_at": "2026-10-29T11:46:21.399290+00:00",
+    "urls": [
+      "https://joba.com.kz/ads.txt",
+      "https://joba.com.kz/app-ads.txt"
+    ],
+    "http_status": 200,
+    "content_type": "text/plain; charset=utf-8",
+    "exact_owner_line_verified": true,
+    "google_android_identifiers_received": true,
+    "ad_sdk_or_web_display_integration_complete": false,
+    "google_approval_verified": false
+  }
 }
