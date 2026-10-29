@@ -49,7 +49,7 @@
   "yandex": {
     "application_id": "20254161",
     "android_banner_ad_unit_id": "R-M-20254161-1",
-    "android_rewarded_ad_unit_id": null,
+    "android_rewarded_ad_unit_id": "R-M-20254161-3",
     "app_ads_txt": [],
     "web_site": "joba.com.kz",
     "web_site_id_from_screenshot": "20302217",
@@ -63,7 +63,10 @@
     "web_integration_complete": false,
     "web_rejection_reason": "Площадка не соответствует правилам участия по иным причинам",
     "web_site_status_owner_report": "approved_after_support_request",
-    "web_repeat_submission_required": false
+    "web_repeat_submission_required": false,
+    "android_rewarded_name": "JOBA_Android_Rewarded",
+    "android_rewarded_status_from_screenshot": "active",
+    "additional_android_rewarded_id_from_screenshot": "R-M-20254161-2"
   },
   "web_ad_units_received": true,
   "web_ad_units_received_by_network": {
