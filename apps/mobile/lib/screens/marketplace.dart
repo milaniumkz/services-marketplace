@@ -1760,6 +1760,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       titleOffset: -12,
     );
   }
+  bool legalHashMatches(Json document,Json consent) => consent['document_hash']==document['hash'] || document['operator_contacts_only']==true && (document['operator_contact_previous_hashes'] as List? ?? []).contains(consent['document_hash']);
+
   bool needsProfile(Json profile) => profile['display_name'] is String &&
       (profile['display_name'] as String).trim().length < 2;
 
@@ -1777,7 +1779,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       if(documents.any((d)=>['terms','terms_of_use'].contains(d['type'])) && documents.any((d)=>['privacy','privacy_policy'].contains(d['type'])) && documents.every((d){
         final records=consents.where((c)=>c['document_id']==d['id']).toList()
           ..sort((a,b)=>(b['sequence'] as num).compareTo(a['sequence'] as num));
-        return records.isNotEmpty && records.first['accepted']==true && records.first['document_hash']==d['hash'] && (d['minimum_age']!=18 || records.first['age_confirmed']==true);
+        return records.isNotEmpty && records.first['accepted']==true && legalHashMatches(d,records.first) && (d['minimum_age']!=18 || records.first['age_confirmed']==true);
       })) target=needsProfile(me??{})?'onboarding':'home';
     } catch (_) { /* The documents screen offers retry without losing the session. */ }
     if(!mounted || !identical(api,client) || generation!=api.sessionGeneration || !api.authenticated || route!=setupRoute)return;
@@ -5452,7 +5454,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     (b['sequence'] as num).compareTo(a['sequence'] as num));
               return relevant.isNotEmpty &&
                   relevant.first['accepted'] == true &&
-                  relevant.first['document_hash'] == document['hash'];
+                  legalHashMatches(document,relevant.first);
             }
 
             final needsAge = documents.any((d) {
@@ -5464,7 +5466,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     (b['sequence'] as num).compareTo(a['sequence'] as num));
               return relevant.isEmpty ||
                   relevant.first['accepted'] != true ||
-                  relevant.first['document_hash'] != d['hash'] ||
+                  !legalHashMatches(d,relevant.first) ||
                   relevant.first['age_confirmed'] != true;
             });
             if (registrationInProgress || needsAge)

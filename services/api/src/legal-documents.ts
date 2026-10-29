@@ -11,3 +11,6 @@ export function currentLegalDocuments(records:RecordData[],country:string,locale
  }
  return result;
 }
+
+/** Contact-only corrections retain prior accepted versions; policy changes do not. */
+export const legalHashAccepted=(document:RecordData,hash:any)=>typeof hash==='string'&&(document.hash===hash||document.operator_contacts_only===true&&Array.isArray(document.operator_contact_previous_hashes)&&document.operator_contact_previous_hashes.includes(hash));

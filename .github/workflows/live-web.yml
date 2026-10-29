@@ -20,6 +20,10 @@ jobs:
       - run: node scripts/verify-web-worker-upgrade.cjs
         env:
           JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
+      - run: node scripts/verify-public-site.cjs
+        env:
+          JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
+          JOBA_PUBLIC_BASE: https://joba.com.kz
       - run: node scripts/verify-live-web.cjs
         env:
           GITHUB_TOKEN: ${{ github.token }}

@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),{chromium}=require('@playwright/test');
+(async()=>{const base=process.env.JOBA_PUBLIC_BASE||'http://127.0.0.1:3318';const browser=await chromium.launch({executablePath:process.env.JOBA_CHROMIUM_PATH||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox']});try{
+ const ctx=await browser.newContext({javaScriptEnabled:false}),page=await ctx.newPage();
+ for(const width of [320,393,1440]){await page.setViewportSize({width,height:900});for(const path of ['/','/site/categories.html','/site/pricing.html','/site/contacts.html','/site/privacy.html','/site/support.html']){const r=await page.goto(base+path);assert.equal(r.status(),200,path);await page.locator('h1').waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),path+' horizontal overflow '+width);assert.equal(await page.locator('[data-demo]').count(),0);assert.ok(await page.locator('a[href="/app/"]').count());}}
+ for(const path of ['/robots.txt','/sitemap.xml','/ads.txt','/app-ads.txt']){const r=await ctx.request.get(base+path);assert.equal(r.status(),200);assert.equal((await r.text()).includes('<html'),false);}
+ assert.equal((await ctx.request.get(base+'/missing-page.html')).status(),404);
+ await page.goto(base+'/site/categories.html?q='+encodeURIComponent('<script>alert(1)</script>'));assert.equal(await page.locator('input[name=q]').inputValue(),'<script>alert(1)</script>');
+ await ctx.close();
+ if(process.env.JOBA_PUBLIC_SUPPORT_TEST==='1'){const support=await browser.newPage();await support.goto(base+'/site/support.html');await support.locator('[name=subject]').fill('Проверка открытой поддержки');await support.locator('[name=text]').fill('Проверка сохранения реального обращения через публичную форму.');await support.getByRole('button',{name:'Отправить обращение',exact:true}).click();await support.locator('#support-status').filter({hasText:'Обращение сохранено'}).waitFor();assert.ok(await support.locator('#support-history').textContent().then(x=>x.includes('Проверка сохранения реального обращения')));await support.close();}
+ console.log('Public SSR site verified: 18 mobile/desktop pages without JavaScript, root seller/crawler files and real 404.');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

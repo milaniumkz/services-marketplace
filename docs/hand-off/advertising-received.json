@@ -37,7 +37,14 @@
       "sdk_integrated": false,
       "google_account_or_site_approval_verified": false
     },
-    "web_site_ownership_confirmed_from_screenshot": true
+    "web_site_ownership_confirmed_from_screenshot": true,
+    "web_banner_ad_slot": "8113418919",
+    "web_ad_client": "ca-pub-5590941579295248",
+    "web_snippet_received": true,
+    "web_snippet_reference": "advertising-snippets/google-web-8113418919.html",
+    "web_account_approved_owner_report": true,
+    "web_integration_complete": false,
+    "web_site_status_owner_report": "review_in_progress"
   },
   "yandex": {
     "application_id": "20254161",
@@ -51,13 +58,14 @@
     "web_snippet_received": true,
     "web_snippet_reference": "advertising-snippets/yandex-web-R-A-20302217-1.html",
     "web_site_status_from_screenshot": "rejected",
-    "web_rejection_specific_reason_received": false,
+    "web_rejection_specific_reason_received": true,
     "web_ads_txt": [],
-    "web_integration_complete": false
+    "web_integration_complete": false,
+    "web_rejection_reason": "Площадка не соответствует правилам участия по иным причинам"
   },
   "web_ad_units_received": true,
   "web_ad_units_received_by_network": {
     "yandex": true,
-    "google": false
+    "google": true
   }
 }

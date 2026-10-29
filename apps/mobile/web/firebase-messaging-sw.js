@@ -4,7 +4,7 @@ self.addEventListener('notificationclick', event => {
   if (!event.notification.data?.joba) return; // Firebase handles its own background payloads.
   event.stopImmediatePropagation();
   event.notification.close();
-  event.waitUntil(self.clients.openWindow('/?joba_push=notifications'));
+  event.waitUntil(self.clients.openWindow('/app/?joba_push=notifications'));
 });
 importScripts('/api/v1/public/push-worker-config.js');
 importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js');

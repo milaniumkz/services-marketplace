@@ -36,6 +36,8 @@ export class MarketplaceController {
       const etag=`"config-${result.version}"`;res.setHeader('ETag',etag);res.setHeader('X-Config-Expires-At',result.expires_at);
       if(req.headers['if-none-match']===etag){res.status(304).end();return;}
     }
+    if(path.startsWith('/public/site/')&&typeof result?.public_html==='string'){res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('X-Content-Type-Options','nosniff');res.send(result.public_html);return;}
+    if(path.startsWith('/public/site/')&&result?.public_redirect){res.redirect(302,result.public_redirect);return;}
     if(result?.download_stream){
       res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition',`attachment; filename="${result.download_filename==='joba-icons.zip'?'joba-icons.zip':'joba-export.zip'}"`);res.setHeader('X-Content-Type-Options','nosniff');
       if(Number.isSafeInteger(result.download_size))res.setHeader('Content-Length',result.download_size);

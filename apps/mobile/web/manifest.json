@@ -1,7 +1,7 @@
 {
   "name": "JOBA",
   "short_name": "JOBA",
-  "start_url": ".",
+  "start_url": "/app/",
   "display": "standalone",
   "background_color": "#202326",
   "theme_color": "#245BDB",
@@ -31,5 +31,6 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "scope": "/"
 }

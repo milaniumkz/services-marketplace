@@ -14,6 +14,8 @@ cp -a apps/mobile/build/web/. release/web/mobile/
 # Keep the owner supplied seller declaration at the public domain root.
 cp apps/mobile/web/app-ads.txt release/web/mobile/app-ads.txt
 cp apps/mobile/web/ads.txt release/web/mobile/ads.txt
+cp apps/mobile/web/robots.txt release/web/mobile/robots.txt
+cp apps/mobile/web/sitemap.xml release/web/mobile/sitemap.xml
 cp -a apps/admin/dist/. release/web/admin/
 cp -a apps/web/dist/. release/web/site/
 # Remove previous build files by building in a clean CI workspace; never include local data.

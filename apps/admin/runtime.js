@@ -1,3 +1,4 @@
+import {operatorProfileWorkspace} from './operator-profile-workspace.js';
 import {orderFilters,orderFilterError} from './order-filters.js';
 import {orderStatus,orderStatuses} from './order-status.js';
 import {languagesWorkspace} from './languages-workspace.js';
@@ -36,7 +37,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let countryScope='ALL';
 const countryNames={ALL:'Все страны',KZ:'Казахстан',RU:'Россия',BY:'Беларусь',KG:'Кыргызстан'};
 let session,loginDraft,cache={},error='',generation=0,disposeWorkspace;
-const privateWorkspaces=new Set([...pushRoutes,...scenarioRoutes,...userRoutes,'staff-access','refunds','financial-journal','dictionary','dictionaries','placements','ranking','referrals','referral-preview','categories','prices','pricing','verificationPolicies','retention','campaigns','banner-detail','branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
+const privateWorkspaces=new Set([...pushRoutes,...scenarioRoutes,...userRoutes,'staff-access','operator-profile','refunds','financial-journal','dictionary','dictionaries','placements','ranking','referrals','referral-preview','categories','prices','pricing','verificationPolicies','retention','campaigns','banner-detail','branding-build','boosts','boost-grant','analytics','dashboard','security','jobs','scheduled','job-detail','branding','countries','monetization','settings','legal']);
 const cursors={},filters={},configRoutes=new Set(['prices','pricing','monetization','push','referrals','dictionaries','dictionary','categories','ranking','placements','verificationPolicies','retention']);
 const sections={languages:['languages','Языки общения'],users:['users','Аккаунты'],orders:['orders','Заказы'],support:['support-threads','Поддержка'],'support-recovery':['recovery-threads','Восстановление доступа'],moderation:['cases','Дела'],portfolio:['portfolio','Портфолио'],contractors:['contractors','Профили исполнителей'],privacy:['privacy-requests','Запросы приватности'],blacklist:['blacklist','Черный список'],audit:['audit','Аудит'],prices:['price-versions','Цены'],monetization:['monetization-configs','Монетизация'],push:['push-campaigns','Рассылки'],referrals:['referral-campaigns','Реферальные кампании'],dictionaries:['moderation-dictionaries','Словари'],categories:['categories','Категории'],ranking:['ranking-configs','Рейтинг'],pricing:['price-versions','Каталог цен'],campaigns:['banner-campaigns','Кампании'],dictionary:['moderation-dictionaries','Запрещенные слова'],verification:['verifications','Проверка документов'],top100:['boost-reports','Топ и продвижение'],placements:['placement-policies','Размещения'],verificationPolicies:['verification-policies','Правила проверки'],retention:['retention-policies','Сроки хранения']};
 function clearStaffState(){
@@ -126,6 +127,7 @@ async function draw(reload=true) {
       if(cache.staffAccess.managed&&(key==='staff-home'||key==='dashboard'&&!cache.staffAccess.grants.includes('GET /admin/dashboard'))){const candidates=[['dashboard','dashboard'],...Object.entries(sections).map(([route,[endpoint]])=>[route,endpoint]),...Object.entries({analytics:'analytics',security:'security-events',jobs:'jobs',countries:'country-controls',settings:'runtime-settings',legal:'legal/documents',branding:'brand-icons','financial-journal':'payment-transactions',refunds:'refund-requests'})];const first=candidates.find(([route,endpoint])=>cache.staffAccess.grants.includes('GET /admin/'+endpoint));if(first){location.hash=first[0];return;}if(key!=='staff-home'){location.hash='staff-home';return;}}
       if(key==='staff-home')routes[key]={key,title:'Служебный доступ',id:'Доступ',section:'Система',body:()=>note('Нет доступных экранов. Обратитесь к владельцу для назначения функций.'),actions:''};
       if(key==='languages')routes[key]=await languagesWorkspace({api:request,esc,card});
+      if(key==='operator-profile')routes[key]=await operatorProfileWorkspace({api:request,esc,card,note,onRefresh:()=>draw()});
       if(key==='staff-access')routes[key]=await staffAccessWorkspace({api:request,esc,card,note});
       if(pushRoutes.has(key))routes[key]=await pushWorkspace({key,country:cache.staffAccess?.is_owner&&countryScope!=='ALL'?countryScope:session.user.country,canManageTests:session.user.staff_permissions?.includes('administrator'),api:request,esc,card,tablecard,note,badge,namedField,onRefresh:()=>draw()});
       if(scenarioRoutes.has(key)&&!['languages','promo','promo-preview','banner-detail','referral-preview'].includes(key))routes[key]=await scenarioWorkspace({key,api:request,esc,card,tablecard,note,namedField,onRefresh:()=>draw()});
@@ -172,15 +174,17 @@ async function draw(reload=true) {
     document.querySelectorAll('.nav .count').forEach(el=>el.remove());
     const account=document.querySelector('.account');if(account)account.innerHTML=`<span class="avatar">${esc((session.user.display_name||session.user.phone||'').slice(0,2))}</span><div><b>${esc(session.user.display_name||session.user.phone)}</b><small>${esc(session.user.country)} · сотрудник</small></div><button id="staff-logout">Выйти</button>`;
     document.querySelector('#staff-logout')?.addEventListener('click',async()=>{try{await api('/auth/logout','POST');}finally{clearStaffState();location.hash='login';}});
+    if(cache.staffAccess?.is_owner&&key==='settings'){const actions=document.querySelector('.pagehead .actions');if(actions)actions.insertAdjacentHTML('beforeend','<a class="btn" href="#operator-profile">Реквизиты и контакты</a>');}
     const regionalSettings=['languages','categories','prices','pricing','verificationPolicies','retention','dictionary','dictionaries','placements','ranking','referrals','referral-preview','campaigns','banner-detail','settings','monetization','legal','push-compose'];
     if(cache.staffAccess?.is_owner&&countryScope==='ALL'&&regionalSettings.includes(key)){const notice=document.createElement('div');notice.innerHTML=note('Региональные настройки ниже: '+countryNames[session.user.country]+'. Чтобы изменить настройки другой страны, выберите её в фильтре «Страна».');document.querySelector('.workspace')?.prepend(notice);}
     const country=document.querySelector('.select-country');if(country){
-      if(key==='staff-access')country.textContent='Сотрудники: '+countryNames[session.user.country];
+      if(key==='operator-profile')country.textContent='Контакты платформы';
+      else if(key==='staff-access')country.textContent='Сотрудники: '+countryNames[session.user.country];
       else if(cache.staffAccess?.is_owner){country.innerHTML=`<label for="admin-country-filter" class="tiny">Страна</label><select id="admin-country-filter" aria-label="Фильтр по стране">${Object.entries(countryNames).map(([code,name])=>`<option value="${code}" ${countryScope===code?'selected':''}>${name}</option>`).join('')}</select>`;
        country.querySelector('select').onchange=event=>{countryScope=event.target.value;for(const k of Object.keys(cursors))delete cursors[k];cache={staffAccess:cache.staffAccess};draw();};
       }else country.textContent=countryNames[session.user.country]||session.user.country;
     }
-    if(cache.staffAccess?.is_owner&&key!=='staff-access'){
+    if(cache.staffAccess?.is_owner&&!['staff-access','operator-profile'].includes(key)){
       const options=Object.entries(countryNames).map(([code,name])=>`<option value="${code}" ${countryScope===code?'selected':''}>${name}</option>`).join('');
       let forms=[...document.querySelectorAll('.workspace form.filters')];
       if(!forms.length){const panel=document.createElement('div');panel.className='filters country-section-filter';document.querySelector('.pagehead')?.after(panel);forms=[panel];}

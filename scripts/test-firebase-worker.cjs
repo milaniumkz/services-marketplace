@@ -11,5 +11,5 @@ test('foreground notification click opens the protected notifications route',asy
  const handlers=new Map(),opened=[];let closed=false,stopped=false,pending;
  const context={self:{clients:{claim:async()=>{},openWindow:async url=>opened.push(url)},addEventListener:(type,cb)=>handlers.set(type,cb)},firebase:{initializeApp:()=>{},messaging:()=>{}},importScripts:()=>{}};
  vm.runInNewContext(source,context);handlers.get('notificationclick')({notification:{data:{joba:true},close:()=>closed=true},stopImmediatePropagation:()=>stopped=true,waitUntil:p=>pending=p});await pending;
- assert.ok(closed&&stopped);assert.deepEqual(opened,['/?joba_push=notifications']);
+ assert.ok(closed&&stopped);assert.deepEqual(opened,['/app/?joba_push=notifications']);
 });
