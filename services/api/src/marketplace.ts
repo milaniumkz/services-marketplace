@@ -212,7 +212,7 @@ export class Marketplace {
       // Counters commit independently of rejected business commands.
       if(actor)await this.limited('mutations:'+actor.id,120);
       if(path==='/auth/register')await this.limited('register:'+ip,5);
-      if(['/auth/login','/auth/staff-login'].includes(path)){await this.limited('login:'+ip,10);await this.limited('login-account:'+String(body.country)+':'+String(body.phone),10);}
+      if(['/auth/login','/auth/staff-login'].includes(path)){await this.limited('login:'+ip,10);await this.limited('login-account:'+String(body.country)+':'+(path==='/auth/staff-login'?String(body.phone).trim().toLowerCase():String(body.phone)),10);}
       if(path==='/auth/refresh')await this.limited('refresh:'+ip);
       if(path==='/public/recovery-threads')await this.limited('recovery:'+ip,3);
       if(path.startsWith('/public/recovery-threads/')&&path.endsWith('/messages'))await this.limited('recovery-messages:'+ip);

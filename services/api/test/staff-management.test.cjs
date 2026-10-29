@@ -36,3 +36,10 @@ test('owner edits, blocks and deletes staff and roles; revocation is immediate, 
  const audit=JSON.stringify(await a.store.all('audit','KZ'));assert.equal(audit.includes('New456'),false);assert.equal(audit.includes('Pass12'),false);
  }finally{await a.store.close();}
 });
+
+test('case-insensitive staff sign-in shares the same account attempt limit across spelling variants and IPs',async()=>{
+ const a=new Marketplace(new Store('memory://'));await a.initialize();try{
+ for(let i=0;i<10;i++)await assert.rejects(()=>a.handle('POST','/auth/staff-login',{country:'KZ',phone:i%2?' TEST.Operator ':'test.OPERATOR',password:'wrong-password'},undefined,undefined,{},'staff-case-'+i),e=>e.getStatus()===401);
+ await assert.rejects(()=>a.handle('POST','/auth/staff-login',{country:'KZ',phone:'Test.Operator',password:'wrong-password'},undefined,undefined,{},'another-staff-ip'),e=>e.getStatus()===429);
+ }finally{await a.store.close();}
+});
