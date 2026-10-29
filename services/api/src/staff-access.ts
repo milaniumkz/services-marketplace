@@ -47,7 +47,7 @@ export function assertStaffOperation(u:RecordData,mfa:boolean,method:string,path
   if(!mfa||u.status!=='active')deny();if(method==='GET'&&path.endsWith('/metadata')&&grants.includes('files.upload'))return;const read=method==='GET'||path.endsWith('/download-url');if(read?!grants.some(g=>['files.moderator','files.content','files.support','sensitive.identity'].includes(g)):!grants.includes('files.upload'))deny();
  }
 }
-const fail=(code:string,message:string,status=422):never=>{throw new HttpException({error:{code,message,retryable:false}},status);};
+function fail(code:string,message:string,status=422):never{throw new HttpException({error:{code,message,retryable:false}},status);};
 export async function staffAccess(store:Store,a:{id:string,country:string,user:RecordData,mfa:boolean},method:string,path:string,b:any){
  if(!path.startsWith('/admin/access/'))return;
  if(!a.mfa||a.user.status!=='active'||!a.user.staff_permissions?.length)deny('Нужен служебный вход');
@@ -56,16 +56,16 @@ export async function staffAccess(store:Store,a:{id:string,country:string,user:R
  if(method!=='GET')await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['staff-access:'+a.country]);
  const audit=async(action:string,target:string,details:any={})=>{if(typeof b.reason!=='string'||b.reason.trim().length<10||b.reason.length>1000)fail('VALIDATION_ERROR','Укажите основание изменения');await store.put({id:randomUUID(),kind:'audit',owner:a.id,country:a.country,created_at:new Date().toISOString(),version:1,actor_id:a.id,action,target_id:target,reason:b.reason.trim(),...details});};
  if(path==='/admin/access/catalog'&&method==='GET')return {items:[...staffOperations,...extra]};
- if(path==='/admin/access/roles'&&method==='GET')return {items:(await store.all('staff_role',a.country)).map(r=>({...r,grants:completeStaffGrants(r.grants??[])}))};
+ if(path==='/admin/access/roles'&&method==='GET')return {items:(await store.all('staff_role',a.country)).filter(r=>r.status!=='deleted').map(r=>({...r,grants:completeStaffGrants(r.grants??[])}))};
  if(path==='/admin/access/staff'&&method==='GET')return {items:await Promise.all((await store.all('user',a.country)).filter(u=>u.staff_permissions?.length&&u.status!=='deleted').map(async u=>{const effective=await resolveStaffUser(store,u);return {id:u.id,display_name:u.display_name,identifier:u.phone,status:u.status,version:u.version,is_owner:isStaffOwner(u),managed:u.staff_access_mode==='managed',role_ids:u.staff_role_ids??[],role_names:effective.staff_role_names??[],effective_grant_count:effective.staff_grants?.length??0};}))};
  if(path==='/admin/access/staff'&&method==='POST'){
-  const name=typeof b.display_name==='string'?b.display_name.trim():'',login=typeof b.login==='string'?b.login.trim():'';
+  const name=typeof b.display_name==='string'?b.display_name.trim():'',login=typeof b.login==='string'?b.login.trim().toLowerCase():'';
   if(name.length<2||name.length>120)fail('VALIDATION_ERROR','Имя сотрудника должно содержать от 2 до 120 символов');
   if(!/^[a-z][a-z0-9._@+-]{2,63}$/.test(login))fail('VALIDATION_ERROR','Логин: от 3 до 64 символов, первая — строчная латинская буква. Разрешены строчные буквы, цифры и . _ @ + -');
   if(typeof b.password!=='string'||b.password.length<6||b.password.length>128)fail('VALIDATION_ERROR','Пароль сотрудника должен содержать от 6 до 128 символов');
   if(!Array.isArray(b.role_ids)||!b.role_ids.length||b.role_ids.length>20||b.role_ids.some((id:any)=>typeof id!=='string'))fail('VALIDATION_ERROR','Выберите хотя бы одну роль сотрудника');
   const roles=await store.all('staff_role',a.country);if(b.role_ids.some((id:string)=>!roles.some(r=>r.id===id&&r.status==='active')))fail('VALIDATION_ERROR','Выберите действующие роли этой страны');
-  const exists=(await store.db.query('SELECT user_id FROM credentials WHERE country=$1 AND phone=$2',[a.country,login])).rows.length;
+  const exists=(await store.db.query('SELECT user_id FROM credentials WHERE country=$1 AND lower(phone)=lower($2)',[a.country,login])).rows.length;
   if(exists)fail('STAFF_LOGIN_TAKEN','Этот логин уже используется. Укажите другой.',409);
   const id=randomUUID(),roleIds=[...new Set(b.role_ids)],employee={id,owner:id,kind:'user',country:a.country,created_at:new Date().toISOString(),version:1,status:'active',display_name:name,phone:login,roles:[],locale:'ru',staff_permissions:['dynamic_staff'],staff_access_mode:'managed',staff_auth_mode:'password',staff_role_ids:roleIds};
   await store.put(employee);
@@ -73,15 +73,54 @@ export async function staffAccess(store:Store,a:{id:string,country:string,user:R
   await audit('staff.account_created',id,{after:{display_name:name,login,role_ids:roleIds}});
   return {id,display_name:name,identifier:login,country:a.country,status:'active',version:1,is_owner:false,managed:true,role_ids:roleIds};
  }
+ const employeePath=path.match(/^\/admin\/access\/staff\/([^/]+)(?:\/(block|unblock))?$/);
+ if(employeePath&&(employeePath[2]?method==='POST':['PATCH','DELETE'].includes(method))){
+  const target=await store.get(employeePath[1]);if(!target||target.kind!=='user'||target.country!==a.country||!target.staff_permissions?.length||target.status==='deleted')fail('NOT_FOUND','Сотрудник не найден',404);
+  if(isStaffOwner(target))deny('Учётную запись владельца нельзя изменять, блокировать или удалять здесь');
+  if(b.expected_version!==target.version)fail('STATE_CONFLICT','Данные сотрудника изменились. Обновите список',409);
+  let next:RecordData={...target,version:target.version+1},passwordChanged=false,loginChanged=false;
+  if(method==='PATCH'){
+   const name=b.display_name===undefined?target.display_name:typeof b.display_name==='string'?b.display_name.trim():'';
+   const login=b.login===undefined?target.phone:typeof b.login==='string'?b.login.trim().toLowerCase():'';
+   if(typeof name!=='string'||name.length<2||name.length>120)fail('VALIDATION_ERROR','Имя сотрудника должно содержать от 2 до 120 символов');
+   if(!/^[a-z][a-z0-9._@+-]{2,63}$/.test(login))fail('VALIDATION_ERROR','Логин: от 3 до 64 латинских букв, цифр и символов . _ @ + -');
+   if((await store.db.query('SELECT user_id FROM credentials WHERE country=$1 AND lower(phone)=lower($2) AND user_id<>$3',[a.country,login,target.id])).rows.length)fail('STAFF_LOGIN_TAKEN','Этот логин уже используется',409);
+   if(b.password!==undefined&&(typeof b.password!=='string'||b.password.length<6||b.password.length>128))fail('VALIDATION_ERROR','Пароль должен содержать от 6 до 128 символов');
+   if(b.role_ids!==undefined){
+    const roles=await store.all('staff_role',a.country);if(!Array.isArray(b.role_ids)||b.role_ids.length>20||b.role_ids.some((id:any)=>typeof id!=='string'||!roles.some(r=>r.id===id&&(r.status==='active'||['blocked','archived'].includes(r.status)&&(target.staff_role_ids??[]).includes(id)))))fail('VALIDATION_ERROR','Выберите действующие роли этой страны');
+    next.staff_role_ids=[...new Set(b.role_ids)];next.staff_access_mode='managed';next.staff_permissions=['dynamic_staff'];
+   }
+   loginChanged=login!==target.phone;passwordChanged=b.password!==undefined;
+   next.display_name=name;next.phone=login;next.staff_auth_mode='password';
+   await store.db.query('UPDATE credentials SET phone=$1 WHERE user_id=$2 AND country=$3',[login,target.id,a.country]);
+   if(passwordChanged)await store.db.query('UPDATE credentials SET password_hash=$1 WHERE user_id=$2 AND country=$3',[await hash(b.password),target.id,a.country]);
+  }else if(method==='DELETE'){
+   next={...next,status:'deleted',staff_permissions:[],staff_role_ids:[],deleted_at:new Date().toISOString()};
+   await store.db.query('DELETE FROM credentials WHERE user_id=$1 AND country=$2',[target.id,a.country]);
+  }else{next.status=employeePath[2]==='block'?'blocked':'active';next.admin_blocked=employeePath[2]==='block';}
+  if(method==='DELETE'||employeePath[2]==='block'||loginChanged||passwordChanged)await store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND country=$2',[target.id,a.country]);
+  await audit(method==='PATCH'?'staff.account_updated':method==='DELETE'?'staff.account_deleted':'staff.account_'+employeePath[2],target.id,{before:{display_name:target.display_name,login:target.phone,status:target.status,role_ids:target.staff_role_ids??[]},after:{display_name:next.display_name,login:next.phone,status:next.status,role_ids:next.staff_role_ids??[]},password_changed:passwordChanged});
+  await store.put(next);return {id:next.id,status:next.status,version:next.version,deleted:method==='DELETE'};
+ }
+ const roleAction=path.match(/^\/admin\/access\/roles\/([^/]+)(?:\/(block|unblock))?$/);
+ if(roleAction&&(roleAction[2]?method==='POST':method==='DELETE')){
+  const role=await store.get(roleAction[1]);if(!role||role.kind!=='staff_role'||role.country!==a.country||role.status==='deleted')fail('NOT_FOUND','Роль не найдена',404);
+  if(b.expected_version!==role.version)fail('STATE_CONFLICT','Роль изменена. Обновите список',409);
+  const status=method==='DELETE'?'deleted':roleAction[2]==='block'?'blocked':'active';
+  if(status==='active'&&(await store.all('staff_role',a.country)).some(r=>r.id!==role.id&&r.status==='active'&&r.title.toLocaleLowerCase()===role.title.toLocaleLowerCase()))fail('ROLE_NAME_TAKEN','Действующая роль с таким названием уже существует',409);
+  if(status==='deleted')for(const user of await store.all('user',a.country))if(user.staff_role_ids?.includes(role.id))await store.put({...user,staff_role_ids:user.staff_role_ids.filter((id:string)=>id!==role.id),version:user.version+1});
+  await audit(status==='deleted'?'staff.role_deleted':'staff.role_'+roleAction[2],role.id,{before:{status:role.status,grants:role.grants},after:{status}});
+  return store.put({...role,status,version:role.version+1});
+ }
  const rolePath=path.match(/^\/admin\/access\/roles\/([^/]+)(?:\/(archive))?$/),assignment=path.match(/^\/admin\/access\/staff\/([^/]+)\/roles$/);
  if(path==='/admin/access/roles'&&method==='POST'||rolePath&&['PATCH','POST'].includes(method)){
-  const old=rolePath?await store.get(rolePath[1]):undefined;if(rolePath&&(!old||old.kind!=='staff_role'||old.country!==a.country))fail('NOT_FOUND','Роль не найдена',404);
+  const old=rolePath?await store.get(rolePath[1]):undefined;if(rolePath&&(!old||old.kind!=='staff_role'||old.country!==a.country||old.status==='deleted'))fail('NOT_FOUND','Роль не найдена',404);
   if(old&&b.expected_version!==old.version)fail('STATE_CONFLICT','Роль изменена. Обновите данные',409);
   if(rolePath?.[2]==='archive'){if(method!=='POST'||old!.status!=='active')fail('STATE_CONFLICT','Роль уже архивирована',409);await audit('staff.role_archived',old!.id,{before:{grants:old!.grants,status:old!.status},after:{status:'archived'}});return store.put({...old!,status:'archived',version:old!.version+1});}
   if(method!==(old?'PATCH':'POST')||old?.status==='archived')fail('STATE_CONFLICT','Создайте новую активную роль',409);
   if(typeof b.title!=='string'||b.title.trim().length<2||b.title.trim().length>80||!Array.isArray(b.grants)||!b.grants.length||b.grants.length>500||b.grants.some((g:any)=>typeof g!=='string'||!ids.has(g)))fail('VALIDATION_ERROR','Проверьте название и выбранные функции');
   const duplicate=(await store.all('staff_role',a.country)).some(r=>r.id!==old?.id&&r.status==='active'&&r.title.toLocaleLowerCase()===b.title.trim().toLocaleLowerCase());if(duplicate)fail('ROLE_NAME_TAKEN','Название уже используется',409);
-  const r={...(old??{id:randomUUID(),kind:'staff_role',owner:a.id,country:a.country,created_at:new Date().toISOString(),version:0}),title:b.title.trim(),grants:completeStaffGrants([...new Set([...b.grants,...(b.grants.some((g:string)=>g.startsWith('support.command.'))?['POST /admin/support-threads/{id}/commands']:[])])]),status:'active',version:(old?.version??0)+1};await audit(old?'staff.role_updated':'staff.role_created',r.id,{before:{title:old?.title,grants:old?.grants??[]},after:{title:r.title,grants:r.grants}});return store.put(r);
+  const r={...(old??{id:randomUUID(),kind:'staff_role',owner:a.id,country:a.country,created_at:new Date().toISOString(),version:0}),title:b.title.trim(),grants:completeStaffGrants([...new Set([...b.grants,...(b.grants.some((g:string)=>g.startsWith('support.command.'))?['POST /admin/support-threads/{id}/commands']:[])])]),status:old?.status??'active',version:(old?.version??0)+1};await audit(old?'staff.role_updated':'staff.role_created',r.id,{before:{title:old?.title,grants:old?.grants??[]},after:{title:r.title,grants:r.grants}});return store.put(r);
  }
  if(assignment&&method==='PUT'){
   const target=await store.get(assignment[1]);if(!target||target.kind!=='user'||target.country!==a.country||!target.staff_permissions?.length)fail('NOT_FOUND','Служебная учётная запись не найдена',404);

@@ -303,7 +303,7 @@ export class Marketplace {
     }
     if(['/auth/login','/auth/staff-login'].includes(path)&&method==='POST') {
       if(!countryEnabled(b.country))fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
-      const c=(await db.query<any>('SELECT * FROM credentials WHERE country=$1 AND phone=$2',[String(b.country),String(b.phone)])).rows[0];
+      const c=(await db.query<any>(path==='/auth/staff-login'?'SELECT * FROM credentials WHERE country=$1 AND lower(phone)=lower($2)':'SELECT * FROM credentials WHERE country=$1 AND phone=$2',[String(b.country),String(b.phone).trim()])).rows[0];
       // Hash even nonexistent credentials to avoid the obvious timing distinction.
       const ok=c?await verify(c.password_hash,String(b.password)):await hash(String(b.password??''),{memoryCost:19456,timeCost:2,parallelism:1}).then(()=>false);
       if(!ok)fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');

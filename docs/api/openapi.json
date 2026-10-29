@@ -119,7 +119,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Current active MFA staff access. Role permissions are resolved for every request.",
+        "description": "Current authenticated staff access. Role permissions are resolved for every request.",
         "security": [
           {
             "BearerAuth": []
@@ -166,7 +166,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
         "security": [
           {
             "BearerAuth": []
@@ -213,7 +213,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
         "security": [
           {
             "BearerAuth": []
@@ -258,7 +258,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
         "security": [
           {
             "BearerAuth": []
@@ -326,7 +326,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
         "security": [
           {
             "BearerAuth": []
@@ -395,6 +395,71 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "delete__admin_access_roles_id_",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Selected operations automatically include the same resource list and ordinary detail reads when required; phone/document disclosure and unrelated mutations remain separate. Existing managed roles receive the same dependencies during resolution.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
       }
     },
     "/admin/access/roles/{id}/archive": {
@@ -403,7 +468,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
         "security": [
           {
             "BearerAuth": []
@@ -481,7 +546,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Returns a visible staff directory with role_names and effective_grant_count; deleted accounts are excluded.",
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks. Returns a visible staff directory with role_names and effective_grant_count; deleted accounts are excluded.",
         "security": [
           {
             "BearerAuth": []
@@ -526,7 +591,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Only the current-country platform owner may create a separate employee login and password with active regional roles. Password is hashed and never returned or audited. Login is unique in the country. Staff authentication uses username/password and exact role grants; managed staff cannot create employees or acquire owner rights.",
+        "description": "Only the current-country platform owner may create a separate employee login and password with active regional roles. Password is hashed and never returned or audited. Login is normalized to lowercase and unique in the country; staff sign-in is case-insensitive. Staff authentication uses username/password and exact role grants; managed staff cannot create employees or acquire owner rights.",
         "security": [
           {
             "BearerAuth": []
@@ -594,7 +659,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Country-scoped platform_owner with MFA only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
         "security": [
           {
             "BearerAuth": []
@@ -659,6 +724,456 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/StaffRoleAssignment"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/access/staff/{id}": {
+      "patch": {
+        "operationId": "patch__admin_access_staff_id_",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffUpdate"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete__admin_access_staff_id_",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/admin/access/staff/{id}/block": {
+      "post": {
+        "operationId": "post__admin_access_staff_id_block",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/access/staff/{id}/unblock": {
+      "post": {
+        "operationId": "post__admin_access_staff_id_unblock",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/access/roles/{id}/block": {
+      "post": {
+        "operationId": "post__admin_access_roles_id_block",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/access/roles/{id}/unblock": {
+      "post": {
+        "operationId": "post__admin_access_roles_id_unblock",
+        "tags": [
+          "admin"
+        ],
+        "description": "Country-scoped authenticated platform_owner only; managed roles cannot delegate owner access. Audit context is generated automatically when omitted; existing records require version checks.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedCommand"
               }
             }
           }
@@ -25994,7 +26509,7 @@
           },
           "login": {
             "type": "string",
-            "pattern": "^[a-z][a-z0-9._@+-]{2,63}$"
+            "pattern": "^[A-Za-z][A-Za-z0-9._@+-]{2,63}$"
           },
           "password": {
             "type": "string",
@@ -26015,6 +26530,44 @@
           "reason": {
             "type": "string",
             "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffUpdate": {
+        "type": "object",
+        "required": [
+          "expected_version"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "login": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 64
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 6,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "role_ids": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
           }
         },
         "additionalProperties": false
