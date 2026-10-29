@@ -1,5 +1,7 @@
 const legacy={terms:'terms.html',subscriptions:'payments.html',privacy:'privacy.html',community:'safety.html'};
-if(location.pathname.endsWith('W03.html')&&legacy[location.hash.slice(1)])location.replace('/site/'+legacy[location.hash.slice(1)]+location.search);
+function openLegacyDocument(){if(location.pathname.endsWith('W03.html')&&legacy[location.hash.slice(1)])location.replace('/site/'+legacy[location.hash.slice(1)]+location.search);}
+window.addEventListener('hashchange',openLegacyDocument);
+openLegacyDocument();
 const form=document.getElementById('public-support-form');
 if(form){
  form.querySelector('button').disabled=false;
