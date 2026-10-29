@@ -14,7 +14,7 @@
   handle /health {
     reverse_proxy api:3000
   }
-  @publicSite path / /index.html /site/ /site/index.html /site/W01.html /site/W02.html /site/W03.html /site/W04.html /site/W05.html /site/W06.html /site/W07.html /site/W08.html /site/W09.html /site/customers.html /site/executors.html /site/categories.html /site/safety.html /site/faq.html /site/support.html /site/availability.html /site/pricing.html /site/privacy.html /site/terms.html /site/payments.html /site/refunds.html /site/offer.html /site/contacts.html /site/verification.html /site/deletion.html
+  @publicSite path /site/ /site/index.html /site/W01.html /site/W02.html /site/W03.html /site/W04.html /site/W05.html /site/W06.html /site/W07.html /site/W08.html /site/W09.html /site/customers.html /site/executors.html /site/categories.html /site/safety.html /site/faq.html /site/support.html /site/availability.html /site/pricing.html /site/privacy.html /site/terms.html /site/payments.html /site/refunds.html /site/offer.html /site/contacts.html /site/verification.html /site/deletion.html
   handle @publicSite {
     rewrite * /api/v1/public/site{uri}
     reverse_proxy api:3000

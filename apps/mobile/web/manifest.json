@@ -1,7 +1,7 @@
 {
   "name": "JOBA",
   "short_name": "JOBA",
-  "start_url": "/app/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#202326",
   "theme_color": "#245BDB",

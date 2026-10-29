@@ -10,7 +10,7 @@ test('Firebase public config cannot publish credentials and validates project is
 });
 test('FCM payload supports Android, Apple and HTTPS web without arbitrary redirect',()=>{
  const message=firebaseMessage('device-token',{event_id:'event-1',title:'JOBA',body:'Новое событие',deep_link:{route:'https://evil.example',id:'secret'}});
- assert.equal(message.token,'device-token');assert.equal(message.android.priority,'high');assert.equal(message.apns.payload.aps.sound,'default');assert.equal(message.data.route,'notifications');assert.equal(message.webpush.fcmOptions.link,'https://joba.com.kz/app/?joba_push=notifications');assert.equal(JSON.stringify(message).includes('evil.example'),false);assert.equal(JSON.stringify(message).includes('secret'),false);
+ assert.equal(message.token,'device-token');assert.equal(message.android.priority,'high');assert.equal(message.apns.payload.aps.sound,'default');assert.equal(message.data.route,'notifications');assert.equal(message.webpush.fcmOptions.link,'https://joba.com.kz/?joba_push=notifications');assert.equal(JSON.stringify(message).includes('evil.example'),false);assert.equal(JSON.stringify(message).includes('secret'),false);
 });
 test('mounted public Firebase configuration is whitelisted and supports environment override',()=>{
  const fs=require('node:fs'),os=require('node:os'),path=require('node:path');const directory=fs.mkdtempSync(path.join(os.tmpdir(),'joba-firebase-public-'));

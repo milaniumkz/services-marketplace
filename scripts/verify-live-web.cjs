@@ -21,7 +21,7 @@ const assert=require('node:assert/strict');
  const page=await browser.newPage({viewport:{width:390,height:844}});
  try{
   page.on('pageerror',error=>errors.push(error.message));
-  const start=Date.now();await page.goto(base+'/app/',{waitUntil:'domcontentloaded'});await page.locator('flutter-view').waitFor({timeout:60000});
+  const start=Date.now();await page.goto(base+'/',{waitUntil:'domcontentloaded'});await page.locator('flutter-view').waitFor({timeout:60000});
   const access=page.locator('flt-semantics-placeholder');if(await access.count())await access.evaluate(element=>element.click());
   await page.getByRole('button',{name:'Продолжить',exact:true}).waitFor({timeout:30000});render=Date.now()-start;
   await page.getByRole('button',{name:/Кыргызстан/}).waitFor();

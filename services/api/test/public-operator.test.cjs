@@ -17,7 +17,7 @@ test('owner edits public contacts; anonymous pages and documents update without 
  await call('PUT','/admin/operator-profile',{...profile,expected_version:1,email:'new@example.org',phone:'+77007654321'});
  const next=(await api.handle('GET','/public/site/site/contacts.html',{})).public_html;assert.ok(next.includes('new@example.org'));assert.equal(next.includes(profile.email),false);assert.ok(next.includes('+77007654321'));
  const user=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000862',password});await assert.rejects(()=>api.handle('PUT','/admin/operator-profile',profile,'Bearer '+user.access_token,randomUUID()),e=>e.getStatus()===403);
- for(const country of ['KZ','RU','BY','KG'])for(const page of ['','site/categories.html','site/pricing.html','site/privacy.html','site/support.html']){const result=await api.handle('GET','/public/site/'+page,{},undefined,undefined,{country});assert.ok(result.public_html.includes('<h1>'));assert.ok(result.public_html.includes('/app/'));assert.equal(result.public_html.includes('data-demo'),false);}
+ for(const country of ['KZ','RU','BY','KG'])for(const page of ['','site/categories.html','site/pricing.html','site/privacy.html','site/support.html']){const result=await api.handle('GET','/public/site/'+page,{},undefined,undefined,{country});assert.ok(result.public_html.includes('<h1>'));assert.ok(result.public_html.includes('href="/"'));assert.equal(result.public_html.includes('data-demo'),false);}
  await assert.rejects(()=>api.handle('GET','/public/site/missing.html',{}),e=>e.getStatus()===404);
  assert.deepEqual(await api.handle('GET','/public/site/',{},undefined,undefined,{joba_push:'notifications'}),{public_redirect:'/app/?joba_push=notifications'});
  }finally{await api.store.close();}
