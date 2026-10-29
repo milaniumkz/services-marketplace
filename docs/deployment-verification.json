@@ -13,8 +13,8 @@
   "first_render_ms": 4898,
   "errors": [],
   "verified_at": "2026-10-28T12:58:50.887855+00:00",
-  "server_source_commit": "880837488ce2d989288c4b90a77be4ee7b601f9d",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40827802800",
+  "server_source_commit": "64c97b647c36468497b45a920f5734e663db713f",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40831181874",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -129,7 +129,7 @@
   "admin_mobile_login_verified": true,
   "admin_mobile_page_viewport_combinations": 60,
   "flutter_tests": {
-    "passed": 261,
+    "passed": 276,
     "skipped": 2
   },
   "mobile_analysis_issues": 0,
@@ -167,7 +167,7 @@
     "private_documents": true,
     "isolated_lifecycle_tests": "passed"
   },
-  "api_tests_passed": 176,
+  "api_tests_passed": 190,
   "upload_antivirus_smoke": "passed_on_deployed_server_with_benign_jpeg",
   "payment_provider_connected": false,
   "payment_description_matches_editable_prices": true,
@@ -485,7 +485,7 @@
   },
   "browser_tests_passed": 14,
   "admin_navigation_sections_verified": 26,
-  "latest_change_verified_at": "2026-10-29T06:25:24Z",
+  "latest_change_verified_at": "2026-10-29T06:59:43Z",
   "staff_directory_with_role_names": true,
   "staff_required_navigation_reads_automatic": true,
   "existing_operator_navigation_corrected": true,
@@ -504,8 +504,8 @@
   ],
   "personal_discount_subscription_real_provider_integration": "pending",
   "latest_checks": {
-    "api_passed": 189,
-    "flutter_passed": 275,
+    "api_passed": 190,
+    "flutter_passed": 276,
     "flutter_skipped": 2,
     "browser_flutter_passed": 14,
     "admin_page_viewport_combinations": 60,
@@ -557,5 +557,10 @@
     }
   },
   "admin_order_statuses_russian": true,
-  "admin_order_deletion_hides_lists_search_and_detail": true
+  "admin_order_deletion_hides_lists_search_and_detail": true,
+  "premium_downgrade_immediate": true,
+  "premium_downgrade_unused_value_converted_to_standard_days": true,
+  "premium_downgrade_retires_old_periods_and_top100": true,
+  "premium_downgrade_includes_scheduled_paid_periods": true,
+  "premium_downgrade_quote_shows_credit_payment_and_new_end": true
 }
