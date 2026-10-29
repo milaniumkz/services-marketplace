@@ -1,3 +1,4 @@
+import {adminOrderConditions} from './admin-order-filters';
 import {enabledCountries} from './country-access';
 import { PGlite } from '@electric-sql/pglite';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -47,12 +48,13 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0014_refresh_receipts.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
-    const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country ?? null]);
+    const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country==='ALL'?null:country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
-    const args:any[]=[kind,country],where=['kind=$1','country=$2'];
+  async select(kind:string,country:string,options:{adminOrder?:any;member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
+    const args:any[]=[kind,country],where=['kind=$1',"($2='ALL' OR country=$2)"];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
+    if(options.adminOrder)where.push(...adminOrderConditions(options.adminOrder,bind));
     if(options.owner)where.push('owner='+bind(options.owner));
     if(options.member)where.push("COALESCE(data->'members','[]'::jsonb) ? "+bind(options.member));
     if(kind==='order')where.push("COALESCE(data->>'status','')<>'deleted'");

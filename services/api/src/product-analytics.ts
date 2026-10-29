@@ -3,15 +3,15 @@ import {operationsOverview} from './operations-overview';
 export async function productAnalytics(store:Store,country:string,days=7,now=new Date()) {
  const overview=await operationsOverview(store,country,days,now);
  const result=(await store.db.query<any>(`
-  WITH cohort AS (SELECT id,data FROM records WHERE kind='order' AND country=$1
+  WITH cohort AS (SELECT id,data,country FROM records WHERE kind='order' AND ($1='ALL' OR country=$1)
     AND data->>'published_at'>=$2 AND data->>'published_at'<=$3)
   SELECT count(*) AS published,
-   count(*) FILTER(WHERE EXISTS(SELECT 1 FROM records o WHERE o.kind='offer' AND o.country=$1 AND o.data->>'order_id'=cohort.id::text)) AS with_offer,
+   count(*) FILTER(WHERE EXISTS(SELECT 1 FROM records o WHERE o.kind='offer' AND o.country=cohort.country AND o.data->>'order_id'=cohort.id::text)) AS with_offer,
    count(*) FILTER(WHERE cohort.data->>'executor_id' IS NOT NULL) AS selected,
    count(*) FILTER(WHERE cohort.data->>'status'='completed') AS completed,
-   count(*) FILTER(WHERE EXISTS(SELECT 1 FROM records c WHERE c.kind='case' AND c.country=$1 AND c.data->>'target_type'='order' AND c.data->>'target_id'=cohort.id::text)) AS with_case,
+   count(*) FILTER(WHERE EXISTS(SELECT 1 FROM records c WHERE c.kind='case' AND c.country=cohort.country AND c.data->>'target_type'='order' AND c.data->>'target_id'=cohort.id::text)) AS with_case,
    count(*) FILTER(WHERE cohort.data->>'status'='completed' AND
-    (SELECT count(DISTINCT v.owner) FROM records v WHERE v.kind='review' AND v.country=$1 AND v.data->>'order_id'=cohort.id::text
+    (SELECT count(DISTINCT v.owner) FROM records v WHERE v.kind='review' AND v.country=cohort.country AND v.data->>'order_id'=cohort.id::text
      AND v.data->>'status'='published' AND COALESCE(v.data->>'moderation_status','') NOT IN('hidden','rejected','quarantined')
      AND v.owner IN(cohort.data->>'owner',cohort.data->>'executor_id'))=2) AS mutual_review
   FROM cohort`,[country,overview.from,overview.server_time])).rows[0];

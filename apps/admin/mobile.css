@@ -67,3 +67,10 @@
   .workspace .formfield input:not([type=checkbox]):not([type=radio]),
   .workspace .formfield select,.workspace .formfield textarea{font-size:16px;min-height:44px}
 }
+
+.select-country select{max-width:150px;min-width:0;border:1px solid #D9E1EC;border-radius:8px;padding:8px;background:white;color:#172B4D}
+@media(max-width:640px){.select-country label{display:none}.select-country select{max-width:125px;width:100%;font-size:12px}}
+
+.country-filter-label{display:flex;align-items:center;gap:8px;min-width:0}.country-filter-label select{min-width:120px}.country-section-filter{margin-bottom:16px}
+
+.order-filters{align-items:flex-end}.order-filters details{flex-basis:100%;width:100%;min-width:0}.order-filters summary{cursor:pointer;font-weight:700;padding:10px 0}.order-filters details .formgrid{width:100%;padding-top:8px}.order-filters .formfield{min-width:0}

@@ -58,7 +58,7 @@ async function main(){
   await page.getByRole('button',{name:'Продолжить',exact:true}).click();
   await page.waitForSelector('#staff-logout');assert.equal(await page.locator('.account b').textContent(),'Изолированный сотрудник');
   await page.locator('#dashboard-period').waitFor();
-  await page.getByRole('button',{name:'Поиск по стране',exact:true}).click();
+  await page.getByRole('button',{name:'Поиск по данным платформы',exact:true}).click();
   await page.getByLabel('Имя, название или ID',{exact:true}).fill(applicant.user.id);
   await page.locator('#staff-global-search').getByRole('button',{name:'Найти',exact:true}).click();
   await page.locator('#staff-search-results').filter({hasText:'Заявитель проверки'}).waitFor();

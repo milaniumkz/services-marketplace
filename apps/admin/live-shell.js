@@ -15,7 +15,7 @@ export function wireLiveShell({api,esc,card,onRefresh}){
  const search=document.querySelector('.topbar .search');
  if(search){
   const openSearch=async()=>{
-   const dialog=createDialog('Поиск по стране'),body=dialog.querySelector('#staff-dialog-body');
+   const dialog=createDialog('Поиск по данным платформы'),body=dialog.querySelector('#staff-dialog-body');
    body.innerHTML='<p role="status">Загрузка…</p>';
    try{
     const scope=await api('/admin/search');if(!dialog.isConnected)return;
@@ -25,13 +25,13 @@ export function wireLiveShell({api,esc,card,onRefresh}){
       form.querySelector('button').disabled=true;
       try{const values=Object.fromEntries(new FormData(form));if(!values.kind)delete values.kind;
        const data=await api('/admin/search?'+new URLSearchParams(values));if(!dialog.isConnected||run!==generation)return;
-       results.innerHTML=data.items.length?data.items.map(item=>`<div class="event"><a href="#${links[item.kind]}/${item.id}"><b>${esc(item.title)}</b></a><p>${esc(labels[item.kind])} · ${esc(item.id)}</p></div>`).join(''):'Нет результатов';
+       results.innerHTML=data.items.length?data.items.map(item=>`<div class="event"><a href="#${links[item.kind]}/${item.id}"><b>${esc(item.title)}</b></a><p>${esc(({KZ:'Казахстан',BY:'Беларусь',RU:'Россия',KG:'Кыргызстан'})[item.country]||item.country)} · ${esc(labels[item.kind])} · ${esc(item.id)}</p></div>`).join(''):'Нет результатов';
       }catch(error){if(dialog.isConnected)results.textContent=error.message;}
       finally{if(dialog.isConnected)form.querySelector('button').disabled=false;}
     };
    }catch(error){if(dialog.isConnected)body.textContent=error.message;}
   };
-  search.tabIndex=0;search.setAttribute('role','button');search.setAttribute('aria-label','Поиск по стране');search.onclick=openSearch;
+  search.tabIndex=0;search.setAttribute('role','button');search.setAttribute('aria-label','Поиск по данным платформы');search.onclick=openSearch;
   searchHotkey=event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();search.click();}};document.addEventListener('keydown',searchHotkey);
   search.onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();openSearch();}};
  }

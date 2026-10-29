@@ -1,4 +1,4 @@
-export function staffApi({getSession,saveSession}) {
+export function staffApi({getSession,saveSession,getCountryScope=()=>undefined}) {
   const retryKeys=new Map(),pendingUploads=new Map(),rotations=new WeakMap();let refreshPending;
   const error=(message,code,status=0)=>Object.assign(new Error(message),{code,status});
   async function send(path,method,body,key,session,format='json'){
@@ -27,6 +27,8 @@ export function staffApi({getSession,saveSession}) {
   }
   const api=async function api(path,method='GET',body={},format='json') {
     const original=getSession();
+    const countryScope=getCountryScope();
+    if(countryScope&&(path.startsWith('/admin/')||path.startsWith('/uploads/'))&&!path.startsWith('/admin/access/')){const scoped=new URL(path,'https://joba.invalid');scoped.searchParams.set('admin_country',countryScope);path=scoped.pathname+scoped.search;}
     if(path.startsWith('/admin/')&&method!=='GET'&&body&&!(body instanceof Blob)&&typeof body==='object'&&!String(body.reason||'').trim())body={...body,reason:'Действие администратора в панели управления'};
     const cacheable=method!=='GET'&&!['/auth/login','/auth/staff-login','/auth/register','/auth/refresh'].includes(path);
     let fingerprint,key;

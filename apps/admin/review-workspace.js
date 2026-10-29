@@ -12,7 +12,7 @@ export async function reviewWorkspace({key,api,esc,card,note,namedField,sections
   const stateNames={pending_review:'Ожидает проверки',pending_moderation:'Ожидает модерации',published:'Опубликовано',paused:'Приостановлено',archived:'Архив',passed:'Проверка пройдена',rejected:'Отклонено',expired:'Срок истёк',draft:'Черновик',not_started:'Не пройдена',active:'Активен',blocked:'Заблокирован',deleted:'Удалён'};
   const when=value=>value&&Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat('ru',{dateStyle:'short',timeStyle:'short',timeZone:'UTC'}).format(new Date(value))+' UTC':'Не указано';
   const details=Object.entries({
-    'ID':record.id,'Страна':record.country,'Статус':section==='verification'?verificationStatus(record.status):section==='orders'?orderStatus(record.status):stateNames[record.status]||userState(record.status),'Ревизия':record.version,
+    'ID':record.id,'Страна':({KZ:'Казахстан',BY:'Беларусь',RU:'Россия',KG:'Кыргызстан'})[record.country]||record.country,'Статус':section==='verification'?verificationStatus(record.status):section==='orders'?orderStatus(record.status):stateNames[record.status]||userState(record.status),'Ревизия':record.version,
     'Имя':record.display_name,'Название':record.title,'Описание':record.description,
     'Город':record.city,'Категория':record.category_id,'ID пользователя':record.owner,
     'Исполнитель':record.executor_id,'Проверка аккаунта':record.verification?verificationStatus(record.verification):undefined,

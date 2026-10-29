@@ -363,7 +363,21 @@ export class Marketplace {
     }
     const a=await this.actor(authorization);
     assertStaffOperation(a.user,a.mfa,method,path,b,q);
-    const settings=await this.settings(a.country);
+    // The platform owner can work across regions without changing identity/session.
+    // Other employees retain their existing regional role boundary.
+    if((path.startsWith('/admin/')||path.startsWith('/uploads/'))&&q.admin_country!==undefined){
+      const scope=String(q.admin_country);
+      if(!['ALL','KZ','KG','RU','BY'].includes(scope))fail(400,'VALIDATION_ERROR','Неизвестная страна фильтра');
+      if(!isStaffOwner(a.user)&&scope!==a.country)fail(403,'FORBIDDEN','Все страны доступны только владельцу платформы');
+      if(isStaffOwner(a.user)&&!path.startsWith('/admin/access/')){
+        const targetId=path.match(/\/([0-9a-f]{8}-[0-9a-f-]{27})(?:\/|$)/i)?.[1]??(method!=='GET'?b.user_id:undefined);
+        const target=targetId?await this.store.get(targetId):undefined;
+        if(target)a.country=target.country;
+        else if(scope!=='ALL')a.country=scope;
+        else if(method==='GET'&&/^\/admin\/(users|orders|verifications|portfolio|contractors|cases|support-threads|recovery-threads|privacy-requests|blacklist|audit|security-events|jobs|refund-requests|payment-transactions|boost-reports|dashboard|analytics|search)$/.test(path))a.country='ALL';
+      }
+    }
+    const settings=await this.settings(a.country==='ALL'?a.user.country:a.country);
     if(path.startsWith('/admin/access/'))return staffAccess(this.store,a,method,path,b);
     if(a.user.staff_permissions?.length&&(path.startsWith('/orders')||path.startsWith('/me/contractor-profile')||path.startsWith('/me/portfolio-projects')||path==='/reviews'))fail(403,'FORBIDDEN','Для действий на бирже используйте отдельный пользовательский аккаунт');
     q={...q,_scope:a.id+':'+path};
@@ -1017,7 +1031,7 @@ export class Marketplace {
     if(path==='/me/subscriptions'&&method==='GET'){await activatePeriods(this.store,a.user);return {items:(await this.store.all('subscription',a.country)).filter(x=>x.owner===a.id).map(r=>presentSubscription(r))};}
     if(path==='/billing/refundable-payments'&&method==='GET'){
       const limit=this.pageLimit(q),after=await this.cursor(q);
-      const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND country=$1 AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
+      const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND ($1='ALL' OR country=$1) AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
       const batch=rows.rows.slice(0,limit).map(x=>x.data),balances=await this.refunds.balances(batch);
       return {items:batch.map((p,i)=>({id:p.id,created_at:p.created_at,amount_minor:p.amount_minor,currency:p.currency,benefit:p.benefit,balance:balances[i]})),meta:{next_cursor:rows.rows.length>limit?await this.nextCursor(batch.at(-1)!.id,q):null}};
     }
@@ -1125,7 +1139,7 @@ export class Marketplace {
         if(q.kind&&!allowed.includes(q.kind))fail(403,'FORBIDDEN','Тип записи недоступен этой роли');
         if(query.length<2)return {items:[],kinds:allowed};
         const pattern='%'+query.replace(/[\\%_]/g,'\\$&')+'%';
-        const rows=(await db.query<{data:RecordData}>(`SELECT data FROM records WHERE country=$1 AND kind=ANY($2::text[])
+        const rows=(await db.query<{data:RecordData}>(`SELECT data FROM records WHERE ($1='ALL' OR country=$1) AND kind=ANY($2::text[])
           AND (kind<>'order' OR COALESCE(data->>'status','')<>'deleted')
           AND (kind<>'user' OR (COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0 AND COALESCE(data->>'status','')<>'deleted'))
           AND (id::text ILIKE $3 OR data->>'display_name' ILIKE $3 OR data->>'title' ILIKE $3 OR data->>'subject' ILIKE $3 OR data->>'reason_code' ILIKE $3)
@@ -1348,14 +1362,14 @@ export class Marketplace {
         for(const offer of await this.store.all('offer',a.country))if(offer.order_id===order.id&&['pending','submitted','active','open'].includes(offer.status))await this.store.put({...offer,status:'declined',version:offer.version+1});
         await this.audit(a,'order.deleted',order.id,'Удаление заказа администратором');await this.notify(order.owner,a,'order.deleted',order.id);if(order.executor_id)await this.notify(order.executor_id,a,'order.deleted',order.id);return {id:order.id,deleted:true};
       }
-      if(path==='/admin/orders'&&method==='GET')return this.page('order',a,q,{excludeDeleted:true,statuses:q.status?[String(q.status)]:undefined});
+      if(path==='/admin/orders'&&method==='GET')return this.page('order',a,q,{adminOrder:q,excludeDeleted:true,statuses:q.status?[String(q.status)]:undefined});
       if(path==='/admin/users'&&method==='GET'){
         const page=await this.page('user',a,q,{endUserOnly:true,excludeDeleted:true,statuses:q.status?[String(q.status)]:undefined});
         return {...page,items:page.items.map(u=>({...safeUser(u),version:u.version,status:u.status}))};
       }
       if(method==='GET'&&section==='verifications'&&path.split('/').length===3){
         if(q.owner_role&&!['customer','executor'].includes(q.owner_role))fail(400,'VALIDATION_ERROR','Неизвестная роль');
-        const rows=await this.store.db.query<{data:RecordData,display_name:string,subject_role:string}>("SELECT r.data,u.data->>'display_name' AS display_name,COALESCE(r.data->>'submitted_role',u.data->>'active_role','customer') AS subject_role FROM records r LEFT JOIN records u ON u.id::text=r.owner AND u.kind='user' AND u.country=r.country WHERE r.kind='verification' AND r.country=$1"+(q.owner_role?" AND COALESCE(r.data->>'submitted_role',u.data->>'active_role','customer')=$2":""),q.owner_role?[a.country,q.owner_role]:[a.country]);
+        const rows=await this.store.db.query<{data:RecordData,display_name:string,subject_role:string}>("SELECT r.data,u.data->>'display_name' AS display_name,COALESCE(r.data->>'submitted_role',u.data->>'active_role','customer') AS subject_role FROM records r LEFT JOIN records u ON u.id::text=r.owner AND u.kind='user' AND u.country=r.country WHERE r.kind='verification' AND ($1='ALL' OR r.country=$1)"+(q.owner_role?" AND COALESCE(r.data->>'submitted_role',u.data->>'active_role','customer')=$2":""),q.owner_role?[a.country,q.owner_role]:[a.country]);
         return this.list(rows.rows.map(({data,display_name,subject_role})=>({...data,document_refs:undefined,display_name,subject_role})),q);
       }
       if(method==='GET'&&kinds[section]&&path.split('/').length===3)return this.list((await this.store.all(kinds[section],a.country)).filter(x=>section!=='users'||!x.staff_permissions?.length).map(x=>section==='users'?{...safeUser(x),version:x.version,status:x.status}:section==='verifications'?{...x,document_refs:undefined}:['portfolio','contractors'].includes(section)?editableContent(x):x),q);
@@ -1697,7 +1711,7 @@ export class Marketplace {
   private async nextCursor(id:string,q:any) {
     const payload=Buffer.from(JSON.stringify({after:id,filter_hash:this.filterHash(q),expires_at:new Date(Date.now()+86400000).toISOString()})).toString('base64url');return payload+'.'+await this.files.requestDigest(payload);
   }
-  private async page(kind:string,a:Actor,q:any,options:{member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean}={}) {
+  private async page(kind:string,a:Actor,q:any,options:{adminOrder?:any;member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const filters:any={};
     if(kind==='contractor'&&options.publicActor){
@@ -1714,7 +1728,7 @@ export class Marketplace {
       if(!Number.isFinite(near.latitude)||Math.abs(near.latitude)>90||!Number.isFinite(near.longitude)||Math.abs(near.longitude)>180||!Number.isFinite(near.radius)||near.radius<=0||near.radius>500)fail(400,'VALIDATION_ERROR','Проверьте координаты и радиус');
       filters.near=near;
     }
-    const selected=await this.store.select(kind,a.country,{...options,...filters,limit:limit+1,after,city:filters.near||filters.workMode==='remote'?undefined:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
+    const selected=await this.store.select(kind,a.country,{...options,...filters,limit:limit+1,after,city:options.adminOrder||filters.near||filters.workMode==='remote'?undefined:q.city,category:q.category_id,search:q.q,sourceId:q.source_id});
     const batch=selected.slice(0,limit);
     const items:RecordData[]=options.publicActor&&kind==='contractor'?await contractorPresentation(this.store,a.country,batch):batch.map(x=>options.publicActor&&kind==='order'?{...publicContent(x),exact_address:undefined}:x);
     return {items,meta:{next_cursor:selected.length>limit?await this.nextCursor(items.at(-1)!.id,q):null}};

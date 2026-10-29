@@ -15,9 +15,9 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
       count(*) FILTER (WHERE kind='verification' AND data->>'status'='pending_review') AS verifications,
       count(*) FILTER (WHERE kind='case' AND data->>'status' NOT IN ('resolved','closed')) AS cases,
       count(*) FILTER (WHERE kind='outbox' AND data->>'status' IN ('pending','retry','dead_letter')) AS outbox
-    FROM records WHERE country=$1`,[country,from,now.toISOString()])).rows[0];
+    FROM records WHERE ($1='ALL' OR country=$1)`,[country,from,now.toISOString()])).rows[0];
   const active=(await store.db.query<any>(`
-    SELECT count(*) AS total FROM records u WHERE u.country=$1 AND u.kind='user'
+    SELECT count(*) AS total FROM records u WHERE ($1='ALL' OR u.country=$1) AND u.kind='user'
     AND u.data->>'status'='active' AND COALESCE(jsonb_array_length(u.data->'staff_permissions'),0)=0
     AND EXISTS(SELECT 1 FROM records action WHERE action.country=u.country
       AND action.kind IN ('order','offer','message','support_message','review','portfolio')
@@ -26,10 +26,10 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
   const rows=(await store.db.query<any>(`
     SELECT substring(value,1,10) AS day, type, count(*) AS total FROM (
       SELECT data->>'published_at' AS value,'published' AS type FROM records
-      WHERE country=$1 AND kind='order' AND data->>'published_at'>=$2 AND data->>'published_at'<=$3
+      WHERE ($1='ALL' OR country=$1) AND kind='order' AND data->>'published_at'>=$2 AND data->>'published_at'<=$3
       UNION ALL
       SELECT data->>'completed_at' AS value,'completed' AS type FROM records
-      WHERE country=$1 AND kind='order' AND data->>'status'='completed' AND data->>'completed_at'>=$2 AND data->>'completed_at'<=$3
+      WHERE ($1='ALL' OR country=$1) AND kind='order' AND data->>'status'='completed' AND data->>'completed_at'>=$2 AND data->>'completed_at'<=$3
     ) actions GROUP BY substring(value,1,10),type`,[country,from,now.toISOString()])).rows;
   const series=[];
   for(let index=days-1;index>=0;index--) {

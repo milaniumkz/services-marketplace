@@ -133,13 +133,13 @@ async function main(){
   for(const action of ['block','unblock']){
     assert.equal(await page.locator('#account-action [name=reason]').count(),0);
     assert.equal(await page.locator('#account-action [name=confirmation]').count(),0);
-    await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/users/'+subjectId+'/'+action)&&r.status()===200),page.locator('#account-action button[value='+action+']').click()]);
+    await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/admin/users/'+subjectId+'/'+action)&&r.status()===200),page.locator('#account-action button[value='+action+']').click()]);
     await page.waitForLoadState('networkidle');await page.locator('#account-action').waitFor();
     assert.equal((await api.store.get(subjectId)).status,action==='block'?'blocked':'active');
   }
   assert.equal(await page.locator('#account-action input, #account-action textarea, #account-action select').count(),0);
   assert.equal(await page.locator('#account-action [name=confirmation]').count(),0);
-  await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/users/'+subjectId+'/delete')&&r.status()===200),page.locator('#account-action').getByRole('button',{name:'Удалить аккаунт',exact:true}).click()]);
+  await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/admin/users/'+subjectId+'/delete')&&r.status()===200),page.locator('#account-action').getByRole('button',{name:'Удалить аккаунт',exact:true}).click()]);
   await page.waitForURL('**/#users');
   assert.equal((await api.store.get(subjectId)).status,'deleted');
   await page.waitForLoadState('networkidle');
@@ -150,11 +150,11 @@ async function main(){
   console.log('Contact, block, unblock and simple deletion verified through browser and real isolated API');
   await page.goto(frontend+'/#referrals?new=1');await page.locator('#referral-editor').waitFor();
   await page.getByLabel('Название',{exact:true}).fill('Персональная скидка за друзей');await page.getByLabel('Приглашений для награды',{exact:true}).fill('3');await page.getByLabel('Процент скидки',{exact:true}).fill('25');
-  await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/referral-campaigns')&&r.request().method()==='POST'&&r.status()===200),page.getByRole('button',{name:'Создать новый черновик',exact:true}).click()]);
+  await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/admin/referral-campaigns')&&r.request().method()==='POST'&&r.status()===200),page.getByRole('button',{name:'Создать новый черновик',exact:true}).click()]);
   await page.waitForFunction(()=>location.hash.includes('referrals?id=')&&!!document.querySelector('#referral-command'));
   const referralId=new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('id');let campaign=await api.store.get(referralId);assert.equal(campaign.payload.threshold,3);assert.equal(campaign.payload.discount_percent,25);assert.deepEqual(campaign.payload.discount_services,['all']);
   await page.getByLabel('Награда',{exact:true}).selectOption('subscription_days');await page.getByLabel('Что продлить',{exact:true}).selectOption('top100');
-  await Promise.all([page.waitForResponse(r=>r.url().endsWith('/admin/referral-campaigns/'+referralId)&&r.request().method()==='PATCH'&&r.status()===200),page.getByRole('button',{name:'Сохранить черновик',exact:true}).click()]);
+  await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/admin/referral-campaigns/'+referralId)&&r.request().method()==='PATCH'&&r.status()===200),page.getByRole('button',{name:'Сохранить черновик',exact:true}).click()]);
   await page.waitForLoadState('networkidle');campaign=await api.store.get(referralId);assert.equal(campaign.payload.reward_kind,'subscription_days');assert.equal(campaign.payload.reward_plan,'top100');
   console.log('Referral UI saves threshold, personal discount and bonus Top-100 without manual reason fields');
 
@@ -188,6 +188,19 @@ async function main(){
   await page.locator('#staff-directory tbody tr').filter({hasText:'changed.operator'}).getByRole('button',{name:'Удалить сотрудника',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#staff-workspace-feedback')?.textContent==='Запись удалена.');assert.equal(await page.locator('#staff-directory').getByText('changed.operator',{exact:true}).count(),0);assert.equal((await api.store.get(employee.id)).status,'deleted');
   await page.locator('#role-directory tbody tr').filter({hasText:'Оператор мобильной проверки'}).getByRole('button',{name:'Удалить роль',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('#role-directory')?.textContent.includes('Оператор мобильной проверки'));assert.equal((await api.store.get(employeeRoleId)).status,'deleted');
   console.log('Modal role creation/edit, automatic navigation, staff edit/password/roles, blocking/unblocking and deletion verified on mobile; uppercase Latin login works without format restrictions');
+  const byAccount=randomUUID();await api.store.put({id:byAccount,kind:'user',owner:byAccount,country:'BY',version:1,created_at:new Date().toISOString(),display_name:'Белорусский аккаунт общей панели',roles:['customer'],active_role:'customer',status:'active',verification:'not_started',city:'Минск'});
+  await page.goto(frontend+'/#users');await page.locator('#admin-country-filter').waitFor();assert.equal(await page.locator('#admin-country-filter').inputValue(),'ALL');await page.getByText('Белорусский аккаунт общей панели',{exact:true}).waitFor();
+  const byRow=page.locator('tr').filter({hasText:'Белорусский аккаунт общей панели'});assert.equal(await byRow.getByRole('cell',{name:'Беларусь',exact:true}).count(),1);
+  await page.locator('[data-admin-country-filter]').first().selectOption('BY');await page.waitForLoadState('networkidle');await page.getByText('Белорусский аккаунт общей панели',{exact:true}).waitFor();assert.equal(await page.locator('#admin-country-filter').inputValue(),'BY');assert.equal(await page.getByText('Заявитель проверки',{exact:true}).count(),0);
+  await byRow.getByRole('link',{name:'Открыть →',exact:true}).click();await page.getByRole('heading',{name:'Белорусский аккаунт общей панели',exact:true}).waitFor();
+  assert.equal(await page.locator('#admin-country-filter').isVisible(),true);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.locator('#admin-country-filter').selectOption('ALL');await page.getByRole('heading',{name:'Белорусский аккаунт общей панели',exact:true}).waitFor();
+  await page.goto(frontend+'/#orders');await page.locator('[data-admin-country-filter]').first().waitFor();assert.equal(await page.locator('[data-admin-country-filter]').first().inputValue(),'ALL');
+  const filteredOrder=randomUUID();await api.store.put({id:filteredOrder,kind:'order',owner:byAccount,country:'BY',version:1,created_at:'2026-10-29T12:00:00Z',exact_address:'Минск, Ленина 1',status:'open',title:'Заказ для расширенных фильтров',description:'Фильтрация по всем критериям заказа',city:'Минск',category_snapshot:{title:'Ремонт'},budget_amount:12345,currency:'BYN',work_mode:'remote',upload_ids:[]});
+  await page.goto(frontend+'/#orders');await page.locator('#list-filters').waitFor();await page.getByLabel('Город',{exact:true}).fill('Минск');await page.locator('#list-filters summary').click();await page.getByLabel('Бюджет от',{exact:true}).fill('123.45');await page.getByLabel('Бюджет до',{exact:true}).fill('123.45');await page.locator('#list-filters').getByRole('button',{name:'Найти',exact:true}).click();await page.locator('#list-filters [role=alert]').getByText('Для фильтра по сумме во всех странах выберите валюту.',{exact:true}).waitFor();await page.getByLabel('Валюта',{exact:true}).selectOption('BYN');await page.getByLabel('Статус записи',{exact:true}).selectOption('open');await page.getByLabel('Формат работы',{exact:true}).selectOption('remote');await page.getByLabel('Адрес содержит',{exact:true}).fill('Ленина');await page.getByLabel('Дата с (UTC)',{exact:true}).fill('2026-10-29');await page.getByLabel('Дата по (UTC), включительно',{exact:true}).fill('2026-10-29');await page.locator('#list-filters').getByRole('button',{name:'Найти',exact:true}).click();await page.getByText('Заказ для расширенных фильтров',{exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Бюджет от',{exact:true}).inputValue(),'123.45');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.locator('#reset-filters').click();await page.waitForLoadState('networkidle');assert.equal(await page.getByLabel('Город',{exact:true}).inputValue(),'');
+  console.log('Order advanced filters combine city, status, currency, amount, work mode and inclusive dates, preserve selections and reset on mobile');
+  console.log('All-country owner directory, Russian country labels, per-section and header country filters, Belarus detail and mobile layout verified with real isolated API');
   assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.avatar_read'));assert.ok((await api.store.all('audit','KZ')).some(r=>r.action==='content.media_read'));assert.deepEqual(errors,[]);console.log('Mobile admin verified: 60 page/viewport combinations, menu, backdrop, Escape, table scroll, navigation, desktop resize');
  }finally{if(browser)await browser.close();if(server)await new Promise(resolve=>server.close(resolve));await app.close();await api.store.close();await rm(files,{recursive:true,force:true});}
 }
