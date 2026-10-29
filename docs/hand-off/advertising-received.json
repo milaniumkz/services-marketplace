@@ -66,7 +66,13 @@
     "web_repeat_submission_required": false,
     "android_rewarded_name": "JOBA_Android_Rewarded",
     "android_rewarded_status_from_screenshot": "active",
-    "additional_android_rewarded_id_from_screenshot": "R-M-20254161-2"
+    "additional_android_rewarded_id_from_screenshot": "R-M-20254161-2",
+    "active_android_ad_units_owner_confirmed": [
+      "R-M-20254161-1",
+      "R-M-20254161-3"
+    ],
+    "additional_android_rewarded_status_owner_report": "not_in_active_list",
+    "android_application_status_from_latest_screenshot": "test_status_requires_store_link"
   },
   "web_ad_units_received": true,
   "web_ad_units_received_by_network": {
