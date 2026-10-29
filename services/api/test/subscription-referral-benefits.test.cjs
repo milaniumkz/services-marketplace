@@ -67,3 +67,19 @@ test('customer bonus extends customer access and executor-only rewards wait with
  assert.throws(()=>referralPolicy({threshold:1,budget_units:1,reward_duration_seconds:86400,qualifying_event:'registered',reward_kind:'discount',discount_percent:101,discount_services:['all']}));
  }finally{await api.store.close();}
 });
+test('Premium downgrade starts immediately, converts current and queued paid value to Standard days, revokes Top-100 and is idempotent',async()=>{
+ const {api,user,offers,buy}=await setup();try{
+ const now=new Date(),premium=await buy((await offers(now)).find(o=>o.plan==='premium'),now);
+ await buy((await offers(now)).find(o=>o.plan==='premium'),now);
+ const later=new Date(now.getTime()+15*day),o=(await offers(later)).find(o=>o.plan==='standard');
+ assert.equal(o.offer_kind,'downgrade');assert.equal(o.amount_minor,100000);assert.equal(o.credit_amount_minor,225000);assert.equal(o.bonus_seconds,67.5*86400);assert.equal(o.starts_at,null);
+ const result=await buy(o,later),s=result.subscription;
+ assert.equal(s.status,'active');assert.equal(s.valid_from,later.toISOString());assert.equal(Date.parse(s.valid_until)-later.getTime(),97.5*day);
+ assert.equal((await buy(o,later)).subscription.id,s.id);
+ const state=await subscriptionState(api.store,user,later);assert.equal(state.premium,false);assert.equal(state.standard,true);assert.equal(state.periods.length,1);
+ const oldGrant=(await api.store.all('grant','KZ')).find(g=>g.source_id===premium.subscription.id);assert.equal(oldGrant.valid_until,later.toISOString());
+ const up=(await offers(later)).find(o=>o.offer_kind==='upgrade');assert.equal(up.amount_minor,162500);
+ await buy(up,later);assert.equal((await subscriptionState(api.store,user,later)).premium,true);
+ const again=(await offers(later)).find(o=>o.offer_kind==='downgrade');assert.equal(again.credit_amount_minor,487500);
+ }finally{await api.store.close();}
+});

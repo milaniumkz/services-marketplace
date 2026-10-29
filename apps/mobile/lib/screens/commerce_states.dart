@@ -332,7 +332,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                 queued
                     ? 'Продление сохранено. Новый период начнётся ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(r['valid_from']).toLocal())} и продлится до $endLabel. Деньги не списывались.'
                     : active
-                    ? r['is_upgrade']==true?'Премиум включён до $endLabel. Дата окончания оплаченного доступа сохранена. Деньги не списывались.':r['is_addon']==true?'Топ-100 подключён до $endLabel при действующей основной подписке. Деньги не списывались.':'Подписка активирована на 30 дней. Это имитация оплаты — деньги не списывались.'
+                    ? (r['price'] is Map && r['price']['offer_kind']=='downgrade')?'Стандарт включён сразу до $endLabel, остаток предыдущего тарифа переведён в дни доступа. Топ-100 отключён. Деньги не списывались.':r['is_upgrade']==true?'Премиум включён до $endLabel. Дата окончания оплаченного доступа сохранена. Деньги не списывались.':r['is_addon']==true?'Топ-100 подключён до $endLabel при действующей основной подписке. Деньги не списывались.':'Подписка активирована на 30 дней. Это имитация оплаты — деньги не списывались.'
                     : 'Тестовый доступ не активен.',
                 'Мой доступ',
                 () => widget.onGo('my-access', null));
@@ -622,15 +622,16 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                                     : 'Стандарт'),
                       checkoutFact(
                           'Период',
-                          offer['offer_kind']=='upgrade'?'До ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(offer['valid_until']).toLocal())}':offer['duration_days'] == 30
+                          offer['offer_kind']=='upgrade'?'До ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(offer['valid_until']).toLocal())}':offer['offer_kind']=='downgrade'?'30 дней + ${(offer['bonus_seconds']/86400).toStringAsFixed(1)} дней остатка':offer['duration_days'] == 30
                               ? '30 дней'
                               : periodLabel(offer['period'])),
                       if (offer['plan'] == 'premium')
                         checkoutFact('Топ-100', offer['offer_kind']=='upgrade'?'На оставшийся оплаченный срок':'Приоритет услуг на 30 дней'),
                       if(offer['plan']=='top100')checkoutFact('Условие','Нужен активный Стандарт. Основной доступ не продлевается.'),
+                      if(offer['offer_kind']=='downgrade') ...[checkoutFact('Переключение','Сразу после подтверждения. Топ-100 отключится.'),checkoutFact('Зачтённый остаток',money({...offer,'amount_minor':offer['credit_amount_minor']})),checkoutFact('Доступ до',DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(offer['valid_until']).toLocal()))],
                       if(offer['starts_at']!=null)checkoutFact('Начало нового периода',DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(offer['starts_at']).toLocal())),
                       if(offer['discount_percent'] is num&&offer['discount_percent']>0)checkoutFact('Персональная скидка','${offer['discount_percent']}%'),
-                      checkoutFact('Цена', money(offer)),
+                      checkoutFact(offer['offer_kind']=='downgrade'?'К оплате за новые 30 дней':'Цена', money(offer)),
                       checkoutFact(
                           'Продление',
                           offer['is_test'] == true

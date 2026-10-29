@@ -72,6 +72,25 @@ void main() {
     expect(navigation.last, 'checkout:addon');
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('Premium offers immediate Standard switch with credit and end date', (tester) async {
+    tester.view.physicalSize = const Size(430, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final now = DateTime.utc(2026,10,29), end=DateTime.utc(2027,2,4).toIso8601String();
+    String? target;
+    await tester.pumpWidget(MaterialApp(home:Scaffold(body:ExecutorAccess(
+      choosing:true, grants:const [], now:()=>now,
+      subscriptions:[{'id':'premium','plan':'premium','status':'active','valid_until':end}],
+      config:{'offers':[{'id':'switch','plan':'standard','offer_kind':'downgrade','amount_minor':100000,'currency':'KZT','credit_amount_minor':225000,'bonus_seconds':5832000,'valid_until':end}]},
+      onGo:(route,id)=>target='$route:$id'))));
+    expect(find.textContaining('добавит 67.5 дней'), findsOneWidget);
+    expect(find.textContaining('Топ-100 отключится'), findsOneWidget);
+    await tester.ensureVisible(find.text('Перейти на Стандарт сейчас'));
+    await tester.tap(find.text('Перейти на Стандарт сейчас'));
+    expect(target,'checkout:switch');
+    await tester.pumpWidget(const SizedBox());
+  });
   for (final plan in ['standard', 'premium', 'none']) {
     testWidgets(
         'my access always explains Top-100 and exposes eligible purchase: $plan',

@@ -25,8 +25,8 @@ export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordDa
  const {state,catalog,settings,context}=await contextKey(store,user,now),role=subscriptionRole(user);
  const raw=await commerce.offers(user.country,role,role==='executor'&&state.standard&&!state.premium);
  if(!settings.enabled||commerce.providers.billing.size)return {...raw,subscription_state:{paid_until:new Date(state.paid_until).toISOString(),premium:state.premium,standard:state.standard}};
- const prior=(await store.select('checkout_quote',user.country,{owner:user.id,limit:1000})).filter(q=>q.status==='available'&&q.context===context&&q.expires_at>now.toISOString());
- const templates:any[]=raw.items.filter(o=>o.is_test&&!(role==='executor'&&state.standard&&!state.premium&&o.plan==='premium')).map(o=>({...o,offer_kind:o.plan==='top100'?'addon':state.bases.length?'renewal':'purchase'}));
+ const prior=(await store.select('checkout_quote',user.country,{owner:user.id,limit:1000})).filter(q=>q.status==='available'&&q.offer?.calculation_version===2&&q.context===context&&q.expires_at>now.toISOString());
+ const templates:any[]=raw.items.filter(o=>o.is_test&&!(role==='executor'&&((state.standard&&!state.premium&&o.plan==='premium')||(state.premium&&o.plan==='standard')))).map(o=>({...o,offer_kind:o.plan==='top100'?'addon':state.bases.length?'renewal':'purchase'}));
  if(role==='executor'&&state.standard&&!state.premium){
   const current=state.current.filter(s=>periodPlan(s)==='standard').sort((a,b)=>Date.parse(a.valid_until)-Date.parse(b.valid_until))[0];
   const futurePremium=state.bases.filter(s=>periodPlan(s)==='premium'&&Date.parse(s.valid_from??s.created_at)>now.getTime()).sort((a,b)=>Date.parse(a.valid_from??a.created_at)-Date.parse(b.valid_from??b.created_at))[0];
@@ -36,6 +36,24 @@ export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordDa
   const premiumOffer=raw.items.find(o=>o.plan==='premium'&&o.is_test);
   if(premiumOffer&&duration>0)templates.unshift({...premiumOffer,offer_kind:'upgrade',title:'Перейти на Премиум',amount_minor:amount,duration_seconds:duration,valid_until:new Date(end).toISOString()});
  }
+ if(role==='executor'&&state.premium){
+  const standardOffer=raw.items.find(o=>o.plan==='standard'&&o.is_test);
+  if(standardOffer&&standardOffer.amount_minor>0){
+   // Value the unused portion at its purchased price, not today's tariff.
+   // Scheduled periods and the separately paid Premium upgrade are included once.
+   let credit=0;
+   for(const s of state.periods){
+    const start=Date.parse(s.valid_from??s.created_at),end=Date.parse(s.valid_until);
+    const remaining=Math.max(0,end-Math.max(start,now.getTime()));
+    const price=s.price_snapshot??{};
+    const amount=price.period_total_value_minor??price.amount_minor??(s.is_upgrade?0:catalog?.prices?.[periodPlan(s)]??(periodPlan(s)==='premium'?150000:periodPlan(s)==='top100'?50000:100000));
+    const duration=s.is_upgrade?end-start:(price.duration_seconds?price.duration_seconds*1000:30*DAY_MS);
+    if(duration>0)credit+=amount*remaining/duration;
+   }
+   credit=Math.floor(credit);
+   templates.unshift({...standardOffer,offer_kind:'downgrade',title:'Перейти на Стандарт сейчас',credit_amount_minor:credit});
+  }
+ }
  const offers=[];
  for(const t of templates){
   const found=prior.find(q=>q.plan===t.plan&&q.offer_kind===t.offer_kind);
@@ -43,7 +61,8 @@ export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordDa
   const discount=await bestDiscount(store,user,t.plan,t.offer_kind,now),price=discountedPrice(t.amount_minor,discount);
   const topPeriods=state.periods.filter(s=>periodPlan(s)==='top100'),topEnd=topPeriods.reduce((v,s)=>Math.max(v,Date.parse(s.valid_until)),now.getTime());
   const from=t.offer_kind==='renewal'?new Date(state.paid_until).toISOString():t.offer_kind==='addon'&&topEnd>now.getTime()?new Date(topEnd).toISOString():null;
-  const id=randomUUID(),offer={...t,...price,id,starts_at:from,valid_until:t.valid_until??(from?new Date(Date.parse(from)+30*DAY_MS).toISOString():null),duration_days:t.offer_kind==='upgrade'?null:30,auto_renew:false};
+  const bonusSeconds=t.offer_kind==='downgrade'?Math.floor(t.credit_amount_minor/t.amount_minor*30*86400):0;
+  const id=randomUUID(),offer={...t,...price,calculation_version:2,bonus_seconds:bonusSeconds,id,starts_at:from,valid_until:t.offer_kind==='downgrade'?new Date(now.getTime()+(30*86400+bonusSeconds)*1000).toISOString():t.valid_until??(from?new Date(Date.parse(from)+30*DAY_MS).toISOString():null),duration_days:t.offer_kind==='upgrade'?null:30+bonusSeconds/86400,auto_renew:false};
   const quote:RecordData={id,kind:'checkout_quote',owner:user.id,country:user.country,version:1,created_at:now.toISOString(),status:'available',context,plan:t.plan,offer_kind:t.offer_kind,expires_at:new Date(now.getTime()+5*60000).toISOString(),offer};
   await store.put(quote);offers.push(offer);
  }
@@ -61,17 +80,26 @@ export async function buyTestQuote(store:Store,commerce:Commerce,user:RecordData
  if(quote.status==='consumed'){const subscription=await store.get(quote.subscription_id);if(subscription)return {subscription,is_test:true,duplicate:true};}
  const {state,settings,context}=await contextKey(store,user,now),offer=quote.offer;
  if(!settings.enabled||commerce.providers.billing.size)fail('TEST_PAYMENTS_UNAVAILABLE','Тестовая оплата выключена');
- if(quote.status!=='available'||quote.expires_at<=now.toISOString()||quote.context!==context)fail('OFFER_CHANGED','Цена или подписка изменилась. Обновите условия оплаты');
+ if(quote.offer?.calculation_version!==2||quote.status!=='available'||quote.expires_at<=now.toISOString()||quote.context!==context)fail('OFFER_CHANGED','Цена или подписка изменилась. Обновите условия оплаты');
  if(b.amount_minor!==offer.amount_minor||b.currency!==offer.currency)fail('OFFER_CHANGED','Итоговая цена изменилась. Обновите условия оплаты');
  if(subscriptionRole(user)!==offer.role||!(user.roles??['customer']).includes(offer.role))fail('ROLE_REQUIRED','Выберите тариф текущей роли',403);
  if(user.verification!=='passed')fail('VERIFICATION_REQUIRED','Сначала подтвердите личность',403);
  if(offer.plan==='premium'&&offer.offer_kind!=='upgrade'&&state.standard&&!state.premium)fail('OFFER_CHANGED','Для перехода со Стандарта выберите немедленное повышение до Премиума с доплатой');
  if(offer.plan==='top100'&&(!state.standard||state.premium))fail('ENTITLEMENT_REQUIRED','Для отдельного Топ-100 нужен активный Стандарт',403);
  if(offer.offer_kind==='upgrade'&&(!state.standard||state.premium))fail('OFFER_CHANGED','Текущий тариф изменился');
+ if(offer.offer_kind==='downgrade'&&!state.premium)fail('OFFER_CHANGED','Текущий тариф изменился');
+ if(offer.plan==='standard'&&state.premium&&offer.offer_kind!=='downgrade')fail('OFFER_CHANGED','Выберите немедленный переход на Стандарт с пересчётом остатка');
  await useDiscount(store,user.id,user.country,offer,now);
- const seconds=offer.offer_kind==='upgrade'?(Date.parse(offer.valid_until)-now.getTime())/1000:30*86400;
+ const seconds=offer.offer_kind==='upgrade'?(Date.parse(offer.valid_until)-now.getTime())/1000:30*86400+(offer.bonus_seconds??0);
  if(seconds<=0)fail('OFFER_CHANGED','Оплаченный период уже закончился');
- const subscription=await createPeriod(store,user,{plan:offer.plan,seconds,from:offer.starts_at??undefined,price:offer,provider:'test',is_test:true,is_upgrade:offer.offer_kind==='upgrade',quote_id:quote.id},now);
+ if(offer.offer_kind==='downgrade'){
+  for(const s of state.periods){
+   await store.put({...s,status:'replaced',replaced_at:now.toISOString(),replaced_by_quote_id:quote.id,version:s.version+1});
+   const grants=await store.select('grant',user.country,{owner:user.id,sourceId:s.id,limit:1000});
+   for(const g of grants)await store.put({...g,valid_until:now.toISOString(),revoked_at:now.toISOString(),version:g.version+1});
+  }
+ }
+ const subscription=await createPeriod(store,user,{plan:offer.plan,seconds,from:offer.starts_at??undefined,price:offer.offer_kind==='downgrade'?{...offer,period_total_value_minor:offer.amount_minor+offer.credit_amount_minor,duration_seconds:seconds}:offer,provider:'test',is_test:true,is_upgrade:offer.offer_kind==='upgrade',quote_id:quote.id},now);
  const row=(kind:string,data:any):RecordData=>({id:randomUUID(),kind,owner:user.id,country:user.country,version:1,created_at:now.toISOString(),...data});
  await store.put(row('payment_transaction',{provider:'test',is_test:true,environment:'sandbox',transaction_id:randomUUID(),operation:'test_purchase',state:'active',benefit:'subscription',source_id:subscription.id,amount_minor:offer.amount_minor,original_amount_minor:offer.original_amount_minor,discount_id:offer.discount_id,discount_percent:offer.discount_percent,cash_amount_minor:0,currency:offer.currency,accepted_terms:true}));
  await store.put(row('audit',{actor_id:user.id,action:'billing.test_subscription_created',target_id:subscription.id,reason:'Подтверждённая пользователем имитация оплаты без списания денег',plan:offer.plan,offer_kind:offer.offer_kind}));

@@ -239,6 +239,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                     : Json.from(configured.first);
             final offer = matching.isEmpty ? null : matching.first;
             final upgrading=offer?['offer_kind']=='upgrade';
+            final downgrading=offer?['offer_kind']=='downgrade';
             return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: card([
@@ -257,7 +258,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                             child: text(money(context, displayPrice),
                                 size: 30, bold: true)),
                         const SizedBox(width: 6),
-                        text(upgrading?'за оставшийся срок':'/ 30 дней', color: muted)
+                        text(upgrading?'за оставшийся срок':downgrading?'с зачётом остатка':'/ 30 дней', color: muted)
                       ]),
                   const SizedBox(height: 8),
                   text(
@@ -277,8 +278,9 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                   const SizedBox(height: 6),
                   if(offer?['discount_percent'] is num&&offer!['discount_percent']>0)text('Ваша персональная скидка ${offer['discount_percent']}% уже учтена.'),
                   if(offer?['starts_at']!=null)text('Новый период начнётся ${date(context,{'valid_until':offer!['starts_at']})}. Уже оплаченные дни сохраняются.'),
+                  if(downgrading)text('Стандарт включится сразу. Остаток ${money(context, {...offer!, 'amount_minor':offer['credit_amount_minor']})} добавит ${(offer['bonus_seconds']/86400).toStringAsFixed(1)} дней. Доступ до ${date(context,offer)}. Топ-100 отключится.'),
                   if(upgrading)text('Премиум включится сразу после оплаты. Оплаченный срок сохраняется.'),
-                  action(upgrading?'Перейти на Премиум сейчас':subscription==null?'Посмотреть условия':'Продлить на 30 дней', 'checkout', id: offer?['id']),
+                  action(downgrading?'Перейти на Стандарт сейчас':upgrading?'Перейти на Премиум сейчас':subscription==null?'Посмотреть условия':'Продлить на 30 дней', 'checkout', id: offer?['id']),
                   const SizedBox(height: 12),
                   text(
                       'Автопродление можно отменить. Оплаченный срок сохраняется.',
@@ -413,7 +415,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
       ], dark: true),
       const SizedBox(height: 20),
       JobaMenu([
-        JobaMenuEntry(widget.customer?'Продлить доступ':'Продлить или сменить тариф','card',()=>onGo('access',null),subtitle:'Новые 30 дней добавляются к оплаченному сроку'),
+        JobaMenuEntry(widget.customer?'Продлить доступ':'Продлить или сменить тариф','card',()=>onGo('access',null),subtitle:'Смена тарифа сразу с пересчётом остатка; продление сохраняет оплаченный срок'),
         JobaMenuEntry(
             known == null ? 'Выбрать доступ' : 'Управление подпиской',
             'card',
