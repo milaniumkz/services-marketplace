@@ -15,7 +15,7 @@
       "google.com, pub-5590941579295248, DIRECT, f08c47fec0942fa0"
     ],
     "web_site": "joba.com.kz",
-    "web_site_status_from_screenshot": "requires_verification",
+    "web_site_status_from_screenshot": "review_in_progress",
     "seller_files_publication": {
       "verified_at": "2026-10-29T11:46:21.399290+00:00",
       "files": [
@@ -36,13 +36,28 @@
       ],
       "sdk_integrated": false,
       "google_account_or_site_approval_verified": false
-    }
+    },
+    "web_site_ownership_confirmed_from_screenshot": true
   },
   "yandex": {
     "application_id": "20254161",
     "android_banner_ad_unit_id": "R-M-20254161-1",
     "android_rewarded_ad_unit_id": null,
-    "app_ads_txt": []
+    "app_ads_txt": [],
+    "web_site": "joba.com.kz",
+    "web_site_id_from_screenshot": "20302217",
+    "web_block_id": "R-A-20302217-1",
+    "web_context_script_url": "https://yandex.ru/ads/system/context.js",
+    "web_snippet_received": true,
+    "web_snippet_reference": "advertising-snippets/yandex-web-R-A-20302217-1.html",
+    "web_site_status_from_screenshot": "rejected",
+    "web_rejection_specific_reason_received": false,
+    "web_ads_txt": [],
+    "web_integration_complete": false
   },
-  "web_ad_units_received": false
+  "web_ad_units_received": true,
+  "web_ad_units_received_by_network": {
+    "yandex": true,
+    "google": false
+  }
 }

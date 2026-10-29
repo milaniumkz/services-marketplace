@@ -1,0 +1,15 @@
+<!-- Integration reference only; not installed in the live application.
+     Initialize the queue and load context.js once, before rendering slots. -->
+<script>window.yaContextCb = window.yaContextCb || [];</script>
+<script src="https://yandex.ru/ads/system/context.js" async></script>
+
+<!-- Render after this container is mounted; use the SPA lifecycle in Flutter Web. -->
+<div id="yandex_rtb_R-A-20302217-1"></div>
+<script>
+window.yaContextCb.push(() => {
+    Ya.Context.AdvManager.render({
+        blockId: "R-A-20302217-1",
+        renderTo: "yandex_rtb_R-A-20302217-1"
+    });
+});
+</script>
