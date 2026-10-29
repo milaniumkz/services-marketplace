@@ -13,8 +13,8 @@
   "first_render_ms": 4898,
   "errors": [],
   "verified_at": "2026-10-28T12:58:50.887855+00:00",
-  "server_source_commit": "dd3e7b62ed7e7b96b13c023cc65bd9740c5dd0fb",
-  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40712832868",
+  "server_source_commit": "b7068012592586e91bd9464ff92d56eb32553309",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40822575247",
   "browser_verification_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40468211551",
   "browser_verification_attempt": 1,
   "visual_acceptance": "pending",
@@ -485,7 +485,7 @@
   },
   "browser_tests_passed": 14,
   "admin_navigation_sections_verified": 26,
-  "latest_change_verified_at": "2026-10-28T15:20:49Z",
+  "latest_change_verified_at": "2026-10-29T05:31:02Z",
   "staff_directory_with_role_names": true,
   "staff_required_navigation_reads_automatic": true,
   "existing_operator_navigation_corrected": true,
@@ -504,12 +504,19 @@
   ],
   "personal_discount_subscription_real_provider_integration": "pending",
   "latest_checks": {
-    "api_passed": 185,
+    "api_passed": 187,
     "flutter_passed": 270,
     "flutter_skipped": 2,
     "browser_flutter_passed": 14,
     "admin_page_viewport_combinations": 60,
     "admin_navigation_sections": 26
   },
-  "latest_apk_built": false
+  "latest_apk_built": false,
+  "staff_and_role_modal_forms": true,
+  "staff_edit_name_login_password_roles": true,
+  "staff_block_unblock_delete": true,
+  "role_edit_block_unblock_delete": true,
+  "staff_case_insensitive_mobile_login": true,
+  "staff_login_case_variants_share_attempt_limit": true,
+  "deleted_staff_and_roles_hidden": true
 }
