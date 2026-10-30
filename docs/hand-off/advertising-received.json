@@ -1,5 +1,5 @@
 {
-  "updated_on": "2026-10-29",
+  "updated_on": "2026-10-30",
   "status": "identifiers_received_sdk_integration_pending",
   "android_package": "kz.joba.services_marketplace",
   "developer_website": "https://joba.com.kz",
@@ -72,7 +72,13 @@
       "R-M-20254161-3"
     ],
     "additional_android_rewarded_status_owner_report": "not_in_active_list",
-    "android_application_status_from_latest_screenshot": "test_status_requires_store_link"
+    "android_application_status_from_latest_screenshot": "test_status_requires_store_link",
+    "web_rewarded_mobile_ad_unit_id": "R-A-20302217-2",
+    "web_rewarded_desktop_ad_unit_id": "R-A-20302217-3",
+    "web_rewarded_status_from_screenshot": "working",
+    "web_rewarded_platform_mapping_source": "owner_forwarded_messages_2026-10-30",
+    "web_rewarded_snippet_received": false,
+    "web_rewarded_integration_complete": false
   },
   "web_ad_units_received": true,
   "web_ad_units_received_by_network": {
