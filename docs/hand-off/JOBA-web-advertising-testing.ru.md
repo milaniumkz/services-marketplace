@@ -69,3 +69,7 @@ Google AdSense отдельно не включается: последнее с
 - `scripts/verify-yandex-web-ads.cjs`: изолированная собранная Flutter-страница на мобильной и десктопной ширине, контейнер баннера, прогресс до пяти и награда. Настоящие показы и клики не создаёт.
 
 Документация Яндекса: https://yandex.ru/support/partner/ru/web/units/types/rewarded и https://yandex.ru/support/partner/ru/web/units/tag-features .
+
+## Проверенный выпуск
+
+30.10.2026 опубликован исходный код `5a1eff21f94a548ff5ce83cf5bf0103f0075fb49`. Баннеры и Rewarded включены, начальный порог — 5 для каждой из трёх услуг, срок — 30 дней. Проверены HTTPS, версия приложения, поля админки и браузерное открытие. Протокол: [JOBA-web-advertising-verification-2026-10-30.json](JOBA-web-advertising-verification-2026-10-30.json). Реальные рекламные показы и клики проверками не создавались.

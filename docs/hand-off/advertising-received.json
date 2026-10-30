@@ -1,6 +1,6 @@
 {
   "updated_on": "2026-10-30",
-  "status": "yandex_web_subscription_rewards_implemented_awaiting_deployment",
+  "status": "yandex_web_banners_and_subscription_rewards_deployed_verified",
   "android_package": "kz.joba.services_marketplace",
   "developer_website": "https://joba.com.kz",
   "google": {
@@ -78,7 +78,7 @@
     "web_rewarded_status_from_screenshot": "working",
     "web_rewarded_platform_mapping_source": "owner_forwarded_messages_2026-10-30",
     "web_rewarded_snippet_received": false,
-    "web_rewarded_integration_complete": false,
+    "web_rewarded_integration_complete": true,
     "web_reward_policy": {
       "duration_days": 30,
       "customer_views": 5,
@@ -88,7 +88,13 @@
       "admin_editable": true,
       "verification_method": "client_sdk_callback_reported"
     },
-    "web_integration_testing": "isolated_sdk_no_real_impressions"
+    "web_integration_testing": "isolated_sdk_no_real_impressions",
+    "web_configuration_published": {
+      "enabled": true,
+      "rewarded_enabled": true,
+      "version": 1
+    },
+    "verification_reference": "JOBA-web-advertising-verification-2026-10-30.json"
   },
   "web_ad_units_received": true,
   "web_ad_units_received_by_network": {

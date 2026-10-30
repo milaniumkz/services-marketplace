@@ -1,0 +1,70 @@
+{
+  "verified_at": "2026-10-30T10:57:41.658288+00:00",
+  "source_commit": "5a1eff21f94a548ff5ce83cf5bf0103f0075fb49",
+  "deployment": {
+    "run_id": 41042685113,
+    "conclusion": "success"
+  },
+  "live_browser": {
+    "run_id": 41044386348,
+    "conclusion": "success"
+  },
+  "published_configuration": {
+    "checked_at": "2026-10-30T10:55:58.988340+00:00",
+    "banner_enabled": true,
+    "rewarded_enabled": true,
+    "reward_policy": {
+      "days": 30,
+      "customer_views": 5,
+      "standard_views": 5,
+      "top100_views": 5,
+      "separate_progress": true
+    },
+    "units": {
+      "banner_id": "R-A-20302217-1",
+      "mobile_rewarded_id": "R-A-20302217-2",
+      "desktop_rewarded_id": "R-A-20302217-3"
+    },
+    "version": 1,
+    "owner_config_and_authenticated_read_verified": true,
+    "consent_not_preaccepted": true,
+    "privacy_notice_public": true,
+    "real_ad_views_or_clicks_generated": false
+  },
+  "https_release": {
+    "checked_at": "2026-10-30T10:56:13.096136+00:00",
+    "source_commit": "5a1eff21f94a548ff5ce83cf5bf0103f0075fb49",
+    "https_verified": true,
+    "application_opens_at_root": true,
+    "bridge_and_main_have_release_cache_keys": true,
+    "public_banner_config_enabled": true,
+    "public_pages_have_inline_ad_slots": true,
+    "legal_pages_have_no_ad_slots": true,
+    "privacy_ad_notice_public": true,
+    "three_admin_threshold_fields_published": true,
+    "real_ad_views_or_clicks_generated": false
+  },
+  "isolated_tests": {
+    "api_passed": 195,
+    "flutter_passed": 276,
+    "flutter_skipped": 2,
+    "browser_flutter_passed": 18,
+    "admin_page_viewport_combinations": 65,
+    "sdk_bridge_and_worker_cases_passed": 5,
+    "reward_harness_viewports": [
+      393,
+      1440
+    ],
+    "public_banner_viewports": [
+      320,
+      1440
+    ],
+    "real_ad_views_or_clicks_generated": false,
+    "local_harness_note": "Behavioral assertions passed. Local Chromium reported certificate errors for external Roboto downloads; production TLS/browser checks ran separately in GitHub without disabling verification."
+  },
+  "reward_verification_method": "client_sdk_callback_reported",
+  "signed_server_receipt_available": false,
+  "apk_built": false,
+  "google_web_ads_enabled": false,
+  "guide": "JOBA-web-advertising-testing.ru.md"
+}
