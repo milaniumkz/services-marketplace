@@ -57,7 +57,7 @@ class _WebAdsPanelState extends State<WebAdsPanel> {
       void measure(){final box=host.getBoundingClientRect(),scroll=host.scrollHeight.toDouble();final height=scroll>box.height?scroll:box.height;if(mounted&&host.isConnected&&config?['consent']==true&&height.isFinite&&height>=50&&(height-bannerHeight).abs()>1)setState(()=>bannerHeight=height);}
       resize?.disconnect();resize=web.ResizeObserver(((JSArray<web.ResizeObserverEntry> entries,web.ResizeObserver observer)=>measure()).toJS);resize!.observe(host);
       final renderAttempt=attempt;
-      _banner(host.id.toJS,(c['banner_id'] as String).toJS).toDart.then<void>((shown){if(shown.toDart)measure();if(!shown.toDart&&mounted&&config?['consent']==true&&renderAttempt==attempt)setState(()=>error='Сейчас нет доступного объявления или загрузка не удалась. Можно попробовать позже.');}).catchError((Object e){if(mounted&&config?['consent']==true&&renderAttempt==attempt)setState(()=>error=_message(e));});
+      Future<JSBoolean>.sync(()=>_banner(host.id.toJS,(c['banner_id'] as String).toJS).toDart).then<void>((shown){if(shown.toDart)measure();if(!shown.toDart&&mounted&&config?['consent']==true&&renderAttempt==attempt)setState(()=>error='Сейчас нет доступного объявления или загрузка не удалась. Можно попробовать позже.');}).catchError((Object e){if(mounted&&config?['consent']==true&&renderAttempt==attempt)setState(()=>error=_message(e));});
      })),
     ],
     if(c['rewarded_enabled']==true)OutlinedButton(onPressed:busy?null:widget.onReward,child:Text('Посмотреть рекламу — без баннеров ${_duration(c['reward_seconds'] as int)}')),
