@@ -1,0 +1,12 @@
+{
+  "checked_at": "2026-10-30T12:14:43.692670+00:00",
+  "source_commit": "aa996d197fc68359af018b0b34b995a8f79f9cb2",
+  "https_verified": true,
+  "deleted_number_no_longer_conflicts": true,
+  "intentional_invalid_locale_rolled_back": true,
+  "real_account_created": false,
+  "old_account_restored": false,
+  "deployment_run_id": 41052240433,
+  "deployment_conclusion": "success",
+  "verification": "Targeted invalid-locale request proved number reuse reaches the next validation step; business transaction rolled back and no real account was created."
+}
