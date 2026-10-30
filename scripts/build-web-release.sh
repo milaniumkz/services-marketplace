@@ -26,7 +26,7 @@ root=Path('release/web')
 commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 # Both entry points change URL on each release, bypassing old browser caches.
 index=root/'mobile/index.html'
-index.write_text(index.read_text().replace('joba_release=20261015-worker-retirement','joba_release='+commit))
+index.write_text(index.read_text().replace('joba_release=20261015-worker-retirement','joba_release='+commit).replace('src="joba-web-ads.js"','src="joba-web-ads.js?joba_release='+commit+'"'))
 bootstrap=root/'mobile/flutter_bootstrap.js'
 source=bootstrap.read_text()
 assert '"mainJsPath":"main.dart.js"' in source, 'Flutter entrypoint configuration changed'

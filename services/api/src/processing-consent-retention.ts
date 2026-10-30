@@ -3,6 +3,8 @@ import {Store,RecordData} from './store';
 
 /** Effective optional processing ends at the irreversible account step, not when history expires. */
 export async function revokeOptionalProcessing(store:Store,owner:string,country:string,now:Date){
+ const web=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='web_ad_consent' AND owner=$1 AND country=$2 ORDER BY COALESCE((data->>'sequence')::int,0) DESC LIMIT 1",[owner,country])).rows[0]?.data;
+ if(web?.accepted===true)await store.put({...web,id:randomUUID(),version:1,sequence:web.sequence+1,accepted:false,created_at:now.toISOString(),updated_at:now.toISOString(),revoked_at:now.toISOString(),revocation_source:'account_deletion'});
  const rows=await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='processing_consent' AND owner=$1 AND country=$2 FOR UPDATE",[owner,country]);
  for(const {data:r} of rows.rows){
   if(r.revocation_source==='account_deletion'&&r.marketing===false&&r.ad_personalization===false&&r.optional_analytics===false)continue;
@@ -18,7 +20,7 @@ export async function minimizeOptionalConsentHistory(store:Store,job:RecordData,
  if(!policy||policy.country!==job.country||policy.status!=='effective'||!Number.isSafeInteger(days)||days<1)return {state:'awaiting_policy',processed:previous.processed??0,mandatory_consent_audit:'separate_review'};
  const owner=await store.get(job.owner);
  if(owner?.kind!=='user'||owner.status!=='deleted'||owner.country!==job.country)return {state:'awaiting_account_deletion',processed:previous.processed??0};
- const scope="r.kind IN('processing_consent','processing_consent_event') AND r.country=$1 AND r.owner=$2 AND r.data->>'retention_minimized_at' IS NULL";
+ const scope="r.kind IN('processing_consent','processing_consent_event','web_ad_consent') AND r.country=$1 AND r.owner=$2 AND r.data->>'retention_minimized_at' IS NULL";
  const rows=await store.db.query<{data:RecordData}>(`SELECT r.data FROM records r WHERE ${scope} AND ($3::uuid IS NULL OR r.id>$3) ORDER BY r.id LIMIT 50 FOR UPDATE`,[job.country,job.owner,previous.scan_cursor??null]);
  const cutoff=now.getTime()-days*86400000;let processed=0;
  for(const {data:r} of rows.rows){

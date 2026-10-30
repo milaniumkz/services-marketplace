@@ -1,3 +1,4 @@
+import {adminWebAds,userWebAds} from './web-ads';
 import {adminOperatorProfile} from './public-operator';
 import {publicSitePage} from './public-site';
 import {communicationLanguages,defaultCommunicationLanguages} from './communication-languages';
@@ -381,6 +382,8 @@ export class Marketplace {
       }
     }
     const settings=await this.settings(a.country==='ALL'?a.user.country:a.country);
+    if(path==='/admin/web-ads')return adminWebAds(this.store,a,method,b);
+    if(path.startsWith('/me/web-ads'))return userWebAds(this.store,a,method,path,b);
     if(path==='/admin/operator-profile')return adminOperatorProfile(this.store,a,method,b);
     if(path.startsWith('/admin/access/'))return staffAccess(this.store,a,method,path,b);
     if(a.user.staff_permissions?.length&&(path.startsWith('/orders')||path.startsWith('/me/contractor-profile')||path.startsWith('/me/portfolio-projects')||path==='/reviews'))fail(403,'FORBIDDEN','Для действий на бирже используйте отдельный пользовательский аккаунт');

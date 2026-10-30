@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import '../advertising/web_ads.dart';
 import 'nearby_contractors.dart';
 import '../core/field_validation.dart';
 import '../core/push_notifications.dart';
@@ -1218,6 +1220,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'reward-nofill':
       case 'reward-pending':
       case 'reward':
+        if (kIsWeb && route=='reward') return page('Без баннеров за просмотр',WebRewardScreen(api:api,onPrivacy:()=>go('legal')),titleOffset:-12);
         return page({'test-payment-success':'Тестовая оплата','checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Доступ за рекламу'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'export':
         return page('Экспорт моих данных',
@@ -2489,6 +2492,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   () => executor ? go('jobs') : act(nearbyCatalog),
                   action: executor ? 'Фильтры' : 'Все'),
               homeListings(),
+              WebAdsPanel(key:ValueKey('web-ads:${api.session?['user']?['id']}'),api:api,onReward:()=>go('reward'),onPrivacy:()=>go('legal')),
               if (executor)
                 JobaMenu([
                   JobaMenuEntry('Мои отклики', 'chat', () => go('my-offers')),

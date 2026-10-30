@@ -4,7 +4,7 @@ import {minimizeCaseText} from './case-text-retention';
 import {minimizeClosedSupport} from './support-retention';
 import {minimizeClosedWork} from './work-retention';
 import {Store,RecordData} from './store';
-const rules=[{category:'security',kinds:['security_event'],policy:'security_days'},{category:'notifications',kinds:['notification','outbox'],policy:'logs_days'}];
+const rules=[{category:'advertising',kinds:['web_ad_session','web_ad_grant'],policy:'logs_days'},{category:'security',kinds:['security_event'],policy:'security_days'},{category:'notifications',kinds:['notification','outbox'],policy:'logs_days'}];
 /** Bounded, restartable stages. Called inside the maintenance transaction. */
 export async function processDeletionCategories(store:Store,job:RecordData,policy:RecordData|undefined,now:Date){
  const owner=await store.get(job.owner);if(owner?.status!=='deleted'||owner.country!==job.country)return;

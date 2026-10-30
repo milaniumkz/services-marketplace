@@ -1,3 +1,4 @@
+import {webAdsConfig,webAdNotice} from './web-ads';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
 import {Commerce} from './commerce';
@@ -57,6 +58,7 @@ export async function publicSitePage(store:Store,commerce:Commerce,path:string,q
  if(legalTypes[key]){
   const docs=currentLegalDocuments(await store.all('legal_document',country),country,'ru');const doc=docs.find(d=>legalTypes[key].includes(d.type));
   content=`<h1>${esc(routeNames[key])}</h1><p class="muted">${esc(countries[country])} · Русский${doc?' · опубликованная версия '+doc.version:''}</p>${key==='contacts'?operatorHtml(operator):''}<nav class="document-links" aria-label="Документы">${Object.keys(legalTypes).map(k=>link(k)).join('')}</nav>`;
+  if(key==='privacy'&&(await webAdsConfig(store)).enabled)content+=section('Реклама Яндекса и отдельный выбор пользователя',`<p>${esc(webAdNotice)}</p><p>Разрешение рекламных показов необязательно и сохраняется отдельно от принятия документов JOBA. Отозвать его можно на главной странице приложения в блоке рекламы. Режим без баннеров не является оплатой подписки.</p>`);
   if(doc)content+=`<article class="legal-paper"><h2>${esc(routeNames[key])}</h2><div class="legal-content">${esc(doc.content)}</div></article>`;
   else content+=`<p class="notice">Опубликованный документ для выбранной страны пока отсутствует. Обратитесь в поддержку.</p>`;
   content+=`<p>${link('support','Обращение по документам и данным')}</p>`;
