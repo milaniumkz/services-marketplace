@@ -301,7 +301,20 @@ export class Marketplace {
       const phone=text(b,'phone',8,16);const number=parsePhoneNumberFromString(phone);
       if(!number?.isValid()||number.country!==country||number.number!==phone)fail(400,'VALIDATION_ERROR','Проверьте формат номера и выбранную страну');
       const secret=password(b,'password',(await this.settings(country)).password_min);
-      if((await db.query('SELECT 1 FROM credentials WHERE country=$1 AND phone=$2',[country,phone])).rows.length)fail(409,'REGISTRATION_UNAVAILABLE','Не удалось зарегистрироваться. Обратитесь в поддержку.');
+      // Serialize reuse of a deleted number, including concurrent registrations on different API replicas.
+      await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['registration-number:'+country+':'+phone]);
+      const previous=(await db.query<{user_id:string}>('SELECT user_id FROM credentials WHERE country=$1 AND phone=$2',[country,phone])).rows[0];
+      if(previous){
+        const old=(await db.query<{data:RecordData}>('SELECT data FROM records WHERE id=$1 FOR UPDATE',[previous.user_id])).rows[0]?.data;
+        const unavailable=()=>fail(409,'REGISTRATION_UNAVAILABLE','Не удалось зарегистрироваться. Обратитесь в поддержку.');
+        if(!old||old.kind!=='user'||old.country!==country||old.status!=='deleted'||old.staff_permissions?.length)unavailable();
+        const restricted=(await db.query("SELECT 1 FROM records WHERE kind IN('blacklist','auto_hold') AND country=$1 AND data->>'user_id'=$2 AND data->>'status'='active' AND COALESCE(data->>'ends_at',data->>'expires_at','9999-12-31')>$3 LIMIT 1",[country,previous.user_id,new Date().toISOString()])).rows.length;
+        if(restricted)unavailable();
+        await db.query('DELETE FROM credentials WHERE country=$1 AND phone=$2 AND user_id=$3',[country,phone,previous.user_id]);
+        await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[previous.user_id]);
+        await this.store.put({...old!,phone:null,phone_released_at:new Date().toISOString(),version:old!.version+1});
+        await this.store.put(this.record('audit',{id:previous.user_id,country},{actor_id:'system',action:'user.deleted_number_released',target_id:previous.user_id,reason:'Повторная регистрация удалённого номера без переноса прежних данных'}));
+      }
       const locale=b.locale??countries[country].locales[0];if(!['ru','kk','sr','be'].includes(locale))fail(400,'VALIDATION_ERROR','Язык не поддерживается');
       const u=this.record('user',{id:'',country},{phone,phone_status:'unverified',display_name:b.display_name===undefined?'':text(b,'display_name',2,60),locale,city:'',roles:['customer'],verification:'not_started',status:'active'});u.owner=u.id;
       await this.store.put(u);await db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',[country,phone,u.id,await hash(secret,{memoryCost:19456,timeCost:2,parallelism:1})]);
