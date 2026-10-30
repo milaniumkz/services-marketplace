@@ -1,3 +1,4 @@
+import '../advertising/web_ads.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -484,7 +485,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                                     height: 1.45,
                                     fontWeight: FontWeight.w700))),
                         JobaBadge(
-                            canceled
+                            r['status']=='scheduled'?'Запланирована':canceled
                                 ? 'Продление отключено'
                                 : hasAccess
                                     ? 'Активна'
@@ -507,14 +508,15 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                                           .languageCode)
                                   .format(DateTime.parse(r['valid_until'])
                                       .toLocal())),
-                      checkoutFact('Цена',
-                          '${money(r['price'])} · ${periodLabel(r['price']?['period'])}',
+                      checkoutFact(r['is_ad_supported']==true?'Оплата':'Цена',
+                          r['is_ad_supported']==true?'${r['price']?['required_views']} завершённых просмотров · 30 дней':'${money(r['price'])} · ${periodLabel(r['price']?['period'])}',
                           last: true),
                     ])),
                 if (r['is_test'] == true)
                   const Notice(
                       'Тестовая подписка. Деньги не списываются, автоматического продления нет.'),
-                if (r['is_test'] != true) ...[
+                if(r['is_ad_supported']==true)...[const Notice('Подписка получена за рекламу. Деньги не списываются, автоматического продления нет.'),WebRewardEntry(api:widget.api,target:r['plan'],onSelect:(target)=>widget.onGo('reward',target))],
+                if (r['is_test'] != true && r['is_ad_supported']!=true) ...[
                   const SizedBox(height: 20),
                   const UiText(
                       'Отключение автопродления не закрывает уже оплаченный срок. Для изменения условий откройте управление подпиской и дождитесь подтверждения провайдера.',
@@ -559,6 +561,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
           return Column(children: [
             Expanded(
                 child: ListView(padding: const EdgeInsets.all(20), children: [
+              WebRewardEntry(api:widget.api,target:offer?['plan']=='top100'?'top100':null,onSelect:(target)=>widget.onGo('reward',target)),
               const UiText('Подписка JOBA',
                   style: TextStyle(
                       fontSize: 26,

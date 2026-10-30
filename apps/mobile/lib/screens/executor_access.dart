@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import '../advertising/web_ads.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -11,13 +13,14 @@ import '../core/widgets.dart';
 
 /// S05 and S32 share data, but represent choosing access and managing it.
 class ExecutorAccess extends StatefulWidget {
+  final JobaApi? api;
   final bool choosing, customer;
   final List<Json> grants, subscriptions;
   final Json config;
   final DateTime Function() now;
   final void Function(String route, String? id) onGo;
   const ExecutorAccess(
-      {this.customer = false, required this.choosing,
+      {this.api,this.customer = false, required this.choosing,
       required this.grants,
       required this.subscriptions,
       required this.config,
@@ -163,6 +166,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         'subscription' || 'subscription_promotion' => 'Подписка',
         'referral_privilege' => 'Бонус за приглашение',
         'verified_ad_reward' => 'Рекламная награда',
+        'web_ad_reward' => 'Подписка за рекламу',
         _ => 'Доступ JOBA'
       };
   List<Widget> extraPurchases(BuildContext context,List<Json> offers){
@@ -213,6 +217,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
     final price = subscription?['price'] as Json?;
     if (choosing)
       return ListView(padding: const EdgeInsets.all(20), children: [
+        if(widget.api!=null)WebRewardEntry(api:widget.api!,onSelect:(target)=>onGo('reward',target)),
         if(offers.any((r)=>r['is_test']==true)) const Notice('Тестовый режим оплаты — без списания денег.',icon:'info'),
         const UiText('Ваши возможности',
             style: TextStyle(
@@ -224,7 +229,8 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         text(widget.customer ? 'Анкеты исполнителей и размещение заказов на 30 дней.' : 'Поиск заказов, публикация услуг и отклики.', color: muted),
         const SizedBox(height: 20),
         if(config['verification_status']!=null&&config['verification_status']!='passed') ...[text('Перед использованием подписки подтвердите личность.'),const SizedBox(height:8),action('Подтвердить личность','verification'),const SizedBox(height:16)],
-        ...extraPurchases(context,offers),
+      if(subscription?['is_ad_supported']==true)const Notice('Подписка получена за рекламу. Деньги не списывались.'),
+      ...extraPurchases(context,offers),
         for (final plan in (widget.customer ? const ['customer'] : const ['standard', 'premium']))
           Builder(builder: (context) {
             final matching =
@@ -289,7 +295,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                 ], selected: plan == 'premium'));
           }),
         const SizedBox(height: 12),
-        Material(
+        if(!kIsWeb||widget.api==null)Material(
           color: Colors.white,
           shape: RoundedRectangleBorder(
               side: const BorderSide(color: line),
@@ -361,6 +367,8 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
     final bases=subscriptions.where((r)=>r['is_addon']!=true&&r['is_upgrade']!=true&&r['plan']!='top100').toList();
     final known=subscription ?? (bases.isEmpty?null:bases.first);
     return ListView(padding: const EdgeInsets.all(20), children: [
+      if(widget.api!=null)WebRewardEntry(api:widget.api!,onSelect:(target)=>onGo('reward',target)),
+      if(subscription?['is_ad_supported']==true)const Notice('Подписка получена за рекламу. Деньги не списывались.'),
       ...extraPurchases(context,offers),
       for(final queued in bases.where((r)=>r['status']=='scheduled')) DataCard('Запланировано продление',subtitle:'${queued['plan']=='premium'?'Премиум':queued['plan']=='customer'?'Заказчик':'Стандарт'} · с ${date(context,{'valid_until':queued['valid_from']})} до ${date(context,queued)}'),
       if(subscription?['is_test']==true) const Notice('Тестовая подписка активна. Деньги не списывались.',icon:'info'),
@@ -409,7 +417,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         text(
             subscription == null
                 ? 'Выберите подписку для своей роли.'
-                : 'Условия подтверждены платёжным провайдером.',
+                : subscription['is_ad_supported']==true?'Оплата завершёнными просмотрами рекламы.':'Условия подтверждены платёжным провайдером.',
             size: 10,
             color: const Color(0xFFAEBFD9)),
       ], dark: true),

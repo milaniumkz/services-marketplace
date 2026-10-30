@@ -30,26 +30,26 @@ void main(){
   final sdk=JSObject();sdk.setProperty('platform'.toJS,(()=>Future.value('touch'.toJS).toJS).toJS);
   sdk.setProperty('rewarded'.toJS,((JSString block,JSString platform){expect(block.toDart,'R-A-20302217-2');expect(platform.toDart,'touch');return completion.future.toJS;}).toJS);bridge=sdk;
   final api=JobaApi('https://isolated.example',transport:MockClient((r)async{
-   if(r.method=='GET')return ok({'enabled':true,'rewarded_enabled':true,'reward_seconds':3600,'consent':true});
-   if(r.url.path.endsWith('/outcome')){outcomes.add(Map<String,dynamic>.from(jsonDecode(r.body)));return ok({'status':completed?'granted':'not_completed'});}
+   if(r.method=='GET')return ok({'enabled':true,'rewarded_enabled':true,'consent':true,'verification_status':'passed','offers':[{'target':'customer','title':'Подписка заказчика','required_views':5,'completed_views':0,'duration_days':30,'eligible':true}]});
+   if(r.url.path.endsWith('/outcome')){outcomes.add(Map<String,dynamic>.from(jsonDecode(r.body)));return ok({'status':completed?'progress':'not_completed','completed_views':1,'required_views':5});}
    return ok({'id':'session','nonce':'session-nonce','block_id':'R-A-20302217-2','reward_seconds':3600});
   }))..session={'access_token':'isolated','user':{'id':'user'}};
   await t.pumpWidget(MaterialApp(home:Scaffold(body:WebRewardScreen(api:api))));await t.pumpAndSettle();
-  await t.ensureVisible(find.text('Согласен, посмотреть рекламу'));await t.tap(find.text('Согласен, посмотреть рекламу'));await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:80)));await t.pumpAndSettle();expect(outcomes,isEmpty);
+  await t.ensureVisible(find.text('Согласен, посмотреть ролик'));await t.tap(find.text('Согласен, посмотреть ролик'));await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:80)));await t.pumpAndSettle();expect(outcomes,isEmpty);
   completion.complete(completed.toJS);await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:80)));await t.pumpAndSettle();expect(outcomes.single,{'nonce':'session-nonce','completed':completed});
-  expect(find.textContaining(completed?'Баннеры отключены':'Награда не начислена'),findsOneWidget);
+  expect(find.textContaining(completed?'Засчитано просмотров: 1 из 5':'Прогресс не изменился'),findsOneWidget);
   await t.pumpWidget(const SizedBox());api.dispose();
  });
  testWidgets('unknown confirmation outcome retries the same receipt without another ad view',(t)async{
   var played=0,reported=0;final keys=<String?>[];final completion=Completer<JSBoolean>();
   final sdk=JSObject();sdk.setProperty('platform'.toJS,(()=>Future.value('desktop'.toJS).toJS).toJS);sdk.setProperty('rewarded'.toJS,((JSString block,JSString platform){played++;return completion.future.toJS;}).toJS);bridge=sdk;
   final api=JobaApi('https://isolated.example',transport:MockClient((r)async{
-   if(r.method=='GET')return ok({'enabled':true,'rewarded_enabled':true,'reward_seconds':3600,'consent':true});
+   if(r.method=='GET')return ok({'enabled':true,'rewarded_enabled':true,'consent':true,'verification_status':'passed','offers':[{'target':'customer','title':'Подписка заказчика','required_views':5,'completed_views':0,'duration_days':30,'eligible':true}]});
    if(r.url.path.endsWith('/outcome')){keys.add(r.headers['Idempotency-Key']);reported++;if(reported==1)throw http.ClientException('isolated offline');return ok({'status':'granted'});}
    return ok({'id':'pending-session','nonce':'pending-nonce','block_id':'R-A-20302217-3','reward_seconds':3600});
   }))..session={'access_token':'isolated','user':{'id':'user'}};
-  await t.pumpWidget(MaterialApp(home:Scaffold(body:WebRewardScreen(api:api))));await t.pumpAndSettle();await t.ensureVisible(find.text('Согласен, посмотреть рекламу'));await t.tap(find.text('Согласен, посмотреть рекламу'));await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:100)));await t.pumpAndSettle();
-  expect(played,1);completion.complete(true.toJS);await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:100)));await t.pumpAndSettle();await t.ensureVisible(find.text('Повторить подтверждение просмотра'));await t.tap(find.text('Повторить подтверждение просмотра'));await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:100)));await t.pumpAndSettle();expect(played,1);expect(reported,2);expect(keys.first,isNotNull);expect(keys[0],keys[1]);expect(find.textContaining('Баннеры отключены'),findsOneWidget);await t.pumpWidget(const SizedBox());api.dispose();
+  await t.pumpWidget(MaterialApp(home:Scaffold(body:WebRewardScreen(api:api))));await t.pumpAndSettle();await t.ensureVisible(find.text('Согласен, посмотреть ролик'));await t.tap(find.text('Согласен, посмотреть ролик'));await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:100)));await t.pumpAndSettle();
+  expect(played,1);completion.complete(true.toJS);await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:100)));await t.pumpAndSettle();await t.ensureVisible(find.text('Повторить подтверждение просмотра'));await t.tap(find.text('Повторить подтверждение просмотра'));await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:100)));await t.pumpAndSettle();expect(played,1);expect(reported,2);expect(keys.first,isNotNull);expect(keys[0],keys[1]);expect(find.textContaining('Подписка активирована на 30 дней'),findsOneWidget);await t.pumpWidget(const SizedBox());api.dispose();
  });
 
 }

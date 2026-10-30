@@ -671,7 +671,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       actions: actions)
                   : null,
               body: chrome
-                  ? body
+                  ? adSupportedBody(body)
                   : Container(
                       color: Colors.white,
                       child: SafeArea(
@@ -687,6 +687,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       enabled: !actionBusy && !orderFormSubmitting && !authNavigationBlocked,
                       onSelect: selectMainTab))
                   : null));
+  Widget adSupportedBody(Widget body){
+    const placements={'jobs','catalog','account','orders','messages','notifications','reviews','invitations','top'};
+    if(!kIsWeb||_api?.authenticated!=true||locked||onboardingNavigationBlocked||!placements.contains(route))return body;
+    return NestedScrollView(headerSliverBuilder:(context,scrolled)=>[SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.symmetric(horizontal:20),child:WebAdsPanel(key:ValueKey('ad:$route:${api.session?['user']?['id']}'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'))))],body:body);
+  }
   Widget listBody(List<Widget> content) =>
       ListView(padding: const EdgeInsets.all(20), children: content);
   Widget loaded(String path, Widget Function(dynamic, VoidCallback) render,
@@ -1220,7 +1225,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'reward-nofill':
       case 'reward-pending':
       case 'reward':
-        if (kIsWeb && route=='reward') return page('Без баннеров за просмотр',WebRewardScreen(api:api,onPrivacy:()=>go('legal')),titleOffset:-12);
+        if (kIsWeb && route=='reward') return page('Подписка за рекламу',WebRewardScreen(api:api,target:objectId,onNavigate:(r)=>go(r),onPrivacy:()=>go('legal')),titleOffset:-12);
         return page({'test-payment-success':'Тестовая оплата','checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Доступ за рекламу'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'export':
         return page('Экспорт моих данных',
@@ -4681,7 +4686,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api.request('/me/subscriptions')
               ]),
           builder: (c, data, reload) => ExecutorAccess(
-              customer: !executor, choosing: route == 'access', grants: items(data[0]),
+              api:api,customer: !executor, choosing: route == 'access', grants: items(data[0]),
               config: Json.from(data[1]), subscriptions: items(data[2]),
               now: () => api.clock.now,
               onGo: (r, id) => go(r, id))), titleOffset: -12);

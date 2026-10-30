@@ -39,12 +39,22 @@
       observer.observe(document.documentElement, {childList:true,subtree:true});
     });
   }
+  function visibleHost(host) {
+    if (typeof IntersectionObserver === 'undefined') return Promise.resolve(host.isConnected);
+    return new Promise(resolve => {
+      let done = false;
+      const finish = visible => { if(done)return;done=true;visibility.disconnect();removal.disconnect();resolve(visible); };
+      const visibility = new IntersectionObserver(entries => {if(entries.some(e=>e.isIntersecting&&e.intersectionRatio>=0.5))finish(true);}, {threshold:0.5});
+      const removal = new MutationObserver(()=>{if(!host.isConnected)finish(false);});
+      removal.observe(document.documentElement,{childList:true,subtree:true});visibility.observe(host);
+    });
+  }
   window.JobaWebAds = Object.freeze({
     async platform() { const manager = await sdk(); return manager.getPlatform() === 'desktop' ? 'desktop' : 'touch'; },
     async banner(elementId, blockId) {
       if (!validId(blockId)) throw new Error('Некорректный рекламный блок.');
       const manager = await sdk(), host = await connectedHost(elementId);
-      if (!host?.isConnected) return false;
+      if (!host?.isConnected || !await visibleHost(host)) return false;
       return await new Promise((resolve, reject) => {
         let settled = false;
         const finish = (shown, error) => {

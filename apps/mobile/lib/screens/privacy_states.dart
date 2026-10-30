@@ -1,3 +1,4 @@
+import '../core/web_ad_consent.dart';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/design_states.dart';
@@ -87,7 +88,7 @@ class _PrivacyStatesState extends State<PrivacyStates> {
                       : () async {
                           setState(() => busy = true);
                           try {
-                            await widget.api.request('/me/processing-consents',
+                            final savedConsent=await widget.api.request('/me/processing-consents',
                                 method: 'POST',
                                 body: {
                                   for (final k in [
@@ -98,6 +99,7 @@ class _PrivacyStatesState extends State<PrivacyStates> {
                                     k: consent![k] == true,
                                   'expected_version': r['version']
                                 });
+                            if(savedConsent['ad_personalization']==false)rememberWebAdConsent(false);
                             if (mounted) widget.onGo('privacy', null);
                           } catch (e) {
                             if (mounted) setState(() => error = e);

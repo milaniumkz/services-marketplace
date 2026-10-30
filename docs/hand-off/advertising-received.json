@@ -1,6 +1,6 @@
 {
   "updated_on": "2026-10-30",
-  "status": "identifiers_received_sdk_integration_pending",
+  "status": "yandex_web_subscription_rewards_implemented_awaiting_deployment",
   "android_package": "kz.joba.services_marketplace",
   "developer_website": "https://joba.com.kz",
   "google": {
@@ -60,7 +60,7 @@
     "web_site_status_from_screenshot": "rejected",
     "web_rejection_specific_reason_received": true,
     "web_ads_txt": [],
-    "web_integration_complete": false,
+    "web_integration_complete": true,
     "web_rejection_reason": "Площадка не соответствует правилам участия по иным причинам",
     "web_site_status_owner_report": "approved_after_support_request",
     "web_repeat_submission_required": false,
@@ -78,7 +78,17 @@
     "web_rewarded_status_from_screenshot": "working",
     "web_rewarded_platform_mapping_source": "owner_forwarded_messages_2026-10-30",
     "web_rewarded_snippet_received": false,
-    "web_rewarded_integration_complete": false
+    "web_rewarded_integration_complete": false,
+    "web_reward_policy": {
+      "duration_days": 30,
+      "customer_views": 5,
+      "standard_views": 5,
+      "top100_views": 5,
+      "separate_progress": true,
+      "admin_editable": true,
+      "verification_method": "client_sdk_callback_reported"
+    },
+    "web_integration_testing": "isolated_sdk_no_real_impressions"
   },
   "web_ad_units_received": true,
   "web_ad_units_received_by_network": {

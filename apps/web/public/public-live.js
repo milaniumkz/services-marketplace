@@ -31,3 +31,26 @@ if(form){
   }catch(error){showMessage(error.message||'Нет соединения с сервером. Повторите отправку.',true);}finally{button.disabled=false;}
  };
 }
+
+// Public pages use browser-level consent. Rewarded purchases require an authenticated app account.
+const publicAdSlot=document.getElementById('public-web-ad-slot');
+if(publicAdSlot){
+ (async()=>{
+  let config;try{const r=await fetch('/api/v1/public/web-ads',{credentials:'omit'});if(!r.ok)return;config=(await r.json()).data;}catch{return;}
+  if(!config?.enabled)return;
+  const key='joba.web.ads.consent.v1';let dismissed=false,generation=0,bridge;
+  function accepted(){try{return JSON.parse(localStorage.getItem(key)||'null')?.accepted===true;}catch{return false;}}
+  function setConsent(value){try{localStorage.setItem(key,JSON.stringify({accepted:value,notice_version:1}));}catch{}render(value);}
+  function button(label,action){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=action;return b;}
+  function loadBridge(){if(window.JobaWebAds)return Promise.resolve(window.JobaWebAds);if(bridge)return bridge;bridge=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='/joba-web-ads.js';script.onload=()=>window.JobaWebAds?resolve(window.JobaWebAds):reject(Error('bridge'));script.onerror=()=>{script.remove();bridge=undefined;reject(Error('bridge'));};document.head.append(script);});return bridge;}
+  async function render(consent=accepted()){
+   const revision=++generation;publicAdSlot.replaceChildren();if(dismissed)return;
+   const label=document.createElement('div');label.className='ad-label';label.textContent='Реклама Яндекса';label.append(button('Скрыть',()=>{dismissed=true;generation++;publicAdSlot.replaceChildren();}));publicAdSlot.append(label);
+   if(!consent){const p=document.createElement('p');p.textContent=config.notice;publicAdSlot.append(p,button('Разрешить рекламные показы',()=>setConsent(true)),button('Не сейчас',()=>{setConsent(false);dismissed=true;publicAdSlot.replaceChildren();}));return;}
+   const host=document.createElement('div');host.className='ad-host';host.id='joba-public-banner-'+Math.random().toString(36).slice(2);publicAdSlot.append(host,button('Отключить рекламу в этом браузере',()=>setConsent(false)));
+   try{const sdk=await loadBridge();if(revision!==generation)return;const shown=await sdk.banner(host.id,config.banner_id);if(revision!==generation)return;if(!shown)throw Error('no_fill');}
+   catch{if(revision!==generation)return;host.replaceChildren();const p=document.createElement('p');p.textContent='Сейчас нет объявления или реклама недоступна в браузере.';host.append(p,button('Повторить загрузку рекламы',()=>render()));}
+  }
+  window.addEventListener('storage',e=>{if(e.key===key){dismissed=false;render();}});render();
+ })();
+}
