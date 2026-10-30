@@ -12,7 +12,15 @@ test('web ad config stays owner-controlled; consent, nonce, expiry, owner bindin
  await assert.rejects(()=>call(a.access_token,'PUT','/admin/web-ads',p),e=>e.getStatus()===403);
  const cfg=await call(a.access_token,'GET','/me/web-ads');assert.equal(cfg.mobile_rewarded_id,p.mobile_rewarded_id);assert.equal(cfg.consent,false);
  await assert.rejects(()=>call(a.access_token,'POST','/me/web-ads/reward-sessions',{platform:'touch'}),e=>e.getStatus()===403);
- await call(a.access_token,'POST','/me/web-ads/consent',{accepted:true});await call(b.access_token,'POST','/me/web-ads/consent',{accepted:true});
+ await assert.rejects(()=>call(a.access_token,'POST','/me/web-ads/consent',{accepted:true}),e=>e.getStatus()===403);assert.equal((await api.store.all('web_ad_consent','BY')).length,0);
+ const content='Политика конфиденциальности изолированной тестовой среды: отдельное необязательное согласие на рекламную обработку.';
+ await api.store.put({id:randomUUID(),kind:'legal_document',owner:'isolated-legal',country:'BY',version:1,created_at:new Date().toISOString(),published_at:new Date().toISOString(),status:'published',type:'privacy',locale:'ru',content,hash:require('node:crypto').createHash('sha256').update(content).digest('hex')});
+ await call(a.access_token,'POST','/me/web-ads/consent',{accepted:true});
+ const processing=await call(a.access_token,'GET','/me/processing-consents');assert.equal(processing.ad_personalization,true);assert.equal(processing.marketing,false);
+ await call(a.access_token,'POST','/me/processing-consents',{expected_version:processing.version,marketing:true,ad_personalization:false,optional_analytics:false});assert.equal((await call(a.access_token,'GET','/me/web-ads')).consent,false);
+ const off=await call(a.access_token,'GET','/me/processing-consents');await call(a.access_token,'POST','/me/processing-consents',{expected_version:off.version,marketing:true,ad_personalization:true,optional_analytics:false});assert.equal((await call(a.access_token,'GET','/me/web-ads')).consent,false);
+ await call(a.access_token,'POST','/me/web-ads/consent',{accepted:true});assert.equal((await call(a.access_token,'GET','/me/processing-consents')).marketing,true);
+ await call(b.access_token,'POST','/me/web-ads/consent',{accepted:true});
  const s=await call(a.access_token,'POST','/me/web-ads/reward-sessions',{platform:'touch'});assert.equal(s.block_id,p.mobile_rewarded_id);
  const outcome='/me/web-ads/reward-sessions/'+s.id+'/outcome';
  await assert.rejects(()=>call(b.access_token,'POST',outcome,{nonce:s.nonce,completed:true}),e=>e.getStatus()===403);

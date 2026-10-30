@@ -1,4 +1,4 @@
-import {adminWebAds,userWebAds} from './web-ads';
+import {adminWebAds,userWebAds,recordWebAdConsent} from './web-ads';
 import {adminOperatorProfile} from './public-operator';
 import {publicSitePage} from './public-site';
 import {communicationLanguages,defaultCommunicationLanguages} from './communication-languages';
@@ -956,12 +956,13 @@ export class Marketplace {
     }
     if(path==='/me/processing-consents'&&method==='GET')return (await this.store.select('processing_consent',a.country,{owner:a.id,limit:1}))[0]??{version:0,marketing:false,ad_personalization:false,optional_analytics:false};
     if(path==='/me/processing-consents'&&method==='POST'){
+      await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['web_ads_user:'+a.id]);
       const keys=['marketing','ad_personalization','optional_analytics'];if(keys.some(k=>typeof b[k]!=='boolean'))fail(400,'VALIDATION_ERROR','Проверьте выбор согласий');
       const old=(await this.store.select('processing_consent',a.country,{owner:a.id,limit:1}))[0];if(b.expected_version!==(old?.version??0))fail(409,'STATE_CONFLICT','Согласия изменились. Обновите данные');
       const doc=currentLegalDocuments(await this.store.all('legal_document',a.country),a.country,a.user.locale??'ru').find(d=>['privacy','privacy_policy'].includes(d.type));
       if(keys.some(k=>b[k])&&!doc)fail(403,'CONSENT_REQUIRED','Для согласия нужна опубликованная политика конфиденциальности');
       const values=Object.fromEntries(keys.map(k=>[k,b[k]])),r={...(old??this.record('processing_consent',a)),...values,document_id:doc?.id??null,document_hash:doc?.hash??null,updated_at:new Date().toISOString(),version:(old?.version??0)+1};
-      await this.store.put(this.record('processing_consent_event',a,{...values,document_id:r.document_id,document_hash:r.document_hash}));return this.store.put(r);
+      await this.store.put(this.record('processing_consent_event',a,{...values,document_id:r.document_id,document_hash:r.document_hash}));await this.store.put(r);if(!b.ad_personalization)await recordWebAdConsent(this.store,a,false,new Date(),'privacy_settings');return r;
     }
     if(path==='/me/privacy-requests'&&method==='POST'){await this.reauth(a,b);if(!['export','delete'].includes(b.type))fail(400,'VALIDATION_ERROR','Выберите тип запроса');if(b.type==='delete'){const previous=(await this.store.select('privacy',a.country,{owner:a.id,statuses:['requested','scheduled','awaiting_retention_policy','awaiting_resolution'],limit:100})).find(r=>r.type==='delete');if(previous)return previous;}return this.store.put(this.record('privacy',a,{type:b.type,status:'requested'}));}
     if(path==='/me/privacy-requests'&&method==='GET')return {items:(await this.store.all('privacy',a.country)).filter(x=>x.owner===a.id)};

@@ -3,6 +3,7 @@ import {Store,RecordData} from './store';
 
 /** Effective optional processing ends at the irreversible account step, not when history expires. */
 export async function revokeOptionalProcessing(store:Store,owner:string,country:string,now:Date){
+ await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['web_ads_user:'+owner]);
  const web=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='web_ad_consent' AND owner=$1 AND country=$2 ORDER BY COALESCE((data->>'sequence')::int,0) DESC LIMIT 1",[owner,country])).rows[0]?.data;
  if(web?.accepted===true)await store.put({...web,id:randomUUID(),version:1,sequence:web.sequence+1,accepted:false,created_at:now.toISOString(),updated_at:now.toISOString(),revoked_at:now.toISOString(),revocation_source:'account_deletion'});
  const rows=await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='processing_consent' AND owner=$1 AND country=$2 FOR UPDATE",[owner,country]);

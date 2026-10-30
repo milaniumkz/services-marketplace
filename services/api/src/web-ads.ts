@@ -2,6 +2,7 @@ import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
 import {isStaffOwner} from './staff-access';
+import {currentLegalDocuments} from './legal-documents';
 const fail=(message:string,status=422):never=>{throw new HttpException({error:{code:status===403?'FORBIDDEN':status===409?'STATE_CONFLICT':status===429?'REWARD_LIMIT':'VALIDATION_ERROR',message,retryable:false}},status);};
 export const webAdNotice='Реклама Яндекса загружается с внешних серверов. Для показа, подбора (в том числе персонализации) и измерения рекламы Яндекс может обрабатывать IP-адрес, сведения об устройстве и браузере, рекламные идентификаторы и cookies; возможна трансграничная передача. Удостоверение личности, селфи, телефон, переписку и платёжные данные JOBA не передаёт рекламной сети в параметрах интеграции. Согласие добровольное и отзывается на главной странице. Политика Яндекса: https://yandex.ru/legal/confidential/';
 const defaults={version:0,enabled:false,rewarded_enabled:false,banner_id:'',mobile_rewarded_id:'',desktop_rewarded_id:'',reward_kind:'ad_free',reward_seconds:3600,daily_cap:5,cooldown_seconds:300};
@@ -20,8 +21,25 @@ export async function adminWebAds(store:Store,a:{id:string;user:RecordData;mfa:b
  const now=new Date().toISOString(),r={id:old.id??randomUUID(),kind:'web_ad_config',country:'KZ',owner:a.id,created_at:old.created_at??now,version:old.version+1,enabled:b.enabled,rewarded_enabled:b.rewarded_enabled,banner_id:b.banner_id,mobile_rewarded_id:b.mobile_rewarded_id,desktop_rewarded_id:b.desktop_rewarded_id,reward_kind:'ad_free',reward_seconds:b.reward_seconds,daily_cap:b.daily_cap,cooldown_seconds:b.cooldown_seconds,updated_at:now};
  await store.put(r);await store.put({id:randomUUID(),kind:'audit',country:'KZ',owner:a.id,created_at:now,version:1,actor_id:a.id,action:'web_ads.updated',target_id:r.id});return r;
 }
+export async function recordWebAdConsent(store:Store,a:{id:string;country:string},accepted:boolean,now:Date,source='web_ads'){
+ await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['web_ads_user:'+a.id]);
+ const account=await store.get(a.id);if(accepted&&account?.status!=='active')fail('Аккаунт недоступен.',403);
+ const old=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='web_ad_consent' AND country=$1 AND owner=$2 ORDER BY COALESCE((data->>'sequence')::int,0) DESC LIMIT 1",[a.country,a.id])).rows[0]?.data;
+ if(source==='privacy_settings'&&old?.accepted!==true)return;
+ const saved={id:randomUUID(),kind:'web_ad_consent',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,sequence:(old?.sequence??0)+1,accepted,updated_at:now.toISOString(),notice_version:1,notice_text:webAdNotice,source};await store.put(saved);
+ if(source==='web_ads'){
+  const previous=(await store.select('processing_consent',a.country,{owner:a.id,limit:1}))[0],doc=currentLegalDocuments(await store.all('legal_document',a.country),a.country,account?.locale??'ru').find(d=>['privacy','privacy_policy'].includes(d.type));
+  if(accepted&&!doc)fail('Для показа рекламы нужна опубликованная политика конфиденциальности.',403);
+  const values={marketing:previous?.marketing===true,optional_analytics:previous?.optional_analytics===true,ad_personalization:accepted};
+  const processing={...previous,id:previous?.id??randomUUID(),kind:'processing_consent',country:a.country,owner:a.id,created_at:previous?.created_at??now.toISOString(),version:(previous?.version??0)+1,...values,document_id:doc?.id??previous?.document_id??null,document_hash:doc?.hash??previous?.document_hash??null,updated_at:now.toISOString()};
+  await store.put(processing);await store.put({id:randomUUID(),kind:'processing_consent_event',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,...values,document_id:processing.document_id,document_hash:processing.document_hash,source:'web_ads',web_ad_consent_id:saved.id});
+ }
+ await store.put({id:randomUUID(),kind:'audit',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,actor_id:a.id,action:accepted?'web_ads.consent_accepted':'web_ads.consent_revoked',target_id:saved.id,source});
+ return saved;
+}
 export async function userWebAds(store:Store,a:{id:string;country:string},method:string,path:string,b:any){
  if(method!=='GET')await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['web_ads_user:'+a.id]);
+ if(method!=='GET'&&!(path==='/me/web-ads/consent'&&b.accepted===false)&&(await store.get(a.id))?.status!=='active')fail('Аккаунт недоступен.',403);
  const config=await webAdsConfig(store),now=new Date(),consent=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='web_ad_consent' AND country=$1 AND owner=$2 ORDER BY COALESCE((data->>'sequence')::int,0) DESC LIMIT 1",[a.country,a.id])).rows[0]?.data;
  if(path==='/me/web-ads'&&method==='GET'){
   const grants=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='web_ad_grant' AND country=$1 AND owner=$2 AND data->>'valid_until'>$3 ORDER BY data->>'valid_until' DESC LIMIT 1",[a.country,a.id,now.toISOString()])).rows.map(x=>x.data);
@@ -29,8 +47,7 @@ export async function userWebAds(store:Store,a:{id:string;country:string},method
  }
  if(path==='/me/web-ads/consent'&&method==='POST'){
   if(typeof b.accepted!=='boolean')fail('Укажите согласие на рекламные показы.');
-  const saved={id:randomUUID(),kind:'web_ad_consent',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,sequence:(consent?.sequence??0)+1,accepted:b.accepted,updated_at:now.toISOString(),notice_version:1,notice_text:webAdNotice};await store.put(saved);
-  await store.put({id:randomUUID(),kind:'audit',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,actor_id:a.id,action:b.accepted?'web_ads.consent_accepted':'web_ads.consent_revoked',target_id:saved.id});return {accepted:saved.accepted};
+  await recordWebAdConsent(store,a,b.accepted,now);return {accepted:b.accepted};
  }
  if(path==='/me/web-ads/reward-sessions'&&method==='POST'){
   if(!config.enabled||!config.rewarded_enabled||consent?.accepted!==true)fail('Реклама недоступна или согласие на показы отключено.',403);
