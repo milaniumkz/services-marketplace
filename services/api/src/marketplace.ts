@@ -1,4 +1,4 @@
-import {adminWebAds,userWebAds,recordWebAdConsent,webAdsConfig,webAdNotice} from './web-ads';
+import {adminWebAds,userWebAds,recordWebAdConsent,webAdsConfig,webAdNotice,webAdNoticeVersion} from './web-ads';
 import {adminOperatorProfile} from './public-operator';
 import {publicSitePage} from './public-site';
 import {communicationLanguages,defaultCommunicationLanguages} from './communication-languages';
@@ -259,7 +259,7 @@ export class Marketplace {
     const orderReview=path.match(/^\/orders\/([^/]+)\/reviews$/);if(orderReview){b={...b,order_id:orderReview[1]};path='/reviews';}
     if(path==='/reports')path='/cases';
     if(method==='GET'&&path.startsWith('/public/site/'))return publicSitePage(this.store,this.commerce,path,q);
-    if(path==='/public/web-ads'&&method==='GET'){const c=await webAdsConfig(this.store);return {enabled:c.enabled,banner_id:c.banner_id,notice:webAdNotice,notice_version:1};}
+    if(path==='/public/web-ads'&&method==='GET'){const c=await webAdsConfig(this.store);return {enabled:c.enabled,banner_id:c.banner_id,notice:webAdNotice,notice_version:webAdNoticeVersion};}
     if(path==='/public/push-config'&&method==='GET')return firebasePublicConfig();
     if(path==='/public/config'&&method==='GET') {
       const controls=await this.store.all('country_control');

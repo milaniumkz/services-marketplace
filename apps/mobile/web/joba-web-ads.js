@@ -1,4 +1,4 @@
-/* First-party bridge. No advertising network is contacted until explicit consent. */
+/* First-party bridge. The network loads only for an active placement or user-started Rewarded. */
 (() => {
   let loading, rewardRunning = false;
   const validId = id => /^R-A-\d+-\d+$/.test(id);

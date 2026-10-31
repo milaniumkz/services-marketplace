@@ -29,11 +29,16 @@ Future<PhotoFile?> captureWebSelfie() {
     ..textContent = 'Сделать селфи'
     ..disabled = true
     ..setAttribute('data-joba-camera-capture', 'true');
+  final retry = web.HTMLButtonElement()
+    ..type = 'button'
+    ..textContent = 'Открыть камеру повторно'
+    ..hidden = true.toJS
+    ..setAttribute('data-joba-camera-retry', 'true');
   final cancel = web.HTMLButtonElement()
     ..type = 'button'
     ..textContent = 'Отмена'
     ..setAttribute('data-joba-camera-cancel', 'true');
-  for (final b in [take, cancel])
+  for (final b in [take, retry, cancel])
     b.style.cssText =
         'padding:14px 18px;margin:10px 6px 0 0;border-radius:10px;border:0;font-size:16px;background:#245bdb;color:#fff';
   void stop() {
@@ -84,10 +89,15 @@ Future<PhotoFile?> captureWebSelfie() {
   dialog.append(status);
   dialog.append(video);
   dialog.append(take);
+  dialog.append(retry);
   dialog.append(cancel);
   web.document.body!.append(dialog);
   dialog.showModal();
   Future<void> start() async {
+    retry.disabled = true;
+    retry.hidden = true.toJS;
+    take.disabled = true;
+    status.textContent = 'Открываем фронтальную камеру…';
     try {
       var current = await web.window.navigator.mediaDevices
           .getUserMedia(web.MediaStreamConstraints(
@@ -131,14 +141,20 @@ Future<PhotoFile?> captureWebSelfie() {
       take.disabled = false;
       take.focus();
     } catch (_) {
-      if (!result.isCompleted)
-        finish(
-            null,
-            ApiException('CAMERA_UNAVAILABLE',
-                'Разрешите доступ к фронтальной камере в настройках браузера и повторите съёмку. Селфи из галереи не принимается.'));
+      if (!result.isCompleted) {
+        stream?.getTracks().toDart.forEach((track) => track.stop());
+        stream = null;
+        video.pause();
+        video.srcObject = null;
+        status.textContent = 'Не удалось открыть фронтальную камеру. Разрешите камеру для joba.com.kz в настройках сайта. Если браузер пишет «сайт не может запросить разрешение», закройте плавающие кнопки и окна других приложений поверх экрана. Затем нажмите «Открыть камеру повторно». Селфи из галереи не принимается.';
+        retry.hidden = false.toJS;
+        retry.disabled = false;
+        retry.focus();
+      }
     }
   }
 
+  retry.onclick = ((web.MouseEvent _) { if (!retry.disabled) unawaited(start()); }).toJS;
   unawaited(start());
   return result.future;
 }

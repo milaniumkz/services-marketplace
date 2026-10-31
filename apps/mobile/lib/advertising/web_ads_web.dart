@@ -18,46 +18,28 @@ class WebAdsPanel extends StatefulWidget {
  @override State<WebAdsPanel> createState()=>_WebAdsPanelState();
 }
 class _WebAdsPanelState extends State<WebAdsPanel> {
- Json? config; String? error; bool busy=false,expanded=false,dismissed=false; int attempt=0; double bannerHeight=180; web.ResizeObserver? resize;
+ Json? config; String? error; bool dismissed=false; int attempt=0; double bannerHeight=180; web.ResizeObserver? resize;
  @override void initState(){super.initState();load();}
  @override void dispose(){resize?.disconnect();super.dispose();}
  Future<void> load() async {
-  try {var c=Json.from(await widget.api.request('/me/web-ads'));if(!mounted)return;if(c['consent']==false&&c['consent_recorded']==true)rememberWebAdConsent(false);if(rememberedWebAdConsent()==false)c={...c,'consent':false,'consent_recorded':true};
-   setState((){config=c;error=null;});
+  try {final c=Json.from(await widget.api.request('/me/web-ads'));if(!mounted)return;
+   // Automatic placement is not an affirmative personalization consent. Preserve prior opt-outs.
+   final hidden=rememberedWebAdConsent()==false||(c['consent_recorded']==true&&c['consent']==false);
+   setState((){config={...c,'placement_hidden':hidden};error=null;});
   }catch(_){/* Advertising failure must never block the marketplace. */}
  }
- Future<void> consent(bool accepted) async {
-  if(busy)return;setState(()=>busy=true);
-  try{await widget.api.request('/me/web-ads/consent',method:'POST',body:{'accepted':accepted});rememberWebAdConsent(accepted);if(!accepted){resize?.disconnect();resize=null;}if(mounted)setState((){expanded=false;config={...?config,'consent':accepted,'consent_recorded':true};});await load();}
-  catch(e){if(mounted)setState(()=>error=_message(e));}
-  finally{if(mounted)setState(()=>busy=false);}
- }
  @override Widget build(BuildContext context) {
-  final c=config;if(c==null||c['enabled']!=true||dismissed)return const SizedBox.shrink();
+  final c=config;if(c==null||c['enabled']!=true||c['placement_hidden']==true||dismissed)return const SizedBox.shrink();
   return Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-   if(widget.compact)Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[const Text('Реклама',style:TextStyle(fontSize:11,color:Colors.grey)),IconButton(onPressed:()=>setState(()=>dismissed=true),tooltip:'Скрыть баннер',icon:const Icon(Icons.close,size:16))]),
-   if(c['consent']!=true && (c['consent_recorded']==true||widget.compact) && !expanded)...[
-    const Text('Реклама отключена.'),TextButton(onPressed:(){setState(()=>expanded=true);},child:const Text('Настроить рекламу')),
-   ]else if(c['consent']!=true)...[
-    const Text('Реклама Яндекса',style:TextStyle(fontWeight:FontWeight.bold)),
-    Text(c['notice'] as String? ?? 'Реклама Яндекса загружается с передачей технических данных браузера. Согласие добровольное.'),
-    _privacyLinks(widget.onPrivacy),
-    TextButton(onPressed:busy?null:()=>consent(true),child:const Text('Разрешить рекламные показы')),
-    TextButton(onPressed:busy?null:()=>consent(false),child:const Text('Не сейчас')),
-   ]else ...[
-    if(error==null)...[
-     const Text('Реклама',style:TextStyle(fontSize:11,color:Colors.grey)),
-     SizedBox(height:bannerHeight,child:HtmlElementView.fromTagName(key:ValueKey(attempt),tagName:'div',onElementCreated:(element){
-      final host=element as web.HTMLDivElement;host.id='joba-banner-${identityHashCode(this)}-$attempt';host.style.width='100%';host.style.height='auto';host.style.minHeight='90px';
-      void measure(){final box=host.getBoundingClientRect(),scroll=host.scrollHeight.toDouble();final height=scroll>box.height?scroll:box.height;if(mounted&&host.isConnected&&config?['consent']==true&&height.isFinite&&height>=50&&(height-bannerHeight).abs()>1)setState(()=>bannerHeight=height);}
-      resize?.disconnect();resize=web.ResizeObserver(((JSArray<web.ResizeObserverEntry> entries,web.ResizeObserver observer)=>measure()).toJS);resize!.observe(host);
-      final renderAttempt=attempt;
-      Future<JSBoolean>.sync(()=>_banner(host.id.toJS,(c['banner_id'] as String).toJS).toDart).then<void>((shown){if(shown.toDart)measure();if(!shown.toDart&&mounted&&config?['consent']==true&&renderAttempt==attempt)setState(()=>error='Сейчас нет доступного объявления или загрузка не удалась. Можно попробовать позже.');}).catchError((Object e){if(mounted&&config?['consent']==true&&renderAttempt==attempt)setState(()=>error=_message(e));});
-     })),
-    ],
-    TextButton(onPressed:busy?null:()=>consent(false),child:const Text('Отключить рекламные показы')),
-   ],
-   if(error!=null)...[Text(error!,style:const TextStyle(color:Colors.red)),TextButton(onPressed:(){setState((){error=null;attempt++;});},child:const Text('Повторить загрузку рекламы'))],
+   Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[const Text('Реклама',style:TextStyle(fontSize:11,color:Colors.grey)),IconButton(onPressed:(){resize?.disconnect();setState(()=>dismissed=true);},tooltip:'Скрыть баннер',icon:const Icon(Icons.close,size:16))]),
+   if(error==null)SizedBox(height:bannerHeight,child:HtmlElementView.fromTagName(key:ValueKey(attempt),tagName:'div',onElementCreated:(element){
+    final host=element as web.HTMLDivElement;host.id='joba-banner-${identityHashCode(this)}-$attempt';host.style.width='100%';host.style.height='auto';host.style.minHeight='90px';
+    void measure(){final box=host.getBoundingClientRect(),scroll=host.scrollHeight.toDouble();final height=scroll>box.height?scroll:box.height;if(mounted&&!dismissed&&host.isConnected&&height.isFinite&&height>=50&&(height-bannerHeight).abs()>1)setState(()=>bannerHeight=height);}
+    resize?.disconnect();resize=web.ResizeObserver(((JSArray<web.ResizeObserverEntry> entries,web.ResizeObserver observer)=>measure()).toJS);resize!.observe(host);
+    final renderAttempt=attempt;
+    Future<JSBoolean>.sync(()=>_banner(host.id.toJS,(c['banner_id'] as String).toJS).toDart).then<void>((shown){if(shown.toDart)measure();if(!shown.toDart&&mounted&&!dismissed&&renderAttempt==attempt)setState(()=>error='Сейчас нет доступного объявления или загрузка не удалась. Можно попробовать позже.');}).catchError((Object e){if(mounted&&!dismissed&&renderAttempt==attempt)setState(()=>error=_message(e));});
+   })),
+   if(error!=null)...[Text(error!,style:const TextStyle(color:Colors.grey)),TextButton(onPressed:(){setState((){error=null;attempt++;});},child:const Text('Повторить загрузку рекламы'))],
   ]));
  }
 }

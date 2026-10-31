@@ -1,3 +1,4 @@
+import 'home_marketplace_gate.dart';
 import 'package:flutter/foundation.dart';
 import '../advertising/web_ads.dart';
 import 'nearby_contractors.dart';
@@ -2492,11 +2493,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   'новых приглашений',
                                   () => go('invitations')))
                         ])),
-              if(!executor) PromotedListings(api:api,placement:'home.promoted.services',filters:{'city':me?['city']??''},onOpen:(type,id)=>go('contractor',id)),
               JobaSection(executor ? 'Подходящие заказы' : 'Рядом с вами',
                   () => executor ? go('jobs') : act(nearbyCatalog),
                   action: executor ? 'Фильтры' : 'Все'),
-              homeListings(),
+              HomeMarketplaceGate(key:ValueKey('home-market-access:${api.session?['user']?['id']}:$revision:$executor'),api:api,executor:executor,onAccess:()=>go('my-access'),onVerification:()=>go('verification'),content:()=>Column(children:[if(!executor)PromotedListings(api:api,placement:'home.promoted.services',filters:{'city':me?['city']??''},onOpen:(type,id)=>go('contractor',id)),homeListings()])),
               WebAdsPanel(key:ValueKey('web-ads:${api.session?['user']?['id']}'),api:api,onReward:()=>go('reward'),onPrivacy:()=>go('legal')),
               if (executor)
                 JobaMenu([

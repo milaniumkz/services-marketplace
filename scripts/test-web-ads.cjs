@@ -4,7 +4,7 @@ function fixture(){const scripts=[],timers=new Map(),calls=[];let sequence=0;con
  const manager={getPlatform:()=> 'touch',render:args=>calls.push(args)};
  return {window,scripts,timers,calls,manager,host,load(){window.Ya={Context:{AdvManager:manager}};for(const fn of window.yaContextCb)fn();}};
 }
-test('bridge does not contact Yandex on load; concurrent banner/platform operations load the SDK once after consented call',async()=>{
+test('bridge does not contact Yandex on load; concurrent banner/platform operations load the SDK once for an active placement',async()=>{
  const f=fixture();assert.equal(f.scripts.length,0);const p=f.window.JobaWebAds.platform(),b=f.window.JobaWebAds.banner('host','R-A-20302217-1');assert.equal(f.scripts.length,1);assert.equal(f.scripts[0].src,'https://yandex.ru/ads/system/context.js');f.load();assert.equal(await p,'touch');for(let i=0;i<5;i++)await Promise.resolve();f.calls[0].onError({type:'warning'});f.calls[0].onRender({product:'rtb'});assert.equal(await b,true);assert.equal(f.calls[0].renderTo,'host');assert.equal(f.timers.size,0);
 });
 test('rewarded uses official platform and true callback only; no-fill, early close, timeout and repeated callbacks never become completion',async()=>{

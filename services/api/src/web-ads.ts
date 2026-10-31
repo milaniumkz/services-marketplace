@@ -6,7 +6,8 @@ import {currentLegalDocuments,legalHashAccepted} from './legal-documents';
 import {subscriptionRole} from './subscription-plans';
 import {createPeriod,userPeriods,periodPlan} from './subscription-periods';
 const fail=(message:string,status=422):never=>{throw new HttpException({error:{code:status===403?'FORBIDDEN':status===409?'STATE_CONFLICT':status===429?'REWARD_LIMIT':'VALIDATION_ERROR',message,retryable:false}},status);};
-export const webAdNotice='Реклама Яндекса загружается с внешних серверов. Для показа, подбора (в том числе персонализации) и измерения рекламы Яндекс может обрабатывать IP-адрес, сведения об устройстве и браузере, рекламные идентификаторы и cookies; возможна трансграничная передача. Удостоверение личности, селфи, телефон, переписку и платёжные данные JOBA не передаёт рекламной сети в параметрах интеграции. Согласие добровольное и отзывается на главной странице. Политика Яндекса: https://yandex.ru/legal/confidential/';
+export const webAdNoticeVersion=2;
+export const webAdNotice='Реклама Яндекса загружается с внешних серверов. Для показа, подбора (в том числе персонализации) и измерения рекламы Яндекс может обрабатывать IP-адрес, сведения об устройстве и браузере, рекламные идентификаторы и cookies; возможна трансграничная передача. Удостоверение личности, селфи, телефон, переписку и платёжные данные JOBA не передаёт рекламной сети в параметрах интеграции. Обычные баннеры загружаются автоматически. Настройки персонализации доступны в разделе «Приватность»; ранее сохранённый отказ сохраняется. Реклама за вознаграждение запускается только по кнопке пользователя. Политика Яндекса: https://yandex.ru/legal/confidential/';
 const defaults={version:0,enabled:false,rewarded_enabled:false,banner_id:'',mobile_rewarded_id:'',desktop_rewarded_id:'',reward_kind:'subscription',reward_days:30,customer_views:5,standard_views:5,top100_views:5,daily_cap:30,cooldown_seconds:0};
 export const webAdsConfig=async(store:Store)=>({...defaults,...(await store.all('web_ad_config','KZ'))[0]});
 export async function adminWebAds(store:Store,a:{id:string;user:RecordData;mfa:boolean},method:string,b:any){
@@ -28,7 +29,7 @@ export async function recordWebAdConsent(store:Store,a:{id:string;country:string
  const account=await store.get(a.id);if(accepted&&account?.status!=='active')fail('Аккаунт недоступен.',403);
  const old=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='web_ad_consent' AND country=$1 AND owner=$2 ORDER BY COALESCE((data->>'sequence')::int,0) DESC LIMIT 1",[a.country,a.id])).rows[0]?.data;
  if(source==='privacy_settings'&&old?.accepted!==true)return;
- const saved={id:randomUUID(),kind:'web_ad_consent',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,sequence:(old?.sequence??0)+1,accepted,updated_at:now.toISOString(),notice_version:1,notice_text:webAdNotice,source};await store.put(saved);
+ const saved={id:randomUUID(),kind:'web_ad_consent',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,sequence:(old?.sequence??0)+1,accepted,updated_at:now.toISOString(),notice_version:webAdNoticeVersion,notice_text:webAdNotice,source};await store.put(saved);
  if(source==='web_ads'){
   const previous=(await store.select('processing_consent',a.country,{owner:a.id,limit:1}))[0],doc=currentLegalDocuments(await store.all('legal_document',a.country),a.country,account?.locale??'ru').find(d=>['privacy','privacy_policy'].includes(d.type));
   if(accepted&&!doc)fail('Для показа рекламы нужна опубликованная политика конфиденциальности.',403);

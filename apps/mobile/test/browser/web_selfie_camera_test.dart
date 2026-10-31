@@ -8,7 +8,6 @@ import 'package:web/web.dart' as web;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:services_marketplace/core/photo_source_web.dart';
 import 'package:services_marketplace/core/photo_file.dart';
-import 'package:services_marketplace/core/api.dart';
 
 @JS('Object.defineProperty')
 external JSObject defineProperty(
@@ -78,14 +77,18 @@ void main() {
         stream.getTracks().toDart.every((track) => track.readyState == 'ended'),
         true);
   });
-  test('camera permission denial has no gallery fallback and removes camera UI',
-      () async {
-    install(((JSObject _) =>
-            Future<web.MediaStream>.error(Exception('permission denied')).toJS)
-        .toJS);
-    await expectLater(pickPhotoFile(PhotoSource.camera, selfie: true),
-        throwsA(isA<ApiException>()));
-    expect(web.document.querySelector('[data-joba-selfie-camera]'), isNull);
-    expect(web.document.querySelector('input[data-joba-photo-picker]'), isNull);
+  test('camera permission denial keeps guidance open, retries on click and cancels without a gallery fallback', () async {
+    install(((JSObject _) => Future<web.MediaStream>.error(Exception('permission denied')).toJS).toJS);
+    final future = pickPhotoFile(PhotoSource.camera, selfie: true);
+    await Future<void>.delayed(const Duration(milliseconds:50));
+    expect(web.document.querySelector('[data-joba-selfie-camera]'),isNotNull);
+    expect(web.document.querySelector('[data-joba-selfie-camera]')!.textContent,contains('плавающие кнопки'));
+    expect(web.document.querySelector('input[data-joba-photo-picker]'),isNull);
+    final retry=web.document.querySelector('[data-joba-camera-retry]') as web.HTMLButtonElement;
+    expect(retry.hasAttribute('hidden'),false);
+    var requests=0;
+    install(((JSObject _) {requests++;return Future<web.MediaStream>.error(Exception('still denied')).toJS;}).toJS);
+    retry.click();await Future<void>.delayed(const Duration(milliseconds:50));expect(requests,1);expect(retry.hasAttribute('hidden'),false);
+    (web.document.querySelector('[data-joba-camera-cancel]') as web.HTMLButtonElement).click();expect(await future,isNull);expect(web.document.querySelector('[data-joba-selfie-camera]'),isNull);
   });
 }
