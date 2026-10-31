@@ -17,8 +17,8 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
   await page.evaluate(()=>window.__jobaRewardResult=true);await page.getByRole('button',{name:'Согласен, посмотреть ролик',exact:true}).click();await page.getByText(/Засчитано просмотров: 1 из 5/).waitFor();for(let i=2;i<=5;i++){await page.getByRole('button',{name:'Согласен, посмотреть ролик',exact:true}).click();await page.getByText(i<5?new RegExp('Засчитано просмотров: '+i+' из 5'):/Подписка активирована на 30 дней/).waitFor();}
   const calls=await page.evaluate(()=>window.__jobaAdCalls);assert.equal(calls[0].blockId,'R-A-20302217-1');assert.ok(calls.filter(c=>c.type==='rewarded').every(c=>c.platform===platform&&c.blockId===(platform==='desktop'?'R-A-20302217-3':'R-A-20302217-2')));
   await page.getByRole('button',{name:'Назад',exact:true}).click();await page.getByText('ИЗОЛИРОВАННЫЙ ТЕСТОВЫЙ БАННЕР',{exact:true}).waitFor();
-  await page.getByRole('button',{name:'Скрыть баннер',exact:true}).click();assert.equal(await page.getByText('ИЗОЛИРОВАННЫЙ ТЕСТОВЫЙ БАННЕР',{exact:true}).count(),0);assert.equal(sdkLoads,1);assert.deepEqual(errors,[]);await page.close();
+  await page.getByRole('button',{name:'Скрыть баннер',exact:true}).click();await page.getByText('ИЗОЛИРОВАННЫЙ ТЕСТОВЫЙ БАННЕР',{exact:true}).waitFor({state:'detached'});assert.equal(await page.getByText('ИЗОЛИРОВАННЫЙ ТЕСТОВЫЙ БАННЕР',{exact:true}).count(),0);assert.equal(sdkLoads,1);assert.deepEqual(errors,[]);await page.close();
  }
- console.log('PASS: actual Flutter banner attachment, consent/revocation, mobile/desktop unit selection, early close and completed Rewarded; zero real network ad views.');
+ console.log('PASS: actual Flutter automatic banner attachment and dismissal, mobile/desktop unit selection, early close and completed Rewarded; zero real network ad views.');
  }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

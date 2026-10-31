@@ -8,13 +8,17 @@ on:
         description: Optional targeted read-only account diagnosis (E.164)
         type: string
         default: ''
+      advertising_stats:
+        description: Read aggregate advertising counters (no account data)
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
   checks: write
 jobs:
   diagnose:
-    if: ${{ !inputs.account_phone }}
+    if: ${{ !inputs.account_phone && !inputs.advertising_stats }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -25,7 +29,7 @@ jobs:
           JOBA_DIAGNOSTIC_JOB: '116494604449'
 
   account:
-    if: ${{ inputs.account_phone != '' }}
+    if: ${{ inputs.account_phone != '' || inputs.advertising_stats }}
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -40,6 +44,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
           JOBA_LOOKUP_PHONE: ${{ inputs.account_phone }}
+          JOBA_AD_STATS: ${{ inputs.advertising_stats && '1' || '0' }}
         run: |
           set -euo pipefail
           export SSHPASS="${JOBA_RUNTIME_SSH_PASSWORD:-}"
@@ -57,8 +62,12 @@ jobs:
             sudo apt-get install -y sshpass
             joba_ssh=(sshpass -e "${joba_ssh[@]}")
           fi
-          python3 -c 'import os,re;assert re.fullmatch(r"\+[0-9]{8,15}",os.environ["JOBA_LOOKUP_PHONE"])'
-          "${joba_ssh[@]}" root@188.241.217.228 "python3 - '$JOBA_LOOKUP_PHONE'" < scripts/diagnose-login-account.py > account-diagnosis.json
+          if test "$JOBA_AD_STATS" = '1'; then
+            "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-advertising.py > account-diagnosis.json
+          else
+            python3 -c 'import os,re;assert re.fullmatch(r"\+[0-9]{8,15}",os.environ["JOBA_LOOKUP_PHONE"])'
+            "${joba_ssh[@]}" root@188.241.217.228 "python3 - '$JOBA_LOOKUP_PHONE'" < scripts/diagnose-login-account.py > account-diagnosis.json
+          fi
           python3 -m json.tool account-diagnosis.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
