@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:services_marketplace/core/api.dart';
 import 'package:services_marketplace/advertising/web_ads.dart';
+import 'package:services_marketplace/core/navigation_shell.dart';
 void main(){runApp(MaterialApp(theme:ThemeData(fontFamily:'Noto'),home:const Harness()));}
 class Harness extends StatefulWidget{const Harness({super.key});@override State<Harness> createState()=>_HarnessState();}
 class _HarnessState extends State<Harness>{
@@ -18,7 +19,7 @@ class _HarnessState extends State<Harness>{
   return http.Response(jsonEncode({'data':result}),200,headers:{'content-type':'application/json; charset=utf-8'});
  }))..session={'access_token':'isolated','user':{'id':'isolated-user'}};}
  @override void dispose(){api.dispose();super.dispose();}
- @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Изолированный тест рекламы'),leading:reward?IconButton(onPressed:()=>setState(()=>reward=false),icon:const Icon(Icons.arrow_back),tooltip:'Назад'):null),
-  bottomNavigationBar:reward?null:Column(mainAxisSize:MainAxisSize.min,children:[WebAdsPanel(key:ValueKey(bannerRevision),api:api,compact:true,onReward:()=>setState(()=>reward=true)),const SizedBox(height:56,child:Center(child:Text('Основное меню')))]),
-  body:reward?WebRewardScreen(api:api):ListView(padding:const EdgeInsets.all(20),children:[WebRewardEntry(api:api,onSelect:(_)=>setState(()=>reward=true)),TextButton(onPressed:()=>setState(()=>bannerRevision++),child:const Text('Обновить рекламу в тесте')),for(var i=0;i<25;i++)Padding(padding:const EdgeInsets.all(12),child:Text('Содержимое раздела: строка $i'))]));
+ @override Widget build(BuildContext context)=>NavigationFrame(navigation:reward?null:NavigationState(route:'home',executor:true,enabled:true,messages:0,notifications:0,onSelect:(_){},bannerPlacement:'home:$bannerRevision',banner:WebAdsPanel(key:ValueKey(bannerRevision),api:api,compact:true,onReward:()=>setState(()=>reward=true))),child:Scaffold(appBar:AppBar(title:const Text('Изолированный тест рекламы'),leading:reward?IconButton(onPressed:()=>setState(()=>reward=false),icon:const Icon(Icons.arrow_back),tooltip:'Назад'):null),
+  
+  body:reward?WebRewardScreen(api:api):ListView(padding:const EdgeInsets.all(20),children:[WebRewardEntry(api:api,onSelect:(_)=>setState(()=>reward=true)),TextButton(onPressed:()=>setState(()=>bannerRevision++),child:const Text('Обновить рекламу в тесте')),for(var i=0;i<25;i++)Padding(padding:const EdgeInsets.all(12),child:Text('Содержимое раздела: строка $i'))])));
 }

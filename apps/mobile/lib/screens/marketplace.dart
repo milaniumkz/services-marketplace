@@ -688,10 +688,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       enabled: !actionBusy && !orderFormSubmitting && !authNavigationBlocked,
                       onSelect: selectMainTab)))
                   : null));
-  Widget navigationWithAd(Widget navigation){
+  String? get bannerPlacement {
     const placements={'home','jobs','catalog','account','orders','messages','notifications','reviews','invitations','top'};
-    if(!kIsWeb||!placements.contains(route)||MediaQuery.viewInsetsOf(context).bottom>0)return navigation;
-    return Column(mainAxisSize:MainAxisSize.min,children:[Material(color:Colors.white,child:WebAdsPanel(key:ValueKey('footer-ad:$route:${api.session?['user']?['id']}'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'))),navigation]);
+    return kIsWeb&&placements.contains(route)?'$route:${api.session?['user']?['id']}':null;
+  }
+  Widget? get navigationBanner=>bannerPlacement==null?null:WebAdsPanel(key:ValueKey('footer-ad:$bannerPlacement'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'));
+  Widget navigationWithAd(Widget navigation){
+    final banner=MediaQuery.viewInsetsOf(context).bottom==0?navigationBanner:null;
+    return banner==null?navigation:Column(mainAxisSize:MainAxisSize.min,children:[Material(color:Colors.white,child:banner),navigation]);
   }
   Widget listBody(List<Widget> content) =>
       ListView(padding: const EdgeInsets.all(20), children: content);
@@ -875,7 +879,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   int navigationEpoch=0;
   String get navigationRoute=>['home','jobs','catalog','messages','notifications','account'].contains(route)?route:['chat','support-chat','support','messages-search'].contains(route)?'messages':orderNavigationRoutes.contains(route)||['review','complete','rework','cancel','cancel-pending','amendment','change-requests'].contains(route)?(executor?'jobs':'home'):'account';
   void selectShellTab(String next){if(authNavigationBlocked||actionBusy||orderFormSubmitting)return;Navigator.of(context).popUntil((r)=>r.isFirst);selectMainTab(next);}
-  void publishNavigation(){if(widget.onNavigationChanged==null)return;final epoch=++navigationEpoch;final value=!starting&&_api?.authenticated==true&&!locked&&!onboardingNavigationBlocked?NavigationState(route:navigationRoute,executor:executor,enabled:!actionBusy&&!orderFormSubmitting&&!authNavigationBlocked,messages:messageUnreadCount,notifications:notificationUnreadCount??0,onSelect:selectShellTab):null;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&epoch==navigationEpoch)widget.onNavigationChanged?.call(value);});}
+  void publishNavigation(){if(widget.onNavigationChanged==null)return;final epoch=++navigationEpoch;final value=!starting&&_api?.authenticated==true&&!locked&&!onboardingNavigationBlocked?NavigationState(route:navigationRoute,banner:navigationBanner,bannerPlacement:bannerPlacement,executor:executor,enabled:!actionBusy&&!orderFormSubmitting&&!authNavigationBlocked,messages:messageUnreadCount,notifications:notificationUnreadCount??0,onSelect:selectShellTab):null;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&epoch==navigationEpoch)widget.onNavigationChanged?.call(value);});}
   Widget screen() {
     if(['create','edit-order'].contains(route))ensureOrderFormsScope();
     if(executor&& !['passed','pending_review'].contains(me?['verification'])&&['services','portfolio','portfolio-edit','portfolio-photos'].contains(route)){return verificationScreen();}

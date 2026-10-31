@@ -6,8 +6,10 @@ class NavigationState {
   final bool executor, enabled;
   final int messages, notifications;
   final ValueChanged<String> onSelect;
+  final Widget? banner;
+  final String? bannerPlacement;
   const NavigationState(
-      {required this.route,
+      {this.banner,this.bannerPlacement,required this.route,
       required this.executor,
       required this.enabled,
       required this.messages,
@@ -19,7 +21,8 @@ class NavigationState {
       executor == other.executor &&
       enabled == other.enabled &&
       messages == other.messages &&
-      notifications == other.notifications;
+      notifications == other.notifications &&
+      bannerPlacement == other.bannerPlacement;
 }
 
 class NavigationFrame extends StatelessWidget {
@@ -31,6 +34,7 @@ class NavigationFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final nav = navigation;
     if (nav == null) return child;
+    final banner=MediaQuery.viewInsetsOf(context).bottom==0?nav.banner:null;
     return Padding(
         padding:
             EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -39,6 +43,7 @@ class NavigationFrame extends StatelessWidget {
             removeBottom: true,
             child: Column(children: [
               Expanded(child: child),
+              if(banner!=null)Material(color:Colors.white,child:banner),
               Material(
                   color: Colors.white,
                   child: JobaNavigation(
