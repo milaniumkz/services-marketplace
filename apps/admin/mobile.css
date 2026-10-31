@@ -1,0 +1,76 @@
+/* Phone and tablet layouts; the desktop workspace keeps its existing layout. */
+.mobile-menu-close,.mobile-menu-backdrop,.mobile-table-hint{display:none}
+@media(max-width:850px){
+  html{scroll-padding-top:100px}
+  body{overflow-wrap:anywhere}
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .main{grid-column:1;min-width:0;width:100%}
+  .sidebar{display:flex;position:fixed;inset:0 auto 0 0;width:min(320px,calc(100vw - 44px));height:100vh;height:100dvh;z-index:101;transform:translateX(-105%);visibility:hidden;transition:transform .18s ease,visibility .18s}
+  .sidebar.open{transform:translateX(0);visibility:visible}
+  .sidebar .brand{height:76px;padding:12px 20px}
+  .sidebar .brand div,.sidebar .navlabel,.sidebar .nav a span,.sidebar .sidebarfoot{display:block}
+  .sidebar .nav a .count{display:inline-block}
+  .sidebar .nav{flex:1;min-height:0;padding:8px 12px;overscroll-behavior:contain}
+  .sidebar .nav a{padding:12px;min-height:46px;font-size:14px}
+  .mobile-nav{display:inline-flex;min-width:44px;min-height:44px}
+  .mobile-menu-close{display:flex;align-self:flex-end;min-height:44px;margin:8px 12px 0}
+  .mobile-menu-backdrop:not([hidden]){display:block;position:fixed;inset:0;border:0;border-radius:0;background:rgb(15 30 55 / .45);z-index:100;touch-action:none}
+  .mobile-menu-open{overflow:hidden}
+  .topbar{position:sticky;top:0;z-index:30;height:auto;min-height:64px;padding:8px 12px;gap:8px;flex-wrap:wrap}
+  .topbar .left{gap:6px}.topbar .right{gap:8px;flex-wrap:wrap;justify-content:flex-end;flex:1;min-width:0}
+  .topbar .sep{display:none}.topbar .account{gap:4px}.topbar .account div{display:none}
+  .topbar .search{display:none}.topbar .select-country{min-width:0;max-width:140px}
+  .workspace{padding:18px 12px 24px;width:100%;max-width:100%}
+  .pagehead{flex-direction:column;gap:12px}.pagehead>div{min-width:0;max-width:100%}
+  h1{font-size:23px;overflow-wrap:anywhere}.subtitle{font-size:13px}
+  .grid,.formgrid{min-width:0}.grid>*{min-width:0}
+  .cols2,.cols3,.cols4,.split,.split3,.formgrid{grid-template-columns:minmax(0,1fr)}
+  .cardhead,.cardfoot,.sticky-actions{flex-wrap:wrap;gap:10px;padding:14px}
+  .cardbody{padding:14px}.actions{width:100%;gap:8px;align-items:stretch}
+  .actions>button,.actions>.btn,.actions>a{flex:1 1 auto;text-align:center}
+  button,button.small,.btn,.price-primary{min-height:44px;white-space:normal}
+  input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px;max-width:100%;min-width:0}
+  .formfield input,.formfield select,.formfield textarea{width:100%}
+  input[type=checkbox],input[type=radio],.tablecheckbox{width:20px;height:20px;flex-shrink:0}
+  label.check,.checkbox-row{min-height:44px}
+  .filters{align-items:stretch}.filters input,.filters select{width:100%;flex:1 1 100%;font-size:16px;min-height:44px}
+  .filters .resultcount{margin-left:0;width:100%}
+  .tablewrap{max-width:100%;overflow:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  .tablewrap table{min-width:680px}.tablewrap th,.tablewrap td{padding:12px;font-size:12px}
+  .mobile-table-hint{display:block;margin:0;padding:8px 14px;color:#627187;font-size:12px;background:#F8FAFC}
+  .tabs{max-width:100%;overflow:auto;gap:16px}.tabs a{min-height:44px;flex-shrink:0}
+  .permissiongrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kv{grid-template-columns:minmax(0,1fr)}
+  .kv>*,.info-row>*,.treeitem>*{min-width:0;overflow-wrap:anywhere}
+  .treeitem{flex-wrap:wrap}.treeitem.child{padding-left:24px}
+  .chatlayout{grid-template-columns:minmax(0,1fr)}.chatlist{display:block;max-height:240px;overflow:auto}
+  .chatmain{min-width:0}.chatinput{flex-wrap:wrap}.chatinput textarea{width:100%}
+  .statusbar{flex-wrap:wrap;gap:8px;padding:14px;font-size:11px}
+  .modalback{padding:12px}.modal,.drawer{width:100%;max-width:100%;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px)}
+  .modalheader,.modalfooter{flex-wrap:wrap;gap:10px;padding:14px}.modalbody{padding:14px;overflow:auto}
+  dialog[data-staff-dialog]{padding:12px!important;width:calc(100vw - 24px)!important;max-height:calc(100dvh - 24px)!important}
+  .login{grid-template-columns:minmax(0,1fr);min-height:100vh;min-height:100dvh}.loginbrand{display:none}
+  .loginform{width:100%;max-width:440px;margin:auto;padding:24px 20px}.loginform .brand{display:flex;margin-bottom:24px}
+  .loginform .brand div{display:block}.loginform input,.loginform select{width:100%;font-size:16px}
+  .banner-layout,.referral-layout{margin-top:20px}.price-list table{table-layout:auto}
+  .assetpreview{max-width:100%}.phonepreview{max-width:100%}.brand-source{flex-direction:column}
+}
+@media(max-width:380px){.permissiongrid{grid-template-columns:minmax(0,1fr)}.topbar .right{gap:4px}.topbar .select-country{max-width:110px}.workspace{padding-left:10px;padding-right:10px}}
+@media(prefers-reduced-motion:reduce){.sidebar{transition:none}}
+@media(max-width:850px){
+  .topbar .search[role=button]{display:flex;width:44px;height:44px;min-width:44px;justify-content:center;padding:10px;cursor:pointer}
+  .topbar .search[role=button] span,.topbar .search[role=button] kbd{display:none}
+  input[type=checkbox],input[type=radio],.tablecheckbox{width:24px;height:24px}
+}
+@media(max-width:850px){
+  button,button.small,.btn,.price-primary{min-width:44px}
+  .workspace .formfield input:not([type=checkbox]):not([type=radio]),
+  .workspace .formfield select,.workspace .formfield textarea{font-size:16px;min-height:44px}
+}
+
+.select-country select{max-width:150px;min-width:0;border:1px solid #D9E1EC;border-radius:8px;padding:8px;background:white;color:#172B4D}
+@media(max-width:640px){.select-country label{display:none}.select-country select{max-width:125px;width:100%;font-size:12px}}
+
+.country-filter-label{display:flex;align-items:center;gap:8px;min-width:0}.country-filter-label select{min-width:120px}.country-section-filter{margin-bottom:16px}
+
+.order-filters{align-items:flex-end}.order-filters details{flex-basis:100%;width:100%;min-width:0}.order-filters summary{cursor:pointer;font-weight:700;padding:10px 0}.order-filters details .formgrid{width:100%;padding-top:8px}.order-filters .formfield{min-width:0}

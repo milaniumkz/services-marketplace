@@ -1,0 +1,42 @@
+const {paidCustomer}=require('./paid-customer-fixture.cjs');
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {randomUUID}=require('node:crypto');
+const {Store}=require('../dist/store');
+const {Marketplace}=require('../dist/marketplace');
+test('invitations enforce expiry, active pair and daily limit without spending action credits',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ try{
+  const register=phone=>api.handle('POST','/auth/register',{country:'KZ',phone,password:'Isolated invitation test!',display_name:'Участник'},undefined,undefined,{},phone);
+  const customer=await register('+77000000191'),executor=await register('+77000000192');
+  await paidCustomer(api,customer);
+  const now=new Date().toISOString(),until=new Date(Date.now()+86400000).toISOString();
+  const put=(kind,owner,data)=>api.store.put({id:randomUUID(),kind,country:'KZ',owner,version:1,created_at:now,...data});
+  const user=await api.store.get(executor.user.id);await api.store.put({...user,roles:['executor'],verification:'passed'});
+  const cg=await put('grant',customer.user.id,{capabilities:['publish_order'],valid_until:until,balance:2});
+  const eg=await put('grant',executor.user.id,{capabilities:['send_offer'],valid_until:until,balance:2});
+  const profile=await put('contractor',executor.user.id,{status:'published',availability:'available'});
+  const order=await put('order',customer.user.id,{status:'open',revision:1,expires_at:until,title:'Реальный заказ теста',exact_address:'Скрытый адрес'});
+  const post=(session,path,body)=>api.handle('POST',path,body,'Bearer '+session.access_token,randomUUID());
+  const invite=await post(customer,`/orders/${order.id}/invites`,{contractor_id:profile.id,message:'Подойдут ли сроки?'});
+  assert.equal(invite.message,'Подойдут ли сроки?');
+  assert.ok(Math.abs(Date.parse(invite.expires_at)-Date.now()-72*3600000)<5000);
+  await assert.rejects(()=>post(customer,`/orders/${order.id}/invites`,{contractor_id:profile.id}),e=>e.getResponse().error.code==='STATE_CONFLICT');
+  const accepted=await post(executor,`/order-invites/${invite.id}/respond`,{expected_version:1,decision:'accept'});
+  assert.equal(accepted.status,'accepted');assert.equal((await api.store.get(cg.id)).balance,2);assert.equal((await api.store.get(eg.id)).balance,2);
+  assert.equal((await api.store.all('conversation','KZ')).length,0);
+  const stale=await post(customer,`/orders/${order.id}/invites`,{contractor_id:profile.id});
+  await api.store.put({...order,revision:2,version:2});
+  await assert.rejects(()=>post(executor,`/order-invites/${stale.id}/respond`,{expected_version:1,decision:'accept'}),e=>e.getResponse().error.code==='STATE_CONFLICT');
+  await api.store.put({...stale,expires_at:new Date(Date.now()-1000).toISOString()});
+  const list=await api.handle('GET','/me/order-invites',{},'Bearer '+executor.access_token);
+  const shown=list.items.find(i=>i.id===stale.id);assert.equal(shown.status,'expired');
+  const expired=await api.handle('GET','/me/order-invites',{},'Bearer '+executor.access_token,undefined,{status:'expired'});assert.equal(expired.items.length,1);assert.equal(expired.items[0].id,stale.id);
+  const pending=await api.handle('GET','/me/order-invites',{},'Bearer '+executor.access_token,undefined,{status:'pending'});assert.equal(pending.items.length,0);
+  assert.equal(shown.order.title,'Реальный заказ теста');assert.equal(shown.order.exact_address,undefined);assert.equal(shown.customer.phone,undefined);
+  const overview=await api.handle('GET','/me/overview',{},'Bearer '+executor.access_token);assert.equal(overview.invitations.pending,0);
+  await assert.rejects(()=>post(executor,`/order-invites/${stale.id}/respond`,{expected_version:1,decision:'decline'}),e=>e.getResponse().error.code==='STATE_CONFLICT');
+  for(let n=0;n<8;n++)await put('invite',customer.user.id,{status:'declined',recipient_id:executor.user.id,order_id:randomUUID()});
+  await assert.rejects(()=>post(customer,`/orders/${order.id}/invites`,{contractor_id:profile.id}),e=>e.getResponse().error.code==='RATE_LIMITED');
+ }finally{await api.store.close();}
+});

@@ -1,0 +1,3 @@
+const fs=require('node:fs'),path=require('node:path'),root=path.resolve(__dirname,'..'),o=JSON.parse(fs.readFileSync(path.join(root,'docs/api/openapi.json'),'utf8')),rows=[];
+for(const [route,methods] of Object.entries(o.paths))if(route.startsWith('/admin/')&&!route.startsWith('/admin/access/'))for(const method of Object.keys(methods))if(['get','post','patch','put','delete'].includes(method))rows.push({id:method.toUpperCase()+' '+route,method:method.toUpperCase(),path:route,block:route.split('/')[2]});
+fs.writeFileSync(path.join(root,'services/api/src/staff-operation-catalog.ts'),'// Explicit reviewable API operation catalogue. No wildcards may be assigned.\nexport const staffOperations='+JSON.stringify(rows,null,2)+' as const;\n');

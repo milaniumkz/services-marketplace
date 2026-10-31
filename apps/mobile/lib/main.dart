@@ -1,16 +1,69 @@
+import 'package:flutter/foundation.dart';
+import 'core/push_notifications.dart';
+import 'screens/web_push_permission_prompt.dart';
+import 'core/navigation_shell.dart';
 import 'package:flutter/material.dart';
-void main() => runApp(const MarketplaceDemo());
-class MarketplaceDemo extends StatelessWidget {
-  const MarketplaceDemo({super.key});
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'core/api.dart';
+import 'core/regions.dart';
+import 'core/theme.dart';
+import 'screens/marketplace.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const JobaApp());
+}
+
+class JobaApp extends StatefulWidget {
+  final JobaApi? api;
+  final RegionGateway? regions;
+  final DevicePreferences? preferences;
+  const JobaApp({this.api, this.regions, this.preferences, super.key});
+  @override
+  State<JobaApp> createState() => _JobaAppState();
+}
+
+class _JobaAppState extends State<JobaApp> {
+  String locale = 'ru';
+  final navigation = ValueNotifier<NavigationState?>(null);
+  @override
+  void dispose() {
+    navigation.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Services marketplace demo',
-    home: Scaffold(
-      appBar: AppBar(title: const Text('Биржа услуг · DEMO')),
-      body: const Padding(
-        padding: EdgeInsets.all(24),
-        child: Text('RS / KZ / RU / BY\n\nЗаказчики ищут исполнителей. Исполнители ищут заказы по своим услугам.\n\nТехнический каркас: аккаунты, GPS, чат и оплаты не подключены.'),
-      ),
-    ),
-  );
+      locale: Locale(locale),
+      supportedLocales: const [
+        Locale('ru'),
+        Locale('kk'),
+        Locale('sr'),
+        Locale('be')
+      ],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      title: 'JOBA',
+      debugShowCheckedModeBanner: false,
+      theme: jobaTheme(),
+      builder: (context, child) => ValueListenableBuilder<NavigationState?>(
+          valueListenable: navigation,
+          builder: (context, value, _) => NavigationFrame(
+              navigation: value,
+              child: Stack(fit: StackFit.expand, children: [
+                child!,
+                if (kIsWeb && value != null)
+                  WebPushPermissionPrompt(controller: JobaPush.instance)
+              ]))),
+      home: Marketplace(
+          onNavigationChanged: (value) {
+            if (mounted &&
+                !(value?.sameAs(navigation.value) ?? navigation.value == null))
+              navigation.value = value;
+          },
+          api: widget.api,
+          regions: widget.regions,
+          preferences: widget.preferences,
+          onLocaleChanged: (value) {
+            if (locale != value) setState(() => locale = value);
+          }));
 }

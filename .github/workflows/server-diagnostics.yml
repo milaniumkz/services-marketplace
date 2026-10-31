@@ -1,0 +1,76 @@
+name: Server deployment diagnostics
+on:
+  push:
+    branches: [ops/joba-diagnostics]
+  workflow_dispatch:
+    inputs:
+      account_phone:
+        description: Optional targeted read-only account diagnosis (E.164)
+        type: string
+        default: ''
+      advertising_stats:
+        description: Read aggregate advertising counters (no account data)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+  checks: write
+jobs:
+  diagnose:
+    if: ${{ !inputs.account_phone && !inputs.advertising_stats }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: python3 scripts/report-server-deployment.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JOBA_DIAGNOSTIC_JOB: '116494604449'
+
+  account:
+    if: ${{ inputs.account_phone != '' || inputs.advertising_stats }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Acquire protected deployment credential
+        env:
+          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
+          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/acquire-deployment-credential.py
+      - name: Read account metadata without changing production
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          JOBA_LOOKUP_PHONE: ${{ inputs.account_phone }}
+          JOBA_AD_STATS: ${{ inputs.advertising_stats && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          export SSHPASS="${JOBA_RUNTIME_SSH_PASSWORD:-}"
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          ssh-keyscan -T 10 -t ed25519 -p 22 188.241.217.228 > "$HOME/.ssh/known_hosts"
+          joba_fingerprint="$(ssh-keygen -lf "$HOME/.ssh/known_hosts" -E sha256 | awk '{print $2}')"
+          test "$joba_fingerprint" = 'SHA256:Bt3HkaktjLmWe4tB1pOK9b8gOnHuxp+tvp1hhEDtxp8'
+          joba_ssh=(ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -p 22)
+          if test -n "$SSH_PRIVATE_KEY"; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/joba_deploy"
+            joba_ssh+=(-i "$HOME/.ssh/joba_deploy" -o IdentitiesOnly=yes)
+          else
+            sudo apt-get update -q
+            sudo apt-get install -y sshpass
+            joba_ssh=(sshpass -e "${joba_ssh[@]}")
+          fi
+          if test "$JOBA_AD_STATS" = '1'; then
+            "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-advertising.py > account-diagnosis.json
+          else
+            python3 -c 'import os,re;assert re.fullmatch(r"\+[0-9]{8,15}",os.environ["JOBA_LOOKUP_PHONE"])'
+            "${joba_ssh[@]}" root@188.241.217.228 "python3 - '$JOBA_LOOKUP_PHONE'" < scripts/diagnose-login-account.py > account-diagnosis.json
+          fi
+          python3 -m json.tool account-diagnosis.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: account-diagnosis
+          path: account-diagnosis.json
+          retention-days: 1

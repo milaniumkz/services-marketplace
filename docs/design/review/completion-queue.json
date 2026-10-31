@@ -1,0 +1,2136 @@
+{
+  "source": "visual-audit.json",
+  "rule": "No automatic visual acceptance; differences are diagnostic, not a defect inventory.",
+  "frames": [
+    {
+      "id": "S01",
+      "surface": "mobile",
+      "route": "welcome",
+      "reference": "mobile/screens/S01-welcome.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.070139,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S01.disabled",
+      "surface": "mobile",
+      "route": "country-unavailable",
+      "reference": "mobile/screens/S01.disabled-country-unavailable.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.050386,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S02",
+      "surface": "mobile",
+      "route": "login",
+      "reference": "mobile/screens/S02-login.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.052085,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S02.error",
+      "surface": "mobile",
+      "route": "login-error",
+      "reference": "mobile/screens/S02.error-login-error.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.233983,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S02.register",
+      "surface": "mobile",
+      "route": "register",
+      "reference": "mobile/screens/S02.register-register.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.113819,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S03",
+      "surface": "mobile",
+      "route": "terms",
+      "reference": "mobile/screens/S03-terms.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.073614,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S03.documents",
+      "surface": "mobile",
+      "route": "legal",
+      "reference": "mobile/screens/S03.documents-legal.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.157045,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S04",
+      "surface": "mobile",
+      "route": "onboarding",
+      "reference": "mobile/screens/S04-onboarding.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.071025,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S05",
+      "surface": "mobile",
+      "route": "access",
+      "reference": "mobile/screens/S05-access.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.08509,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S05.checkout",
+      "surface": "mobile",
+      "route": "checkout",
+      "reference": "mobile/screens/S05.checkout-checkout.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.173493,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S06",
+      "surface": "mobile",
+      "route": "home",
+      "reference": "mobile/screens/S06-home.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.049257,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S07",
+      "surface": "mobile",
+      "route": "catalog",
+      "reference": "mobile/screens/S07-catalog.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.111803,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S07.empty",
+      "surface": "mobile",
+      "route": "empty-search",
+      "reference": "mobile/screens/S07.empty-empty-search.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.11678,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S07.filters",
+      "surface": "mobile",
+      "route": "filters",
+      "reference": "mobile/screens/S07.filters-filters.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.07023,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S07.gps",
+      "surface": "mobile",
+      "route": "gps-denied",
+      "reference": "mobile/screens/S07.gps-gps-denied.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.06063,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S07.location",
+      "surface": "mobile",
+      "route": "location",
+      "reference": "mobile/screens/S07.location-location.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.097007,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S07.map",
+      "surface": "mobile",
+      "route": "map",
+      "reference": "mobile/screens/S07.map-map.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.626438,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S08",
+      "surface": "mobile",
+      "route": "contractor",
+      "reference": "mobile/screens/S08-contractor.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.143109,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S09",
+      "surface": "mobile",
+      "route": "executor-home",
+      "reference": "mobile/screens/S09-executor-home.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.108286,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S10",
+      "surface": "mobile",
+      "route": "order",
+      "reference": "mobile/screens/S10-order.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.150087,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S11",
+      "surface": "mobile",
+      "route": "account",
+      "reference": "mobile/screens/S11-account.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.077826,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S11.edit",
+      "surface": "mobile",
+      "route": "profile-edit",
+      "reference": "mobile/screens/S11.edit-profile-edit.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.096199,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S11.roles",
+      "surface": "mobile",
+      "route": "roles",
+      "reference": "mobile/screens/S11.roles-roles.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.099857,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S12",
+      "surface": "mobile",
+      "route": "services",
+      "reference": "mobile/screens/S12-services.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.15834,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S12.pending",
+      "surface": "mobile",
+      "route": "profile-pending",
+      "reference": "mobile/screens/S12.pending-profile-pending.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.011227,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S13",
+      "surface": "mobile",
+      "route": "verification",
+      "reference": "mobile/screens/S13-verification.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.155494,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S13.pending",
+      "surface": "mobile",
+      "route": "verification-review",
+      "reference": "mobile/screens/S13.pending-verification-review.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.149604,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S13.resubmit",
+      "surface": "mobile",
+      "route": "verification-resubmit",
+      "reference": "mobile/screens/S13.resubmit-verification-resubmit.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.036617,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S13.status",
+      "surface": "mobile",
+      "route": "verification-status",
+      "reference": "mobile/screens/S13.status-verification-status.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.117453,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S14",
+      "surface": "mobile",
+      "route": "reviews",
+      "reference": "mobile/screens/S14-reviews.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.061381,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S15",
+      "surface": "mobile",
+      "route": "security",
+      "reference": "mobile/screens/S15-security.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.144788,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S15.biometric",
+      "surface": "mobile",
+      "route": "biometric",
+      "reference": "mobile/screens/S15.biometric-biometric.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.061556,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S15.password",
+      "surface": "mobile",
+      "route": "password",
+      "reference": "mobile/screens/S15.password-password.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.163004,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S15.pin",
+      "surface": "mobile",
+      "route": "pin-setup",
+      "reference": "mobile/screens/S15.pin-pin-setup.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.072402,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S15.revoke",
+      "surface": "mobile",
+      "route": "revoke-session",
+      "reference": "mobile/screens/S15.revoke-revoke-session.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.025616,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S15.sessions",
+      "surface": "mobile",
+      "route": "sessions",
+      "reference": "mobile/screens/S15.sessions-sessions.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.058852,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S16",
+      "surface": "mobile",
+      "route": "create",
+      "reference": "mobile/screens/S16-create.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.066528,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S17",
+      "surface": "mobile",
+      "route": "publish",
+      "reference": "mobile/screens/S17-publish.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.167782,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S17.success",
+      "surface": "mobile",
+      "route": "published",
+      "reference": "mobile/screens/S17.success-published.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.081075,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S18",
+      "surface": "mobile",
+      "route": "orders",
+      "reference": "mobile/screens/S18-orders.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.075736,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S18.empty",
+      "surface": "mobile",
+      "route": "empty-orders",
+      "reference": "mobile/screens/S18.empty-empty-orders.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.043761,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S19",
+      "surface": "mobile",
+      "route": "invite",
+      "reference": "mobile/screens/S19-invite.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.13947,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S19.sent",
+      "surface": "mobile",
+      "route": "invited",
+      "reference": "mobile/screens/S19.sent-invited.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.031262,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S20",
+      "surface": "mobile",
+      "route": "invitations",
+      "reference": "mobile/screens/S20-invitations.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.08056,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S21",
+      "surface": "mobile",
+      "route": "offer",
+      "reference": "mobile/screens/S21-offer.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.075881,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S21.revision",
+      "surface": "mobile",
+      "route": "offer-revision",
+      "reference": "mobile/screens/S21.revision-offer-revision.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.106776,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S21.sent",
+      "surface": "mobile",
+      "route": "offer-sent",
+      "reference": "mobile/screens/S21.sent-offer-sent.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.014865,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S22",
+      "surface": "mobile",
+      "route": "offers",
+      "reference": "mobile/screens/S22-offers.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.107631,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S23",
+      "surface": "mobile",
+      "route": "select-contractor",
+      "reference": "mobile/screens/S23-select-contractor.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.195328,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S24",
+      "surface": "mobile",
+      "route": "work",
+      "reference": "mobile/screens/S24-work.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.143965,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S24.amendment",
+      "surface": "mobile",
+      "route": "amendment",
+      "reference": "mobile/screens/S24.amendment-amendment.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.056179,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S25",
+      "surface": "mobile",
+      "route": "chat",
+      "reference": "mobile/screens/S25-chat.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.216579,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S25.frozen",
+      "surface": "mobile",
+      "route": "frozen-chat",
+      "reference": "mobile/screens/S25.frozen-frozen-chat.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.13192,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S25.inbox",
+      "surface": "mobile",
+      "route": "messages",
+      "reference": "mobile/screens/S25.inbox-messages.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.062877,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S26",
+      "surface": "mobile",
+      "route": "complete",
+      "reference": "mobile/screens/S26-complete.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.203645,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S26.rework",
+      "surface": "mobile",
+      "route": "rework",
+      "reference": "mobile/screens/S26.rework-rework.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.081588,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S27",
+      "surface": "mobile",
+      "route": "cancel",
+      "reference": "mobile/screens/S27-cancel.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.182758,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S27.pending",
+      "surface": "mobile",
+      "route": "cancel-pending",
+      "reference": "mobile/screens/S27.pending-cancel-pending.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.061905,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S28",
+      "surface": "mobile",
+      "route": "review",
+      "reference": "mobile/screens/S28-review.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.204411,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S28.sent",
+      "surface": "mobile",
+      "route": "review-sent",
+      "reference": "mobile/screens/S28.sent-review-sent.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.011276,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S29",
+      "surface": "mobile",
+      "route": "report",
+      "reference": "mobile/screens/S29-report.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.078256,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S30",
+      "surface": "mobile",
+      "route": "cases",
+      "reference": "mobile/screens/S30-cases.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.058193,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S30.appeal",
+      "surface": "mobile",
+      "route": "appeal",
+      "reference": "mobile/screens/S30.appeal-appeal.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.062853,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S30.appeal-sent",
+      "surface": "mobile",
+      "route": "appeal-sent",
+      "reference": "mobile/screens/S30.appeal-sent-appeal-sent.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.092133,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S30.restricted",
+      "surface": "mobile",
+      "route": "banned",
+      "reference": "mobile/screens/S30.restricted-banned.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.050713,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S31",
+      "surface": "mobile",
+      "route": "notifications",
+      "reference": "mobile/screens/S31-notifications.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.055521,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S32",
+      "surface": "mobile",
+      "route": "my-access",
+      "reference": "mobile/screens/S32-my-access.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.094755,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S32.canceled",
+      "surface": "mobile",
+      "route": "subscription-canceled",
+      "reference": "mobile/screens/S32.canceled-subscription-canceled.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.127116,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S32.manage",
+      "surface": "mobile",
+      "route": "manage-subscription",
+      "reference": "mobile/screens/S32.manage-manage-subscription.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.145157,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S32.pending",
+      "surface": "mobile",
+      "route": "payment-pending",
+      "reference": "mobile/screens/S32.pending-payment-pending.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.064912,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S32.restore",
+      "surface": "mobile",
+      "route": "restore",
+      "reference": "mobile/screens/S32.restore-restore.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.030329,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S33",
+      "surface": "mobile",
+      "route": "reward",
+      "reference": "mobile/screens/S33-reward.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.208939,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S33.granted",
+      "surface": "mobile",
+      "route": "reward-granted",
+      "reference": "mobile/screens/S33.granted-reward-granted.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.060431,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S33.nofill",
+      "surface": "mobile",
+      "route": "reward-nofill",
+      "reference": "mobile/screens/S33.nofill-reward-nofill.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.015334,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S33.pending",
+      "surface": "mobile",
+      "route": "reward-pending",
+      "reference": "mobile/screens/S33.pending-reward-pending.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.063818,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S34",
+      "surface": "mobile",
+      "route": "privacy",
+      "reference": "mobile/screens/S34-privacy.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.133644,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S34.consents",
+      "surface": "mobile",
+      "route": "consents",
+      "reference": "mobile/screens/S34.consents-consents.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.107444,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S34.delete",
+      "surface": "mobile",
+      "route": "delete-account",
+      "reference": "mobile/screens/S34.delete-delete-account.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.229216,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S34.delete-confirm",
+      "surface": "mobile",
+      "route": "delete-confirm",
+      "reference": "mobile/screens/S34.delete-confirm-delete-confirm.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.195462,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S34.delete-status",
+      "surface": "mobile",
+      "route": "delete-scheduled",
+      "reference": "mobile/screens/S34.delete-status-delete-scheduled.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.091286,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S34.export",
+      "surface": "mobile",
+      "route": "export",
+      "reference": "mobile/screens/S34.export-export.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.048203,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S34.export-pending",
+      "surface": "mobile",
+      "route": "export-pending",
+      "reference": "mobile/screens/S34.export-pending-export-pending.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.011204,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S35",
+      "surface": "mobile",
+      "route": "settings",
+      "reference": "mobile/screens/S35-settings.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.074068,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S35.languages",
+      "surface": "mobile",
+      "route": "languages",
+      "reference": "mobile/screens/S35.languages-languages.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.04754,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S35.logout",
+      "surface": "mobile",
+      "route": "logout-confirm",
+      "reference": "mobile/screens/S35.logout-logout-confirm.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.018317,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S35.notifications",
+      "surface": "mobile",
+      "route": "notification-settings",
+      "reference": "mobile/screens/S35.notifications-notification-settings.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.100193,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S36",
+      "surface": "mobile",
+      "route": "unlock",
+      "reference": "mobile/screens/S36-unlock.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.106437,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S36.limit",
+      "surface": "mobile",
+      "route": "pin-limit",
+      "reference": "mobile/screens/S36.limit-pin-limit.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.014878,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S37",
+      "surface": "mobile",
+      "route": "referrals",
+      "reference": "mobile/screens/S37-referrals.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.069627,
+      "known_gaps": [
+        "Состояния выданных наград, длинные тексты/языки и точная типографика требуют дальнейшей проверки.",
+        "DEMO-условия макета не заменяют опубликованные условия API."
+      ],
+      "evidence": [
+        "mobile-referral-terms-update.md",
+        "mobile/reward-states/available.png",
+        "mobile/reward-states/expired.png",
+        "mobile/reward-states/redeemed.png",
+        "mobile/reward-states/narrow-long.png"
+      ]
+    },
+    {
+      "id": "S37.redeem",
+      "surface": "mobile",
+      "route": "redeem",
+      "reference": "mobile/screens/S37.redeem-redeem.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.026715,
+      "known_gaps": [
+        "Точная типографика, ошибки/клавиатура и длинные тексты на всех языках требуют визуальной сверки.",
+        "DEMO-подписи заменены рабочими; приёмка 1:1 не подтверждена."
+      ],
+      "evidence": [
+        "mobile-referral-terms-update.md",
+        "mobile/reward-states/available.png",
+        "mobile/reward-states/expired.png",
+        "mobile/reward-states/redeemed.png",
+        "mobile/reward-states/narrow-long.png"
+      ]
+    },
+    {
+      "id": "S37.rules",
+      "surface": "mobile",
+      "route": "referral-rules",
+      "reference": "mobile/screens/S37.rules-referral-rules.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.123463,
+      "known_gaps": [
+        "Реальные условия отличаются по длине от DEMO, точная типографика и все языковые/ошибочные состояния требуют визуальной сверки.",
+        "Обещание «3 дня каждому» не используется вместо условий опубликованной кампании."
+      ],
+      "evidence": [
+        "mobile-referral-terms-update.md"
+      ]
+    },
+    {
+      "id": "S38",
+      "surface": "mobile",
+      "route": "portfolio",
+      "reference": "mobile/screens/S38-portfolio.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.198216,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S38.edit",
+      "surface": "mobile",
+      "route": "portfolio-edit",
+      "reference": "mobile/screens/S38.edit-portfolio-edit.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.083402,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S38.pending",
+      "surface": "mobile",
+      "route": "portfolio-pending",
+      "reference": "mobile/screens/S38.pending-portfolio-pending.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.013838,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S38.photos",
+      "surface": "mobile",
+      "route": "portfolio-photos",
+      "reference": "mobile/screens/S38.photos-portfolio-photos.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.106609,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S39",
+      "surface": "mobile",
+      "route": "portfolio-project",
+      "reference": "mobile/screens/S39-portfolio-project.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.196821,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S39.lightbox",
+      "surface": "mobile",
+      "route": "photo-view",
+      "reference": "mobile/screens/S39.lightbox-photo-view.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.062192,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S40",
+      "surface": "mobile",
+      "route": "support",
+      "reference": "mobile/screens/S40-support.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.16799,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S40.chat",
+      "surface": "mobile",
+      "route": "support-chat",
+      "reference": "mobile/screens/S40.chat-support-chat.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.148384,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S40.new",
+      "surface": "mobile",
+      "route": "support-new",
+      "reference": "mobile/screens/S40.new-support-new.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.056862,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S40.prelogin",
+      "surface": "mobile",
+      "route": "recovery",
+      "reference": "mobile/screens/S40.prelogin-recovery.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.192016,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S40.recovery",
+      "surface": "mobile",
+      "route": "recovery-chat",
+      "reference": "mobile/screens/S40.recovery-recovery-chat.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.120371,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S41",
+      "surface": "mobile",
+      "route": "top",
+      "reference": "mobile/screens/S41-top.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.198287,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S41.orders",
+      "surface": "mobile",
+      "route": "top-orders",
+      "reference": "mobile/screens/S41.orders-top-orders.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.109736,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S42",
+      "surface": "mobile",
+      "route": "promotion",
+      "reference": "mobile/screens/S42-promotion.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.090198,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S42.checkout",
+      "surface": "mobile",
+      "route": "promotion-checkout",
+      "reference": "mobile/screens/S42.checkout-promotion-checkout.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.14078,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S42.history",
+      "surface": "mobile",
+      "route": "promotion-history",
+      "reference": "mobile/screens/S42.history-promotion-history.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.160083,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S42.no-slots",
+      "surface": "mobile",
+      "route": "promotion-no-slots",
+      "reference": "mobile/screens/S42.no-slots-promotion-no-slots.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.014219,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S42.pending",
+      "surface": "mobile",
+      "route": "promotion-pending",
+      "reference": "mobile/screens/S42.pending-promotion-pending.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.019665,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S42.resolution",
+      "surface": "mobile",
+      "route": "promotion-resolution",
+      "reference": "mobile/screens/S42.resolution-promotion-resolution.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.023629,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "S42.terms",
+      "surface": "mobile",
+      "route": "promotion-terms",
+      "reference": "mobile/screens/S42.terms-promotion-terms.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.066309,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "X01",
+      "surface": "mobile",
+      "route": "session-expired",
+      "reference": "mobile/screens/X01-session-expired.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.011867,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "X02",
+      "surface": "mobile",
+      "route": "offline",
+      "reference": "mobile/screens/X02-offline.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.093442,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "X03",
+      "surface": "mobile",
+      "route": "error",
+      "reference": "mobile/screens/X03-error.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.063113,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "X04",
+      "surface": "mobile",
+      "route": "loading",
+      "reference": "mobile/screens/X04-loading.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.144204,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A01",
+      "surface": "admin",
+      "route": "login",
+      "reference": "admin/screens/login.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.04413,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A01.1",
+      "surface": "admin",
+      "route": "mfa",
+      "reference": "admin/screens/mfa.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.0617,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A02",
+      "surface": "admin",
+      "route": "dashboard",
+      "reference": "admin/screens/dashboard.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.088778,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A02.analytics",
+      "surface": "admin",
+      "route": "analytics",
+      "reference": "admin/screens/analytics.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.106697,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A02.revenue / FR-033",
+      "surface": "admin",
+      "route": "revenue",
+      "reference": "admin/screens/revenue.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.179891,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03",
+      "surface": "admin",
+      "route": "users",
+      "reference": "admin/screens/users.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.075478,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.2 / A12",
+      "surface": "admin",
+      "route": "user-security",
+      "reference": "admin/screens/user-security.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.105299,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.RBAC",
+      "surface": "admin",
+      "route": "settings",
+      "reference": "admin/screens/settings.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.12287,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.blacklist / FR-042",
+      "surface": "admin",
+      "route": "blacklist",
+      "reference": "admin/screens/blacklist.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.069777,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.blacklist.detail",
+      "surface": "admin",
+      "route": "blacklist-detail",
+      "reference": "admin/screens/blacklist-detail.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.0719,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.cases",
+      "surface": "admin",
+      "route": "user-cases",
+      "reference": "admin/screens/user-cases.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.123987,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.delete / A11.review",
+      "surface": "admin",
+      "route": "deletion",
+      "reference": "admin/screens/deletion.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.087326,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.detail",
+      "surface": "admin",
+      "route": "user-detail",
+      "reference": "admin/screens/user-detail.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.092913,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.history",
+      "surface": "admin",
+      "route": "user-decisions",
+      "reference": "admin/screens/user-decisions.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.098055,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A03.orders",
+      "surface": "admin",
+      "route": "user-orders",
+      "reference": "admin/screens/user-orders.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.066364,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A04",
+      "surface": "admin",
+      "route": "order-detail",
+      "reference": "admin/screens/order-detail.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.0725,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A04.list",
+      "surface": "admin",
+      "route": "orders",
+      "reference": "admin/screens/orders.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.066307,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A05",
+      "surface": "admin",
+      "route": "moderation",
+      "reference": "admin/screens/moderation.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.075966,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A05.portfolio / FR-040",
+      "surface": "admin",
+      "route": "portfolio",
+      "reference": "admin/screens/portfolio.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.11842,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A06",
+      "surface": "admin",
+      "route": "case",
+      "reference": "admin/screens/case.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.181747,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A07",
+      "surface": "admin",
+      "route": "verification",
+      "reference": "admin/screens/verification.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.093991,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A07.authorization",
+      "surface": "admin",
+      "route": "id-auth",
+      "reference": "admin/screens/id-auth.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.070763,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A07.guard",
+      "surface": "admin",
+      "route": "verification-detail",
+      "reference": "admin/screens/verification-detail.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.106987,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A07.review",
+      "surface": "admin",
+      "route": "verification-review",
+      "reference": "admin/screens/verification-review.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.13999,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A08",
+      "surface": "admin",
+      "route": "categories",
+      "reference": "admin/screens/categories.png",
+      "status": "reviewed_changes_required",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.136315,
+      "known_gaps": [
+        "Общий shell, иконки дерева, таблица/состояния редактора полей и отступы требуют дальнейшей визуальной сверки.",
+        "Исторические данные не мигрируются массово автоматически."
+      ],
+      "evidence": [
+        "category-editor-update.md",
+        "visual-audit.json"
+      ]
+    },
+    {
+      "id": "A08.languages",
+      "surface": "admin",
+      "route": "languages",
+      "reference": "admin/screens/languages.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.105219,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A09 / A22.prices",
+      "surface": "admin",
+      "route": "pricing",
+      "reference": "admin/screens/pricing.png",
+      "status": "reviewed_changes_required",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.105596,
+      "known_gaps": [
+        "Нужна дальнейшая визуальная сверка общего shell, бейджей, отступов и дополнительных состояний редактора.",
+        "Правила изменения цены для существующих когорт не завершены; UI не имитирует их применение."
+      ],
+      "evidence": [
+        "price-editor-update.md",
+        "visual-audit.json"
+      ]
+    },
+    {
+      "id": "A09.preview",
+      "surface": "admin",
+      "route": "promo-preview",
+      "reference": "admin/screens/promo-preview.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.170593,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A09.promo",
+      "surface": "admin",
+      "route": "promo",
+      "reference": "admin/screens/promo.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.140591,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A10",
+      "surface": "admin",
+      "route": "campaigns",
+      "reference": "admin/screens/campaigns.png",
+      "status": "review_in_progress",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.107559,
+      "known_gaps": [
+        "Общий shell и типографика административной панели ещё отличаются от эталона.",
+        "Компоновка фильтров и блок разрешённых размещений требуют дальнейшей визуальной сверки."
+      ],
+      "evidence": [
+        "docs/banner-layout-update.md",
+        "scripts/verify-admin-browser.cjs",
+        "docs/design/review/admin/A10-campaigns.png"
+      ]
+    },
+    {
+      "id": "A10.archive / A17.archive",
+      "surface": "admin",
+      "route": "archive",
+      "reference": "admin/screens/archive.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.056925,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A10.creative",
+      "surface": "admin",
+      "route": "banner-detail",
+      "reference": "admin/screens/banner-detail.png",
+      "status": "review_in_progress",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.0737,
+      "known_gaps": [
+        "Общий shell и типографика административной панели ещё отличаются от эталона.",
+        "Нативные поля даты и дополнительные служебные действия требуют дальнейшей визуальной сверки."
+      ],
+      "evidence": [
+        "docs/banner-layout-update.md",
+        "scripts/verify-admin-browser.cjs",
+        "docs/design/review/admin/A10.creative-banner-detail.png"
+      ]
+    },
+    {
+      "id": "A11",
+      "surface": "admin",
+      "route": "privacy",
+      "reference": "admin/screens/privacy.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.079326,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A12",
+      "surface": "admin",
+      "route": "security",
+      "reference": "admin/screens/security.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.134598,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A12.full",
+      "surface": "admin",
+      "route": "security-full",
+      "reference": "admin/screens/security-full.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.159373,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A13",
+      "surface": "admin",
+      "route": "audit",
+      "reference": "admin/screens/audit.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.098572,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A14",
+      "surface": "admin",
+      "route": "countries",
+      "reference": "admin/screens/countries.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.211569,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A14.gate",
+      "surface": "admin",
+      "route": "country-detail",
+      "reference": "admin/screens/country-detail.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.078278,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A15",
+      "surface": "admin",
+      "route": "jobs",
+      "reference": "admin/screens/jobs.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.123812,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A15.retry",
+      "surface": "admin",
+      "route": "job-detail",
+      "reference": "admin/screens/job-detail.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.110992,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A15.schedule",
+      "surface": "admin",
+      "route": "scheduled",
+      "reference": "admin/screens/scheduled.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.085602,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A16",
+      "surface": "admin",
+      "route": "monetization",
+      "reference": "admin/screens/monetization.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.11965,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A16.preview",
+      "surface": "admin",
+      "route": "monetization-preview",
+      "reference": "admin/screens/monetization-preview.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.073609,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A16.rewarded",
+      "surface": "admin",
+      "route": "rewarded",
+      "reference": "admin/screens/rewarded.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.096073,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A17",
+      "surface": "admin",
+      "route": "push",
+      "reference": "admin/screens/push.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.090371,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A17.composer",
+      "surface": "admin",
+      "route": "push-compose",
+      "reference": "admin/screens/push-compose.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.092905,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A18",
+      "surface": "admin",
+      "route": "dictionary",
+      "reference": "admin/screens/dictionary.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.17652,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A18.dryrun",
+      "surface": "admin",
+      "route": "dictionary-dryrun",
+      "reference": "admin/screens/dictionary-dryrun.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.133859,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A19",
+      "surface": "admin",
+      "route": "branding",
+      "reference": "admin/screens/branding.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.152913,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A19.build",
+      "surface": "admin",
+      "route": "branding-build",
+      "reference": "admin/screens/branding-build.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.130464,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A20",
+      "surface": "admin",
+      "route": "referrals",
+      "reference": "admin/screens/referrals.png",
+      "status": "reviewed_changes_required",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.14951,
+      "known_gaps": [
+        "Общий каркас, типографика и сетка полей требуют дальнейшей сверки. Предпросмотр без ID показывает выбор кампании.",
+        "Демонстрационная скидка не реализована; показываются фактические временные права. Освобождение резерва и исторические обязательства открыты."
+      ],
+      "evidence": [
+        "referral-editor-update.md",
+        "visual-audit.json"
+      ]
+    },
+    {
+      "id": "A20.preview",
+      "surface": "admin",
+      "route": "referral-preview",
+      "reference": "admin/screens/referral-preview.png",
+      "status": "reviewed_changes_required",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.089674,
+      "known_gaps": [
+        "Общий каркас, типографика и сетка полей требуют дальнейшей сверки. Предпросмотр без ID показывает выбор кампании.",
+        "Демонстрационная скидка не реализована; показываются фактические временные права. Освобождение резерва и исторические обязательства открыты."
+      ],
+      "evidence": [
+        "referral-editor-update.md",
+        "visual-audit.json"
+      ]
+    },
+    {
+      "id": "A21",
+      "surface": "admin",
+      "route": "support",
+      "reference": "admin/screens/support.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.114157,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A21.thread",
+      "surface": "admin",
+      "route": "support-recovery",
+      "reference": "admin/screens/support-recovery.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.115955,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A22",
+      "surface": "admin",
+      "route": "top100",
+      "reference": "admin/screens/top100.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.157527,
+      "known_gaps": [],
+      "evidence": [
+        "ranking-editor-update.md"
+      ]
+    },
+    {
+      "id": "A22.boosts",
+      "surface": "admin",
+      "route": "boosts",
+      "reference": "admin/screens/boosts.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.121807,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A22.grant",
+      "surface": "admin",
+      "route": "boost-grant",
+      "reference": "admin/screens/boost-grant.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.130558,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "A22.placements",
+      "surface": "admin",
+      "route": "placements",
+      "reference": "admin/screens/placements.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.13777,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G01",
+      "surface": "admin",
+      "route": "users--loading",
+      "reference": "admin/screens/users--loading.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.226252,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G02",
+      "surface": "admin",
+      "route": "users--error",
+      "reference": "admin/screens/users--error.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.070247,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G03",
+      "surface": "admin",
+      "route": "users--empty",
+      "reference": "admin/screens/users--empty.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.069411,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G04",
+      "surface": "admin",
+      "route": "dashboard--offline",
+      "reference": "admin/screens/dashboard--offline.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.115502,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G05",
+      "surface": "admin",
+      "route": "dashboard--expired",
+      "reference": "admin/screens/dashboard--expired.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.061939,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G06",
+      "surface": "admin",
+      "route": "verification-detail--forbidden",
+      "reference": "admin/screens/verification-detail--forbidden.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.069778,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G07 / A06.conflict",
+      "surface": "admin",
+      "route": "revision-conflict",
+      "reference": "admin/screens/revision-conflict.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.186616,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G08 / A03.bulk",
+      "surface": "admin",
+      "route": "bulk-preview",
+      "reference": "admin/screens/bulk-preview.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.124325,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "G08.success / A15.progress",
+      "surface": "admin",
+      "route": "bulk-result",
+      "reference": "admin/screens/bulk-result.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.112151,
+      "known_gaps": [],
+      "evidence": []
+    },
+    {
+      "id": "W01",
+      "surface": "public",
+      "route": "W01",
+      "reference": "public/previews/W01.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.029559,
+      "known_gaps": [],
+      "evidence": [
+        "web-commerce-update.md"
+      ]
+    },
+    {
+      "id": "W02",
+      "surface": "public",
+      "route": "W02",
+      "reference": "public/previews/W02.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.036202,
+      "known_gaps": [],
+      "evidence": [
+        "web-commerce-update.md"
+      ]
+    },
+    {
+      "id": "W03",
+      "surface": "public",
+      "route": "W03",
+      "reference": "public/previews/W03.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.10631,
+      "known_gaps": [],
+      "evidence": [
+        "web-commerce-update.md"
+      ]
+    },
+    {
+      "id": "W04",
+      "surface": "public",
+      "route": "W04",
+      "reference": "public/previews/W04.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.050206,
+      "known_gaps": [],
+      "evidence": [
+        "web-commerce-update.md"
+      ]
+    },
+    {
+      "id": "W05",
+      "surface": "public",
+      "route": "W05",
+      "reference": "public/previews/W05.png",
+      "status": "unreviewed",
+      "acceptance": "pending",
+      "diagnostic_difference": 0.046821,
+      "known_gaps": [],
+      "evidence": [
+        "web-commerce-update.md"
+      ]
+    }
+  ]
+}

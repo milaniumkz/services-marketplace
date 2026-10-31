@@ -1,0 +1,46 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
+const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store');
+const {bootstrapStaff}=require('../dist/staff-bootstrap');
+test('explicit owner test mode simulates role-specific 30-day access, records zero cash, rejects stale consent/prices and is revocable',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ try{
+  await bootstrapStaff(api.store,api.files,{country:'KZ',identifier:'test-payment-owner',display_name:'Тест оплаты',password:'Isolated payment owner!',authentication:'password',permissions:['platform_owner'],reason:'Изолированный тест оплаты'},async()=>{});
+  const boss=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:'test-payment-owner',password:'Isolated payment owner!'});
+  const owner=(m,p,b={})=>api.handle(m,p,b,'Bearer '+boss.access_token,randomUUID());
+  const buyer=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000489',password:'Isolated test payment!'},undefined,randomUUID());
+  const call=(m,p,b={})=>api.handle(m,p,b,'Bearer '+buyer.access_token,randomUUID());
+  assert.equal((await call('GET','/billing/offers')).items.length,0);
+  await assert.rejects(()=>call('PUT','/admin/test-payments',{enabled:true}),e=>e.getStatus()===403);
+  const reason='Имитация платежа без реального списания';
+  await owner('PUT','/admin/test-payments',{enabled:true,expected_version:0,reason});
+  const getOffer=async()=> (await call('GET','/billing/offers')).items;
+  const buy=offer=>call('POST','/billing/test-purchase',{offer_id:offer.id,accepted:true,amount_minor:offer.amount_minor,currency:offer.currency});
+  assert.equal((await call('GET','/me/monetization-config')).test_payments_enabled,true);
+  const offer=(await getOffer())[0];assert.equal(offer.plan,'customer');assert.equal(offer.amount_minor,50000);assert.equal(offer.is_test,true);
+  await assert.rejects(()=>buy(offer),e=>e.getResponse().error.code==='VERIFICATION_REQUIRED');
+  await api.store.put({...await api.store.get(buyer.user.id),verification:'passed'});
+  await assert.rejects(()=>call('POST','/billing/test-purchase',{offer_id:offer.id,accepted:false}),e=>e.getResponse().error.code==='CONSENT_REQUIRED');
+  await assert.rejects(()=>buy({...offer,amount_minor:1}),e=>e.getResponse().error.code==='OFFER_CHANGED');
+  const paid=await buy(offer);assert.equal(paid.is_test,true);assert.equal((await call('GET','/me/subscriptions/'+paid.subscription.id)).is_test,true);assert.equal(paid.subscription.auto_renew,false);assert.equal(paid.subscription.price_snapshot.plan,'customer');
+  const days=(Date.parse(paid.subscription.valid_until)-Date.now())/86400000;assert.ok(days>29.99&&days<=30);
+  assert.equal((await buy(offer)).subscription.id,paid.subscription.id);
+  assert.equal((await api.store.all('payment_transaction','KZ')).length,1);
+  const ledger=(await api.store.all('payment_transaction','KZ'))[0];assert.equal(ledger.cash_amount_minor,0);assert.equal(ledger.operation,'test_purchase');assert.equal(ledger.environment,'sandbox');
+  const grants=(await call('GET','/me/entitlements')).items;assert.deepEqual(grants[0].capabilities,['view_contractors','publish_order']);
+  await call('GET','/contractors');assert.equal((await call('GET','/billing/refundable-payments')).items.length,0);
+  await api.store.put({...await api.store.get(buyer.user.id),roles:['customer','executor'],active_role:'executor'});
+  const executorOffers=await getOffer();assert.deepEqual(executorOffers.map(o=>o.plan),['standard','premium']);
+  await assert.rejects(()=>buy(offer),e=>e.getResponse().error.code==='OFFER_CHANGED');
+  const premium=await buy(executorOffers.find(o=>o.plan==='premium'));assert.equal(premium.subscription.price_snapshot.plan,'premium');
+  assert.ok((await call('GET','/me/entitlements')).items.some(g=>g.plan==='premium'&&g.capabilities.includes('top100')));
+  await assert.rejects(()=>buy(executorOffers.find(o=>o.plan==='standard')),e=>e.getResponse().error.code==='OFFER_CHANGED');
+  const renewal=await buy((await getOffer()).find(o=>o.plan==='standard'));
+  assert.equal(renewal.subscription.status,'active');assert.ok(Date.parse(renewal.subscription.valid_from)<Date.parse(premium.subscription.valid_until));assert.ok(Date.parse(renewal.subscription.valid_until)>Date.parse(premium.subscription.valid_until));
+  assert.equal((await call('GET','/me/entitlements')).items.some(g=>g.capabilities.includes('top100')&&g.valid_until>new Date().toISOString()),false);assert.ok((await call('GET','/me/entitlements')).items.some(g=>g.plan==='standard'&&g.valid_until>new Date().toISOString()));
+  const settings=await owner('GET','/admin/test-payments');await owner('PUT','/admin/test-payments',{enabled:false,expected_version:settings.version,reason});
+  assert.equal((await getOffer()).length,0);await assert.rejects(()=>buy(executorOffers[0]),e=>e.getStatus()===409);
+  assert.ok((await call('GET','/me/entitlements')).items.every(g=>g.valid_until<=new Date().toISOString()));
+  const latest=await owner('GET','/admin/test-payments');await owner('PUT','/admin/test-payments',{enabled:true,expected_version:latest.version,reason});
+  api.providers.billing.set('real-provider',{});assert.equal((await getOffer()).length,0);await assert.rejects(()=>buy(executorOffers[0]),e=>e.getStatus()===409);
+ }finally{await api.store.close();}
+});

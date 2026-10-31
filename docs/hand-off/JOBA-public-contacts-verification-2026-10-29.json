@@ -1,0 +1,40 @@
+{
+  "verified_at": "2026-10-29T13:35:58.161043+00:00",
+  "source_commit": "99805332c4db43936eb710a9463fa389b715171b",
+  "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40881102409",
+  "deployment_conclusion": "success",
+  "live_browser_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/40883221707",
+  "live_browser_conclusion": "success",
+  "api_tests_passed": 194,
+  "flutter_tests_passed": 276,
+  "flutter_conditional_skips": 2,
+  "browser_flutter_tests_passed": 14,
+  "admin_page_viewport_checks": 65,
+  "admin_navigation_sections": 26,
+  "root_opens_application": true,
+  "legacy_terms_fragment_navigation_verified": true,
+  "https_certificate_validation_enabled": true,
+  "operator_contacts_editable_in_owner_admin": true,
+  "operator_publication": {
+    "operator_published": true,
+    "version": 1,
+    "editable_contacts": true,
+    "published_documents_by_country": {
+      "KZ": true,
+      "RU": true,
+      "BY": true,
+      "KG": true
+    },
+    "private_credentials_or_tax_id_logged": false,
+    "checked_at": "2026-10-29T13:35:41.460755+00:00"
+  },
+  "apk_built": false,
+  "google_site_status_owner_report": "review_in_progress",
+  "yandex_web_site_status_owner_report": "approved_after_support_request",
+  "yandex_active_android_units": [
+    "R-M-20254161-1",
+    "R-M-20254161-3"
+  ],
+  "yandex_android_app_status_from_screenshot": "test_status_requires_store_link",
+  "ad_sdk_integration_complete": false
+}

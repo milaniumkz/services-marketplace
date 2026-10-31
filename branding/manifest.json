@@ -1,0 +1,588 @@
+{
+  "source": "branding/joba-source.png",
+  "source_sha256": "ecb9227ed5ae98e227b718000d7b70fc206925c6f25ee64d1e8360789beb6859",
+  "artwork": "full image preserved; resizing and platform padding only",
+  "outputs": [
+    {
+      "path": "branding/joba-master-4096.png",
+      "pixels": 4096,
+      "role": "master",
+      "bytes": 23259325,
+      "sha256": "8ab9c4fade87eb19f38f276f8aa70aac62ced37a02d2e04ca492300be072efb6"
+    },
+    {
+      "path": "apps/mobile/assets/joba-logo.png",
+      "pixels": 512,
+      "role": "app-logo",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "apps/admin/public/assets/joba-logo.png",
+      "pixels": 512,
+      "role": "web-logo",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "apps/admin/public/assets/joba-logo-192.png",
+      "pixels": 192,
+      "role": "header-logo",
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
+    },
+    {
+      "path": "apps/admin/public/assets/joba-logo-source.png",
+      "pixels": 1024,
+      "role": "branding-reference",
+      "bytes": 2262116,
+      "sha256": "735413682ec2f78856c7b639bd70db60b46a5901b25e529e14e688ea4861d722"
+    },
+    {
+      "path": "apps/admin/public/assets/joba-favicon.png",
+      "pixels": 48,
+      "role": "favicon",
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
+    },
+    {
+      "path": "apps/admin/public/assets/joba-logo-original.jpeg",
+      "pixels": 768,
+      "role": "legacy-url",
+      "bytes": 470241,
+      "sha256": "a5856a7df722d1f1c7f197e1587696e84546ace61e5e5f6a76198f0ec0998874"
+    },
+    {
+      "path": "apps/web/public/assets/joba-logo.png",
+      "pixels": 512,
+      "role": "web-logo",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "apps/web/public/assets/joba-logo-192.png",
+      "pixels": 192,
+      "role": "header-logo",
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
+    },
+    {
+      "path": "apps/web/public/assets/joba-logo-source.png",
+      "pixels": 1024,
+      "role": "branding-reference",
+      "bytes": 2262116,
+      "sha256": "735413682ec2f78856c7b639bd70db60b46a5901b25e529e14e688ea4861d722"
+    },
+    {
+      "path": "apps/web/public/assets/joba-favicon.png",
+      "pixels": 48,
+      "role": "favicon",
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
+    },
+    {
+      "path": "apps/web/public/assets/joba-logo-original.jpeg",
+      "pixels": 768,
+      "role": "legacy-url",
+      "bytes": 470241,
+      "sha256": "a5856a7df722d1f1c7f197e1587696e84546ace61e5e5f6a76198f0ec0998874"
+    },
+    {
+      "path": "apps/web/assets/joba-logo.png",
+      "pixels": 512,
+      "role": "web-logo",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "apps/web/assets/joba-logo-192.png",
+      "pixels": 192,
+      "role": "header-logo",
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
+    },
+    {
+      "path": "apps/web/assets/joba-logo-source.png",
+      "pixels": 1024,
+      "role": "branding-reference",
+      "bytes": 2262116,
+      "sha256": "735413682ec2f78856c7b639bd70db60b46a5901b25e529e14e688ea4861d722"
+    },
+    {
+      "path": "apps/web/assets/joba-favicon.png",
+      "pixels": 48,
+      "role": "favicon",
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
+    },
+    {
+      "path": "apps/web/assets/joba-logo-original.jpeg",
+      "pixels": 768,
+      "role": "legacy-url",
+      "bytes": 470241,
+      "sha256": "a5856a7df722d1f1c7f197e1587696e84546ace61e5e5f6a76198f0ec0998874"
+    },
+    {
+      "path": "apps/client/public/assets/joba-logo.png",
+      "pixels": 512,
+      "role": "web-logo",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "apps/client/public/assets/joba-logo-192.png",
+      "pixels": 192,
+      "role": "header-logo",
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
+    },
+    {
+      "path": "apps/client/public/assets/joba-logo-source.png",
+      "pixels": 1024,
+      "role": "branding-reference",
+      "bytes": 2262116,
+      "sha256": "735413682ec2f78856c7b639bd70db60b46a5901b25e529e14e688ea4861d722"
+    },
+    {
+      "path": "apps/client/public/assets/joba-favicon.png",
+      "pixels": 48,
+      "role": "favicon",
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
+    },
+    {
+      "path": "apps/client/public/assets/joba-logo-original.jpeg",
+      "pixels": 768,
+      "role": "legacy-url",
+      "bytes": 470241,
+      "sha256": "a5856a7df722d1f1c7f197e1587696e84546ace61e5e5f6a76198f0ec0998874"
+    },
+    {
+      "path": "apps/client/assets/joba-logo.png",
+      "pixels": 512,
+      "role": "web-logo",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "apps/client/assets/joba-logo-192.png",
+      "pixels": 192,
+      "role": "header-logo",
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
+    },
+    {
+      "path": "apps/client/assets/joba-logo-source.png",
+      "pixels": 1024,
+      "role": "branding-reference",
+      "bytes": 2262116,
+      "sha256": "735413682ec2f78856c7b639bd70db60b46a5901b25e529e14e688ea4861d722"
+    },
+    {
+      "path": "apps/client/assets/joba-favicon.png",
+      "pixels": 48,
+      "role": "favicon",
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
+    },
+    {
+      "path": "apps/client/assets/joba-logo-original.jpeg",
+      "pixels": 768,
+      "role": "legacy-url",
+      "bytes": 470241,
+      "sha256": "a5856a7df722d1f1c7f197e1587696e84546ace61e5e5f6a76198f0ec0998874"
+    },
+    {
+      "path": "apps/mobile/assets/joba-logo-original.jpeg",
+      "pixels": 768,
+      "role": "legacy-source",
+      "bytes": 470241,
+      "sha256": "a5856a7df722d1f1c7f197e1587696e84546ace61e5e5f6a76198f0ec0998874"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "pixels": 48,
+      "role": "android-legacy",
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+      "pixels": 48,
+      "role": "android-round",
+      "bytes": 3834,
+      "sha256": "80b9a58c9352fa85a57fd4ebcdb42b71cb1ba8d2b8fd2018c09d1c7e0659cd5e"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png",
+      "pixels": 108,
+      "role": "android-adaptive",
+      "bytes": 7318,
+      "sha256": "46d5cbe8c5fd97e635c7bc6b3272931e9783e7fc6ef3e99eef73ec1bff9a8df9"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/drawable-mdpi/joba_launch_logo.png",
+      "pixels": 140,
+      "role": "android-launch",
+      "bytes": 51691,
+      "sha256": "ec9736f39ca01fdff0c4bcbd8dc7999965d572b7cb7e56061815af01c8dfdd4b"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "pixels": 72,
+      "role": "android-legacy",
+      "bytes": 14623,
+      "sha256": "eb04eb8e7c8d11d171301480471933cbc5fcda66f86f914e7baba313b3076f3d"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+      "pixels": 72,
+      "role": "android-round",
+      "bytes": 8422,
+      "sha256": "fd6d9055e481a2f2d6d1f2a7a21ad2d517e392bfabb73c8d834f449434564089"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png",
+      "pixels": 162,
+      "role": "android-adaptive",
+      "bytes": 16019,
+      "sha256": "75d7b44863f208ab630866f96414612851ba58c7fe46890bdf28833b36829e45"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/drawable-hdpi/joba_launch_logo.png",
+      "pixels": 210,
+      "role": "android-launch",
+      "bytes": 111096,
+      "sha256": "aac1c7787a611ab0c2c487ca4f1cde2e1536aa407e44733c71a2db4eaf1ab547"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "pixels": 96,
+      "role": "android-legacy",
+      "bytes": 25255,
+      "sha256": "be3fee7fe11bb039b6ea63f4786e276e8aece00513e7f552930b5329fdf6ccf3"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+      "pixels": 96,
+      "role": "android-round",
+      "bytes": 14720,
+      "sha256": "51383d4944663adddff72beec6cdc586f7e194f6924d90c9979fcc408109819e"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png",
+      "pixels": 216,
+      "role": "android-adaptive",
+      "bytes": 27584,
+      "sha256": "dbdaa1f2327d31ac30a3e1b2f745bde82dac46059d6dca3e3717b7ef47e7711c"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/drawable-xhdpi/joba_launch_logo.png",
+      "pixels": 280,
+      "role": "android-launch",
+      "bytes": 191401,
+      "sha256": "5f79ea0582baeed2f1baf620c1518a737eb9d33d9f9a0821a4b40184b15bb034"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "pixels": 144,
+      "role": "android-legacy",
+      "bytes": 54375,
+      "sha256": "c4a9cb78535f0f85b112c6afdfa54f7c31f110ea70e145f2cacc09ef4c9b08d2"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+      "pixels": 144,
+      "role": "android-round",
+      "bytes": 31429,
+      "sha256": "d0b32b4f4970527ca7a7cb6a2efab4a264587b930fd078db0b0a9a358f28d3c5"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png",
+      "pixels": 324,
+      "role": "android-adaptive",
+      "bytes": 59204,
+      "sha256": "0f76011dff12b9f99c91205b2478f9cb5f9f01a352cebd2b741d15475c91cb61"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/drawable-xxhdpi/joba_launch_logo.png",
+      "pixels": 420,
+      "role": "android-launch",
+      "bytes": 414887,
+      "sha256": "568ff6b14e2a605bee4a18e22d5546bd8701f53b518ab5630526edd50d6b06c0"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "pixels": 192,
+      "role": "android-legacy",
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+      "pixels": 192,
+      "role": "android-round",
+      "bytes": 54420,
+      "sha256": "d760ee2fea2ed5391a6957b65f4b78dd77add28f0920b06ac3b70c6faed9fcb4"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png",
+      "pixels": 432,
+      "role": "android-adaptive",
+      "bytes": 100797,
+      "sha256": "9a12f3642c6b9f442958570653eef8f9a4ec845e8ba1d0802757ba6176016f4d"
+    },
+    {
+      "path": "apps/mobile/android/app/src/main/res/drawable-xxxhdpi/joba_launch_logo.png",
+      "pixels": 560,
+      "role": "android-launch",
+      "bytes": 716855,
+      "sha256": "db3331c0d611791565aec67900d4d970d34f14b7078ed73d77a17c1337b70240"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png",
+      "pixels": 40,
+      "role": "ios-icon",
+      "bytes": 4761,
+      "sha256": "9f60214b5776af57fdf53d19627c3c13951d1e1710ab080240eb63f2bb8d4c10"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png",
+      "pixels": 60,
+      "role": "ios-icon",
+      "bytes": 10329,
+      "sha256": "55ced0df20bea0fe44ce4af2c6f01a2001244ce8b4b931ebf9bd28b2cd782d21"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png",
+      "pixels": 29,
+      "role": "ios-icon",
+      "bytes": 2613,
+      "sha256": "264576a673ee6b05af22d17b0224e43121848e37727a0f6c8e9b088b7675666d"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png",
+      "pixels": 58,
+      "role": "ios-icon",
+      "bytes": 9680,
+      "sha256": "fbd80447d1ee938f433cb96701cdda8d503c509393b2b48dae9eca0c5a2ac4e6"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png",
+      "pixels": 87,
+      "role": "ios-icon",
+      "bytes": 20993,
+      "sha256": "b786214f5004c5d4eea2e8c3b3a416aa56b0ed413513552b27d47b28d3d1e6ba"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png",
+      "pixels": 80,
+      "role": "ios-icon",
+      "bytes": 17917,
+      "sha256": "c93ecd9825b38f1f63b9c980516f1a60a3f2ff8a91326517e41b08ec3c126a63"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png",
+      "pixels": 120,
+      "role": "ios-icon",
+      "bytes": 38428,
+      "sha256": "a6ed6b28981525a510b06eaf15b326f37609caff9b794274a01146b7591b0ea1"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png",
+      "pixels": 120,
+      "role": "ios-icon",
+      "bytes": 38428,
+      "sha256": "a6ed6b28981525a510b06eaf15b326f37609caff9b794274a01146b7591b0ea1"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png",
+      "pixels": 180,
+      "role": "ios-icon",
+      "bytes": 82529,
+      "sha256": "3d75f2d9294eeaf858a8639b8a08cc2375c975672d188f4f98ee21f66552d81d"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png",
+      "pixels": 20,
+      "role": "ios-icon",
+      "bytes": 1309,
+      "sha256": "faac9889207f4fbde89e9e73b39865cb7c79a8c44b66711b812ff75acae12b9c"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png",
+      "pixels": 40,
+      "role": "ios-icon",
+      "bytes": 4761,
+      "sha256": "9f60214b5776af57fdf53d19627c3c13951d1e1710ab080240eb63f2bb8d4c10"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png",
+      "pixels": 29,
+      "role": "ios-icon",
+      "bytes": 2613,
+      "sha256": "264576a673ee6b05af22d17b0224e43121848e37727a0f6c8e9b088b7675666d"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png",
+      "pixels": 58,
+      "role": "ios-icon",
+      "bytes": 9680,
+      "sha256": "fbd80447d1ee938f433cb96701cdda8d503c509393b2b48dae9eca0c5a2ac4e6"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png",
+      "pixels": 40,
+      "role": "ios-icon",
+      "bytes": 4761,
+      "sha256": "9f60214b5776af57fdf53d19627c3c13951d1e1710ab080240eb63f2bb8d4c10"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png",
+      "pixels": 80,
+      "role": "ios-icon",
+      "bytes": 17917,
+      "sha256": "c93ecd9825b38f1f63b9c980516f1a60a3f2ff8a91326517e41b08ec3c126a63"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png",
+      "pixels": 76,
+      "role": "ios-icon",
+      "bytes": 16270,
+      "sha256": "9f88ff901c381dadbd5611bd7a9e7034d4386c4553ce28af86c1cc0a8fe8bb4f"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png",
+      "pixels": 152,
+      "role": "ios-icon",
+      "bytes": 60178,
+      "sha256": "70c061062778543f877e6807fb892b034f36af79dcc35ca861a994d39a32b358"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png",
+      "pixels": 167,
+      "role": "ios-icon",
+      "bytes": 71530,
+      "sha256": "ce48db271e9cb5216ae4ffb294e57a1403407a4b143c7fae8e85e4a8d4f4c17c"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png",
+      "pixels": 1024,
+      "role": "ios-icon",
+      "bytes": 2262116,
+      "sha256": "735413682ec2f78856c7b639bd70db60b46a5901b25e529e14e688ea4861d722"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png",
+      "pixels": 140,
+      "role": "ios-launch",
+      "bytes": 51691,
+      "sha256": "ec9736f39ca01fdff0c4bcbd8dc7999965d572b7cb7e56061815af01c8dfdd4b"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png",
+      "pixels": 280,
+      "role": "ios-launch",
+      "bytes": 191401,
+      "sha256": "5f79ea0582baeed2f1baf620c1518a737eb9d33d9f9a0821a4b40184b15bb034"
+    },
+    {
+      "path": "apps/mobile/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png",
+      "pixels": 420,
+      "role": "ios-launch",
+      "bytes": 414887,
+      "sha256": "568ff6b14e2a605bee4a18e22d5546bd8701f53b518ab5630526edd50d6b06c0"
+    },
+    {
+      "path": "apps/mobile/web/icons/joba-192.png",
+      "pixels": 192,
+      "role": "web-install",
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
+    },
+    {
+      "path": "apps/mobile/web/icons/joba-maskable-192.png",
+      "pixels": 192,
+      "role": "web-install",
+      "bytes": 36231,
+      "sha256": "bd626ed80a2031ac4e0e63db3decde5e989edcb3b36385638f51416a90ad0a93"
+    },
+    {
+      "path": "apps/mobile/web/icons/Icon-192.png",
+      "pixels": 192,
+      "role": "legacy-web-icon",
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
+    },
+    {
+      "path": "apps/mobile/web/icons/Icon-maskable-192.png",
+      "pixels": 192,
+      "role": "legacy-web-maskable",
+      "bytes": 36231,
+      "sha256": "bd626ed80a2031ac4e0e63db3decde5e989edcb3b36385638f51416a90ad0a93"
+    },
+    {
+      "path": "apps/mobile/web/icons/joba-512.png",
+      "pixels": 512,
+      "role": "web-install",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "apps/mobile/web/icons/joba-maskable-512.png",
+      "pixels": 512,
+      "role": "web-install",
+      "bytes": 229565,
+      "sha256": "3b3fec2c421f7ae5a8b43c70fc6327ad3c2e9b13f1744013742e6366ed5d1789"
+    },
+    {
+      "path": "apps/mobile/web/icons/Icon-512.png",
+      "pixels": 512,
+      "role": "legacy-web-icon",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "apps/mobile/web/icons/Icon-maskable-512.png",
+      "pixels": 512,
+      "role": "legacy-web-maskable",
+      "bytes": 229565,
+      "sha256": "3b3fec2c421f7ae5a8b43c70fc6327ad3c2e9b13f1744013742e6366ed5d1789"
+    },
+    {
+      "path": "apps/mobile/web/favicon-joba.png",
+      "pixels": 48,
+      "role": "web-favicon",
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
+    },
+    {
+      "path": "apps/mobile/web/favicon.png",
+      "pixels": 48,
+      "role": "legacy-favicon",
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
+    },
+    {
+      "path": "apps/mobile/web/icons/joba-180.png",
+      "pixels": 180,
+      "role": "apple-touch",
+      "bytes": 82529,
+      "sha256": "3d75f2d9294eeaf858a8639b8a08cc2375c975672d188f4f98ee21f66552d81d"
+    },
+    {
+      "path": "branding/google-play-512.png",
+      "pixels": 512,
+      "role": "store",
+      "bytes": 605656,
+      "sha256": "26dffd56b5b24ae47b120b7389fdd2b048e9bfbf69b508dc9ee48aa82b087d98"
+    },
+    {
+      "path": "branding/app-store-1024.png",
+      "pixels": 1024,
+      "role": "store",
+      "bytes": 2262116,
+      "sha256": "735413682ec2f78856c7b639bd70db60b46a5901b25e529e14e688ea4861d722"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+name: Verify live HTTPS web
+on:
+  push:
+    branches: [ops/joba-web-check]
+  workflow_dispatch:
+permissions:
+  contents: read
+  checks: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node scripts/verify-web-worker-upgrade.cjs
+        env:
+          JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
+      - run: node scripts/verify-public-site.cjs
+        env:
+          JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
+          JOBA_PUBLIC_BASE: https://joba.com.kz
+      - run: node scripts/verify-live-web.cjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JOBA_LIVE_URL: https://joba.com.kz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: live-web-verification
+          path: live-web-report
+          retention-days: 7

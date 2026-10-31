@@ -1,0 +1,112 @@
+{
+  "updated_on": "2026-10-31",
+  "status": "yandex_compact_web_banners_and_rewarded_subscriptions_deployed_verified",
+  "android_package": "kz.joba.services_marketplace",
+  "developer_website": "https://joba.com.kz",
+  "google": {
+    "publisher_id": "pub-5590941579295248",
+    "android_app_id": "ca-app-pub-5590941579295248~1739074102",
+    "android_banner_ad_unit_id": "ca-app-pub-5590941579295248/9567708649",
+    "android_rewarded_ad_unit_id": "ca-app-pub-5590941579295248/6068875357",
+    "app_ads_txt": [
+      "google.com, pub-5590941579295248, DIRECT, f08c47fec0942fa0"
+    ],
+    "web_ads_txt": [
+      "google.com, pub-5590941579295248, DIRECT, f08c47fec0942fa0"
+    ],
+    "web_site": "joba.com.kz",
+    "web_site_status_from_screenshot": "review_in_progress",
+    "seller_files_publication": {
+      "verified_at": "2026-10-29T11:46:21.399290+00:00",
+      "files": [
+        {
+          "url": "https://joba.com.kz/ads.txt",
+          "http_status": 200,
+          "content_type": "text/plain; charset=utf-8",
+          "exact_owner_line_verified": true,
+          "sha256": "89ed2c16ef312d6a4d74c04fb67143d581e9d67edbf886ff74493d0106906f1a"
+        },
+        {
+          "url": "https://joba.com.kz/app-ads.txt",
+          "http_status": 200,
+          "content_type": "text/plain; charset=utf-8",
+          "exact_owner_line_verified": true,
+          "sha256": "89ed2c16ef312d6a4d74c04fb67143d581e9d67edbf886ff74493d0106906f1a"
+        }
+      ],
+      "sdk_integrated": false,
+      "google_account_or_site_approval_verified": false
+    },
+    "web_site_ownership_confirmed_from_screenshot": true,
+    "web_banner_ad_slot": "8113418919",
+    "web_ad_client": "ca-pub-5590941579295248",
+    "web_snippet_received": true,
+    "web_snippet_reference": "advertising-snippets/google-web-8113418919.html",
+    "web_account_approved_owner_report": true,
+    "web_integration_complete": false,
+    "web_site_status_owner_report": "review_in_progress"
+  },
+  "yandex": {
+    "application_id": "20254161",
+    "android_banner_ad_unit_id": "R-M-20254161-1",
+    "android_rewarded_ad_unit_id": "R-M-20254161-3",
+    "app_ads_txt": [],
+    "web_site": "joba.com.kz",
+    "web_site_id_from_screenshot": "20302217",
+    "web_block_id": "R-A-20302217-1",
+    "web_context_script_url": "https://yandex.ru/ads/system/context.js",
+    "web_snippet_received": true,
+    "web_snippet_reference": "advertising-snippets/yandex-web-R-A-20302217-1.html",
+    "web_site_status_from_screenshot": "rejected",
+    "web_rejection_specific_reason_received": true,
+    "web_ads_txt": [],
+    "web_integration_complete": true,
+    "web_rejection_reason": "Площадка не соответствует правилам участия по иным причинам",
+    "web_site_status_owner_report": "approved_after_support_request",
+    "web_repeat_submission_required": false,
+    "android_rewarded_name": "JOBA_Android_Rewarded",
+    "android_rewarded_status_from_screenshot": "active",
+    "additional_android_rewarded_id_from_screenshot": "R-M-20254161-2",
+    "active_android_ad_units_owner_confirmed": [
+      "R-M-20254161-1",
+      "R-M-20254161-3"
+    ],
+    "additional_android_rewarded_status_owner_report": "not_in_active_list",
+    "android_application_status_from_latest_screenshot": "test_status_requires_store_link",
+    "web_rewarded_mobile_ad_unit_id": "R-A-20302217-2",
+    "web_rewarded_desktop_ad_unit_id": "R-A-20302217-3",
+    "web_rewarded_status_from_screenshot": "working",
+    "web_rewarded_platform_mapping_source": "owner_forwarded_messages_2026-10-30",
+    "web_rewarded_snippet_received": false,
+    "web_rewarded_integration_complete": true,
+    "web_reward_policy": {
+      "duration_days": 30,
+      "customer_views": 5,
+      "standard_views": 5,
+      "top100_views": 5,
+      "separate_progress": true,
+      "admin_editable": true,
+      "verification_method": "client_sdk_callback_reported"
+    },
+    "web_integration_testing": "isolated_sdk_no_real_impressions",
+    "web_configuration_published": {
+      "enabled": true,
+      "rewarded_enabled": true,
+      "version": 1
+    },
+    "verification_reference": "JOBA-web-advertising-verification-2026-10-30.json",
+    "web_verification_reference": "JOBA-compact-web-advertising-verification-2026-10-31.json",
+    "ordinary_banner_layout": {
+      "height_px": 50,
+      "placement": "above_persistent_navigation",
+      "one_per_main_section": true,
+      "permission_prompt": false,
+      "oversized_creative": "hide_whole_placement"
+    }
+  },
+  "web_ad_units_received": true,
+  "web_ad_units_received_by_network": {
+    "yandex": true,
+    "google": true
+  }
+}
