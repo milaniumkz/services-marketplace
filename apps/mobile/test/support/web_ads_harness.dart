@@ -8,7 +8,7 @@ import 'package:services_marketplace/advertising/web_ads.dart';
 void main(){runApp(MaterialApp(theme:ThemeData(fontFamily:'Noto'),home:const Harness()));}
 class Harness extends StatefulWidget{const Harness({super.key});@override State<Harness> createState()=>_HarnessState();}
 class _HarnessState extends State<Harness>{
- bool accepted=false,reward=false,recorded=false;int count=0;late final JobaApi api;
+ bool accepted=false,reward=false,recorded=false;int count=0,bannerRevision=0;late final JobaApi api;
  @override void initState(){super.initState();api=JobaApi('https://isolated.example',transport:MockClient((r)async{
   Object result;
   if(r.method=='GET')result={'enabled':true,'rewarded_enabled':true,'banner_id':'R-A-20302217-1','verification_status':'passed','offers':[{'target':'standard','title':'Стандарт исполнителя','required_views':5,'completed_views':count,'eligible':true,'duration_days':30}],'consent':accepted,'consent_recorded':recorded,'notice':'Изолированный тест согласия','server_time':DateTime.now().toUtc().toIso8601String()};
@@ -18,5 +18,7 @@ class _HarnessState extends State<Harness>{
   return http.Response(jsonEncode({'data':result}),200,headers:{'content-type':'application/json; charset=utf-8'});
  }))..session={'access_token':'isolated','user':{'id':'isolated-user'}};}
  @override void dispose(){api.dispose();super.dispose();}
- @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Изолированный тест рекламы'),leading:reward?IconButton(onPressed:()=>setState(()=>reward=false),icon:const Icon(Icons.arrow_back),tooltip:'Назад'):null),body:reward?WebRewardScreen(api:api):SingleChildScrollView(child:Padding(padding:const EdgeInsets.all(20),child:Column(children:[WebAdsPanel(api:api,onReward:()=>setState(()=>reward=true)),WebRewardEntry(api:api,onSelect:(_)=>setState(()=>reward=true))]))));
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Изолированный тест рекламы'),leading:reward?IconButton(onPressed:()=>setState(()=>reward=false),icon:const Icon(Icons.arrow_back),tooltip:'Назад'):null),
+  bottomNavigationBar:reward?null:Column(mainAxisSize:MainAxisSize.min,children:[WebAdsPanel(key:ValueKey(bannerRevision),api:api,compact:true,onReward:()=>setState(()=>reward=true)),const SizedBox(height:56,child:Center(child:Text('Основное меню')))]),
+  body:reward?WebRewardScreen(api:api):ListView(padding:const EdgeInsets.all(20),children:[WebRewardEntry(api:api,onSelect:(_)=>setState(()=>reward=true)),TextButton(onPressed:()=>setState(()=>bannerRevision++),child:const Text('Обновить рекламу в тесте')),for(var i=0;i<25;i++)Padding(padding:const EdgeInsets.all(12),child:Text('Содержимое раздела: строка $i'))]));
 }

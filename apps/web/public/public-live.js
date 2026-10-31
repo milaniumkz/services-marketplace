@@ -45,9 +45,9 @@ if(publicAdSlot){
   async function render(consent=accepted()){
    const revision=++generation;publicAdSlot.replaceChildren();if(dismissed||!consent)return;
    const label=document.createElement('div');label.className='ad-label';label.textContent='Реклама';label.append(button('Скрыть',()=>{dismissed=true;generation++;publicAdSlot.replaceChildren();}));publicAdSlot.append(label);
-   const host=document.createElement('div');host.className='ad-host';host.id='joba-public-banner-'+Math.random().toString(36).slice(2);publicAdSlot.append(host);
-   try{const sdk=await loadBridge();if(revision!==generation)return;const shown=await sdk.banner(host.id,config.banner_id);if(revision!==generation)return;if(!shown)throw Error('no_fill');}
-   catch{if(revision!==generation)return;host.replaceChildren();const p=document.createElement('p');p.textContent='Сейчас нет объявления или реклама недоступна в браузере.';host.append(p,button('Повторить загрузку рекламы',()=>render()));}
+   const host=document.createElement('div');host.className='ad-host';host.style.height='50px';host.style.minHeight='50px';host.style.maxHeight='50px';host.id='joba-public-banner-'+Math.random().toString(36).slice(2);const hint=document.createElement('div');hint.style.height='50px';host.append(hint);publicAdSlot.append(host);
+   try{const sdk=await loadBridge();if(revision!==generation)return;const shown=await sdk.banner(host.id,config.banner_id);if(revision!==generation)return;if(!shown||host.scrollHeight>51||host.getBoundingClientRect().height>51)throw Error('no_fill');}
+   catch{if(revision!==generation)return;publicAdSlot.replaceChildren();}
   }
   window.addEventListener('storage',e=>{if(e.key===key){dismissed=false;render();}});render();
  })();

@@ -672,7 +672,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       actions: actions)
                   : null,
               body: chrome
-                  ? adSupportedBody(body)
+                  ? body
                   : Container(
                       color: Colors.white,
                       child: SafeArea(
@@ -681,17 +681,17 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               bottomNavigationBar: widget.onNavigationChanged==null&&(_api?.authenticated==true && !locked && !onboardingNavigationBlocked)
                   ? Padding(
                       padding: EdgeInsets.only(bottom: ['create','edit-order'].contains(route)?MediaQuery.viewInsetsOf(context).bottom:0),
-                      child: JobaNavigation(
+                      child: navigationWithAd(JobaNavigation(
                       route: orderNavigationRoutes.contains(route) ? (['access','my-access','checkout','test-payment-success','payment-pending','manage-subscription','subscription-canceled'].contains(route)?'account':executor?'jobs':'home') : route,
                       executor: executor,
                       messageCount:messageUnreadCount,notificationCount:notificationUnreadCount??0,
                       enabled: !actionBusy && !orderFormSubmitting && !authNavigationBlocked,
-                      onSelect: selectMainTab))
+                      onSelect: selectMainTab)))
                   : null));
-  Widget adSupportedBody(Widget body){
-    const placements={'jobs','catalog','account','orders','messages','notifications','reviews','invitations','top'};
-    if(!kIsWeb||_api?.authenticated!=true||locked||onboardingNavigationBlocked||!placements.contains(route))return body;
-    return NestedScrollView(headerSliverBuilder:(context,scrolled)=>[SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.symmetric(horizontal:20),child:WebAdsPanel(key:ValueKey('ad:$route:${api.session?['user']?['id']}'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'))))],body:body);
+  Widget navigationWithAd(Widget navigation){
+    const placements={'home','jobs','catalog','account','orders','messages','notifications','reviews','invitations','top'};
+    if(!kIsWeb||!placements.contains(route)||MediaQuery.viewInsetsOf(context).bottom>0)return navigation;
+    return Column(mainAxisSize:MainAxisSize.min,children:[Material(color:Colors.white,child:WebAdsPanel(key:ValueKey('footer-ad:$route:${api.session?['user']?['id']}'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'))),navigation]);
   }
   Widget listBody(List<Widget> content) =>
       ListView(padding: const EdgeInsets.all(20), children: content);
@@ -2497,7 +2497,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   () => executor ? go('jobs') : act(nearbyCatalog),
                   action: executor ? 'Фильтры' : 'Все'),
               HomeMarketplaceGate(key:ValueKey('home-market-access:${api.session?['user']?['id']}:$revision:$executor'),api:api,executor:executor,onAccess:()=>go('my-access'),onVerification:()=>go('verification'),content:()=>Column(children:[if(!executor)PromotedListings(api:api,placement:'home.promoted.services',filters:{'city':me?['city']??''},onOpen:(type,id)=>go('contractor',id)),homeListings()])),
-              WebAdsPanel(key:ValueKey('web-ads:${api.session?['user']?['id']}'),api:api,onReward:()=>go('reward'),onPrivacy:()=>go('legal')),
               if (executor)
                 JobaMenu([
                   JobaMenuEntry('Мои отклики', 'chat', () => go('my-offers')),

@@ -18,9 +18,9 @@ class WebAdsPanel extends StatefulWidget {
  @override State<WebAdsPanel> createState()=>_WebAdsPanelState();
 }
 class _WebAdsPanelState extends State<WebAdsPanel> {
- Json? config; String? error; bool dismissed=false; int attempt=0; double bannerHeight=180; web.ResizeObserver? resize;
+ Json? config; String? error; bool dismissed=false; int attempt=0; double bannerHeight=50; web.ResizeObserver? resize; web.MutationObserver? mutations;
  @override void initState(){super.initState();load();}
- @override void dispose(){resize?.disconnect();super.dispose();}
+ @override void dispose(){resize?.disconnect();mutations?.disconnect();super.dispose();}
  Future<void> load() async {
   try {final c=Json.from(await widget.api.request('/me/web-ads'));if(!mounted)return;
    // Automatic placement is not an affirmative personalization consent. Preserve prior opt-outs.
@@ -30,14 +30,18 @@ class _WebAdsPanelState extends State<WebAdsPanel> {
  }
  @override Widget build(BuildContext context) {
   final c=config;if(c==null||c['enabled']!=true||c['placement_hidden']==true||dismissed)return const SizedBox.shrink();
-  return Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-   Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[const Text('Реклама',style:TextStyle(fontSize:11,color:Colors.grey)),IconButton(onPressed:(){resize?.disconnect();setState(()=>dismissed=true);},tooltip:'Скрыть баннер',icon:const Icon(Icons.close,size:16))]),
+  if(widget.compact&&error!=null)return const SizedBox.shrink();
+  return Padding(padding:widget.compact?const EdgeInsets.fromLTRB(16,2,16,12):const EdgeInsets.symmetric(vertical:8),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+   Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[const Text('Реклама',style:TextStyle(fontSize:11,color:Colors.grey)),IconButton(visualDensity:VisualDensity.compact,padding:const EdgeInsets.all(4),constraints:const BoxConstraints(minWidth:28,minHeight:28),onPressed:(){resize?.disconnect();mutations?.disconnect();setState(()=>dismissed=true);},tooltip:'Скрыть баннер',icon:const Icon(Icons.close,size:14))]),
    if(error==null)SizedBox(height:bannerHeight,child:HtmlElementView.fromTagName(key:ValueKey(attempt),tagName:'div',onElementCreated:(element){
-    final host=element as web.HTMLDivElement;host.id='joba-banner-${identityHashCode(this)}-$attempt';host.style.width='100%';host.style.height='auto';host.style.minHeight='90px';
-    void measure(){final box=host.getBoundingClientRect(),scroll=host.scrollHeight.toDouble();final height=scroll>box.height?scroll:box.height;if(mounted&&!dismissed&&host.isConnected&&height.isFinite&&height>=50&&(height-bannerHeight).abs()>1)setState(()=>bannerHeight=height);}
-    resize?.disconnect();resize=web.ResizeObserver(((JSArray<web.ResizeObserverEntry> entries,web.ResizeObserver observer)=>measure()).toJS);resize!.observe(host);
+    final host=element as web.HTMLDivElement;host.id='joba-banner-${identityHashCode(this)}-$attempt';host.style.width='100%';host.style.height='50px';host.style.minHeight='50px';host.style.maxHeight='50px';
+    final hint=web.HTMLDivElement()..style.height='50px';host.append(hint);
+    var rendered=false;
+    void measure(){if(!rendered||!mounted||dismissed||!host.isConnected)return;final height=host.getBoundingClientRect().height;if(host.scrollHeight>51||height>51){resize?.disconnect();mutations?.disconnect();setState(()=>error='Этот формат объявления не помещается в компактный баннер.');}}
+    resize?.disconnect();mutations?.disconnect();resize=web.ResizeObserver(((JSArray<web.ResizeObserverEntry> entries,web.ResizeObserver observer)=>measure()).toJS);resize!.observe(host);
+    mutations=web.MutationObserver(((JSArray<web.MutationRecord> entries,web.MutationObserver observer)=>measure()).toJS);mutations!.observe(host,web.MutationObserverInit(childList:true,subtree:true,attributes:true));
     final renderAttempt=attempt;
-    Future<JSBoolean>.sync(()=>_banner(host.id.toJS,(c['banner_id'] as String).toJS).toDart).then<void>((shown){if(shown.toDart)measure();if(!shown.toDart&&mounted&&!dismissed&&renderAttempt==attempt)setState(()=>error='Сейчас нет доступного объявления или загрузка не удалась. Можно попробовать позже.');}).catchError((Object e){if(mounted&&!dismissed&&renderAttempt==attempt)setState(()=>error=_message(e));});
+    Future<JSBoolean>.sync(()=>_banner(host.id.toJS,(c['banner_id'] as String).toJS).toDart).then<void>((shown){if(shown.toDart){rendered=true;measure();}if(!shown.toDart&&mounted&&!dismissed&&renderAttempt==attempt)setState(()=>error='Сейчас нет доступного объявления или загрузка не удалась. Можно попробовать позже.');}).catchError((Object e){if(mounted&&!dismissed&&renderAttempt==attempt)setState(()=>error=_message(e));});
    })),
    if(error!=null)...[Text(error!,style:const TextStyle(color:Colors.grey)),TextButton(onPressed:(){setState((){error=null;attempt++;});},child:const Text('Повторить загрузку рекламы'))],
   ]));
