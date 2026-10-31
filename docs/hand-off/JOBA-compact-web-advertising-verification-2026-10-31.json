@@ -1,0 +1,84 @@
+{
+  "verified_at": "2026-10-31T08:37:59.668833+00:00",
+  "source_commit": "398de205441631f1cbd0affe7ca87affc2ffa71b",
+  "deployment": {
+    "run_id": 41184386906,
+    "conclusion": "success"
+  },
+  "published_release": {
+    "checked_at": "2026-10-31T08:36:45.569494+00:00",
+    "source_commit": "398de205441631f1cbd0affe7ca87affc2ffa71b",
+    "https_verified": true,
+    "automatic_banner_without_permission_prompt_published": true,
+    "public_site_automatic_banner_published": true,
+    "home_access_preflight_published": true,
+    "camera_retry_dialog_published": true,
+    "compact_footer_banner_published": true,
+    "banner_height_px": 50,
+    "notice_version": 2,
+    "real_ad_views_or_clicks_generated": false
+  },
+  "checks": {
+    "api_tests_passed": 196,
+    "flutter_tests_passed": 284,
+    "flutter_tests_skipped": 2,
+    "browser_tests_passed": 19,
+    "admin_page_viewport_combinations": 65,
+    "analyzer_issues": 0,
+    "isolated_banner_harness": {
+      "viewports": [
+        393,
+        1440
+      ],
+      "real_persistent_navigation_component": true,
+      "banner_height_px": 50,
+      "menu_separation": true,
+      "oversized_creative_rejected_whole": true,
+      "real_ad_views_or_clicks_generated": false,
+      "local_font_note": "Local Chromium warned about external Roboto certificate trust; behavioral assertions passed without disabling TLS checks."
+    }
+  },
+  "advertising_stats_snapshot": {
+    "checked_at": "2026-10-31T08:01:26.453109+00:00",
+    "local_day": "2026-10-31",
+    "timezone": "Asia/Yekaterinburg",
+    "read_only": true,
+    "rewarded_sessions_today": [
+      {
+        "country": "KZ",
+        "status": "credited",
+        "count": 8
+      },
+      {
+        "country": "KZ",
+        "status": "granted",
+        "count": 2
+      }
+    ],
+    "reported_completed_views_today": [
+      {
+        "country": "KZ",
+        "completed_views": 10
+      }
+    ],
+    "reward_redemptions_today": [
+      {
+        "country": "KZ",
+        "target": "customer",
+        "count": 1
+      },
+      {
+        "country": "KZ",
+        "target": "standard",
+        "count": 1
+      }
+    ],
+    "ordinary_banner_impressions_tracking": "not_recorded_in_joba",
+    "yandex_income_import": "not_connected",
+    "yandex_income_amount": null
+  },
+  "advertising_stats_run_id": 41182866289,
+  "google_web_ads_enabled": false,
+  "apk_built": false,
+  "guide": "JOBA-web-advertising-testing.ru.md"
+}

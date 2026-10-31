@@ -1,6 +1,6 @@
 {
-  "updated_on": "2026-10-30",
-  "status": "yandex_web_banners_and_subscription_rewards_deployed_verified",
+  "updated_on": "2026-10-31",
+  "status": "yandex_compact_web_banners_and_rewarded_subscriptions_deployed_verified",
   "android_package": "kz.joba.services_marketplace",
   "developer_website": "https://joba.com.kz",
   "google": {
@@ -94,7 +94,15 @@
       "rewarded_enabled": true,
       "version": 1
     },
-    "verification_reference": "JOBA-web-advertising-verification-2026-10-30.json"
+    "verification_reference": "JOBA-web-advertising-verification-2026-10-30.json",
+    "web_verification_reference": "JOBA-compact-web-advertising-verification-2026-10-31.json",
+    "ordinary_banner_layout": {
+      "height_px": 50,
+      "placement": "above_persistent_navigation",
+      "one_per_main_section": true,
+      "permission_prompt": false,
+      "oversized_creative": "hide_whole_placement"
+    }
   },
   "web_ad_units_received": true,
   "web_ad_units_received_by_network": {
