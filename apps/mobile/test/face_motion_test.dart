@@ -66,6 +66,41 @@ void main() {
     m.advance(6900);
     expect(m.finished, true);
   });
+  test(
+      'quick blink is accepted immediately after the right pose, and a slight stable smile finishes quickly',
+      () {
+    final m = FaceMotion();
+    expect(hold(m, face(), 0), true);
+    m.advance(400);
+    expect(hold(m, face(yaw: .2), 1200), true);
+    m.advance(1600);
+    expect(hold(m, face(yaw: -.2), 2400), true);
+    m.advance(2800);
+    expect(m.observe(face(), 2820), false);
+    expect(m.observe(face(blink: .46), 2870), false);
+    expect(m.observe(face(), 2920), false);
+    expect(m.observe(face(), 2970), true);
+    m.advance(2970);
+    expect(m.observe(face(smile: .40), 3000), false);
+    expect(m.observe(face(smile: .40), 3050), false);
+    expect(m.observe(face(smile: .40), 3100), true);
+  });
+  test(
+      'faster blink gate still rejects a wink, unclosed eyes and a held closed-eye pose',
+      () {
+    final m = FaceMotion();
+    expect(hold(m, face(), 0), true);
+    m.advance(400);
+    expect(hold(m, face(yaw: .2), 1200), true);
+    m.advance(1600);
+    expect(hold(m, face(yaw: -.2), 2400), true);
+    m.advance(2800);
+    expect(m.observe(face(), 2820), false);
+    expect(hold(m, {...face(), 'blinkLeft': .9}, 2900), false);
+    expect(hold(m, face(blink: .35), 3500), false);
+    expect(hold(m, face(blink: .8), 4100), false);
+    expect(m.step, 3);
+  });
   test('wink, off-frame face and isolated unstable readings do not capture',
       () {
     final m = FaceMotion();

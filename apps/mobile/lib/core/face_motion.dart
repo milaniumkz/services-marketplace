@@ -82,7 +82,7 @@ class FaceMotion {
         _closedAt = null;
       }
       if (_blink == 'open' && eyesOpen) _blink = 'close';
-      if (_blink == 'close' && left > .5 && right > .5) {
+      if (_blink == 'close' && left > .42 && right > .42) {
         _blink = 'reopen';
         _closedAt = now;
         _resetHold();
@@ -94,8 +94,8 @@ class FaceMotion {
     } else {
       valid = delta.abs() <= .10 &&
           eyesOpen &&
-          smile >= .42 &&
-          smile - _baseSmile >= .15;
+          smile >= .38 &&
+          smile - _baseSmile >= .12;
       hint = valid ? 'Улыбка зафиксирована…' : 'Смотрите прямо и улыбнитесь.';
     }
     if (!valid) {
@@ -104,8 +104,13 @@ class FaceMotion {
     }
     _since ??= now;
     _count++;
-    final ready = _count >= (step == 3 ? 2 : 3) &&
-        now - _since! >= (step == 3 ? 80 : 300);
+    final ready = _count >= (step >= 3 ? 2 : 3) &&
+        now - _since! >=
+            (step == 3
+                ? 40
+                : step == 4
+                    ? 100
+                    : 300);
     if (ready && step == 0) {
       _baseYaw = yaw;
       _baseSmile = smile;
@@ -118,7 +123,7 @@ class FaceMotion {
     _resetHold();
     _blink = 'open';
     _closedAt = null;
-    _notBefore = now + 650;
+    _notBefore = step >= 3 ? now : now + 650;
     hint = '';
   }
 }

@@ -16,7 +16,7 @@ Future<PhotoFile?> captureWebSelfie(
   final motion = FaceMotion();
   WebFaceTracker? tracker;
   Timer? trackingTimer, captureDeadline;
-  double lastVideoTime = -1;
+  double lastVideoTime = -1, lastAnalysisTime = -1000;
   var trackingEpoch = 0;
   final voice = FaceVoice();
   const prompts = facePrompts;
@@ -249,19 +249,21 @@ Future<PhotoFile?> captureWebSelfie(
                   null,
                   ApiException('FACE_CAPTURE_TIMEOUT',
                       'Не удалось автоматически зафиксировать все пять шагов. Держите лицо в рамке и повторите попытку.')));
-          trackingTimer =
-              Timer.periodic(const Duration(milliseconds: 100), (_) {
+          trackingTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
             if (result.isCompleted || epoch != trackingEpoch || tracker == null)
               return;
             if (video.readyState < 2 || video.currentTime == lastVideoTime)
               return;
+            final now = web.window.performance.now();
+            if (now - lastAnalysisTime < (motion.step >= 3 ? 45 : 95)) return;
             lastVideoTime = video.currentTime;
+            lastAnalysisTime = now;
             try {
-              final now = web.window.performance.now();
               final observation = tracker!.detect(video, now);
               if (motion.observe(observation, now.round())) {
                 captureFrame();
-              } else if (motion.hint.isNotEmpty) {
+              } else if (motion.hint.isNotEmpty &&
+                  status.textContent != motion.hint) {
                 status.textContent = motion.hint;
               }
             } catch (_) {
