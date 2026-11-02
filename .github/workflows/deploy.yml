@@ -4,6 +4,10 @@ on:
     branches: [deploy/joba]
   workflow_dispatch:
     inputs:
+      credential_handoff:
+        description: Use the existing one-time encrypted SSH credential channel instead of stored credentials
+        type: boolean
+        default: false
       firebase_setup:
         description: Receive the owner supplied Firebase credential over a single-job encrypted channel
         type: boolean
@@ -100,8 +104,8 @@ jobs:
           name: release-web
       - name: Acquire protected deployment credential
         env:
-          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
-          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          SSHPASS: ${{ inputs.credential_handoff != true && secrets.JOBA_SSH_PASSWORD || '' }}
+          SSH_PRIVATE_KEY: ${{ inputs.credential_handoff != true && secrets.JOBA_SSH_PRIVATE_KEY || '' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-deployment-credential.py
       - name: Acquire protected Firebase configuration
@@ -114,8 +118,8 @@ jobs:
           JOBA_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.JOBA_FIREBASE_SERVICE_ACCOUNT_JSON }}
           JOBA_FIREBASE_WEB_CONFIG: ${{ secrets.JOBA_FIREBASE_WEB_CONFIG }}
           JOBA_FIREBASE_VAPID_KEY: ${{ secrets.JOBA_FIREBASE_VAPID_KEY }}
-          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
-          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          SSHPASS: ${{ inputs.credential_handoff != true && secrets.JOBA_SSH_PASSWORD || '' }}
+          SSH_PRIVATE_KEY: ${{ inputs.credential_handoff != true && secrets.JOBA_SSH_PRIVATE_KEY || '' }}
         run: |
           set -euo pipefail
           export SSHPASS="${JOBA_RUNTIME_SSH_PASSWORD:-}"
