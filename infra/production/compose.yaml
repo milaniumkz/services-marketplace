@@ -25,6 +25,7 @@ services:
       JOBA_FACE_SERVICE_URL: http://face:8080
       JOBA_REGION: KZ
       JOBA_ENABLED_COUNTRIES: KZ,KG,RU,BY
+      JOBA_MOBILE_FREE_ACCESS: '1'
       JOBA_TRUST_PROXY: '1'
       API_HOST: 0.0.0.0
       API_PORT: 3000

@@ -1,6 +1,7 @@
 import '../core/theme.dart';
 import '../core/l10n.dart';
 import 'package:flutter/material.dart';
+import '../core/release_channel.dart';
 import '../core/api.dart';
 import '../core/device_location.dart';
 import '../core/design_widgets.dart';
@@ -72,6 +73,8 @@ class _NearbyContractorsState extends State<NearbyContractors> {
                     onPressed: retry,
                     child: const UiText('Определить местоположение'))
               ]);
+        if (data['access_required'] == true && freeMobileRelease)
+          return const Notice('Поиск временно недоступен. Попробуйте позже.');
         if (data['access_required'] == true)
           return JobaMenu([
             JobaMenuEntry('Мой доступ', 'card', widget.onAccess,

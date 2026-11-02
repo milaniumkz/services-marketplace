@@ -33,7 +33,7 @@ export class MarketplaceController {
     const marketplace=await getMarketplace();
     const path = req.path.replace(/^\/api\/v1/, '');
     const body=path.startsWith('/webhooks/')?{raw_body:req.rawBody,headers:req.headers}:Buffer.isBuffer(req.body)?req.body:{...req.body,...(req.headers['if-match']?{expected_version:Number(String(req.headers['if-match']).replaceAll('"',''))}:{})};
-    const result = await marketplace.handle(req.method,path,body??{},req.headers.authorization,path.startsWith('/webhooks/')?undefined:req.headers['idempotency-key'],req.query,req.ip);
+    const result = await marketplace.handle(req.method,path,body??{},req.headers.authorization,path.startsWith('/webhooks/')?undefined:req.headers['idempotency-key'],req.query,req.ip,String(req.headers['x-joba-client']??'web'));
     res.setHeader('Cache-Control','no-store');
     res.setHeader('Server-Timing',`application;dur=${(performance.now()-started).toFixed(2)}`);
     if(path==='/me/monetization-config'&&req.method==='GET') {

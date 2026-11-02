@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/api.dart';
+import '../core/release_channel.dart';
 import '../core/design_widgets.dart';
 import '../core/widgets.dart';
 
@@ -13,6 +14,7 @@ class HomeMarketplaceGate extends StatelessWidget {
  Future<Json> load()async{
   final user=await api.request('/me');
   if(user['verification']!='passed')return {'verification_required':true};
+  if(freeMobileRelease)return {'access_required':false};
   final grants=items(await api.request('/me/entitlements')),now=api.clock.now.toUtc();
   final allowed=grants.any((g){
    final until=DateTime.tryParse(g['valid_until'] as String? ?? ''),from=DateTime.tryParse(g['valid_from'] as String? ?? '');

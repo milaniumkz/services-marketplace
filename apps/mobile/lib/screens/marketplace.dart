@@ -1,4 +1,5 @@
 import 'face_access.dart';
+import '../core/release_channel.dart';
 import 'home_marketplace_gate.dart';
 import 'package:flutter/foundation.dart';
 import '../advertising/web_ads.dart';
@@ -541,6 +542,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   void go(String next, [String? id]) {
     if (authNavigationBlocked) return;
+    if (freeMobileRelease && mobilePaidRoutes.contains(next)) next = 'account';
     if(api.authenticated&&!locked&&RegExp(r'^[a-z][a-z0-9-]{0,63}$').hasMatch(next)){
       api.request('/me/activity',method:'POST',body:{'screen':next}).then<void>((_) {},onError:(Object _,StackTrace __) {});
     }
@@ -605,6 +607,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   bool accessRedirectQueued=false;
   bool openRequiredAccess(){
+    if(freeMobileRelease)return false;
     if(!mounted||!api.authenticated||locked||authNavigationBlocked||onboardingNavigationBlocked||['my-access','access','payment-pending','test-payment-success','restore'].contains(route))return false;
     if(accessRedirectQueued)return true;
     accessRedirectQueued=true;final client=api,generation=api.sessionGeneration;
@@ -886,13 +889,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   void publishNavigation(){if(widget.onNavigationChanged==null)return;final epoch=++navigationEpoch;final value=!starting&&_api?.authenticated==true&&!locked&&!onboardingNavigationBlocked?NavigationState(route:navigationRoute,banner:navigationBanner,bannerPlacement:bannerPlacement,executor:executor,enabled:!actionBusy&&!orderFormSubmitting&&!authNavigationBlocked,messages:messageUnreadCount,notifications:notificationUnreadCount??0,onSelect:selectShellTab):null;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&epoch==navigationEpoch)widget.onNavigationChanged?.call(value);});}
   void finishFaceSetup(bool signup) {setState(() {route = signup ? faceSetupReturnRoute : 'security'; if (signup) history.clear();});}
   Widget screen() {
+    if (freeMobileRelease && mobilePaidRoutes.contains(route)) {
+      return page('JOBA', const Notice('Мобильное приложение бесплатно. Подписки и платное продвижение в этой версии не предлагаются.'));
+    }
     if(['create','edit-order'].contains(route))ensureOrderFormsScope();
     if(executor&& !['passed','pending_review'].contains(me?['verification'])&&['services','portfolio','portfolio-edit','portfolio-photos'].contains(route)){return verificationScreen();}
     if (!executor && !executorSetupRequested && ['services', 'portfolio', 'portfolio-edit', 'portfolio-photos', 'service-area'].contains(route)) {
       return page('Режим заказчика', listBody([
         const UiHeading('Вы вошли как заказчик', 'Размещайте заказы и выбирайте исполнителей. Услуги заполняются в роли исполнителя.'),
         button('Разместить заказ', () => go('create')),
-        button('Моя подписка', () => go('my-access'), outline: true),
+        if (!freeMobileRelease) button('Моя подписка', () => go('my-access'), outline: true),
         button('Переключить роль', () => go('roles'), outline: true),
       ]));
     }
@@ -2569,6 +2575,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       },
       builder: (c, data, retry) {
         if (data['verification_required'] == true) return JobaMenu([JobaMenuEntry('Подтвердить личность', 'shield', () => go('verification'), subtitle: 'Удостоверение с двух сторон и селфи')]);
+        if (data['access_required'] == true && freeMobileRelease)
+          return const Notice('Поиск временно недоступен. Попробуйте позже.');
         if (data['access_required'] == true)
           return JobaMenu([
             JobaMenuEntry('Мой доступ', 'card', () => go('my-access'),
@@ -2666,7 +2674,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(children: [
-                    JobaMenu([
+                    if (!freeMobileRelease) JobaMenu([
                       JobaMenuEntry(
                           summary['subscription_until'] == null
                               ? 'Мой доступ'
@@ -2701,10 +2709,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           translateSubtitle: (rating['count'] ?? 0) == 0),
                       JobaMenuEntry('Рейтинг Топ-100', 'crown', () => go('top'),
                           subtitle: 'Популярные услуги и заказы'),
-                      JobaMenuEntry(
+                      if (!freeMobileRelease) JobaMenuEntry(
                           'Продвижение', 'spark', () => go('promotion'),
                           subtitle: 'Ваши размещения'),
-                      JobaMenuEntry(
+                      if (!freeMobileRelease) JobaMenuEntry(
                           'Приглашения и бонусы', 'gift', () => go('referrals'),
                           subtitle: 'Пригласить друга')
                     ]),
@@ -4296,7 +4304,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     ? primary
                                     : line),
                             borderRadius: BorderRadius.circular(14)),
-                        child: RadioListTile<String>(
+                        child: Material(
+                          type: MaterialType.transparency,
+                          borderRadius: BorderRadius.circular(14),
+                          clipBehavior: Clip.antiAlias,
+                          child: RadioListTile<String>(
                             value: reason.key,
                             controlAffinity: ListTileControlAffinity.trailing,
                             contentPadding: const EdgeInsets.symmetric(
@@ -4312,7 +4324,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     fontWeight: FontWeight.w700, fontSize: 14)),
                             subtitle: UiText(reason.value.last,
                                 style: const TextStyle(
-                                    color: muted, fontSize: 12))))
+                                    color: muted, fontSize: 12)))))
                 ]))
           ],
           fields: [

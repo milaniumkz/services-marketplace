@@ -30,6 +30,9 @@ live-web-report/
 __pycache__/
 *.pyc
 
+# Local screenshots of developer consoles may contain private account details.
+store-assets/evidence/
+
 # Firebase service-account private credentials never belong in source control.
 *service-account*.json
 apps/mobile/ios/Runner/GoogleService-Info.plist

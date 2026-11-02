@@ -1,0 +1,32 @@
+{
+  "source_commit": "ad0713814f40e99f39556a10fe07eebd73acee86",
+  "version": "1.0.0",
+  "build": 1,
+  "android": {
+    "package": "kz.joba.services_marketplace",
+    "target_api": 36,
+    "min_api": 24,
+    "upload_signature_verified": true,
+    "sha256": "4e8bc25953de8b961b98098580a2de6051ece3aece46f75ca1b2f3fcc2ae1e5b"
+  },
+  "ios": {
+    "bundle_id": "kz.joba.servicesMarketplace",
+    "team_id": "Z3NZN92Y7P",
+    "unsigned_release_build": "passed",
+    "signed_archive": "passed",
+    "distribution_ipa_export": "passed",
+    "sha256": "a164812177947a66f301036df6625401fdf48c7182a5ce9a198405c8d9061fa2",
+    "app_store_connect_upload": "succeeded"
+  },
+  "flutter_analyze": "passed",
+  "initial_widget_tests": {
+    "passed": 292,
+    "skipped": 2,
+    "failed": 2
+  },
+  "failed_tests_fixed_and_rerun": [
+    "design_flow_test.dart",
+    "portfolio_photos_test.dart"
+  ],
+  "store_submitted": false
+}

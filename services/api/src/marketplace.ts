@@ -1,4 +1,5 @@
 import {FaceRecovery,FaceEngine} from './face-recovery';
+import {AsyncLocalStorage} from 'node:async_hooks';
 import {adminWebAds,userWebAds,recordWebAdConsent,webAdsConfig,webAdNotice,webAdNoticeVersion} from './web-ads';
 import {adminOperatorProfile} from './public-operator';
 import {publicSitePage} from './public-site';
@@ -96,6 +97,7 @@ const password = (b: any, name: string,min=6) => {
 const safeUser = (u: RecordData) => ({id:u.id,display_name:u.display_name,city:u.city,country:u.country,roles:u.roles,locale:u.locale,languages:u.languages??[u.locale??'ru'],active_role:u.active_role??'customer',avatar_id:u.avatar_id,verification:u.verification,created_at:u.created_at});
 type Actor = { id: string; country: string; family: string; user: RecordData; mfa: boolean };
 export class Marketplace {
+  private readonly releaseChannel = new AsyncLocalStorage<string>();
   readonly events=new EventEmitter().setMaxListeners(0);
   private uploadTasks=new Map<string,Promise<any>>();
   private scanSlots=2;
@@ -183,6 +185,12 @@ export class Marketplace {
     if(capability==='select_offer')return;
     if(capability==='search_full'&&!verified&&subscriptionRole(a.user)!=='executor')return;
     if(capability==='view_contractors'&&a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Подтвердите личность: документ с двух сторон и селфи');
+    // The mobile edition offers core marketplace operations free to everyone.
+    // This public channel is not trusted for identity, ownership or staff access.
+    if(process.env.JOBA_MOBILE_FREE_ACCESS==='1'&&this.releaseChannel.getStore()==='mobile-free-v1'&&['search_full','view_contractors','publish_order','send_offer','publish_profile'].includes(capability)) {
+      if(capability==='publish_order'&&a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Подтвердите личность: документ с двух сторон и селфи');
+      return;
+    }
     await activatePeriods(this.store,a.user);
     if(capability==='publish_order'||capability==='view_contractors'&&subscriptionRole(a.user)!=='executor') {
       if(a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Подтвердите личность: документ с двух сторон и селфи');
@@ -206,7 +214,10 @@ export class Marketplace {
     const has=(a.user.staff_access_mode==='managed'&&permission==='administrator')||a.user.staff_permissions?.includes(permission)||(!['identity_view','verification_reviewer','bulk_restrict'].includes(permission)&&a.user.staff_permissions?.includes('administrator'));
     if(!has||!a.mfa||a.user.status!=='active')fail(403,'FORBIDDEN','Недостаточно служебных прав или MFA');
   }
-  async handle(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local') {
+  async handle(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local', clientChannel='web') {
+    return this.releaseChannel.run(clientChannel,()=>this.handleInChannel(method,path,body,authorization,key,query,ip));
+  }
+  private async handleInChannel(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local') {
     if(path.startsWith('/auth/')||path.startsWith('/public/')&&!path.startsWith('/public/recovery-threads')||path.startsWith('/webhooks/'))key=undefined;
     // Serialize commands: version check, idempotency, business writes and outbox commit together.
     if(path.startsWith('/admin/')&&body&&typeof body==='object'&&!Buffer.isBuffer(body)&&!String(body.reason||'').trim())body={...body,reason:'Действие администратора в панели управления'};
@@ -262,6 +273,7 @@ export class Marketplace {
   }
   private async dispatch(method: string,path: string,b: any,authorization: string|undefined,q: any,ip: string): Promise<any> {
     const db=this.store.db;
+    if(path==='/public/mobile-release'&&method==='GET')return {free_core_access:process.env.JOBA_MOBILE_FREE_ACCESS==='1',channel:'mobile-free-v1',purchases_enabled:false};
     path=path.replace(/\/select-offer$/, '/select').replace(/\/request-completion$/, '/complete');
     const orderReview=path.match(/^\/orders\/([^/]+)\/reviews$/);if(orderReview){b={...b,order_id:orderReview[1]};path='/reviews';}
     if(path==='/reports')path='/cases';

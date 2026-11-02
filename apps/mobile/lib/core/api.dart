@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'release_channel.dart';
 import 'server_clock.dart';
 import 'session_refresh_lock.dart';
 import 'dart:convert';
@@ -330,6 +331,7 @@ class JobaApi extends ChangeNotifier {
     request.headers.addAll({
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      if (freeMobileRelease) 'X-Joba-Client': 'mobile-free-v1',
       if (authenticated) 'Authorization': 'Bearer $sentAccessToken',
       if (capability != null) 'Authorization': 'Bearer $capability',
       if (key != null) 'Idempotency-Key': key

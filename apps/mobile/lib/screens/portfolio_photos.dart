@@ -129,7 +129,9 @@ class _PortfolioPhotosState extends State<PortfolioPhotos> {
                       border: Border.all(color: line),
                       borderRadius: BorderRadius.circular(16)),
                   clipBehavior: Clip.antiAlias,
-                  child: Column(children: [
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: Column(children: [
                     for (final e in photos!.indexed) ...[
                       if (e.$1 > 0) const Divider(height: 1, color: line),
                       ListTile(
@@ -172,7 +174,7 @@ class _PortfolioPhotosState extends State<PortfolioPhotos> {
                                 })),
                       ),
                     ]
-                  ])),
+                  ]))),
             const Notice('Фотографии проходят проверку до публикации.'),
             if (error != null) ...[
               Notice(errorText(context, error!), error: true),

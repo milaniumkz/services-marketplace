@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:services_marketplace/core/api.dart';
+import 'package:services_marketplace/core/release_channel.dart';
 import 'package:services_marketplace/main.dart';
 import 'package:services_marketplace/screens/marketplace.dart';
 
@@ -28,7 +29,9 @@ void main() {
   testWidgets(
       'Design menus navigate, role changes persist, language failures retain selection, country changes require logout',
       (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = Size(
+        double.parse(Platform.environment['JOBA_CAPTURE_WIDTH'] ?? '390'),
+        double.parse(Platform.environment['JOBA_CAPTURE_HEIGHT'] ?? '844'));
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(top: 43, bottom: 22);
     addTearDown(tester.view.resetPadding);
@@ -284,6 +287,34 @@ void main() {
     }
 
     await capture('S06-home');
+    if (Platform.environment['JOBA_SCREENSHOT_DIR'] != null) {
+      state.go('catalog');
+      await tester.pumpAndSettle();
+      await capture('store-search');
+      state.go('orders');
+      await tester.pumpAndSettle();
+      await capture('store-orders');
+      if (Platform.environment['JOBA_STORE_CAPTURE_ONLY'] == '1') {
+        user = {...user, 'active_role': 'executor'};
+        state.me = user;
+        state.go('executor-home');
+        await tester.pumpAndSettle();
+        await capture('S09-executor-home');
+        state.go('account');
+        await tester.pumpAndSettle();
+        if (freeMobileRelease) {
+          expect(find.text('Мой доступ'), findsNothing);
+          expect(find.text('Подключить Топ-100'), findsNothing);
+          expect(find.text('Продвижение'), findsNothing);
+          expect(find.text('Приглашения и бонусы'), findsNothing);
+        }
+        await capture('S11-account');
+        expect(tester.takeException(), isNull);
+        return;
+      }
+      state.go('home');
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.text('Алматы, Казахстан'));
     await tester.pumpAndSettle();
     expect(find.text('Где искать?'), findsOneWidget);

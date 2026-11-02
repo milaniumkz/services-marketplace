@@ -32,10 +32,23 @@ android {
         versionName = flutter.versionName
     }
 
+    val storeFilePath = System.getenv("JOBA_UPLOAD_KEYSTORE")
+    signingConfigs {
+        if (!storeFilePath.isNullOrBlank()) {
+            create("storeRelease") {
+                storeFile = file(storeFilePath)
+                storePassword = System.getenv("JOBA_UPLOAD_STORE_PASSWORD")
+                keyAlias = System.getenv("JOBA_UPLOAD_KEY_ALIAS") ?: "upload"
+                keyPassword = System.getenv("JOBA_UPLOAD_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Configure production signing in deployment; release artifacts stay unsigned here.
+            if (!storeFilePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("storeRelease")
+            }
         }
     }
 }
