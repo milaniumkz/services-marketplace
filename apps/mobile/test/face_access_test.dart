@@ -122,6 +122,7 @@ void main() {
     await t.tap(find.text('Открыть фронтальную камеру'));
     await t.pumpAndSettle();
     expect(find.byType(TextField), findsNothing);
-    expect(find.text('Лицо не совпало'), findsOneWidget);
+    expect(find.text('Лицо не совпало'), findsWidgets);
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }

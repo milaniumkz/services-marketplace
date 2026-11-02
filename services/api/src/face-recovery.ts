@@ -5,7 +5,7 @@ import {Store,RecordData} from './store';
 import {PrivateFiles} from './private-files';
 export const FACE_STEPS=['front','left','right','blink','smile'] as const;
 const FACE_LABELS=['Прямо','Налево','Направо','Моргнуть','Улыбнуться'];
-export const FACE_NOTICE='Сохранить зашифрованные биометрические шаблоны пяти кадров моего лица (прямо, налево, направо, моргнуть, улыбнуться) на сервере JOBA для восстановления пароля. Исходные снимки не сохраняются. Движения автоматически не проверяются. Здесь выполняется только сравнение лица, без проверки живого присутствия: фотография или видео могут пройти такую проверку. Отключить способ и удалить шаблон можно в профиле.';
+export const FACE_NOTICE='Сохранить зашифрованные биометрические шаблоны пяти кадров моего лица (прямо, налево, направо, моргнуть, улыбнуться) на сервере JOBA для восстановления пароля. Исходные снимки не сохраняются. Движения определяются в браузере, но это не проверка живого присутствия. Здесь выполняется только сравнение лица, без проверки живого присутствия: фотография или видео могут пройти такую проверку. Отключить способ и удалить шаблон можно в профиле.';
 const digest=(s:string)=>createHash('sha256').update(s).digest('hex');
 const fail=(message:string,status=422,code='FACE_RECOVERY_ERROR'):never=>{throw new HttpException({error:{code,message,details:{},retryable:status>=500}},status);};
 const token=()=>randomBytes(32).toString('base64url');
@@ -39,7 +39,7 @@ export class FaceRecovery {
  async clearLogin(id:string){await this.lock(id);await this.expire(id);const u=await this.store.read(id),lookup=u?.phone?await this.files.requestDigest('face-login:'+u.country+':'+u.phone):'';await this.store.db.query("DELETE FROM records WHERE kind='face_login_counter' AND (owner=$1 OR data->>'lookup_hash'=$2)",[id,lookup]);}
  async revoke(id:string,country:string,reason='user_disabled'){
   await this.lock(id);const t=await this.template(id,country);if(t)await this.store.put({...t,status:'revoked',encrypted_vector:null,revoked_at:new Date().toISOString(),version:t.version+1});await this.expire(id);await this.store.db.query("DELETE FROM records WHERE kind IN('face_login_counter','face_recovery_challenge') AND owner=$1",[id]);
-  if(t?.status==='active')await this.store.put(row('biometric_consent',id,country,{accepted:false,purpose:'password_recovery',reason,notice_version:2}));
+  if(t?.status==='active')await this.store.put(row('biometric_consent',id,country,{accepted:false,purpose:'password_recovery',reason,notice_version:3}));
  }
  async account(user:RecordData,method:string,b:any){
   if(!this.engine.enabled)fail('Сервис сравнения лица пока недоступен.',503,'FACE_UNAVAILABLE');
@@ -55,7 +55,7 @@ export class FaceRecovery {
   if(steps.some(s=>similarity(steps[0].embedding,s.embedding)<0.45))fail('На всех пяти кадрах должен быть один и тот же человек. Поворачивайте голову слегка и повторите процедуру.');
   const sealed=await this.files.sealSecret(JSON.stringify({sequence_version:2,steps}),'face-template:'+u!.id);
   const t={...(old??row('face_template',u!.id,u!.country)),status:'active',sequence_version:2,steps:FACE_STEPS,model:'opencv-sface-v1',encrypted_vector:sealed,updated_at:new Date().toISOString(),version:(old?.version??0)+1};
-  await this.store.put(t);await this.expire(u!.id);await this.store.put(row('biometric_consent',u!.id,u!.country,{accepted:true,purpose:'password_recovery',notice_version:2,notice_text:FACE_NOTICE,template_version:t.version}));
+  await this.store.put(t);await this.expire(u!.id);await this.store.put(row('biometric_consent',u!.id,u!.country,{accepted:true,purpose:'password_recovery',notice_version:3,notice_text:FACE_NOTICE,template_version:t.version}));
   return {enrolled:true,liveness:false};
  }
  // Called in its own transaction after a rejected login has rolled back.

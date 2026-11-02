@@ -7,11 +7,17 @@ import 'api.dart';
 import 'photo_file.dart';
 import 'face_sequence.dart';
 import 'web_face_voice.dart';
+import 'web_face_tracker.dart';
+import 'face_motion.dart';
 
 Future<PhotoFile?> captureWebSelfie(
     {bool guided = false, void Function(int, PhotoFile)? onFrame}) {
   var step = 0;
-  var begun = false;
+  final motion = FaceMotion();
+  WebFaceTracker? tracker;
+  Timer? trackingTimer, captureDeadline;
+  double lastVideoTime = -1;
+  var trackingEpoch = 0;
   final voice = FaceVoice();
   const prompts = facePrompts;
   final result = Completer<PhotoFile?>();
@@ -35,6 +41,7 @@ Future<PhotoFile?> captureWebSelfie(
   final take = web.HTMLButtonElement()
     ..type = 'button'
     ..textContent = 'Сделать селфи'
+    ..hidden = guided.toJS
     ..disabled = true
     ..setAttribute('data-joba-camera-capture', 'true');
   final audio = web.HTMLButtonElement()
@@ -46,12 +53,8 @@ Future<PhotoFile?> captureWebSelfie(
     title.textContent = 'Съёмка лица · шаг ${step + 1} из ${prompts.length}';
     status.textContent = prompts[step];
     dialog.setAttribute('data-joba-face-step', '$step');
-    take.textContent = begun
-        ? (step == prompts.length - 1
-            ? 'Снять кадр и завершить'
-            : 'Снять кадр и продолжить')
-        : 'Начать съёмку';
-    if (begun) {
+    take.hidden = guided.toJS;
+    if (guided) {
       voice.speak(prompts[step]);
       if (!voice.available)
         audio.textContent = 'Озвучка недоступна в этом браузере';
@@ -83,6 +86,13 @@ Future<PhotoFile?> captureWebSelfie(
     b.style.cssText =
         'padding:14px 18px;margin:10px 6px 0 0;border-radius:10px;border:0;font-size:16px;background:#245bdb;color:#fff';
   void stop() {
+    trackingEpoch++;
+    trackingTimer?.cancel();
+    captureDeadline?.cancel();
+    try {
+      tracker?.close();
+    } catch (_) {}
+    tracker = null;
     voice.stop();
     stream?.getTracks().toDart.forEach((track) => track.stop());
     video.pause();
@@ -106,15 +116,10 @@ Future<PhotoFile?> captureWebSelfie(
         event.preventDefault();
         finish(null);
       }).toJS);
-  take.onclick = ((web.MouseEvent _) {
+  void captureFrame() {
     try {
-      if (take.disabled || video.videoWidth == 0 || video.videoHeight == 0)
+      if (result.isCompleted || video.videoWidth == 0 || video.videoHeight == 0)
         return;
-      if (guided && !begun) {
-        begun = true;
-        showStep();
-        return;
-      }
       final edge = guided ? 960 : 1920;
       final scale = video.videoWidth > video.videoHeight
           ? edge / video.videoWidth
@@ -133,7 +138,8 @@ Future<PhotoFile?> captureWebSelfie(
       if (guided) {
         onFrame?.call(step, photo);
         if (step < prompts.length - 1) {
-          step++;
+          motion.advance(web.window.performance.now().round());
+          step = motion.step;
           showStep();
           return;
         }
@@ -143,8 +149,12 @@ Future<PhotoFile?> captureWebSelfie(
       finish(
           null,
           ApiException('CAMERA_UNAVAILABLE',
-              'Не удалось сделать селфи. Откройте камеру заново.'));
+              'Не удалось сделать снимок. Откройте камеру заново.'));
     }
+  }
+
+  take.onclick = ((web.MouseEvent _) {
+    if (!guided && !take.disabled) captureFrame();
   }).toJS;
   dialog.append(title);
   dialog.append(status);
@@ -164,7 +174,7 @@ Future<PhotoFile?> captureWebSelfie(
   preview.append(frame);
   final guide = web.HTMLParagraphElement()
     ..textContent = guided
-        ? 'Подсказки помогают сделать снимок. Движения автоматически не проверяются.'
+        ? 'Кадры снимаются автоматически. Следуйте голосу и подсказкам. Это не защита от фотографий или подмены видео.'
         : 'Расположите лицо внутри рамки при хорошем освещении.';
   dialog.append(preview);
   dialog.append(guide);
@@ -179,7 +189,7 @@ Future<PhotoFile?> captureWebSelfie(
     retry.hidden = true.toJS;
     take.disabled = true;
     step = 0;
-    begun = false;
+
     status.textContent = 'Открываем фронтальную камеру…';
     try {
       var current = await web.window.navigator.mediaDevices
@@ -221,8 +231,55 @@ Future<PhotoFile?> captureWebSelfie(
       if (result.isCompleted) return;
       if (guided) {
         showStep();
-        take.disabled = false;
-        take.focus();
+        take.hidden = true.toJS;
+        final epoch = ++trackingEpoch;
+        guide.textContent = 'Подготавливаем автоматическую фиксацию движений…';
+        try {
+          final loaded = await WebFaceTracker.create();
+          if (result.isCompleted || epoch != trackingEpoch) {
+            loaded.close();
+            return;
+          }
+          tracker = loaded;
+          guide.textContent =
+              'Кадры снимаются автоматически. Кнопки нажимать не нужно.';
+          captureDeadline = Timer(
+              const Duration(minutes: 3),
+              () => finish(
+                  null,
+                  ApiException('FACE_CAPTURE_TIMEOUT',
+                      'Не удалось автоматически зафиксировать все пять шагов. Держите лицо в рамке и повторите попытку.')));
+          trackingTimer =
+              Timer.periodic(const Duration(milliseconds: 100), (_) {
+            if (result.isCompleted || epoch != trackingEpoch || tracker == null)
+              return;
+            if (video.readyState < 2 || video.currentTime == lastVideoTime)
+              return;
+            lastVideoTime = video.currentTime;
+            try {
+              final now = web.window.performance.now();
+              final observation = tracker!.detect(video, now);
+              if (motion.observe(observation, now.round())) {
+                captureFrame();
+              } else if (motion.hint.isNotEmpty) {
+                status.textContent = motion.hint;
+              }
+            } catch (_) {
+              finish(
+                  null,
+                  ApiException('FACE_TRACKER_FAILED',
+                      'Автоматическая съёмка прервалась. Повторите попытку в браузере с поддержкой камеры.'));
+            }
+          });
+        } catch (error) {
+          if (!result.isCompleted)
+            finish(
+                null,
+                error is ApiException
+                    ? error
+                    : ApiException('FACE_TRACKER_UNAVAILABLE',
+                        'Не удалось запустить определение движений. Проверьте соединение и повторите попытку.'));
+        }
       } else {
         status.textContent =
             'Расположите лицо в кадре и нажмите «Сделать селфи».';

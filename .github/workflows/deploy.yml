@@ -61,6 +61,12 @@ jobs:
         run: node scripts/verify-admin-mobile.cjs
         env:
           JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
+      - name: Verify local automatic face tracking runtime
+        run: |
+          python3 scripts/prepare-face-browser-assets.py
+          node scripts/verify-face-tracker.cjs
+        env:
+          JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
       - name: Install pinned Flutter
         run: |
           git clone --depth 1 --branch 3.35.7 https://github.com/flutter/flutter.git "$FLUTTER_ROOT"

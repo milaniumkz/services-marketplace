@@ -45,6 +45,13 @@ class _FaceAccessState extends State<FaceAccess> {
     super.dispose();
   }
 
+  void notice(String message, {bool failure = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor: failure ? Colors.red.shade700 : null));
+  }
+
   Future<void> run(Future<void> Function() action) async {
     if (busy) return;
     final generation = widget.api.sessionGeneration;
@@ -55,10 +62,13 @@ class _FaceAccessState extends State<FaceAccess> {
     try {
       await action();
     } catch (e) {
-      if (mounted && generation == widget.api.sessionGeneration)
-        setState(() => error = e is ApiException
+      if (mounted && generation == widget.api.sessionGeneration) {
+        final message = e is ApiException
             ? e.message
-            : 'Не удалось выполнить действие. Повторите попытку.');
+            : 'Не удалось выполнить действие. Повторите попытку.';
+        setState(() => error = message);
+        notice(message, failure: true);
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -103,10 +113,13 @@ class _FaceAccessState extends State<FaceAccess> {
           if (data['verified'] != true) {
             setState(() => error = data['message'] as String? ??
                 'Лицо не совпало. Повторите снимок.');
+            notice(error!, failure: true);
             return;
           }
+          notice('Лицо подтверждено. Можно установить новый пароль.');
           setState(() => resetToken = data['reset_token'] as String);
         } else {
+          notice('Все пять кадров проверены. Шаблоны лица сохранены.');
           widget.onDone();
         }
       });
@@ -157,7 +170,7 @@ class _FaceAccessState extends State<FaceAccess> {
             ? 'Лицо совпало. После смены пароля войдите с новым паролем. Остальные сессии завершатся.'
             : recovering
                 ? 'После двух неверных паролей можно сравнить лицо с ранее сохранённым шаблоном. Если способ не настроен, вернитесь ко входу или обратитесь в поддержку.'
-                : 'Сохраните пять шаблонов лица для восстановления пароля: прямо, налево, направо, моргнуть и улыбнуться. Это отдельная настройка: проверка документов и биометрия устройства не изменятся.'),
+                : 'Камера сама фиксирует движения. Сохраните пять шаблонов лица для восстановления пароля: прямо, налево, направо, моргнуть и улыбнуться. Это отдельная настройка: проверка документов и биометрия устройства не изменятся.'),
         if (resetToken == null)
           const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),

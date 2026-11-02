@@ -5,6 +5,7 @@ joba_domain="${JOBA_DOMAIN:-188-241-217-228.sslip.io}"
 [[ "$joba_domain" =~ ^[a-zA-Z0-9.-]+$ && "$joba_domain" == *.* ]] || { echo 'Set a public DNS hostname in JOBA_DOMAIN' >&2; exit 1; }
 joba_flutter="${FLUTTER_ROOT:-/workspace/flutter-sdk}/bin/flutter"
 [[ -x "$joba_flutter" ]] || { echo 'Set FLUTTER_ROOT to Flutter 3.35.7' >&2; exit 1; }
+python3 scripts/prepare-face-browser-assets.py
 npm run build --workspace @marketplace/admin -- --base=/admin/
 npm run build --workspace @marketplace/web -- --base=/site/
 bash scripts/flutter-mobile.sh pub get --enforce-lockfile
@@ -26,7 +27,7 @@ root=Path('release/web')
 commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 # Both entry points change URL on each release, bypassing old browser caches.
 index=root/'mobile/index.html'
-index.write_text(index.read_text().replace('joba_release=20261015-worker-retirement','joba_release='+commit).replace('src="joba-web-ads.js"','src="joba-web-ads.js?joba_release='+commit+'"'))
+index.write_text(index.read_text().replace('joba_release=20261015-worker-retirement','joba_release='+commit).replace('src="joba-web-ads.js"','src="joba-web-ads.js?joba_release='+commit+'"').replace('src="joba-face-tracker.js"','src="joba-face-tracker.js?joba_release='+commit+'"'))
 bootstrap=root/'mobile/flutter_bootstrap.js'
 source=bootstrap.read_text()
 assert '"mainJsPath":"main.dart.js"' in source, 'Flutter entrypoint configuration changed'

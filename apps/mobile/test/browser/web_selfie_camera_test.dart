@@ -8,6 +8,7 @@ import 'package:web/web.dart' as web;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:services_marketplace/core/photo_source_web.dart';
 import 'package:services_marketplace/core/photo_file.dart';
+import 'package:services_marketplace/core/api.dart';
 import 'package:services_marketplace/core/web_selfie_camera.dart';
 
 @JS('Object.defineProperty')
@@ -60,7 +61,7 @@ void main() {
         true);
   });
   test(
-      'guided recovery records five frames in order, speaks instructions and stops speech on close',
+      'automatic recovery captures recognized movements without any capture button and stops voice/tracker',
       () async {
     final canvas = web.HTMLCanvasElement()
       ..width = 160
@@ -68,12 +69,15 @@ void main() {
     final context = canvas.getContext('2d') as web.CanvasRenderingContext2D;
     context.fillStyle = 'blue'.toJS;
     context.fillRect(0, 0, 160, 120);
-    final stream = _StreamCanvas(canvas).captureStream(5);
+    final stream = _StreamCanvas(canvas).captureStream(15);
     install(((JSObject _) => Future.value(stream).toJS).toJS);
     final originalSpeech =
-        web.window.getProperty<JSAny?>('speechSynthesis'.toJS);
+            web.window.getProperty<JSAny?>('speechSynthesis'.toJS),
+        originalTracker =
+            web.window.getProperty<JSAny?>('jobaCreateFaceTracker'.toJS);
     final spoken = <String>[];
-    var cancelled = 0;
+    var closed = 0, previous = -1;
+    double entered = 0;
     defineProperty(
         web.window,
         'speechSynthesis'.toJS,
@@ -81,49 +85,100 @@ void main() {
           'configurable': true,
           'value': {
             'getVoices': (() => <JSAny>[].toJS).toJS,
-            'cancel': (() {
-              cancelled++;
-            }).toJS,
+            'cancel': (() {}).toJS,
             'resume': (() {}).toJS,
-            'speak': ((JSObject utterance) {
-              spoken.add(utterance.getProperty<JSString>('text'.toJS).toDart);
+            'speak': ((JSObject u) {
+              spoken.add(u.getProperty<JSString>('text'.toJS).toDart);
+              expect(u.getProperty<JSNumber>('rate'.toJS).toDartDouble,
+                  greaterThan(1));
+              expect(u.getProperty<JSNumber>('volume'.toJS).toDartDouble,
+                  lessThan(1));
             }).toJS,
           }.jsify()
         }.jsify()! as JSObject);
-    addTearDown(() => defineProperty(web.window, 'speechSynthesis'.toJS,
-        {'configurable': true, 'value': originalSpeech}.jsify()! as JSObject));
+    web.window.setProperty(
+        'jobaCreateFaceTracker'.toJS,
+        (() => Future.value({
+              'detect': ((JSObject _, JSNumber time) {
+                final now = time.toDartDouble;
+                final step = int.parse(web.document
+                    .querySelector('[data-joba-selfie-camera]')!
+                    .getAttribute('data-joba-face-step')!);
+                if (step != previous) {
+                  previous = step;
+                  entered = now;
+                }
+                final elapsed = now - entered;
+                return {
+                  'faces': 1,
+                  'yaw': step == 1
+                      ? 0.2
+                      : step == 2
+                          ? -0.2
+                          : 0.0,
+                  'centerX': .5,
+                  'centerY': .5,
+                  'width': .4,
+                  'height': .6,
+                  'blinkLeft':
+                      step == 3 && elapsed > 900 && elapsed < 1300 ? 0.9 : 0.05,
+                  'blinkRight':
+                      step == 3 && elapsed > 900 && elapsed < 1300 ? 0.9 : 0.05,
+                  'smile': step == 4 ? 0.8 : 0.1
+                }.jsify();
+              }).toJS,
+              'close': (() {
+                closed++;
+              }).toJS,
+            }.jsify()! as JSObject)
+                .toJS).toJS);
+    addTearDown(() {
+      defineProperty(web.window, 'speechSynthesis'.toJS,
+          {'configurable': true, 'value': originalSpeech}.jsify()! as JSObject);
+      web.window.setProperty('jobaCreateFaceTracker'.toJS, originalTracker);
+    });
     final captured = <int>[];
     final future = captureWebSelfie(
         guided: true,
-        onFrame: (i, photo) {
+        onFrame: (i, p) {
           captured.add(i);
-          expect(photo.bytes, isNotEmpty);
+          expect(p.bytes, isNotEmpty);
         });
     final take = web.document.querySelector('[data-joba-camera-capture]')
         as web.HTMLButtonElement;
-    for (var i = 0; i < 100 && take.disabled; i++)
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-    final dialog = web.document.querySelector('[data-joba-selfie-camera]')!;
-    expect(
-        dialog.textContent, contains('Движения автоматически не проверяются'));
-    take.click();
-    expect(captured, isEmpty);
-    expect(spoken.last, contains('Посмотрите прямо'));
-    for (final text in ['налево', 'направо', 'моргните', 'улыбнитесь']) {
-      take.click();
-      expect(dialog.textContent, contains(text));
-      expect(spoken.last, contains(text));
-    }
-    expect(captured, [0, 1, 2, 3]);
-    take.click();
-    expect((await future)!.mime, 'image/jpeg');
+    expect(take.hasAttribute('hidden'), true);
+    final photo = await future.timeout(const Duration(seconds: 15));
+    expect(photo!.mime, 'image/jpeg');
     expect(captured, [0, 1, 2, 3, 4]);
     expect(spoken, hasLength(5));
-    expect(cancelled, greaterThanOrEqualTo(6));
+    expect(closed, 1);
     expect(
-        stream.getTracks().toDart.every((track) => track.readyState == 'ended'),
-        true);
+        stream.getTracks().toDart.every((t) => t.readyState == 'ended'), true);
     expect(web.document.querySelector('[data-joba-selfie-camera]'), isNull);
+  });
+  test(
+      'automatic tracking failure closes camera with an error and never falls back to manual capture',
+      () async {
+    final canvas = web.HTMLCanvasElement()
+      ..width = 160
+      ..height = 120;
+    final context = canvas.getContext('2d') as web.CanvasRenderingContext2D;
+    context.fillRect(0, 0, 160, 120);
+    final stream = _StreamCanvas(canvas).captureStream(5);
+    install(((JSObject _) => Future.value(stream).toJS).toJS);
+    final previous =
+        web.window.getProperty<JSAny?>('jobaCreateFaceTracker'.toJS);
+    web.window.setProperty(
+        'jobaCreateFaceTracker'.toJS,
+        (() => Future<JSObject>.error(Exception('model unavailable')).toJS)
+            .toJS);
+    addTearDown(
+        () => web.window.setProperty('jobaCreateFaceTracker'.toJS, previous));
+    final future = captureWebSelfie(guided: true);
+    await expectLater(future, throwsA(isA<ApiException>()));
+    expect(web.document.querySelector('[data-joba-selfie-camera]'), isNull);
+    expect(
+        stream.getTracks().toDart.every((t) => t.readyState == 'ended'), true);
   });
   test('selfie cancellation before permission resolves stops a late stream',
       () async {

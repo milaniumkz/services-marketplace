@@ -27,8 +27,9 @@ class FaceVoice {
       }
       final utterance = web.SpeechSynthesisUtterance(text)
         ..lang = 'ru-RU'
-        ..rate = 0.9
-        ..pitch = 1.05;
+        ..rate = 1.15
+        ..pitch = 1.02
+        ..volume = 0.65;
       if (selected != null) utterance.voice = selected;
       utterance.onerror = ((web.SpeechSynthesisErrorEvent event) {
         if (epoch != _epoch ||
