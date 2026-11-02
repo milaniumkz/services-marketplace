@@ -87,7 +87,17 @@ Future<PhotoFile?> captureWebSelfie() {
   }).toJS;
   dialog.append(title);
   dialog.append(status);
-  dialog.append(video);
+  final preview = web.HTMLDivElement();
+  preview.style.cssText = 'position:relative;overflow:hidden;border-radius:18px;background:#eef2f7';
+  preview.append(video);
+  final frame = web.HTMLDivElement()..setAttribute('data-joba-face-frame', 'true')..setAttribute('aria-hidden', 'true');
+  frame.style.cssText = 'pointer-events:none;position:absolute;inset:8% 20%;border:3px solid #77d7ff;border-radius:50%;box-shadow:0 0 0 100vmax #11294a33,inset 0 0 18px #77d7ff55';
+  final decoration = web.HTMLStyleElement()..textContent = '@keyframes jobaFaceGlow{50%{border-color:#245bdb;box-shadow:0 0 0 100vmax #11294a33,inset 0 0 28px #77d7ff88}} [data-joba-face-frame]{animation:jobaFaceGlow 2.8s ease-in-out infinite} @media(prefers-reduced-motion:reduce){[data-joba-face-frame]{animation:none}}';
+  preview.append(decoration);
+  preview.append(frame);
+  final guide = web.HTMLParagraphElement()..textContent = 'Расположите лицо внутри рамки при хорошем освещении.';
+  dialog.append(preview);
+  dialog.append(guide);
   dialog.append(take);
   dialog.append(retry);
   dialog.append(cancel);

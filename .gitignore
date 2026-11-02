@@ -33,3 +33,6 @@ __pycache__/
 # Firebase service-account private credentials never belong in source control.
 *service-account*.json
 apps/mobile/ios/Runner/GoogleService-Info.plist
+
+# Pinned biometric model weights are downloaded and verified during the build.
+services/face/models/*.onnx

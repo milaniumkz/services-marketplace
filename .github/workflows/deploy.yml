@@ -75,6 +75,10 @@ jobs:
         run: '"$FLUTTER_ROOT/bin/flutter" test --platform chrome test/browser --reporter expanded'
       - name: Verify server image without cloud-specific CA mounts
         run: docker build -f services/api/Dockerfile -t joba-api:verified .
+      - name: Verify private face comparison service and pinned models
+        run: |
+          docker build -f services/face/Dockerfile -t joba-face:verified .
+          docker run --rm --read-only --tmpfs /tmp --memory 768m --cpus 1 joba-face:verified python -m unittest test_engine
       - run: bash scripts/build-web-release.sh
       - run: tar -czf release-web.tgz -C release web
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

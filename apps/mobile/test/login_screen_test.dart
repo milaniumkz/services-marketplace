@@ -24,6 +24,53 @@ class SetupFlowLock extends LocalLock {
 }
 
 void main() {
+  testWidgets('second rejected password opens face recovery without signing in',
+      (t) async {
+    var attempts = 0;
+    final api = JobaApi('https://isolated.example', vault: MemoryVault(),
+        transport: MockClient((r) async {
+      if (r.url.path.endsWith('/auth/login')) {
+        attempts++;
+        return http.Response(
+            jsonEncode({
+              'error': {
+                'code': 'INVALID_CREDENTIALS',
+                'message': 'Неверный номер или пароль',
+                'details': {
+                  if (attempts >= 2)
+                    'face_recovery': {'id': 'proof', 'nonce': 'nonce'}
+                }
+              }
+            }),
+            401,
+            headers: {'content-type': 'application/json; charset=utf-8'});
+      }
+      return ok({'items': []});
+    }));
+    addTearDown(api.dispose);
+    await t.pumpWidget(JobaApp(api: api));
+    await t.pumpAndSettle();
+    final dynamic state = t.state(find.byType(Marketplace));
+    state.go('login');
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextFormField).at(0), '+77000000001');
+    await t.enterText(find.byType(TextFormField).at(1), 'Wrong password 123');
+    await t.ensureVisible(find.widgetWithText(FilledButton, 'Войти'));
+    await t.tap(find.widgetWithText(FilledButton, 'Войти'));
+    await t.pumpAndSettle();
+    expect(state.route, 'login');
+    await t.ensureVisible(find.widgetWithText(FilledButton, 'Повторить'));
+    await t.tap(find.widgetWithText(FilledButton, 'Повторить'));
+    await t.pumpAndSettle();
+    expect(state.route, 'face-recovery');
+    expect(api.authenticated, false);
+    expect(find.text('Открыть фронтальную камеру'), findsOneWidget);
+    await t.ensureVisible(find.text('Вернуться ко входу'));
+    await t.tap(find.text('Вернуться ко входу'));
+    await t.pumpAndSettle();
+    expect(state.route, 'login');
+    expect(state.authPhoneInitial, '+77000000001');
+  });
   testWidgets('saved PIN opens biometry and skipping it completes authenticated setup', (t) async {
     final vault = MemoryVault();
     final api = JobaApi('https://isolated.example', vault: vault,

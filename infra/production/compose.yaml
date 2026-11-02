@@ -22,6 +22,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      JOBA_FACE_SERVICE_URL: http://face:8080
       JOBA_REGION: KZ
       JOBA_ENABLED_COUNTRIES: KZ,KG,RU,BY
       JOBA_TRUST_PROXY: '1'
@@ -47,12 +48,24 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      face:
+        condition: service_healthy
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 20
       start_period: 30s
+    networks: [private]
+  face:
+    build:
+      context: ../..
+      dockerfile: services/face/Dockerfile
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 1
+    read_only: true
+    tmpfs: [/tmp]
     networks: [private]
   antivirus:
     build:

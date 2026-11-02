@@ -17,6 +17,8 @@ const fields:Record<string,string[]>={
  support_message:['thread_id','text','upload_ids','sequence','edited_at','tombstone'],
  case:['target_type','target_id','description','reason_code','status','decision','reason','appeal_reason'],
  case_message:['case_id','text','upload_ids'],
+ biometric_consent:['accepted','purpose','notice_version','notice_text','template_version','reason'],
+ face_template:['status','model','updated_at','revoked_at'],
  consent:['document_id','document_version','document_hash','accepted','sequence'],
  subscription:['provider','product_id','status','state','amount_minor','currency','valid_until','ends_at','canceled_at'],
  grant:['source','valid_until','capabilities','balance'],

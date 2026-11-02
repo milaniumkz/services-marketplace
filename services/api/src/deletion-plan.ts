@@ -6,12 +6,12 @@ export function validateRetentionCategories(payload:any){
 }
 const groups=[
  {id:'profile',label:'Аккаунт и публичные материалы',kinds:['user','contractor','portfolio','content_revision'],action:'anonymize_now',anchor:'deletion_execution'},
- {id:'sessions',label:'Сессии, устройства и ссылки загрузки',kinds:['push_token','download_ticket'],action:'revoke_now',anchor:'deletion_execution'},
+ {id:'sessions',label:'Сессии, устройства и ссылки загрузки',kinds:['push_token','download_ticket','face_template','face_login_counter','face_recovery_challenge'],action:'revoke_now',anchor:'deletion_execution'},
  {id:'documents',label:'Проверка личности',kinds:['verification'],action:'minimize_after_document_purge',policy:'audit_days',anchor:'verification_final_decision'},
  {id:'work',label:'Заказы, отклики и переписки',kinds:['order','offer','invite','assignment','conversation','message','message_revision','review','review_revision'],action:'minimize_after_closure',policy:'chat_days',anchor:'linked_order_closure'},
  {id:'support',label:'Поддержка, споры и доказательства',kinds:['support','support_message','support_note','case','case_message','case_decision','moderation_episode','legal_hold','blacklist','auto_hold'],action:'retain_held_fields',policy:'audit_days',anchor:'case_or_thread_closure'},
  {id:'finance',label:'Платежи, возвраты и права доступа',kinds:['payment_transaction','subscription','refund_request','purchase_check','grant','boost','entitlement_consumption','ad_reward','ad_session','web_ad_redemption','referral_code','referral_attribution','referral_reservation','referral_reward','referral_discount','checkout_quote','compensation_request','webhook_inbox'],action:'retain_required_fields',policy:'financial_days',anchor:'financial_event'},
- {id:'audit',label:'Аудит и подтверждения согласий',kinds:['audit','consent','processing_consent','processing_consent_event','web_ad_consent','privacy'],action:'retain_required_fields',policy:'audit_days',anchor:'record_creation'},
+ {id:'audit',label:'Аудит и подтверждения согласий',kinds:['audit','consent','processing_consent','processing_consent_event','biometric_consent','web_ad_consent','privacy'],action:'retain_required_fields',policy:'audit_days',anchor:'record_creation'},
  {id:'security',label:'События безопасности',kinds:['security_event'],action:'minimize_after_policy',policy:'security_days',anchor:'event_creation'},
  {id:'notifications',label:'Уведомления и очередь доставки',kinds:['notification','outbox'],action:'minimize_after_policy',policy:'logs_days',anchor:'event_creation'},
  {id:'advertising',label:'Веб-реклама и рекламные просмотры',kinds:['web_ad_session','web_ad_grant','web_ad_progress'],action:'minimize_after_policy',policy:'logs_days',anchor:'event_creation'},

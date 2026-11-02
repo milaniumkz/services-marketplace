@@ -1,3 +1,4 @@
+import {FaceRecovery,FaceEngine} from './face-recovery';
 import {adminWebAds,userWebAds,recordWebAdConsent,webAdsConfig,webAdNotice,webAdNoticeVersion} from './web-ads';
 import {adminOperatorProfile} from './public-operator';
 import {publicSitePage} from './public-site';
@@ -104,12 +105,14 @@ export class Marketplace {
   readonly commerce: Commerce;
   readonly refunds:Refunds;
   readonly files: PrivateFiles;
+  readonly face:FaceRecovery;
   readonly configuration:Configuration;
   readonly growth:Growth;
   readonly branding:Branding;
   private queue: Promise<any> = Promise.resolve();
-  constructor(store = new Store(), providers = new Providers(), files = new PrivateFiles()) {
+  constructor(store = new Store(), providers = new Providers(), files = new PrivateFiles(),faceEngine?:FaceEngine) {
     this.store=store;this.providers=providers;this.commerce=new Commerce(store,providers);this.refunds=new Refunds(store,providers);this.files=files;
+    this.face=new FaceRecovery(store,files,faceEngine);
     this.configuration=new Configuration(store,providers);this.growth=new Growth(store,providers);this.branding=new Branding(store,files);
     store.transitionKinds=notificationTransitionKinds;store.transitionHook=(before,after)=>notifyTransition(store,before,after,(owner,country,type,target)=>this.notify(owner,{id:after.owner,country},type,target));
     const moderation=new Moderation(store);store.contentHook=data=>moderation.check(data);
@@ -217,6 +220,7 @@ export class Marketplace {
       if(actor)await this.limited('mutations:'+actor.id,120);
       if(path==='/auth/register')await this.limited('register:'+ip,5);
       if(['/auth/login','/auth/staff-login'].includes(path)){await this.limited('login:'+ip,10);await this.limited('login-account:'+String(body.country)+':'+(path==='/auth/staff-login'?String(body.phone).trim().toLowerCase():String(body.phone)),10);}
+      if(path.startsWith('/auth/face-recovery/'))await this.limited('face-recovery:'+ip,5);
       if(path==='/auth/refresh')await this.limited('refresh:'+ip);
       if(path==='/public/recovery-threads')await this.limited('recovery:'+ip,3);
       if(path.startsWith('/public/recovery-threads/')&&path.endsWith('/messages'))await this.limited('recovery-messages:'+ip);
@@ -239,6 +243,9 @@ export class Marketplace {
         // Refresh replay must durably revoke the entire family, even when rejected.
         if(e instanceof HttpException && (e.getResponse() as any)?.error?.code==='REFRESH_REPLAY')await this.store.db.exec('COMMIT');
         else await this.store.db.exec('ROLLBACK');
+        if(path==='/auth/login'&&e instanceof HttpException&&(e.getResponse() as any)?.error?.code==='INVALID_CREDENTIALS'){
+          const challenge=await this.face.failedLogin(body);if(challenge){const response=(e.getResponse() as any);throw new HttpException({...response,error:{...response.error,details:{...response.error.details,face_recovery:challenge}}},401);}
+        }
         throw e;
       }
     };
@@ -293,6 +300,7 @@ export class Marketplace {
       const claimed=await db.query("UPDATE records SET data=jsonb_set(jsonb_set(data,'{status}','\"used\"'::jsonb),'{version}',to_jsonb(version+1)),version=version+1 WHERE id=$1 AND data->>'status'='active' RETURNING id",[found.id]);
       if(!claimed.rows.length)fail(404,'NOT_FOUND','Ссылка уже использована');if(upload.purpose==='export')return {download_stream:await this.files.readStream(upload.id),download_size:upload.stored_size??upload.size,mime:upload.mime};return {download_buffer:await this.files.read(found.variant==='preview'&&upload.preview_file_id?upload.preview_file_id:upload.id),mime:upload.mime};
     }
+    if(path.startsWith('/auth/face-recovery/')&&method==='POST')return this.face.public(path,b,async country=>(await this.settings(country)).password_min);
     if(path==='/auth/register'&&method==='POST') {
       const country=text(b,'country',2,2);if(!countries[country])fail(400,'VALIDATION_ERROR','Недопустимая страна');
       if(!countryEnabled(country))fail(403,'COUNTRY_DISABLED','Выбран неверный региональный endpoint');
@@ -318,6 +326,7 @@ export class Marketplace {
       const locale=b.locale??countries[country].locales[0];if(!['ru','kk','sr','be'].includes(locale))fail(400,'VALIDATION_ERROR','Язык не поддерживается');
       const u=this.record('user',{id:'',country},{phone,phone_status:'unverified',display_name:b.display_name===undefined?'':text(b,'display_name',2,60),locale,city:'',roles:['customer'],verification:'not_started',status:'active'});u.owner=u.id;
       await this.store.put(u);await db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',[country,phone,u.id,await hash(secret,{memoryCost:19456,timeCost:2,parallelism:1})]);
+      if(this.face.engine.enabled)await this.face.clearLogin(u.id);
       return this.tokens(u,randomUUID(),false,ip);
     }
     if(['/auth/login','/auth/staff-login'].includes(path)&&method==='POST') {
@@ -328,6 +337,7 @@ export class Marketplace {
       if(!ok)fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       if(path==='/auth/staff-login')await db.query('SELECT pg_advisory_xact_lock_shared(hashtextextended($1,0))',['staff-access:'+String(b.country)]);
       const u=await this.store.get(c.user_id);if(!u || u.status==='deleted')fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
+      const currentCredentials=(await db.query<any>('SELECT password_hash FROM credentials WHERE user_id=$1',[u!.id])).rows[0];if(!currentCredentials||currentCredentials.password_hash!==c.password_hash&&!await verify(currentCredentials.password_hash,String(b.password)))fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
       if(u!.admin_blocked===true)fail(403,'ACCOUNT_BLOCKED','Аккаунт заблокирован администратором');
       if(path==='/auth/staff-login') {
         const effective=await resolveStaffUser(this.store,u!);
@@ -337,6 +347,7 @@ export class Marketplace {
         return this.tokens(effective,randomUUID(),true,ip);
       }
       if(u!.staff_permissions?.length)fail(401,'INVALID_CREDENTIALS','Используйте отдельный служебный вход');
+      if(this.face.engine.enabled)await this.face.clearLogin(u!.id);
       return this.tokens(u!,randomUUID(),false,ip);
     }
     if(path==='/auth/refresh'&&method==='POST') {
@@ -396,6 +407,7 @@ export class Marketplace {
       }
     }
     const settings=await this.settings(a.country==='ALL'?a.user.country:a.country);
+    if(path==='/me/face-recovery')return this.face.account(a.user,method,b);
     if(path==='/admin/web-ads')return adminWebAds(this.store,a,method,b);
     if(path.startsWith('/me/web-ads'))return userWebAds(this.store,a,method,path,b);
     if(path==='/admin/operator-profile')return adminOperatorProfile(this.store,a,method,b);
@@ -413,7 +425,7 @@ export class Marketplace {
       return {revoked:true,current_session_preserved:true};
     }
     if(path==='/me/activity'&&method==='POST'){if(a.user.staff_permissions?.length)fail(403,'FORBIDDEN','Журнал пользовательского приложения');const screen=text(b,'screen',1,64);if(!/^[a-z][a-z0-9-]*$/.test(screen))fail(400,'VALIDATION_ERROR','Неизвестный экран');await this.store.put(this.record('security_event',a,{event:'app.screen_opened',screen,ip,occurred_at:new Date().toISOString()}));return {recorded:true};}
-    if(path==='/me'&&method==='GET')return {...safeUser(a.user),phone:a.user.phone,phone_status:'unverified',status:a.user.status,version:a.user.version};
+    if(path==='/me'&&method==='GET')return {...safeUser(a.user),phone:a.user.phone,phone_status:'unverified',...(this.face.engine.enabled&&!a.user.staff_permissions?.length?{face_recovery_available:true}:{}),status:a.user.status,version:a.user.version};
     if(path==='/me/security-policy'&&method==='GET')return {password_min:settings.password_min,password_max:128};
     if(path==='/me/overview'&&method==='GET')return accountOverview(this.store,a.id,a.country,subscriptionRole(a.user));
     if(path==='/me/restrictions'&&method==='GET'){
@@ -442,11 +454,11 @@ export class Marketplace {
       else if(b.avatar_id!==undefined){const u=await this.object(String(b.avatar_id),a,'upload',true);if(u.status!=='clean'||u.purpose!=='avatar')fail(422,'UNSAFE_UPLOAD','Аватар ещё не проверен');changes.avatar_id=u.id;}
       return this.store.put({...a.user,...changes,version:a.user.version+1}).then(u=>({...safeUser(u),version:u.version}));
     }
-    if(path==='/me/password/change'&&method==='POST'){await this.reauth(a,b);await db.query('UPDATE credentials SET password_hash=$1 WHERE user_id=$2',[await hash(password(b,'new_password',settings.password_min)),a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);await this.store.put(this.record('security_event',a,{event:'password.changed',ip,occurred_at:new Date().toISOString()}));return {changed:true};}
+    if(path==='/me/password/change'&&method==='POST'){await this.reauth(a,b);await this.face.clearLogin(a.id);await db.query('UPDATE credentials SET password_hash=$1 WHERE user_id=$2',[await hash(password(b,'new_password',settings.password_min)),a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);await this.store.put(this.record('security_event',a,{event:'password.changed',ip,occurred_at:new Date().toISOString()}));return {changed:true};}
     if(path==='/me/phone-change-requests'&&method==='POST') {
       await this.reauth(a,b);const value=text(b,'new_phone',8,16),number=parsePhoneNumberFromString(value);if(!number?.isValid()||number.country!==a.country||number.number!==value)fail(400,'VALIDATION_ERROR','Номер не соответствует выбранному региону');
       const exists=(await db.query('SELECT 1 FROM credentials WHERE country=$1 AND phone=$2',[a.country,value])).rows.length;if(exists)fail(409,'PHONE_CHANGE_UNAVAILABLE','Не удалось изменить идентификатор. Обратитесь в поддержку.');
-      await db.query('UPDATE credentials SET phone=$1 WHERE user_id=$2',[value,a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);
+      await this.face.clearLogin(a.id);await db.query('UPDATE credentials SET phone=$1 WHERE user_id=$2',[value,a.id]);await db.query('UPDATE tokens SET revoked=true WHERE user_id=$1 AND family<>$2',[a.id,a.family]);
       await this.store.put({...a.user,phone:value,phone_status:'unverified',version:a.user.version+1});await this.store.put(this.record('security_event',a,{event:'phone.changed',ip,occurred_at:new Date().toISOString()}));return {phone:value,phone_status:'unverified',version:a.user.version+1};
     }
     if(path==='/me/sessions'&&method==='GET')return {items:(await db.query('SELECT DISTINCT family,expires_at FROM tokens WHERE user_id=$1 AND kind=\'refresh\' AND country=$2 AND expires_at>now() AND NOT revoked AND NOT used ORDER BY expires_at DESC',[a.id,a.country])).rows.map(r=>({...r,current:r.family===a.family}))};
@@ -1508,6 +1520,7 @@ export class Marketplace {
           const request=pending??await this.store.put(this.record('privacy',{id:u.id,country:u.country},{type:'delete',status:'requested',requested_by:a.id,reason}));
           await this.store.put({...u,status:'deleted',admin_blocked:true,deletion_request_id:request.id,deleted_at:new Date().toISOString(),version:u.version+1});
           await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[u.id]);
+          await this.face.revoke(u.id,u.country,'account_deleted');
           await this.audit(a,'user.deletion_requested',u.id,reason);
           return {id:u.id,status:'deleted',deletion_request_id:request.id,deletion_status:request.status};
         }
@@ -2008,6 +2021,7 @@ export class Marketplace {
           const chat=r.conversation_id?await this.store.get(r.conversation_id):undefined;
           if(chat?.status==='open')await this.store.put({...chat,status:'closed',version:chat.version+1});
         }
+        await this.store.db.query("DELETE FROM records WHERE kind IN('face_login_counter','face_recovery_challenge') AND data->>'expires_at'<$1",[new Date(now.getTime()-86400000).toISOString()]);
         for(const r of await this.store.all('order'))if(r.status==='open'&&r.expires_at<=now.toISOString())await this.store.put({...r,status:'expired',version:r.version+1});
         const due=(await this.store.db.query<{owner:string,country:string}>("SELECT DISTINCT owner,country FROM records WHERE kind='subscription' AND data->>'status'='scheduled' AND data->>'valid_from'<=$1 LIMIT 200",[now.toISOString()])).rows;for(const entry of due){const user=await this.store.get(entry.owner);if(user&&user.country===entry.country)await activatePeriods(this.store,user,now);}
         await this.store.db.query("DELETE FROM records WHERE kind='checkout_quote' AND data->>'status'='available' AND data->>'expires_at'<$1",[new Date(now.getTime()-86400000).toISOString()]);
@@ -2044,6 +2058,7 @@ export class Marketplace {
           if(work.length){if(r.status!=='awaiting_resolution')await this.store.put({...r,status:'awaiting_resolution',version:r.version+1});continue;}
           await this.store.put({...r,status:'erasing',version:r.version+1});
           const u=await this.store.get(r.owner);if(u)await this.store.put({id:u.id,kind:u.kind,owner:u.owner,country:u.country,created_at:u.created_at,phone:null,avatar_id:null,languages:[],roles:[],display_name:'Удалённый пользователь',city:'',status:'deleted',version:u.version+1},{skipContentCheck:true});
+          await this.face.revoke(r.owner,r.country,'account_deleted');
           await this.store.db.query('DELETE FROM credentials WHERE user_id=$1',[r.owner]);await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[r.owner]);
           await this.store.db.query('DELETE FROM idempotency WHERE scope LIKE $1',[r.owner+':%']);
           for(const kind of ['contractor','portfolio','content_revision'])for(const {data:x} of (await this.store.db.query<{data:RecordData}>('SELECT data FROM records WHERE kind=$1 AND country=$2 AND owner=$3',[kind,r.country,r.owner])).rows)await anonymizeProfile(this.store,x);

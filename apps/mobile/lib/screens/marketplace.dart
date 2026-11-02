@@ -1,3 +1,4 @@
+import 'face_access.dart';
 import 'home_marketplace_gate.dart';
 import 'package:flutter/foundation.dart';
 import '../advertising/web_ads.dart';
@@ -176,7 +177,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   JobaApi get api => _api!;
   RegionGateway? regions;
   DevicePreferences? preferences;
-  Json? me, recovery;
+  Json? me, recovery, faceChallenge;
+  String faceSetupReturnRoute = 'lock-setup';
   String country = 'KZ', route = 'welcome';
   String locale = 'ru';
   String? pendingLocale;
@@ -232,7 +234,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       (profilePending > 0 && ['onboarding', 'profile-edit'].contains(route)) ||
       (authSubmitting && ['login', 'register'].contains(route)) ||
       (localSetupSubmitting && ['pin-setup', 'lock-setup', 'biometric'].contains(route));
-  bool get onboardingNavigationBlocked => _api?.authenticated == true && ((['lock-setup', 'pin-setup', 'biometric'].contains(route) && !history.any((entry) => entry.$1 == 'security')) || (['terms', 'onboarding'].contains(route) && (registrationInProgress || history.isEmpty)));
+  bool get onboardingNavigationBlocked => _api?.authenticated == true && (route == 'face-enroll' || (['lock-setup', 'pin-setup', 'biometric'].contains(route) && !history.any((entry) => entry.$1 == 'security')) || (['terms', 'onboarding'].contains(route) && (registrationInProgress || history.isEmpty)));
   Object? startupError;
   int revision = 0, sequence = 0;
   String? notificationReadBefore, notificationScope;
@@ -322,6 +324,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         executorSetupRequested = false;
         authPhoneInitial = '';
         recovery = null;
+        faceChallenge = null;
         objectId = null;
         listingFilters = {};
         serviceCategories = null;
@@ -366,6 +369,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         profileDraft = null; profileDraftScope = null;
         ordersHasAny = null;
         recovery = null;
+        faceChallenge = null;
         draftPhotos.clear();
         verificationUploads.clear();
         draftWindow = null;
@@ -880,6 +884,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   String get navigationRoute=>['home','jobs','catalog','messages','notifications','account'].contains(route)?route:['chat','support-chat','support','messages-search'].contains(route)?'messages':orderNavigationRoutes.contains(route)||['review','complete','rework','cancel','cancel-pending','amendment','change-requests'].contains(route)?(executor?'jobs':'home'):'account';
   void selectShellTab(String next){if(authNavigationBlocked||actionBusy||orderFormSubmitting)return;Navigator.of(context).popUntil((r)=>r.isFirst);selectMainTab(next);}
   void publishNavigation(){if(widget.onNavigationChanged==null)return;final epoch=++navigationEpoch;final value=!starting&&_api?.authenticated==true&&!locked&&!onboardingNavigationBlocked?NavigationState(route:navigationRoute,banner:navigationBanner,bannerPlacement:bannerPlacement,executor:executor,enabled:!actionBusy&&!orderFormSubmitting&&!authNavigationBlocked,messages:messageUnreadCount,notifications:notificationUnreadCount??0,onSelect:selectShellTab):null;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&epoch==navigationEpoch)widget.onNavigationChanged?.call(value);});}
+  void finishFaceSetup(bool signup) {setState(() {route = signup ? faceSetupReturnRoute : 'security'; if (signup) history.clear();});}
   Widget screen() {
     if(['create','edit-order'].contains(route))ensureOrderFormsScope();
     if(executor&& !['passed','pending_review'].contains(me?['verification'])&&['services','portfolio','portfolio-edit','portfolio-photos'].contains(route)){return verificationScreen();}
@@ -892,6 +897,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       ]));
     }
     switch (route) {
+      case 'face-enroll':
+      case 'face-settings':
+        final signup = route == 'face-enroll';
+        return page('Восстановление по лицу', FaceAccess(key: ValueKey(route), api: api, onDone: () => finishFaceSetup(signup), onSkip: () async {if (signup) {try {final result = await api.request('/me/face-recovery', method: 'PATCH', body: {}) as Json; me?['version'] = result['version'];} catch (_) {return;} } if (mounted) finishFaceSetup(signup);}));
+      case 'face-recovery':
+        return page('Подтверждение личности', FaceAccess(key: ValueKey(faceChallenge?['id']), api: api, challenge: faceChallenge, onDone: () {faceChallenge = null; success('Пароль изменён. Войдите с новым паролем.'); setState(() {route = 'login'; history.clear();});}, onSkip: () {faceChallenge = null; setState(() {route = 'login'; history.clear();});}));
       case 'pin-setup':
       case 'lock-setup':
         return lockSetup();
@@ -1562,16 +1573,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           loginLayout: !register,
           errorResetKey: authFormRevision,
           onErrorChanged: (error) {
-            if (mounted)
-              setState(
-                () => authCredentialFailure =
-                    !register &&
-                    error is ApiException &&
-                    [
-                      'INVALID_CREDENTIALS',
-                      'RATE_LIMITED',
-                    ].contains(error.code),
-              );
+            if (!mounted) return;
+            setState(() {
+              authCredentialFailure = !register && error is ApiException && ['INVALID_CREDENTIALS', 'RATE_LIMITED'].contains(error.code);
+              if (!register && error is ApiException && error.details['face_recovery'] is Map) {
+                faceChallenge = Map<String, dynamic>.from(error.details['face_recovery'] as Map);
+                route = 'face-recovery';
+              }
+            });
           },
           credentialFailureAfter: [
             TextButton(
@@ -1677,6 +1686,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             if (register && v['password'] != v['repeat'])
               throw ApiException('VALIDATION_ERROR', 'Пароли не совпадают');
             await api.setPersistence(false);
+            authPhoneInitial = v['phone']!.trim();
             await api.signIn({
               'country': country,
               'phone': v['phone']!.trim(),
@@ -1706,6 +1716,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 success('Аккаунт создан. Войдите, чтобы продолжить.');
               Error.throwWithStackTrace(error, stack);
             }
+            var offerFaceSetup = false;
+            if (me?['face_recovery_available'] == true) {
+              try {final face = await api.request('/me/face-recovery') as Json; offerFaceSetup = face['prompt_required'] == true;} catch (_) {}
+            }
             registrationInProgress = register || needsProfile(me!);
             authPhoneInitial = '';
             serviceCategories = null;
@@ -1719,7 +1733,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             lock = LocalLock('${api.base}:${me!['id']}');
             if (mounted)
               setState(() {
-                route = 'lock-setup';
+                faceSetupReturnRoute = 'lock-setup';
+                route = offerFaceSetup ? 'face-enroll' : 'lock-setup';
+                faceChallenge = null;
                 history.clear();
               });
           },
@@ -1896,6 +1912,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           'Сессия изменилась. Повторите вход',
           401,
         );
+      var offerFaceSetup = false;
+      if (profile['face_recovery_available'] == true) {
+        try {final face = await client.request('/me/face-recovery') as Json; offerFaceSetup = face['prompt_required'] == true;} catch (_) {}
+      }
+      if (!current()) return;
       setState(() {
         me = profile;
         country = profile['country'];
@@ -1906,7 +1927,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         executor = profile['active_role'] == 'executor';
         locked = false;
         registrationInProgress = needsProfile(profile);
-        route = registrationInProgress ? 'terms' : 'home';
+        faceSetupReturnRoute = registrationInProgress ? 'terms' : 'home';
+        route = offerFaceSetup ? 'face-enroll' : faceSetupReturnRoute;
         history.clear();
       });
       widget.onLocaleChanged?.call(locale);
@@ -4798,6 +4820,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       subtitle: result[2] == true
                           ? 'Включена на этом устройстве'
                           : 'Не настроена'),
+                  if (me?['face_recovery_available'] == true) JobaMenuEntry('Восстановление по лицу', 'face', () => go('face-settings'), subtitle: 'Сохранить или удалить шаблон лица'),
                   JobaMenuEntry('Пароль', 'lock', () => go('password'),
                       subtitle: 'Изменить пароль аккаунта'),
                   JobaMenuEntry(
