@@ -1,0 +1,21 @@
+{
+  "source_commit": "7467ec2f560b166b717f36a343573735af16af38",
+  "workflow_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/41397857497",
+  "ci_build": "success",
+  "ci_api_tests_passed": 198,
+  "ci_flutter_tests_passed": 288,
+  "ci_flutter_tests_skipped": 2,
+  "ci_browser_tests_passed": 19,
+  "ci_real_model_tests_passed": 4,
+  "ci_flutter_analysis": "no issues",
+  "ci_private_face_container_build_and_readonly_memory_limited_execution": "success",
+  "local_api_to_real_face_model_http_roundtrip": "success",
+  "apk_built": false,
+  "production_deployed": false,
+  "deployment_blocker": "SSH authentication rejected before source installation: Permission denied, please try again; sshpass exit 5",
+  "existing_production_https_health": "ok",
+  "production_face_comparison_ready": false,
+  "real_user_biometric_enrollment_or_password_reset_performed": false,
+  "liveness_or_anti_spoofing_implemented": false,
+  "accuracy_calibrated_across_people_and_devices": false
+}
