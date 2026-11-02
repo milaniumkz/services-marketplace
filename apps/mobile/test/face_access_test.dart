@@ -64,7 +64,9 @@ void main() {
     expect(saved, true);
     expect(body!['consent'], true);
     expect(body!['current_password'], 'Current secret');
-    expect(body!['photo'], isNotEmpty);
+    expect(body!['photos'], hasLength(5));
+    expect((body!['photos'] as List).map((p) => p['step']),
+        ['front', 'left', 'right', 'blink', 'smile']);
   });
   testWidgets(
       'recovery only reveals password form after face match and submits one-use proof',

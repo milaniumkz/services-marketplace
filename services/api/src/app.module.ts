@@ -19,9 +19,9 @@ export class HealthController {
       const service=await getMarketplace();await service.store.db.query('SELECT 1');
       if(process.env.JOBA_FACE_SERVICE_URL){
         const response=await fetch(new URL('/health',process.env.JOBA_FACE_SERVICE_URL),{signal:AbortSignal.timeout(3000)}),face:any=await response.json();
-        if(!response.ok||face.ready!==true||face.model!=='opencv-sface-2021dec-yunet-2023mar-v1'||face.liveness!==false)throw new Error('Face comparison unavailable');
+        if(!response.ok||face.ready!==true||face.model!=='opencv-sface-2021dec-yunet-2023mar-v1'||face.liveness!==false||JSON.stringify(face.detector_scales)!=='[640,320]')throw new Error('Face comparison unavailable');
       }
-      return {status:'ok',mode:process.env.NODE_ENV==='production'?'production':'development',database:'ready',...(process.env.JOBA_FACE_SERVICE_URL?{face_comparison:'ready'}:{})};
+      return {status:'ok',mode:process.env.NODE_ENV==='production'?'production':'development',database:'ready',...(process.env.JOBA_FACE_SERVICE_URL?{face_comparison:'ready',face_sequence_version:2,face_detector_scales:[640,320]}:{})};
     }catch{throw new ServiceUnavailableException('Database readiness check failed');}
   }
 }

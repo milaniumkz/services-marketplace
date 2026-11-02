@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/photo_picker.dart';
+import '../core/face_camera.dart';
+import '../core/face_sequence.dart';
 
 /// Account recovery comparison. This is deliberately not a liveness check.
 class FaceAccess extends StatefulWidget {
@@ -68,10 +70,17 @@ class _FaceAccessState extends State<FaceAccess> {
       });
   Future<void> capture() => run(() async {
         final generation = widget.api.sessionGeneration;
-        final image = await (widget.capturePhoto?.call(context) ??
-            choosePhoto(context, selfie: true));
+        final injected = widget.capturePhoto;
+        final sequence = injected == null
+            ? await captureFacePhotos(context)
+            : await (() async {
+                final photo = await injected(context);
+                return photo == null
+                    ? null
+                    : FaceSequence(List.filled(faceSteps.length, photo));
+              })();
         if (!mounted ||
-            image == null ||
+            sequence == null ||
             generation != widget.api.sessionGeneration) return;
         final data = await widget.api.request(
             recovering ? '/auth/face-recovery/verify' : '/me/face-recovery',
@@ -79,7 +88,13 @@ class _FaceAccessState extends State<FaceAccess> {
             authenticated: !recovering,
             body: {
               if (recovering) ...widget.challenge!,
-              'photo': base64Encode(image.bytes),
+              'photos': [
+                for (var i = 0; i < sequence.photos.length; i++)
+                  {
+                    'step': faceSteps[i],
+                    'photo': base64Encode(sequence.photos[i].bytes)
+                  }
+              ],
               if (!recovering) 'consent': consent,
               if (!recovering) 'current_password': password.text,
             }) as Json;
@@ -142,7 +157,7 @@ class _FaceAccessState extends State<FaceAccess> {
             ? 'Лицо совпало. После смены пароля войдите с новым паролем. Остальные сессии завершатся.'
             : recovering
                 ? 'После двух неверных паролей можно сравнить лицо с ранее сохранённым шаблоном. Если способ не настроен, вернитесь ко входу или обратитесь в поддержку.'
-                : 'Сохраните шаблон лица для восстановления пароля. Это отдельная настройка: проверка документов и биометрия устройства не изменятся.'),
+                : 'Сохраните пять шаблонов лица для восстановления пароля: прямо, налево, направо, моргнуть и улыбнуться. Это отдельная настройка: проверка документов и биометрия устройства не изменятся.'),
         if (resetToken == null)
           const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
@@ -167,9 +182,12 @@ class _FaceAccessState extends State<FaceAccess> {
               onPressed: busy ? null : capture,
               child: const Text('Открыть фронтальную камеру'))
         else if (settings != null) ...[
+          if (settings!['update_required'] == true)
+            const Text(
+                'Обновите прежний шаблон: теперь процедура состоит из пяти кадров.'),
           if (settings!['enrolled'] == true)
             const Text(
-                'Шаблон лица уже сохранён. Можно заменить его новым снимком или удалить.'),
+                'Шаблоны лица сохранены. Можно пройти процедуру заново или удалить их.'),
           if (settings!['can_enroll_without_password'] != true)
             field(password, 'Текущий пароль'),
           CheckboxListTile(
