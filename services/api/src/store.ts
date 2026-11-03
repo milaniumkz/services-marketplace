@@ -1,3 +1,4 @@
+import {AsyncLocalStorage} from 'node:async_hooks';
 import {adminOrderConditions} from './admin-order-filters';
 import {enabledCountries} from './country-access';
 import { PGlite } from '@electric-sql/pglite';
@@ -22,6 +23,11 @@ class ServerPostgres implements Database {
 export type RecordData = { id: string; kind: string; owner: string; country: string; version: number; created_at: string; [key: string]: any };
 export class Store {
   readonly db: Database;
+  private readonly adminReads = new AsyncLocalStorage<boolean>();
+  // Admin read models share one SQL view, including pagination, aggregates and
+  // nested lookups. Writes and background retention jobs always use base tables.
+  withAdminReads<T>(run:()=>Promise<T>):Promise<T>{return this.adminReads.run(true,run);}
+
   transitionKinds?:Set<string>;
   transitionHook?:(before:RecordData|undefined,after:RecordData)=>Promise<void>;
   contentHook?: (data:RecordData)=>Promise<void>;
@@ -30,6 +36,10 @@ export class Store {
     if(process.env.NODE_ENV==='production'&&!['KZ','KG','RU','BY'].includes(process.env.JOBA_REGION??''))throw Error('Production requires an explicit JOBA_REGION');
     if(process.env.DATABASE_URL&&path!=='memory://')this.db=new ServerPostgres(process.env.DATABASE_URL);
     else {if(path!=='memory://')mkdirSync(path,{recursive:true});this.db=new PGlite(path);}
+    const database=this.db;
+    this.db={exec:sql=>database.exec(sql),close:()=>database.close(),query:(sql,params)=>database.query(
+      this.adminReads.getStore()&&/^\s*(SELECT|WITH)\b/i.test(sql)
+        ?sql.replace(/\brecords\b/g,'admin_visible_records'):sql,params)};
   }
   async initialize() {
     enabledCountries();
@@ -46,6 +56,7 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0012_password_minimum.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0013_city_location_lookup.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0014_refresh_receipts.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0015_admin_visible_records.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country==='ALL'?null:country ?? null]);

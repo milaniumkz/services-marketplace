@@ -223,7 +223,9 @@ export class Marketplace {
     if(path.startsWith('/admin/')&&body&&typeof body==='object'&&!Buffer.isBuffer(body)&&!String(body.reason||'').trim())body={...body,reason:'Действие администратора в панели управления'};
     if(path.startsWith('/admin/')&&query&&!String(query.reason||'').trim())query={...query,reason:'Просмотр данных администратором'};
     const run = async () => {
-      if(method==='GET')return this.dispatch(method,path,body,authorization,query,ip);
+      if(method==='GET')return path.startsWith('/admin/')
+        ?this.store.withAdminReads(()=>this.dispatch(method,path,body,authorization,query,ip))
+        :this.dispatch(method,path,body,authorization,query,ip);
       let actor: Actor|undefined;
       if(!path.startsWith('/auth/')&&!path.startsWith('/public/')&&!path.startsWith('/webhooks/'))actor=await this.actor(authorization);
       if(actor)assertStaffOperation(actor.user,actor.mfa,method,path,body,query);
