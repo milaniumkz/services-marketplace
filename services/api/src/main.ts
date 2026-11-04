@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import express from 'express';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
 import { AppModule, getMarketplace } from './app.module';
@@ -7,6 +8,7 @@ async function bootstrap() {
   const port = Number(process.env.API_PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid API_PORT');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.use('/api/v1/public/mobile-crashes',express.json({limit:'32kb'}));
   app.useBodyParser('json',{limit:'8mb'});
   if(process.env.JOBA_TRUST_PROXY!==undefined&&!['0','1'].includes(process.env.JOBA_TRUST_PROXY))throw new Error('JOBA_TRUST_PROXY must be 0 or 1');
   if(process.env.JOBA_TRUST_PROXY==='1')app.getHttpAdapter().getInstance().set('trust proxy',1);

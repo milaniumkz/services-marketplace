@@ -1,3 +1,4 @@
+import {receiveMobileCrash,mobileCrashes} from './mobile-crashes';
 import {FaceRecovery,FaceEngine} from './face-recovery';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {adminWebAds,userWebAds,recordWebAdConsent,webAdsConfig,webAdNotice,webAdNoticeVersion} from './web-ads';
@@ -237,6 +238,7 @@ export class Marketplace {
       if(actor)assertStaffOperation(actor.user,actor.mfa,method,path,body,query);
       // Counters commit independently of rejected business commands.
       if(actor)await this.limited('mutations:'+actor.id,120);
+      if(path==='/public/mobile-crashes')await this.limited('mobile-crashes:'+ip,120);
       if(path==='/auth/register')await this.limited('register:'+ip,5);
       if(['/auth/login','/auth/staff-login'].includes(path)){await this.limited('login:'+ip,10);await this.limited('login-account:'+String(body.country)+':'+(path==='/auth/staff-login'?String(body.phone).trim().toLowerCase():String(body.phone)),10);}
       if(path.startsWith('/auth/face-recovery/'))await this.limited('face-recovery:'+ip,5);
@@ -320,6 +322,7 @@ export class Marketplace {
       const claimed=await db.query("UPDATE records SET data=jsonb_set(jsonb_set(data,'{status}','\"used\"'::jsonb),'{version}',to_jsonb(version+1)),version=version+1 WHERE id=$1 AND data->>'status'='active' RETURNING id",[found.id]);
       if(!claimed.rows.length)fail(404,'NOT_FOUND','Ссылка уже использована');if(upload.purpose==='export')return {download_stream:await this.files.readStream(upload.id),download_size:upload.stored_size??upload.size,mime:upload.mime};return {download_buffer:await this.files.read(found.variant==='preview'&&upload.preview_file_id?upload.preview_file_id:upload.id),mime:upload.mime};
     }
+    if(path==='/public/mobile-crashes'&&method==='POST')return receiveMobileCrash(this.store,b);
     if(path.startsWith('/auth/face-recovery/')&&method==='POST')return this.face.public(path,b,async country=>(await this.settings(country)).password_min);
     if(path==='/auth/register'&&method==='POST') {
       const country=text(b,'country',2,2);if(!countries[country])fail(400,'VALIDATION_ERROR','Недопустимая страна');
@@ -1215,6 +1218,7 @@ export class Marketplace {
       }
       const permission=({categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing','payment-transactions':'billing','refund-requests':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
+      if(path==='/admin/mobile-crashes'&&method==='GET')return mobileCrashes(this.store,q);
       if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,_id)=>this.notify(user,a,'account.updated',user)});if(result!==undefined)return result;}
       if(section==='banner-campaigns'){if(path==='/admin/banner-campaigns'&&method==='GET')return this.page('banner_campaign',a,q,{statuses:q.status?[String(q.status)]:undefined});const result=await bannerCampaigns(this.store,a,method,path,b,{object:id=>this.object(id,a,'banner_campaign'),record:data=>this.record('banner_campaign',a,data),audit:(action,id,reason)=>this.audit(a,action,id,reason)});if(result!==undefined)return result;}
       if(path==='/admin/category-tree'&&method==='GET')return {items:(await this.categories(a.country)).map(r=>({id:r.id,version_id:r.record_id,title:r.title,parent_id:r.payload.parent_id??null,labels:r.payload.labels,icon:r.payload.icon??'briefcase'}))};
@@ -2035,6 +2039,7 @@ export class Marketplace {
     const run=async()=>{
       await this.store.db.exec('BEGIN');
       try {
+        await this.store.db.query("DELETE FROM mobile_crash_reports WHERE received_at<$1",[new Date(now.getTime()-30*86400000).toISOString()]);
         await this.store.db.query('DELETE FROM refresh_receipts WHERE expires_at<=$1',[now.toISOString()]);
         for(const r of await this.store.all('offer'))if(r.status==='active'&&offerExpired(r,(await readSettings(this.store,r.country)).offer_expiry_hours,now)){
           await this.store.put({...r,status:'expired',version:r.version+1});

@@ -21,6 +21,7 @@ import javax.crypto.SecretKeyFactory
 class MainActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        NativeCrashSpool.install(applicationContext)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager=getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             manager.createNotificationChannel(android.app.NotificationChannel("joba_events", "Сообщения и события JOBA", android.app.NotificationManager.IMPORTANCE_HIGH))
@@ -156,6 +157,15 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.runtime").setMethodCallHandler { call, result ->
+            try { when (call.method) {
+                "info" -> { result.success(NativeCrashSpool.info(applicationContext)); return@setMethodCallHandler }
+                "installCrashHandler" -> { NativeCrashSpool.install(applicationContext); result.success(null); return@setMethodCallHandler }
+                "screen" -> { NativeCrashSpool.screen(applicationContext, call.argument<String>("screen") ?: "unknown"); result.success(null); return@setMethodCallHandler }
+                "pendingCrashes" -> { result.success(NativeCrashSpool.pending(applicationContext)); return@setMethodCallHandler }
+                "ackCrash" -> { try { NativeCrashSpool.acknowledge(applicationContext, call.argument<String>("id") ?: "") } catch (_: Exception) {} ; result.success(null); return@setMethodCallHandler }
+                "ackExit" -> { val timestamp = call.argument<Number>("timestamp")?.toLong() ?: 0L; val prefs = getSharedPreferences("joba-runtime", MODE_PRIVATE); if(timestamp > prefs.getLong("last-exit", 0L))prefs.edit().putLong("last-exit", timestamp).commit(); result.success(null); return@setMethodCallHandler }
+            }
+            } catch (_: Exception) { result.error("DIAGNOSTIC_UNAVAILABLE", "Диагностика временно недоступна", null); return@setMethodCallHandler }
             if (call.method != "previousExits") { result.notImplemented(); return@setMethodCallHandler }
             try {
                 if (Build.VERSION.SDK_INT < 30) { result.success(emptyList<Map<String, Any>>()); return@setMethodCallHandler }
@@ -164,10 +174,10 @@ class MainActivity : FlutterFragmentActivity() {
                 val manager = getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                 val exits = manager.getHistoricalProcessExitReasons(packageName, 0, 5)
                 val recent = exits.filter { it.timestamp > seen && it.timestamp > System.currentTimeMillis() - 7 * 86400000L }
-                val newest = exits.maxOfOrNull { it.timestamp }
-                if (newest != null) preferences.edit().putLong("last-exit", newest).apply()
                 result.success(recent.filter { it.reason in listOf(2, 3, 4, 5, 6, 7, 9) }.map {
-                    mapOf("reason" to it.reason, "status" to it.status, "timestamp" to it.timestamp, "pss_kb" to it.pss, "rss_kb" to it.rss)
+                    var seed = preferences.getString("diagnostic-seed", null)
+                    if(seed == null){seed=java.util.UUID.randomUUID().toString();preferences.edit().putString("diagnostic-seed", seed).commit()}
+                    mapOf("id" to java.util.UUID.nameUUIDFromBytes((seed + ":" + it.timestamp + ":" + it.reason).toByteArray()).toString(), "reason" to it.reason, "status" to it.status, "timestamp" to it.timestamp, "pss_kb" to it.pss, "rss_kb" to it.rss, "screen" to (preferences.getString("screen", "unknown") ?: "unknown"))
                 })
             } catch (_: Exception) { result.success(emptyList<Map<String, Any>>()) }
         }

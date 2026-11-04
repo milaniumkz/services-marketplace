@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'core/native_diagnostics.dart';
 import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,13 +18,14 @@ Future<void> main() async {
   PaintingBinding.instance.imageCache.maximumSizeBytes=48*1024*1024;
   PaintingBinding.instance.imageCache.maximumSize=60;
   if(!kIsWeb&&(defaultTargetPlatform==TargetPlatform.android||defaultTargetPlatform==TargetPlatform.iOS)){
+    await NativeDiagnostics.initialize(collect:kReleaseMode);
+    FlutterError.onError=(details){FlutterError.presentError(details);NativeDiagnostics.record(details.exception,details.stack,kind:'flutter',fatal:false);};
+    PlatformDispatcher.instance.onError=(error,stack){NativeDiagnostics.record(error,stack,kind:'unhandled_dart');return true;};
     try{
       await Firebase.initializeApp();
       await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(kReleaseMode);
-      NativeDiagnostics.enabled=kReleaseMode;
-      unawaited(NativeDiagnostics.previousExits());
-      FlutterError.onError=(details){FlutterError.presentError(details);unawaited(FirebaseCrashlytics.instance.recordFlutterFatalError(details).catchError((Object _){}));};
-      PlatformDispatcher.instance.onError=(error,stack){unawaited(FirebaseCrashlytics.instance.recordError(error,stack,fatal:true).catchError((Object _){}));return true;};
+      NativeDiagnostics.firebaseReady=kReleaseMode;
+      NativeDiagnostics.installNativeHandler();
     }catch(_){/* Diagnostics initialization must never prevent startup. */}
   }
   runApp(const JobaApp());

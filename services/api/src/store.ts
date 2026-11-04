@@ -59,6 +59,7 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0015_admin_visible_records.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0016_restore_approved_selfie_avatars.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0017_direct_listing_publication.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0018_mobile_crash_reports.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country==='ALL'?null:country ?? null]);
