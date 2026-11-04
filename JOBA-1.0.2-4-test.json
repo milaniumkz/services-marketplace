@@ -1,0 +1,29 @@
+{
+  "version": "1.0.2",
+  "versionCode": 4,
+  "source": "5141c1a6f1c4ec3f0b97a531d978b9a4004afa3f",
+  "bytes": 71662021,
+  "sha256": "0fafbc840ff1032b6219555fca1852c835f6f08c07faef37d54d98f1983ad96d",
+  "minSdk": 24,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "buildMode": "release",
+  "signing": "testing",
+  "certificateSha256": "de02e49c7caea7a27003e06fdb341c01d3e1e0ac8c06f5ac44c947bd006ac3dc",
+  "api": "https://joba.com.kz",
+  "freeMobile": false,
+  "renderer": "Skia/OpenGL",
+  "checks": {
+    "signature": true,
+    "zipalign16KiB": true,
+    "flutterPassed": 305,
+    "flutterSkipped": 2,
+    "browserLocationPassed": 2,
+    "analyzer": "clean",
+    "physicalDeviceRun": false
+  },
+  "builtAt": "2026-11-04T12:49:14.867364+00:00"
+}
