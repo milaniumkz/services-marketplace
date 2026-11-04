@@ -1939,10 +1939,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     setState(() => unlockSubmitting = true);
     try {
       final valid = pin == null
-          ? await protection.unlockBiometry(
+          ? await withExternalActivity(()=>protection.unlockBiometry(
               title: localize(context, 'Разблокировка JOBA'),
               cancel: localize(context, 'Отмена'),
-            )
+            ))
           : await protection.unlock(pin);
       if (!current()) return;
       if (!valid) {
@@ -2014,6 +2014,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         loadLength: () => lock?.pinLength() ?? Future.value(6),
         onPin: (pin) => unlockSession(pin: pin),
         onBiometry: () => unlockSession(),
+        canAutoBiometry: () => lock?.hasBiometry() ?? Future.value(false),
         onPassword: () => api.forget(),
       )),
       Container(height: MediaQuery.paddingOf(context).bottom, color: Colors.white),

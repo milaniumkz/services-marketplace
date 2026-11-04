@@ -20,6 +20,82 @@ Widget host(Widget child) => MaterialApp(
 Finder digit(String value) => find.byKey(ValueKey('unlock-key-$value'));
 void main() {
   testWidgets(
+      'enabled biometry opens automatically once; cancellation keeps PIN and permits a manual retry',
+      (t) async {
+    var calls = 0;
+    Widget screen() => host(UnlockKeypad(
+        name: 'Проверка',
+        busy: false,
+        loadLength: () async => 6,
+        canAutoBiometry: () async => true,
+        onPin: (_) async {},
+        onBiometry: () async {
+          calls++;
+        },
+        onPassword: () async {}));
+    await t.pumpWidget(screen());
+    await t.pumpAndSettle();
+    expect(calls, 1);
+    await t.pumpWidget(screen());
+    await t.pumpAndSettle();
+    expect(calls, 1);
+    await t.ensureVisible(digit('biometry'));
+    await t.pumpAndSettle();
+    await t.tap(digit('biometry'));
+    await t.pumpAndSettle();
+    expect(calls, 2);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pumpAndSettle();
+    expect(calls, 3);
+    final pins = <String>[];
+    await t.pumpWidget(host(UnlockKeypad(
+        key: const ValueKey('pin-fallback'),
+        name: 'Проверка',
+        busy: false,
+        loadLength: () async => 6,
+        canAutoBiometry: () async => false,
+        onPin: (v) async => pins.add(v),
+        onBiometry: () async {
+          calls++;
+        },
+        onPassword: () async {})));
+    await t.pumpAndSettle();
+    expect(calls, 3);
+    for (final v in ['1', '2', '3', '4', '5', '6']) {
+      await t.ensureVisible(digit(v));
+      await t.pumpAndSettle();
+      await t.tap(digit(v));
+      await t.pump();
+    }
+    await t.pumpAndSettle();
+    expect(pins, ['123456']);
+  });
+  testWidgets(
+      'automatic biometry waits for availability and never interrupts PIN input',
+      (t) async {
+    final enabled = Completer<bool>();
+    var calls = 0;
+    await t.pumpWidget(host(UnlockKeypad(
+        name: 'Проверка',
+        busy: false,
+        loadLength: () async => 6,
+        canAutoBiometry: () => enabled.future,
+        onPin: (_) async {},
+        onBiometry: () async {
+          calls++;
+        },
+        onPassword: () async {})));
+    await t.pumpAndSettle();
+    await t.ensureVisible(digit('1'));
+    await t.tap(digit('1'));
+    await t.pump();
+    enabled.complete(true);
+    await t.pumpAndSettle();
+    expect(calls, 0);
+  });
+
+  testWidgets(
       'all digits, deletion, legacy confirmation and optional methods use actual callbacks',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);

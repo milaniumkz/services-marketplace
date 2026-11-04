@@ -11,6 +11,7 @@ class UnlockKeypad extends StatefulWidget {
   final Future<int?> Function() loadLength;
   final Future<void> Function(String pin) onPin;
   final Future<void> Function() onBiometry, onPassword;
+  final Future<bool> Function()? canAutoBiometry;
   const UnlockKeypad(
       {required this.name,
       required this.busy,
@@ -18,21 +19,88 @@ class UnlockKeypad extends StatefulWidget {
       required this.onPin,
       required this.onBiometry,
       required this.onPassword,
+      this.canAutoBiometry,
       super.key});
   @override
   State<UnlockKeypad> createState() => _UnlockKeypadState();
 }
 
-class _UnlockKeypadState extends State<UnlockKeypad> {
+class _UnlockKeypadState extends State<UnlockKeypad>
+    with WidgetsBindingObserver {
   String digits = '';
   int? length;
   bool ready = false, sending = false;
   Object? error;
+  bool autoAttempted = false, autoScheduled = false;
   bool get blocked => widget.busy || sending || !ready;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(UnlockKeypad old) {
+    super.didUpdateWidget(old);
+    if (old.busy && !widget.busy) scheduleBiometry();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A real background/foreground entry may prompt again. Returning from the
+    // biometric dialog while authentication is running must never loop.
+    if (state == AppLifecycleState.paused && !sending && !widget.busy) {
+      autoAttempted = false;
+    }
+    if (state == AppLifecycleState.resumed) scheduleBiometry();
+  }
+
+  void scheduleBiometry() {
+    if (!mounted ||
+        !ready ||
+        autoScheduled ||
+        autoAttempted ||
+        widget.canAutoBiometry == null) return;
+    autoScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      autoScheduled = false;
+      attemptBiometry();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> attemptBiometry() async {
+    if (!mounted ||
+        autoAttempted ||
+        !ready ||
+        widget.busy ||
+        sending ||
+        digits.isNotEmpty ||
+        widget.canAutoBiometry == null) return;
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (lifecycle != null && lifecycle != AppLifecycleState.resumed) return;
+    autoAttempted = true;
+    try {
+      final enabled = await widget.canAutoBiometry!();
+      if (!mounted || !enabled || widget.busy || sending || digits.isNotEmpty)
+        return;
+      final current = WidgetsBinding.instance.lifecycleState;
+      if (current != null && current != AppLifecycleState.resumed) {
+        autoAttempted = false;
+        return;
+      }
+      await run(widget.onBiometry);
+    } catch (_) {
+      if (mounted)
+        setState(() => error = 'Биометрия сейчас недоступна. Введите PIN.');
+    }
   }
 
   Future<void> load() async {
@@ -43,6 +111,7 @@ class _UnlockKeypadState extends State<UnlockKeypad> {
           length = value;
           ready = true;
         });
+      scheduleBiometry();
     } catch (e) {
       if (mounted) setState(() => error = e);
     }

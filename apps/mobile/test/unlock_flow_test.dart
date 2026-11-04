@@ -46,6 +46,8 @@ class _Lock extends LocalLock {
   int pins = 0, bios = 0;
   Object? failure;
   bool bioResult = true;
+  bool bioEnabled = false;
+  Future<bool> hasBiometry() async => bioEnabled;
   _Lock() : super('isolated-owner');
   Future<int?> pinLength() async => 6;
   Future<bool> unlock(String pin) async {
@@ -72,6 +74,34 @@ class _SetupLock extends LocalLock {
 }
 
 void main() {
+  testWidgets(
+      'configured app biometry is requested on entry and cancellation leaves the account locked',
+      (t) async {
+    final api = _Api(),
+        protection = _Lock()
+          ..bioEnabled = true
+          ..bioResult = false;
+    addTearDown(api.dispose);
+    await t.pumpWidget(JobaApp(api: api));
+    await t.pumpAndSettle();
+    final dynamic state = t.state(find.byType(Marketplace));
+    api.session = {
+      'access_token': 'isolated',
+      'user': {'id': 'owner'}
+    };
+    state.lock = protection;
+    state.locked = true;
+    state.go('unlock');
+    await t.pumpAndSettle();
+    expect(protection.bios, 1);
+    expect(state.locked, true);
+    expect(api.refreshes, 0);
+    state.go('unlock');
+    await t.pumpAndSettle();
+    expect(protection.bios, 1);
+    await t.pumpWidget(const SizedBox.shrink());
+  });
+
   for (final name in ['', 'Complete']) {
     testWidgets('unlock resumes only an incomplete profile: $name', (t) async {
       final api = _Api(displayName: name), protection = _Lock();
