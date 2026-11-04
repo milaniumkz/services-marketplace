@@ -1381,8 +1381,7 @@ export class Marketplace {
         if(!['passed','rejected','revoked'].includes(b.decision))fail(400,'VALIDATION_ERROR','Недопустимое решение');const reason=staffReason(b,'Решение администратора по проверке личности');
         const u=(await this.store.get(r.owner))!;
         if(b.decision==='passed'&&(r.selfie_index!==2||r.document_refs?.length!==3))fail(422,'VERIFICATION_PHOTOS_REQUIRED','Нужны две стороны удостоверения и селфи. Запросите новую заявку.');
-        const previousAvatar=u.avatar_id?await this.store.get(u.avatar_id):undefined;
-        const avatarId=previousAvatar?.source_verification_id?null:u.avatar_id;
+        let avatarId=u.avatar_id;
         if(b.decision==='passed'&&r.selfie_index===2){
           const policy=await this.store.get(r.policy_id),document=policy?await this.store.get(policy.payload.document_id):undefined;
           const consent=document?(await this.store.all('consent',a.country)).filter(c=>c.owner===u.id&&c.document_id===document.id).sort((x,y)=>y.sequence-x.sequence)[0]:undefined;
@@ -1391,8 +1390,9 @@ export class Marketplace {
           if(r.document_refs?.length!==3)fail(422,'UNSAFE_UPLOAD','Нужны две стороны документа и селфи');
           const selfie=await this.store.get(r.document_refs[2]);
           if(!selfie||selfie.owner!==u.id||selfie.country!==a.country||selfie.purpose!=='identity'||selfie.verification_id!==r.id||selfie.status!=='clean'||!['image/jpeg','image/png'].includes(selfie.mime))fail(422,'UNSAFE_UPLOAD','Селфи недоступно или не прошло проверку');
-          // Identity evidence is private; an avatar must be uploaded separately.
-
+          const bytes=await sharp(await this.files.read(selfie!.id),{limitInputPixels:25000000}).rotate().resize(512,512,{fit:'cover'}).jpeg({quality:85}).toBuffer();
+          const avatar=this.record('upload',{id:u.id,country:a.country},{purpose:'avatar',mime:'image/jpeg',status:'clean',size:bytes.length,stored_size:bytes.length,derived_from:selfie!.id,source_verification_id:r.id});
+          try{await this.files.write(avatar.id,bytes);await this.store.put(avatar);}catch(error){await this.files.remove(avatar.id);throw error;}avatarId=avatar.id;
         }
         await this.store.put({...u,verification:b.decision,avatar_id:avatarId,version:u.version+1});
         const result=await this.store.put({...r,status:b.decision,expires_at:null,validity_policy:'until_revoked',reason,reviewer_id:a.id,decided_at:new Date().toISOString(),version:r.version+1});await this.audit(a,'verification.'+b.decision,r.id,reason);if(b.decision==='passed'&&u.roles?.includes('executor'))await this.growth.qualify(r.owner,a.country,'executor_verified',r.id);await this.notify(r.owner,a,'verification.updated',r.id);return {...result,document_refs:undefined};
