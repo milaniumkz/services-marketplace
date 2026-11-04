@@ -32,6 +32,8 @@ export function dictionaryPayload(p:any){
 export class Moderation {
   constructor(private store:Store){}
   async check(data:RecordData) {
+    // Marketplace listings publish directly. Complaints remain available.
+    if(['order','contractor','portfolio'].includes(data.kind))return;
     const fields=TEXT_SURFACES[data.kind];if(!fields||data.owner==='provider'||data.owner==='system')return;
     const previous=await this.store.get(data.id),effective=data.draft??data,old=previous?.draft??previous;
     // Applying a non-content status decision never reopens the same episode.

@@ -37,7 +37,7 @@ test('rewarded subscriptions require separate complete server-side bundles, pres
  const sub=(await api.store.all('subscription','BY')).find(x=>x.owner===a.user.id);assert.equal(sub.price_snapshot.plan,'customer');assert.equal(Date.parse(sub.valid_until)-Date.parse(sub.valid_from),30*86400000);assert.equal(sub.price_snapshot.amount_minor,0);assert.equal(sub.verification_method,'client_sdk_callback_reported');
  assert.equal((await api.store.all('payment_transaction')).length,0);
  await assert.rejects(()=>start(b,'top100'),e=>e.getStatus()===403);
- for(let i=1;i<=5;i++)assert.equal((await finish(b,await start(b,'standard'))).status,i===5?'granted':'progress');
+ for(let i=1;i<=5;i++){const native=await start(b,'standard','android');assert.equal(native.block_id,'R-M-20254161-3');assert.equal(native.platform,'android');assert.equal((await finish(b,native)).status,i===5?'granted':'progress');}
  let cfg=await call(b.access_token,'GET','/me/web-ads');assert.equal(cfg.offers.find(x=>x.target==='top100').completed_views,0);assert.equal(cfg.offers.find(x=>x.target==='top100').eligible,true);
  for(let i=1;i<=4;i++)assert.equal((await finish(b,await start(b,'top100'))).status,'progress');
  await call(owner.access_token,'PUT','/admin/web-ads',{...p,expected_version:1,enabled:false,top100_views:2});

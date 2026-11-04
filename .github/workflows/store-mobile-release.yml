@@ -1,6 +1,11 @@
 name: JOBA free mobile API and store review account
 on:
   workflow_dispatch:
+    inputs:
+      provision_store_review:
+        description: Explicitly provision the owner-authorized store review account
+        type: boolean
+        default: false
   push:
     branches: [Project/store-publication]
     paths:
@@ -30,6 +35,7 @@ jobs:
       - name: Deploy free mobile core with identity and authorization checks intact
         env:
           SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
+          JOBA_PROVISION_REVIEW: ${{ inputs.provision_store_review }}
         run: |
           set -euo pipefail
           umask 077
@@ -41,10 +47,11 @@ jobs:
           joba_ssh=(sshpass -e ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=8)
           joba_scp=(sshpass -e scp -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
           "${joba_scp[@]}" scripts/deploy-mobile-free-server.sh root@188.241.217.228:/tmp/joba-deploy-mobile-free.sh
-          "${joba_ssh[@]}" -n root@188.241.217.228 "bash /tmp/joba-deploy-mobile-free.sh '$GITHUB_SHA'"
-          "${joba_scp[@]}" root@188.241.217.228:/tmp/joba-store-review-envelope.b64 store-review-envelope.b64
+          "${joba_ssh[@]}" -n root@188.241.217.228 "bash /tmp/joba-deploy-mobile-free.sh '$GITHUB_SHA' $([[ "$JOBA_PROVISION_REVIEW" == true ]] && echo --provision-store-review || true)"
+          if [[ "$JOBA_PROVISION_REVIEW" == true ]]; then "${joba_scp[@]}" root@188.241.217.228:/tmp/joba-store-review-envelope.b64 store-review-envelope.b64; fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: encrypted-store-review-credentials
           path: store-review-envelope.b64
           retention-days: 1
+          if-no-files-found: ignore

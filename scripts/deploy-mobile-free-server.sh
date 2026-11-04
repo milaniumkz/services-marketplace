@@ -29,10 +29,14 @@ for joba_attempt in $(seq 1 60); do
  sleep 2
 done
 curl --max-time 10 -fsS https://joba.com.kz/api/v1/public/mobile-release | python3 -c 'import json,sys; assert json.load(sys.stdin)["data"]["free_core_access"] is True'
+# Account provisioning is an explicit store-publication operation, not part of
+# ordinary application deployment. A deleted review account must stay deleted.
+if [[ "${2:-}" == '--provision-store-review' ]]; then
 "${joba_compose[@]}" cp "$joba_source/scripts/provision-store-review.cjs" api:/tmp/joba-provision-store-review.cjs
 "${joba_compose[@]}" cp "$joba_source/infra/production/store-review-recipient.pem" api:/tmp/joba-store-review-recipient.pem
 "${joba_compose[@]}" exec -T -u root api chmod 0644 /tmp/joba-provision-store-review.cjs /tmp/joba-store-review-recipient.pem
 "${joba_compose[@]}" exec -T -e JOBA_STORE_REVIEW_AUTHORIZATION=owner-authorized api node /tmp/joba-provision-store-review.cjs > /tmp/joba-store-review-envelope.b64
+fi
 printf '%s\n' "$joba_commit" > /etc/joba/mobile-api-release
 trap - ERR
 printf '%s\n' 'Free mobile core API deployed and review credentials encrypted. Existing web assets were preserved.'

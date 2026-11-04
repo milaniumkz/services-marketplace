@@ -5,7 +5,7 @@ const {randomUUID,randomBytes}=require('node:crypto');
 const {Marketplace}=require('../dist/marketplace');
 const {Store}=require('../dist/store');
 const {totp}=require('../dist/totp');
-test('published content stays visible while drafts are reviewed; approval records history without exposing drafts',async()=>{
+test('listings publish immediately, private edits stay private until publication, and public history excludes drafts',async()=>{
  const api=new Marketplace(new Store('memory://'));await api.initialize();
  const password='Isolated content revision password';
  const register=phone=>api.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,undefined,{},phone);
@@ -21,7 +21,6 @@ test('published content stays visible while drafts are reviewed; approval record
   const category=(await call(owner,'GET','/catalog/categories')).items[0].id;
   let profile=await call(owner,'PUT','/me/contractor-profile',{title:'Одобренный профиль',description:'Первоначальное безопасное описание профиля',category_id:category,city:'Алматы'});
   profile=await call(owner,'POST','/me/contractor-profile/publish',{expected_version:profile.version});
-  profile=await call(staff,'POST','/admin/contractors/'+profile.id+'/decision',{expected_version:profile.version,decision:'approve',reason:'Проверена первоначальная версия профиля'});
   const originalVersion=profile.version;
   profile=await call(owner,'PUT','/me/contractor-profile',{expected_version:profile.version,title:'Приватный новый заголовок',description:'Новая версия ожидает отдельной проверки',category_id:category,city:'Алматы'});
   assert.equal((await call(reader,'GET','/contractors/'+profile.id)).title,'Одобренный профиль');
@@ -29,14 +28,7 @@ test('published content stays visible while drafts are reviewed; approval record
   assert.equal((await call(owner,'GET','/me/contractor-profile')).profile.title,'Приватный новый заголовок');
   assert.equal((await call(reader,'GET','/contractors')).items[0].title,'Одобренный профиль');
   profile=await call(owner,'POST','/me/contractor-profile/publish',{expected_version:profile.version});
-  await call(staff,'POST','/admin/contractors/'+profile.id+'/decision',{expected_version:profile.version,decision:'reject',reason:'Новая версия требует уточнения описания'});
-  assert.equal((await call(reader,'GET','/contractors/'+profile.id)).title,'Одобренный профиль');
-  profile=(await call(owner,'GET','/me/contractor-profile')).profile;
-  assert.equal(profile.status,'rejected');
-  profile=await call(owner,'PUT','/me/contractor-profile',{expected_version:profile.version,title:'Исправленный новый профиль',description:'Исправленное описание готово к публикации',category_id:category,city:'Алматы'});
-  profile=await call(owner,'POST','/me/contractor-profile/publish',{expected_version:profile.version});
-  profile=await call(staff,'POST','/admin/contractors/'+profile.id+'/decision',{expected_version:profile.version,decision:'approve',reason:'Проверена исправленная версия профиля'});
-  const published=await call(reader,'GET','/contractors/'+profile.id);assert.equal(published.title,'Исправленный новый профиль');assert.equal(published.reason,undefined);assert.equal(published.reviewer_id,undefined);
+  const published=await call(reader,'GET','/contractors/'+profile.id);assert.equal(published.title,'Приватный новый заголовок');assert.equal(published.reason,undefined);assert.equal(published.reviewer_id,undefined);
   const history=await call(owner,'GET','/me/content-revisions',{}, {source_id:profile.id});assert.equal(history.items.length,1);assert.equal(history.items[0].source_version,originalVersion);assert.equal(history.items[0].content.title,'Одобренный профиль');
   await assert.rejects(()=>call(reader,'GET','/me/content-revisions',{}, {source_id:profile.id}),error=>error.getResponse().error.code==='NOT_FOUND');
   const completed={id:randomUUID(),kind:'order',owner:reader.user.id,executor_id:owner.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'completed',title:'Выполненный исполнителем заказ',fixture:true};await api.store.put(completed);
@@ -47,7 +39,6 @@ test('published content stays visible while drafts are reviewed; approval record
   const photo={id:randomUUID(),kind:'upload',owner:owner.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),purpose:'portfolio',mime:'image/jpeg',size:10,status:'clean',fixture:true};await api.store.put(photo);
   project=await call(owner,'PATCH','/me/portfolio-projects/'+project.id,{expected_version:project.version,upload_ids:[photo.id]});
   project=await call(owner,'POST','/me/portfolio-projects/'+project.id+'/submit',{expected_version:project.version});
-  project=await call(staff,'POST','/admin/portfolio/'+project.id+'/decision',{expected_version:project.version,decision:'approve',reason:'Проверен проект и права на фотографии'});
   const linked=(await call(reader,'GET','/contractors/'+profile.id+'/portfolio')).items[0];assert.equal(linked.linked_completed_order,true);assert.equal(linked.order_id,undefined);
   await api.store.put({...completed,status:'cancelled',version:2});assert.equal((await call(reader,'GET','/contractors/'+profile.id+'/portfolio')).items[0].linked_completed_order,false);
   const secondPhoto={...photo,id:randomUUID()};await api.store.put(secondPhoto);
@@ -68,9 +59,10 @@ test('published content stays visible while drafts are reviewed; approval record
   await api.store.put({id:randomUUID(),kind:'dictionary',owner:'system',country:'KZ',version:1,created_at:new Date().toISOString(),status:'published',payload:{rules:[{type:'exact_word',value:'запретныймаркер'}]}});
   const unsafe={title:'Профиль запретныймаркер',description:'Новая версия проходит проверку словарём',category_id:category,city:'Алматы'};
   profile=await call(owner,'PUT','/me/contractor-profile',{expected_version:profile.version,...unsafe});
-  const hidden=await api.store.get(profile.id);assert.equal(hidden.status,'published');assert.equal(hidden.title,'Исправленный новый профиль');assert.equal(hidden.draft.status,'pending_moderation');assert.equal(profile.status,'pending_moderation');
+  const hidden=await api.store.get(profile.id);assert.equal(hidden.status,'published');assert.equal(hidden.title,'Приватный новый заголовок');assert.equal(hidden.draft.status,'draft');assert.equal(profile.status,'draft');
   profile=await call(owner,'PUT','/me/contractor-profile',{expected_version:profile.version,...unsafe});
-  assert.equal(profile.status,'pending_moderation');assert.equal((await api.store.all('case','KZ')).length,1);
+  assert.equal(profile.status,'draft');assert.equal((await api.store.all('case','KZ')).length,0);
+  profile=await call(owner,'POST','/me/contractor-profile/publish',{expected_version:profile.version});assert.equal(profile.status,'published');assert.equal((await call(reader,'GET','/contractors/'+profile.id)).title,unsafe.title);
 
  }finally{await api.store.close();}
 });

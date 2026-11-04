@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../advertising/web_ads.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -295,7 +294,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
                 ], selected: plan == 'premium'));
           }),
         const SizedBox(height: 12),
-        if(!kIsWeb||widget.api==null)Material(
+        if(widget.api==null)Material(
           color: Colors.white,
           shape: RoundedRectangleBorder(
               side: const BorderSide(color: line),

@@ -8,7 +8,7 @@ import {createPeriod,userPeriods,periodPlan} from './subscription-periods';
 const fail=(message:string,status=422):never=>{throw new HttpException({error:{code:status===403?'FORBIDDEN':status===409?'STATE_CONFLICT':status===429?'REWARD_LIMIT':'VALIDATION_ERROR',message,retryable:false}},status);};
 export const webAdNoticeVersion=2;
 export const webAdNotice='Реклама Яндекса загружается с внешних серверов. Для показа, подбора (в том числе персонализации) и измерения рекламы Яндекс может обрабатывать IP-адрес, сведения об устройстве и браузере, рекламные идентификаторы и cookies; возможна трансграничная передача. Удостоверение личности, селфи, телефон, переписку и платёжные данные JOBA не передаёт рекламной сети в параметрах интеграции. Обычные баннеры загружаются автоматически. Настройки персонализации доступны в разделе «Приватность»; ранее сохранённый отказ сохраняется. Реклама за вознаграждение запускается только по кнопке пользователя. Политика Яндекса: https://yandex.ru/legal/confidential/';
-const defaults={version:0,enabled:false,rewarded_enabled:false,banner_id:'',mobile_rewarded_id:'',desktop_rewarded_id:'',reward_kind:'subscription',reward_days:30,customer_views:5,standard_views:5,top100_views:5,daily_cap:30,cooldown_seconds:0};
+const defaults={version:0,enabled:false,rewarded_enabled:false,banner_id:'',mobile_rewarded_id:'',desktop_rewarded_id:'',android_banner_id:'R-M-20254161-1',android_rewarded_id:'R-M-20254161-3',ios_banner_id:'',ios_rewarded_id:'',reward_kind:'subscription',reward_days:30,customer_views:5,standard_views:5,top100_views:5,daily_cap:30,cooldown_seconds:0};
 export const webAdsConfig=async(store:Store)=>({...defaults,...(await store.all('web_ad_config','KZ'))[0]});
 export async function adminWebAds(store:Store,a:{id:string;user:RecordData;mfa:boolean},method:string,b:any){
  if(!isStaffOwner(a.user)||!a.mfa||a.user.status!=='active')fail('Управление веб-рекламой доступно владельцу.',403);
@@ -21,7 +21,8 @@ export async function adminWebAds(store:Store,a:{id:string;user:RecordData;mfa:b
  if(new Set([b.banner_id,b.mobile_rewarded_id,b.desktop_rewarded_id]).size!==3)fail('Для баннера, мобильного и десктопного Rewarded нужны разные блоки.');
  if(b.reward_kind!=='subscription'||b.reward_days!==30)fail('Рекламная подписка и Топ-100 выдаются на 30 дней.');
  for(const [key,min,max] of [['customer_views',1,1000],['standard_views',1,1000],['top100_views',1,1000],['daily_cap',1,1000],['cooldown_seconds',0,86400]] as const)if(!Number.isSafeInteger(b[key])||b[key]<min||b[key]>max)fail('Проверьте срок награды, дневной лимит и паузу.');
- const now=new Date().toISOString(),r={id:old.id??randomUUID(),kind:'web_ad_config',country:'KZ',owner:a.id,created_at:old.created_at??now,version:old.version+1,enabled:b.enabled,rewarded_enabled:b.rewarded_enabled,banner_id:b.banner_id,mobile_rewarded_id:b.mobile_rewarded_id,desktop_rewarded_id:b.desktop_rewarded_id,reward_kind:'subscription',reward_days:30,customer_views:b.customer_views,standard_views:b.standard_views,top100_views:b.top100_views,daily_cap:b.daily_cap,cooldown_seconds:b.cooldown_seconds,updated_at:now};
+ const nativeIds:any={};for(const key of ['android_banner_id','android_rewarded_id','ios_banner_id','ios_rewarded_id'] as const){const value=b[key]??old[key];if(typeof value!=='string'||value!==''&&!/^R-M-\d+-\d+$/.test(value))fail('Укажите идентификатор рекламы приложения (R-M).');nativeIds[key]=value;}
+ const now=new Date().toISOString(),r={...nativeIds,id:old.id??randomUUID(),kind:'web_ad_config',country:'KZ',owner:a.id,created_at:old.created_at??now,version:old.version+1,enabled:b.enabled,rewarded_enabled:b.rewarded_enabled,banner_id:b.banner_id,mobile_rewarded_id:b.mobile_rewarded_id,desktop_rewarded_id:b.desktop_rewarded_id,reward_kind:'subscription',reward_days:30,customer_views:b.customer_views,standard_views:b.standard_views,top100_views:b.top100_views,daily_cap:b.daily_cap,cooldown_seconds:b.cooldown_seconds,updated_at:now};
  await store.put(r);await store.put({id:randomUUID(),kind:'audit',country:'KZ',owner:a.id,created_at:now,version:1,actor_id:a.id,action:'web_ads.updated',target_id:r.id});return r;
 }
 export async function recordWebAdConsent(store:Store,a:{id:string;country:string},accepted:boolean,now:Date,source='web_ads'){
@@ -86,7 +87,7 @@ export async function userWebAds(store:Store,a:{id:string;country:string},method
  if(path==='/me/web-ads'&&method==='GET'){
   const available=subscriptionRole(user!)==='customer'?['customer']:['standard','top100'],offers=[];
   for(const target of available){const p=await activeProgress(store,a,target),reason=await eligibility(store,user!,target);offers.push({target,title:title(target),required_views:p?.required_views??requiredCount(config,target),completed_views:p?.completed_views??0,duration_days:30,ready:p?.status==='ready',eligible:!reason,reason});}
-  return {notice:webAdNotice,enabled:config.enabled,rewarded_enabled:config.rewarded_enabled,banner_id:config.banner_id,mobile_rewarded_id:config.mobile_rewarded_id,desktop_rewarded_id:config.desktop_rewarded_id,reward_kind:'subscription',reward_days:30,offers,verification_status:user!.verification,role:subscriptionRole(user!),consent:consent?.accepted===true,consent_recorded:!!consent,server_time:now.toISOString()};
+  return {notice:webAdNotice,enabled:config.enabled,rewarded_enabled:config.rewarded_enabled,banner_id:config.banner_id,mobile_rewarded_id:config.mobile_rewarded_id,desktop_rewarded_id:config.desktop_rewarded_id,android_banner_id:config.android_banner_id,android_rewarded_id:config.android_rewarded_id,ios_banner_id:config.ios_banner_id,ios_rewarded_id:config.ios_rewarded_id,reward_kind:'subscription',reward_days:30,offers,verification_status:user!.verification,role:subscriptionRole(user!),consent:consent?.accepted===true,consent_recorded:!!consent,server_time:now.toISOString()};
  }
  if(path==='/me/web-ads/consent'&&method==='POST'){if(typeof b.accepted!=='boolean')fail('Укажите согласие на рекламные показы.');await recordWebAdConsent(store,a,b.accepted,now);return {accepted:b.accepted};}
  if(path==='/me/web-ads/redeem'&&method==='POST'){
@@ -94,7 +95,9 @@ export async function userWebAds(store:Store,a:{id:string;country:string},method
  }
  if(path==='/me/web-ads/reward-sessions'&&method==='POST'){
   if(!config.rewarded_enabled||consent?.accepted!==true)fail('Реклама недоступна или согласие на показы отключено.',403);
-  if(!['desktop','touch'].includes(b.platform))fail('Не удалось определить платформу браузера.');
+  if(!['desktop','touch','android','ios'].includes(b.platform))fail('Не удалось определить платформу.');
+  const blockId=b.platform==='android'?config.android_rewarded_id:b.platform==='ios'?config.ios_rewarded_id:b.platform==='desktop'?config.desktop_rewarded_id:config.mobile_rewarded_id;
+  if(!blockId)fail('Реклама для этой платформы пока не настроена.',403);
   const target=String(b.target),reason=await eligibility(store,user!,target);if(reason)fail(reason,403);await legalReady(store,user!);
   let progress=await activeProgress(store,a,target);if(progress?.status==='ready')fail('Просмотры уже набраны. Нажмите «Активировать».',409);
   const pending=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='web_ad_session' AND country=$1 AND owner=$2 AND data->>'status'='pending' AND data->>'expires_at'>$3 ORDER BY data->>'created_at' DESC LIMIT 1",[a.country,a.id,now.toISOString()])).rows[0]?.data;
@@ -102,7 +105,7 @@ export async function userWebAds(store:Store,a:{id:string;country:string},method
   const usage=(await store.db.query<{used:string;last:string}>("SELECT COUNT(*) FILTER(WHERE left(data->>'created_at',10)=$3)::text AS used,MAX(data->>'created_at') AS last FROM records WHERE kind='web_ad_session' AND country=$1 AND owner=$2",[a.country,a.id,now.toISOString().slice(0,10)])).rows[0];
   if(Number(usage.used)>=config.daily_cap||Date.parse(usage.last)>now.getTime()-config.cooldown_seconds*1000)fail('Достигнут лимит просмотров или ещё действует пауза. Повторите позже.',429);
   if(!progress){progress={id:randomUUID(),kind:'web_ad_progress',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,status:'collecting',target,required_views:requiredCount(config,target),completed_views:0,reward_days:30};await store.put(progress);}
-  const session={id:randomUUID(),kind:'web_ad_session',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,status:'pending',nonce:randomBytes(32).toString('base64url'),platform:b.platform,block_id:b.platform==='desktop'?config.desktop_rewarded_id:config.mobile_rewarded_id,progress_id:progress.id,target,required_views:progress.required_views,expires_at:new Date(now.getTime()+15*60000).toISOString()};await store.put(session);return session;
+  const session={id:randomUUID(),kind:'web_ad_session',country:a.country,owner:a.id,created_at:now.toISOString(),version:1,status:'pending',nonce:randomBytes(32).toString('base64url'),platform:b.platform,block_id:blockId,progress_id:progress.id,target,required_views:progress.required_views,expires_at:new Date(now.getTime()+15*60000).toISOString()};await store.put(session);return session;
  }
  const match=path.match(/^\/me\/web-ads\/reward-sessions\/([^/]+)\/outcome$/);
  if(match&&method==='POST'){

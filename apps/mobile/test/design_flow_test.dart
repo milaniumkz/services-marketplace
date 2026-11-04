@@ -333,8 +333,8 @@ void main() {
     expect(find.text('Какая услуга нужна?'), findsOneWidget);
     await tester.tap(find.text('Ремонт'));
     await tester.pumpAndSettle();
-    expect(requests.last.url.queryParameters['category_id'], 'repair');
-    expect(requests.last.url.queryParameters['city'], 'Алматы');
+    expect(requests.lastWhere((r)=>r.url.path.endsWith('/contractors')).url.queryParameters['category_id'], 'repair');
+    expect(requests.lastWhere((r)=>r.url.path.endsWith('/contractors')).url.queryParameters['city'], 'Алматы');
     state.go('home');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Заказчик'));

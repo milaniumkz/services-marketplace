@@ -1,7 +1,8 @@
 import 'face_access.dart';
 import '../core/release_channel.dart';
+import '../core/external_activity.dart';
+import '../core/order_draft_store.dart';
 import 'home_marketplace_gate.dart';
-import 'package:flutter/foundation.dart';
 import '../advertising/web_ads.dart';
 import 'nearby_contractors.dart';
 import '../core/field_validation.dart';
@@ -194,6 +195,27 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   String ordersBucket = 'active';
   final Map<String,String> newOrderValues = {};
   Json? draftOrderLocation;
+  final orderDrafts = OrderDraftStore();
+  String? restoredDraftScope;
+  (String,String?)? resumeAfterUnlock;
+  Future<void> saveOrderDraft() async {
+    if(_api?.authenticated!=true||orderFormsScope!=currentOrderScope)return;
+    await orderDrafts.save(currentOrderScope, {'values':Map<String,String>.from(newOrderValues),'category':draftCategory,'location':draftOrderLocation,'photos':List<String>.from(draftPhotos),'window':draftWindow});
+  }
+  Future<void> restoreOrderDraft() async {
+    final scope=currentOrderScope;
+    if(restoredDraftScope==scope)return;
+    if(newOrderValues.isNotEmpty){restoredDraftScope=scope;return;}
+    final saved=await orderDrafts.read(scope).timeout(const Duration(seconds:1),onTimeout:()=>null);
+    if(!mounted||scope!=currentOrderScope)return;
+    restoredDraftScope=scope;
+    if(newOrderValues.isNotEmpty||saved==null)return;
+    newOrderValues.addAll(Map<String,String>.from(saved['values']??{}));
+    draftCategory=saved['category'];draftOrderLocation=saved['location'];
+    draftPhotos..clear()..addAll(List<String>.from(saved['photos']??[]));draftWindow=saved['window'];
+  }
+  void saveDraftQuietly(){unawaited(saveOrderDraft().catchError((Object _) {}));}
+
   final Map<String,Json> editedOrderLocations={};
   final Map<String,Map<String,String>> editedOrderValues = {};
   String? orderFormsScope;
@@ -202,12 +224,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   String get currentOrderScope => '$country:${api.base}:${api.session?['user']?['id']}';
   void ensureOrderFormsScope() {
     if(orderFormsScope==currentOrderScope) return;
+    restoredDraftScope=null;
     newOrderValues.clear();editedOrderValues.clear();draftOrderLocation=null;editedOrderLocations.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;
     orderFormsScope=currentOrderScope;
   }
   void orderBusy(bool value) { if(mounted&&orderFormSubmitting!=value)setState(()=>orderFormSubmitting=value); }
   void selectMainTab(String next) {
     if(authNavigationBlocked||onboardingNavigationBlocked||actionBusy||orderFormSubmitting)return;
+    if(route=='create')saveDraftQuietly();
     FocusManager.instance.primaryFocus?.unfocus();
     if(route==next&&objectId==null)return;
     setState((){history.clear();if(next!='home')history.add(('home',null));listingFilters={};route=next;objectId=null;revision++;if(!executor)executorSetupRequested=false;if(next=='catalog')catalogPresentation='loading';});
@@ -469,6 +493,11 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         if (mounted &&
             ![
               'create',
+              'profile-edit',
+              'portfolio-photos',
+              'verification',
+              'face-enroll',
+              'face-settings',
               'edit-order',
               'lock-setup',
               'unlock',
@@ -504,10 +533,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if(state==AppLifecycleState.resumed)eventsSuspended=false;
+    if(state==AppLifecycleState.resumed&&externalActivityActive){pausedAt=null;if(!locked)connectEvents();return;}
     if (state == AppLifecycleState.resumed && _api?.authenticated == true) {
       if (pausedAt != null &&
           DateTime.now().difference(pausedAt!).inSeconds >= 60) {
         if (localProtected) {
+          resumeAfterUnlock=(route,objectId);
           setState(() => locked = true);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted)
@@ -523,6 +554,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       }
     }
     if (state == AppLifecycleState.paused) {
+      saveDraftQuietly();
       eventsSuspended=true;
       pausedAt = DateTime.now();
       closeEvents();
@@ -530,7 +562,14 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   @override
+  void didHaveMemoryPressure() {
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    saveDraftQuietly();
+  }
+  @override
   void dispose() {
+    saveDraftQuietly();
     WidgetsBinding.instance.removeObserver(this);
     JobaPush.instance.detach();
     closeEvents();
@@ -542,6 +581,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
 
   void go(String next, [String? id]) {
     if (authNavigationBlocked) return;
+    if(route=='create')saveDraftQuietly();
     if (freeMobileRelease && mobilePaidRoutes.contains(next)) next = 'account';
     if(api.authenticated&&!locked&&RegExp(r'^[a-z][a-z0-9-]{0,63}$').hasMatch(next)){
       api.request('/me/activity',method:'POST',body:{'screen':next}).then<void>((_) {},onError:(Object _,StackTrace __) {});
@@ -556,7 +596,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       }else if(next=='published'||next=='publish'&&route=='create'){
         history..clear()..add(('home',null))..add(('orders',null));
         ordersBucket=next=='published'?'active':'drafts';
-        if(route=='create'){draftOrderLocation=null;newOrderValues.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;}
+        if(route=='create'){unawaited(orderDrafts.clear(currentOrderScope));draftOrderLocation=null;newOrderValues.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;}
       }else{history.add((route, objectId));}
       route = next;
       if (next == 'catalog') catalogPresentation = 'loading';
@@ -574,6 +614,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   void back() {
+    if(route=='create')saveDraftQuietly();
     if (authNavigationBlocked || orderFormSubmitting || actionBusy && orderNavigationRoutes.contains(route)) return;
     if (onboardingNavigationBlocked) return;
     if (route == 'pin-limit') {
@@ -697,7 +738,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   : null));
   String? get bannerPlacement {
     const placements={'home','jobs','catalog','account','orders','messages','notifications','reviews','invitations','top'};
-    return kIsWeb&&placements.contains(route)?'$route:${api.session?['user']?['id']}':null;
+    return placements.contains(route)?'$route:${api.session?['user']?['id']}':null;
   }
   Widget? get navigationBanner=>bannerPlacement==null?null:WebAdsPanel(key:ValueKey('footer-ad:$bannerPlacement'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'));
   Widget navigationWithAd(Widget navigation){
@@ -1247,7 +1288,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'reward-nofill':
       case 'reward-pending':
       case 'reward':
-        if (kIsWeb && route=='reward') return page('Подписка за рекламу',WebRewardScreen(api:api,target:objectId,onNavigate:(r)=>go(r),onPrivacy:()=>go('legal')),titleOffset:-12);
+        if (route=='reward') return page('Подписка за рекламу',WebRewardScreen(api:api,target:objectId,onNavigate:(r)=>go(r),onPrivacy:()=>go('legal')),titleOffset:-12);
         return page({'test-payment-success':'Тестовая оплата','checkout':'Условия подписки','manage-subscription':'Управление подпиской','subscription-canceled':'Продление отключено','payment-pending':'Проверяем покупку','restore':'Восстановление покупки','reward-granted':'Награда получена','reward-nofill':'Реклама недоступна','reward-pending':'Подтверждение просмотра','reward':'Доступ за рекламу'}[route]!,CommerceStateScreen(key:ValueKey('commerce:$route:$objectId'),api:api,mode:route,id:objectId,gateway:widget.commerceGateway,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'export':
         return page('Экспорт моих данных',
@@ -1653,7 +1694,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     Padding(
                       padding: EdgeInsets.only(top: 8),
                       child: UiText(
-                        'Номер будет вашим логином, он не подтверждён.',
+                        'Номер используется для входа в аккаунт.',
                         style: TextStyle(
                           fontSize: 10,
                           color: muted,
@@ -1928,14 +1969,15 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         country = profile['country'];
         locale = profile['locale'] ?? 'ru';
         serviceCategories = null;
-        draftCategory = null;
-        objectId = null;
+        final resume=resumeAfterUnlock;
+        objectId = resume?.$2;
         executor = profile['active_role'] == 'executor';
         locked = false;
         registrationInProgress = needsProfile(profile);
         faceSetupReturnRoute = registrationInProgress ? 'terms' : 'home';
-        route = offerFaceSetup ? 'face-enroll' : faceSetupReturnRoute;
-        history.clear();
+        route = offerFaceSetup ? 'face-enroll' : registrationInProgress ? faceSetupReturnRoute : resume?.$1 ?? faceSetupReturnRoute;
+        if(resume==null||offerFaceSetup||registrationInProgress)history.clear();
+        resumeAfterUnlock=null;
       });
       widget.onLocaleChanged?.call(locale);
       connectEvents();
@@ -2676,9 +2718,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   child: Column(children: [
                     if (!freeMobileRelease) JobaMenu([
                       JobaMenuEntry(
-                          summary['subscription_until'] == null
-                              ? 'Мой доступ'
-                              : 'Подписка активна',
+                          'Мой доступ',
                           'card',
                           () => go('my-access'),
                           subtitle: summary['subscription_until'] == null
@@ -2784,19 +2824,19 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       'Новый заказ',
       ApiView(
           key: ValueKey('create:$revision'),
-          load: () => Future.wait(
-              [api.request('/catalog/categories'), api.request('/geo/cities')]),
+          load: () async {await restoreOrderDraft();return Future.wait(
+              [api.request('/catalog/categories'), api.request('/geo/cities')]);},
           builder: (c,data,reload) => createOrderForm(data)));
   Widget createOrderForm(List<dynamic> data) { final scope=currentOrderScope; return ActionForm(
               initialValues:newOrderValues,
               fieldOverrides:{if(draftOrderLocation?['city']?['id']!=null)'city_id':draftOrderLocation!['city']['id']},
-              onValuesChanged:(values){if(route=='create'&&scope==currentOrderScope)newOrderValues..clear()..addAll(values);},
+              onValuesChanged:(values){if(route=='create'&&scope==currentOrderScope){newOrderValues..clear()..addAll(values);saveDraftQuietly();}},
               onBusyChanged:orderBusy,
               stickySubmit: true,
               externalBusy: actionBusy,
               beforeField: {
                 'budget': [draftDateField()],
-                'work_mode':[orderAddressField(draftOrderLocation,(value)=>setState(()=>draftOrderLocation=value))]
+                'work_mode':[orderAddressField(draftOrderLocation,(value){setState(()=>draftOrderLocation=value);saveDraftQuietly();})]
               },
               afterFields: [
                 const UiText('Фотографии задачи',
@@ -2814,8 +2854,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                 tooltip: localize(context, 'Удалить фото'),
                                 onPressed: actionBusy
                                     ? null
-                                    : () =>
-                                        setState(() => draftPhotos.remove(id)),
+                                    : () {setState(() => draftPhotos.remove(id));saveDraftQuietly();},
                                 icon: const JobaIcon('close', size: 18))
                           ]))
                   ]),
@@ -2829,7 +2868,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   mounted &&
                                   route == 'create' &&
                                   run == revision)
-                                setState(() => draftPhotos.add(file['id']));
+                                {setState(() => draftPhotos.add(file['id']));saveDraftQuietly();}
                             }),
                     child: const Row(mainAxisSize: MainAxisSize.min, children: [
                       JobaIcon('camera'),
@@ -2857,7 +2896,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     options: {
                       for (final r in items(data[0])) r['id']: r['name']
                     },
-                    changed: (v) => setState(() => draftCategory = v)),
+                    changed: (v) {setState(() => draftCategory = v);saveDraftQuietly();}),
                 ...attributeFields(items(data[0])),
                 const InputSpec('title', 'Название', validate: titleCheck),
                 const InputSpec('description', 'Опишите задачу',
@@ -3879,13 +3918,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   ],
                   if (p != null && ['draft', 'rejected'].contains(p['status']))
                     button(
-                        'Отправить на проверку',
+                        'Опубликовать',
                         () => act(() async {
                               await api.request(
                                   '/me/contractor-profile/publish',
                                   method: 'POST',
                                   body: {'expected_version': p['version']});
-                              go('profile-pending');
+                              go('services');
                             }))
                 ]));
       }));
@@ -5390,7 +5429,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                             '/me/portfolio-projects/${project['id']}/submit',
                             method: 'POST',
                             body: {'expected_version': project['version']});
-                        go('portfolio-pending', project['id']);
+                        go('portfolio-project', project['id']);
                       })
                   : null,
               onDelete: () => act(() async {
@@ -5420,16 +5459,16 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Future<Json?> pickUpload(String purpose, {String? verificationId}) async {
     if (purpose != 'chat') {
       final client = api, generation = api.sessionGeneration;
-      final photo = await choosePhoto(context);
+      final photo = await withExternalActivity(()=>choosePhoto(context));
       if (photo == null || !mounted || client != api || generation != client.sessionGeneration || !client.authenticated) return null;
       return client.upload(photo.bytes, photo.mime, purpose, verificationId: verificationId);
     }
-    final selected = await FilePicker.platform.pickFiles(
+    final selected = await withExternalActivity(()=>FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: purpose == 'identity' || purpose == 'chat'
             ? ['jpg', 'jpeg', 'png', 'pdf']
             : ['jpg', 'jpeg', 'png'],
-        withData: true);
+        withData: true));
     if (selected == null) return null;
     final f = selected.files.single;
     if (f.bytes == null)
@@ -5460,7 +5499,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               setState(() => verificationTitle = value);
           },
           pick: (id) => pickUpload('identity', verificationId: id),
-          choosePhoto: (selfie) => choosePhoto(context, selfie: selfie,identity:true),
+          choosePhoto: (selfie) => withExternalActivity(()=>choosePhoto(context, selfie: selfie,identity:true)),
           uploadPhoto: (photo, id) => api.upload(photo.bytes, photo.mime, 'identity', verificationId: id),
           onTerms: () => go('terms'),
           onAppeal: (session) => Navigator.push(context, MaterialPageRoute(builder: (c) => Scaffold(

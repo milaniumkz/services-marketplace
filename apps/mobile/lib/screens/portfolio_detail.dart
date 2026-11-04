@@ -140,7 +140,7 @@ class _PortfolioDetailState extends State<PortfolioDetail> {
       if (widget.onSubmit != null)
         FilledButton(
             onPressed: widget.onSubmit,
-            child: const UiText('Отправить на проверку')),
+            child: const UiText('Опубликовать')),
       if (widget.onDelete != null)
         TextButton(
             onPressed: widget.onDelete, child: const UiText('Удалить проект'))

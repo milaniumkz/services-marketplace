@@ -210,15 +210,15 @@
       "path": "apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png",
       "pixels": 48,
       "role": "android-round",
-      "bytes": 3834,
-      "sha256": "80b9a58c9352fa85a57fd4ebcdb42b71cb1ba8d2b8fd2018c09d1c7e0659cd5e"
+      "bytes": 6751,
+      "sha256": "a17cb3ddc2272b2b0167f8c138202c84384f1a2563e55631adfc19a9957ca824"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png",
       "pixels": 108,
       "role": "android-adaptive",
-      "bytes": 7318,
-      "sha256": "46d5cbe8c5fd97e635c7bc6b3272931e9783e7fc6ef3e99eef73ec1bff9a8df9"
+      "bytes": 16929,
+      "sha256": "47fd4d4a2c6bc59496e6cb68fcec80218f976dd2129a1add7c05b6e7c9660b81"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/drawable-mdpi/joba_launch_logo.png",
@@ -238,15 +238,15 @@
       "path": "apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png",
       "pixels": 72,
       "role": "android-round",
-      "bytes": 8422,
-      "sha256": "fd6d9055e481a2f2d6d1f2a7a21ad2d517e392bfabb73c8d834f449434564089"
+      "bytes": 14623,
+      "sha256": "eb04eb8e7c8d11d171301480471933cbc5fcda66f86f914e7baba313b3076f3d"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png",
       "pixels": 162,
       "role": "android-adaptive",
-      "bytes": 16019,
-      "sha256": "75d7b44863f208ab630866f96414612851ba58c7fe46890bdf28833b36829e45"
+      "bytes": 36290,
+      "sha256": "1690961e5a5d811f4324e97d7eb9ca743451c2f3341894f4afa986f89684a8b5"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/drawable-hdpi/joba_launch_logo.png",
@@ -266,15 +266,15 @@
       "path": "apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
       "pixels": 96,
       "role": "android-round",
-      "bytes": 14720,
-      "sha256": "51383d4944663adddff72beec6cdc586f7e194f6924d90c9979fcc408109819e"
+      "bytes": 25255,
+      "sha256": "be3fee7fe11bb039b6ea63f4786e276e8aece00513e7f552930b5329fdf6ccf3"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png",
       "pixels": 216,
       "role": "android-adaptive",
-      "bytes": 27584,
-      "sha256": "dbdaa1f2327d31ac30a3e1b2f745bde82dac46059d6dca3e3717b7ef47e7711c"
+      "bytes": 62312,
+      "sha256": "2cbfa9b3ff102bbaeb78474e11d3419a398fe1ccb62990700d779a84f584dadb"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/drawable-xhdpi/joba_launch_logo.png",
@@ -294,15 +294,15 @@
       "path": "apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
       "pixels": 144,
       "role": "android-round",
-      "bytes": 31429,
-      "sha256": "d0b32b4f4970527ca7a7cb6a2efab4a264587b930fd078db0b0a9a358f28d3c5"
+      "bytes": 54375,
+      "sha256": "c4a9cb78535f0f85b112c6afdfa54f7c31f110ea70e145f2cacc09ef4c9b08d2"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png",
       "pixels": 324,
       "role": "android-adaptive",
-      "bytes": 59204,
-      "sha256": "0f76011dff12b9f99c91205b2478f9cb5f9f01a352cebd2b741d15475c91cb61"
+      "bytes": 133439,
+      "sha256": "2caf4da77fba09c7f4b198a8f71d4b7457e3da154ebd37639a1435c55d6316d0"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/drawable-xxhdpi/joba_launch_logo.png",
@@ -322,15 +322,15 @@
       "path": "apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
       "pixels": 192,
       "role": "android-round",
-      "bytes": 54420,
-      "sha256": "d760ee2fea2ed5391a6957b65f4b78dd77add28f0920b06ac3b70c6faed9fcb4"
+      "bytes": 93023,
+      "sha256": "0013ce1b3e8c2bb64e98a6d8630082c5285a289c8cb4993f9aed1cd619979d13"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png",
       "pixels": 432,
       "role": "android-adaptive",
-      "bytes": 100797,
-      "sha256": "9a12f3642c6b9f442958570653eef8f9a4ec845e8ba1d0802757ba6176016f4d"
+      "bytes": 229246,
+      "sha256": "e460eed107f1ac4a0d0f7079e7650ce9038fd91fa5c886250174d75e57d74470"
     },
     {
       "path": "apps/mobile/android/app/src/main/res/drawable-xxxhdpi/joba_launch_logo.png",

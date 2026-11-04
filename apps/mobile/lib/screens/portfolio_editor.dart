@@ -91,7 +91,7 @@ class _PortfolioEditorState extends State<PortfolioEditor> {
         if (mounted)
           widget.onGo(
               submit
-                  ? 'portfolio-pending'
+                  ? 'portfolio-project'
                   : openPhotos
                       ? 'portfolio-photos'
                       : 'portfolio-project',
@@ -359,7 +359,7 @@ class _PortfolioEditorState extends State<PortfolioEditor> {
                                       height: 20,
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2, color: Colors.white))
-                                  : const UiText('Отправить на проверку')))),
+                                  : const UiText('Опубликовать')))),
                 ]));
       });
 }

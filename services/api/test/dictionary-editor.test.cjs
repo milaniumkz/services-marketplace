@@ -24,9 +24,9 @@ test('dictionary drafts validate exceptions and surfaces, protect versions and a
   await assert.rejects(()=>call(a,staff[1],'POST',path+'/publish',{reason,expected_version:3}),e=>e.getStatus()===409);
   await assert.rejects(()=>call(a,staff[0],'PATCH',path,{title,reason,payload,expected_version:3}),e=>e.getStatus()===409);
   const excluded=await call(a,member,'POST','/orders',{...orderData,title:'Заказ без контрольмаркер'});assert.equal(excluded.status,'draft');
-  const hit=await call(a,member,'POST','/orders',orderData);assert.equal(hit.status,'pending_moderation');assert.equal((await a.store.all('case','KZ')).length,1);
+  const hit=await call(a,member,'POST','/orders',orderData);assert.equal(hit.status,'draft');assert.equal((await a.store.all('case','KZ')).length,0);
   await call(a,staff[0],'POST',path+'/stop',{reason,expected_version:3});assert.equal((await call(a,staff[0],'GET',path)).status,'stopped');
   await a.store.put({...await a.store.get(member.user.id),status:'active',version:2});
-  const after=await call(a,member,'POST','/orders',orderData);assert.equal(after.status,'draft');assert.equal((await a.store.get(hit.id)).status,'pending_moderation');
+  const after=await call(a,member,'POST','/orders',orderData);assert.equal(after.status,'draft');assert.equal((await a.store.get(hit.id)).status,'draft');
  }finally{await a.store.close();}
 });

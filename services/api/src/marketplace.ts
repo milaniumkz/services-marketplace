@@ -155,6 +155,12 @@ export class Marketplace {
     if(!r || r.country!==a.country || (kind&&r.kind!==kind) || (own&&r.owner!==a.id))fail(404,'NOT_FOUND','Объект не найден');
     return r!;
   }
+  private async publishOwnContent(record:RecordData) {
+    if(['published','paused'].includes(record.status)&&record.draft)await this.store.put(this.record('content_revision',{id:record.owner,country:record.country},{source_id:record.id,source_kind:record.kind,source_version:record.published_version??record.version,content:publicContent(record),status:'archived'}));
+    const published=submitContent(record);
+    published.published_version=published.version;
+    return this.store.put(published).then(editableContent);
+  }
   private version(r: RecordData, b: any) {
     if(b.expected_version!==r.version)fail(409,'STATE_CONFLICT','Данные изменились. Обновите экран.',{current_version:r.version});
   }
@@ -275,7 +281,7 @@ export class Marketplace {
   }
   private async dispatch(method: string,path: string,b: any,authorization: string|undefined,q: any,ip: string): Promise<any> {
     const db=this.store.db;
-    if(path==='/public/mobile-release'&&method==='GET')return {free_core_access:process.env.JOBA_MOBILE_FREE_ACCESS==='1',channel:'mobile-free-v1',purchases_enabled:false};
+    if(path==='/public/mobile-release'&&method==='GET')return {free_core_access:process.env.JOBA_MOBILE_FREE_ACCESS==='1',channel:'mobile-free-v1',purchases_enabled:true,default_channel:'standard',minimum_paid_build:3};
     path=path.replace(/\/select-offer$/, '/select').replace(/\/request-completion$/, '/complete');
     const orderReview=path.match(/^\/orders\/([^/]+)\/reviews$/);if(orderReview){b={...b,order_id:orderReview[1]};path='/reviews';}
     if(path==='/reports')path='/cases';
@@ -598,7 +604,7 @@ export class Marketplace {
     }
     if(path==='/me/contractor-profile/publish'&&method==='POST') {
       await this.entitlement(a,'publish_profile',true,false,true);const p=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(!p)fail(404,'NOT_FOUND','Профиль не найден');this.version(p!,b);
-      if(!['draft','rejected'].includes(editableContent(p!).status))fail(409,'STATE_CONFLICT','Нет черновика для публикации');return this.store.put(submitContent(p!)).then(editableContent);
+      if(!['draft','rejected'].includes(editableContent(p!).status))fail(409,'STATE_CONFLICT','Нет черновика для публикации');return this.publishOwnContent(p!);
     }
     if(path==='/me/content-revisions'&&method==='GET'){if(q.source_id){const source=await this.object(String(q.source_id),a,undefined,true);if(!['contractor','portfolio'].includes(source.kind))fail(404,'NOT_FOUND','Материал не найден');}return this.page('content_revision',a,q,{owner:a.id});}
     if(path==='/me/portfolio-projects'&&method==='GET')return {items:(await this.store.all('portfolio',a.country)).filter(x=>x.owner===a.id&&x.status!=='archived').sort((x,y)=>(x.position??0)-(y.position??0)||x.id.localeCompare(y.id)).map(editableContent)};
@@ -630,7 +636,7 @@ export class Marketplace {
         if(b.order_id!==undefined){if(b.order_id===null)extra.order_id=null;else{const order=await this.object(String(b.order_id),a,'order');if(order.status!=='completed'||order.executor_id!==a.id)fail(422,'POLICY_REJECTED','Можно связать только заказ, выполненный вами');extra.order_id=order.id;}}
         return this.store.put(editContent(stored,{...extra,title:b.title===undefined?p.title:text(b,'title',5,120),description:b.description===undefined?p.description:text(b,'description',0,3000),category_id:category!.id,photos,cover_id:cover})).then(editableContent);
       }
-      if(portfolio[2]==='submit'){await this.entitlement(a,'publish_profile',true,false,true);if(!p.photos.length||p.rights_confirmed!==true)fail(422,'POLICY_REJECTED','Нужна проверенная фотография и подтверждение прав на материалы');if(!['draft','rejected'].includes(p.status))fail(409,'STATE_CONFLICT','Нет черновика для проверки');return this.store.put(submitContent(stored)).then(editableContent);}
+      if(portfolio[2]==='submit'){await this.entitlement(a,'publish_profile',true,false,true);if(!p.photos.length||p.rights_confirmed!==true)fail(422,'POLICY_REJECTED','Нужна проверенная фотография и подтверждение прав на материалы');if(!['draft','rejected'].includes(p.status))fail(409,'STATE_CONFLICT','Нет черновика для публикации');return this.publishOwnContent(stored);}
     }
     if(path==='/contractors'&&method==='GET'){await this.entitlement(a,'view_contractors');return this.page('contractor',a,q,{statuses:['published'],publicActor:a.id});}
     const contractor=path.match(/^\/contractors\/([^/]+)(?:\/(portfolio)(?:\/([^/]+))?)?$/);

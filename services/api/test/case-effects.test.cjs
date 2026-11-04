@@ -24,8 +24,13 @@ async function scenario(run){
 test('case false positive restores the frozen draft, preserves published content and releases only its incident hold',()=>scenario(async({api,user,moderator,call,put,decision})=>{
  await put('dictionary',{status:'published',payload:{rules:[{type:'exact_word',value:'badword'}]}});
  const profile=await put('contractor',{status:'published',title:'Опубликованная работа',description:'Описание опубликованного профиля'});
- await api.store.put({...profile,version:2,draft:{title:'badword черновик',description:'Исправляемый материал',status:'draft'}});
- const incident=(await api.store.all('case','KZ'))[0],stored=await api.store.get(profile.id);
+ const staged={...profile,version:2,draft:{title:'badword черновик',description:'Исправляемый материал',status:'draft'}};
+ await api.store.put(staged);
+ const incident=await put('case',{target_type:'contractor',target_id:profile.id,status:'new',subject_user_id:user.user.id,...freezeTarget(staged,'draft')});
+ await api.store.put({...staged,draft:{...staged.draft,status:'pending_moderation',moderation_status:'quarantined',case_id:incident.id}});
+ await put('auto_hold',{user_id:user.user.id,case_id:incident.id,status:'active',expires_at:new Date(Date.now()+600000).toISOString()});
+ const identity=await api.store.get(user.user.id);await api.store.put({...identity,status:'restricted'});
+ const stored=await api.store.get(profile.id);
  assert.equal(stored.status,'published');assert.equal(stored.draft.status,'pending_moderation');assert.equal(incident.target_scope,'draft');
  const publicCase=await call(user,'GET','/cases/'+incident.id);assert.equal(publicCase.target_snapshot,undefined);assert.equal(publicCase.target_content_hash,undefined);
  const result=await decision(moderator,incident,'no_violation');assert.equal(result.effects.target_action,'restored');
@@ -36,7 +41,7 @@ test('case false positive restores the frozen draft, preserves published content
 test('content removal preserves active work and independent appeal restores its frozen material',()=>scenario(async({api,user,moderator,senior,call,put,decision})=>{
  await put('dictionary',{status:'published',payload:{rules:[{type:'exact_word',value:'badword'}]}});
  const order=await put('order',{status:'in_progress',executor_id:randomUUID(),title:'badword материал',description:'Материал существующей работы',revision:3});
- const incident=(await api.store.all('case','KZ'))[0];assert.equal((await api.store.get(order.id)).status,'in_progress');
+ const incident=await put('case',{target_type:'order',target_id:order.id,status:'new',subject_user_id:user.user.id,...freezeTarget(order)});assert.equal((await api.store.get(order.id)).status,'in_progress');
  const removed=await decision(moderator,incident,'content_removed');assert.equal((await api.store.get(order.id)).status,'in_progress');assert.equal((await api.store.get(order.id)).moderation_status,'hidden');
  const appealed=await call(user,'POST','/cases/'+incident.id+'/appeals',{expected_version:removed.version,reason:'Прошу независимую проверку решения по материалу'});
  await assert.rejects(()=>decision(moderator,appealed,'overturned','appeal-decision'),e=>e.getStatus()===403);

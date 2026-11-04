@@ -42,10 +42,10 @@ test('dictionary quarantine is deduplicated, temporary and never a permanent bla
   try {
     const u=await account(api);
     await api.store.put({id:randomUUID(),kind:'dictionary',owner:'system',country:'KZ',version:1,created_at:new Date().toISOString(),status:'published',payload:{rules:[{type:'exact_word',value:'проверкамаркер'}]}});
-    const data={title:'Заказ проверкамаркер',description:'Достаточно длинное описание заказа для проверки текста.',category_id:'1',city:'Алматы',budget_amount:null};const key=randomUUID();
-    const order=await command(api,u,'POST','/orders',data,key);
-    assert.equal(order.status,'pending_moderation');assert.equal(order.moderation_status,'quarantined');
-    await command(api,u,'POST','/orders',data,key);
+    const data={id:randomUUID(),kind:'message',owner:u.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),text:'Сообщение проверкамаркер',conversation_id:randomUUID(),status:'sent'};
+    const order=await api.store.put(data);
+    assert.equal(order.moderation_status,'quarantined');
+    await api.store.put(order);
     assert.equal((await api.store.all('auto_hold','KZ')).length,1);assert.equal((await api.store.all('case','KZ')).length,1);assert.equal((await api.store.all('blacklist','KZ')).length,0);
     await api.maintenance(new Date(Date.now()+61*60000));
     assert.equal((await api.store.get(u.user.id)).status,'active');

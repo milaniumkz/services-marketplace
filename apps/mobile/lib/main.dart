@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:ui';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'core/push_notifications.dart';
 import 'screens/web_push_permission_prompt.dart';
@@ -9,8 +13,18 @@ import 'core/regions.dart';
 import 'core/theme.dart';
 import 'screens/marketplace.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PaintingBinding.instance.imageCache.maximumSizeBytes=48*1024*1024;
+  PaintingBinding.instance.imageCache.maximumSize=60;
+  if(!kIsWeb&&(defaultTargetPlatform==TargetPlatform.android||defaultTargetPlatform==TargetPlatform.iOS)){
+    try{
+      await Firebase.initializeApp();
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(kReleaseMode);
+      FlutterError.onError=(details){FlutterError.presentError(details);unawaited(FirebaseCrashlytics.instance.recordFlutterFatalError(details).catchError((Object _){}));};
+      PlatformDispatcher.instance.onError=(error,stack){unawaited(FirebaseCrashlytics.instance.recordError(error,stack,fatal:true).catchError((Object _){}));return true;};
+    }catch(_){/* Diagnostics initialization must never prevent startup. */}
+  }
   runApp(const JobaApp());
 }
 

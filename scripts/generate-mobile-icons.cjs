@@ -25,9 +25,9 @@ async function main(){
  for(const[density,scale]of Object.entries({mdpi:1,hdpi:1.5,xhdpi:2,xxhdpi:3,xxxhdpi:4})){
   const dir=resolve(mobile,'android/app/src/main/res/mipmap-'+density),size=Math.round(48*scale),canvas=Math.round(108*scale);
   await write(resolve(dir,'ic_launcher.png'),await png(size),size,'android-legacy');
-  await write(resolve(dir,'ic_launcher_round.png'),await inset(size,.70),size,'android-round');
-  // Full square inside the 66dp guaranteed-visible circle; no part of the artwork is clipped.
-  await write(resolve(dir,'ic_launcher_foreground.png'),await inset(canvas,46/108,true),canvas,'android-adaptive');
+  await write(resolve(dir,'ic_launcher_round.png'),await png(size),size,'android-round');
+  // Use the standard 72dp adaptive artwork layer instead of a tiny 46dp inset.
+  await write(resolve(dir,'ic_launcher_foreground.png'),await inset(canvas,72/108,true),canvas,'android-adaptive');
   await write(resolve(mobile,'android/app/src/main/res/drawable-'+density+'/joba_launch_logo.png'),await png(Math.round(140*scale)),Math.round(140*scale),'android-launch');
  }
  const adaptive='<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/joba_icon_background"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>\n';

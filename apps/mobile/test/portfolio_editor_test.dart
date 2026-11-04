@@ -72,13 +72,13 @@ void main() {
                 onGo: (r, id) => route = r))));
     await t.pumpAndSettle();
     await t.enterText(find.byType(TextFormField).first, 'Изменённый проект');
-    await t.tap(find.text('Отправить на проверку'));
+    await t.tap(find.text('Опубликовать'));
     await t.pumpAndSettle();
     expect(route, isNull);
     expect(find.text('Изменённый проект'), findsOneWidget);
-    await t.tap(find.text('Отправить на проверку'));
+    await t.tap(find.text('Опубликовать'));
     await t.pumpAndSettle();
-    expect(route, 'portfolio-pending');
+    expect(route, 'portfolio-project');
     expect(submissions, 2);
     expect(writes.map((b) => b['expected_version']), [7, 8]);
     expect(writes.last['title'], 'Изменённый проект');
@@ -130,7 +130,7 @@ void main() {
     expect(
         t
             .widget<FilledButton>(
-                find.widgetWithText(FilledButton, 'Отправить на проверку'))
+                find.widgetWithText(FilledButton, 'Опубликовать'))
             .onPressed,
         isNull);
     await t.enterText(

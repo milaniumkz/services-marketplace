@@ -19,7 +19,8 @@ export function editContent(record:RecordData,changes:Record<string,any>):Record
     : {...record,...changes,draft:undefined,...moderation,reason:undefined,reviewer_id:undefined,version:record.version+1};
 }
 export function submitContent(record:RecordData):RecordData {
-  return ['published','paused'].includes(record.status)
-    ? {...record,draft:{...record.draft,status:'pending_review'},version:record.version+1}
-    : {...record,status:'pending_review',version:record.version+1};
+  // Only identity documents require a staff decision. Merge the private edit
+  // atomically so public readers see the complete new revision immediately.
+  const content=editableContent(record);
+  return {...content,status:'published',moderation_status:'visible',published_at:record.published_at??new Date().toISOString(),updated_at:new Date().toISOString(),draft:undefined,reason:undefined,reviewer_id:undefined,version:record.version+1};
 }
