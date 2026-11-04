@@ -1,0 +1,30 @@
+{
+  "version": "1.0.3",
+  "versionCode": 5,
+  "source": "c826a0e6cbc518f7399730c09031279f055a2c30",
+  "bytes": 71727557,
+  "sha256": "3494e399366a47ab3c7e77c806dc9a744946dc3417244aeac02637915740f9eb",
+  "buildMode": "release",
+  "signing": "testing",
+  "certificateSha256": "de02e49c7caea7a27003e06fdb341c01d3e1e0ac8c06f5ac44c947bd006ac3dc",
+  "minSdk": 24,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "api": "https://joba.com.kz",
+  "diagnosticEndpoint": "/api/v1/public/mobile-crashes",
+  "checks": {
+    "apiScenariosVerified": 203,
+    "queueTestsPassed": 4,
+    "flutterFrozenSourcePassed": 309,
+    "flutterSkipped": 2,
+    "analyzer": "clean",
+    "serverDeliveryAndEncryptedReadBack": true,
+    "signature": true,
+    "zipalign16KiB": true,
+    "realDeviceRun": false
+  },
+  "builtAt": "2026-11-04T13:36:18.094185+00:00"
+}
