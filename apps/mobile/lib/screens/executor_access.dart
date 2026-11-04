@@ -1,4 +1,5 @@
 import '../advertising/web_ads.dart';
+import 'bank_payment.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -216,6 +217,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
     final price = subscription?['price'] as Json?;
     if (choosing)
       return ListView(padding: const EdgeInsets.all(20), children: [
+        if(widget.api!=null)PendingBankPayments(api:widget.api!,onGo:onGo),
         if(widget.api!=null)WebRewardEntry(api:widget.api!,onSelect:(target)=>onGo('reward',target)),
         if(offers.any((r)=>r['is_test']==true)) const Notice('Тестовый режим оплаты — без списания денег.',icon:'info'),
         const UiText('Ваши возможности',
@@ -366,7 +368,8 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
     final bases=subscriptions.where((r)=>r['is_addon']!=true&&r['is_upgrade']!=true&&r['plan']!='top100').toList();
     final known=subscription ?? (bases.isEmpty?null:bases.first);
     return ListView(padding: const EdgeInsets.all(20), children: [
-      if(widget.api!=null)WebRewardEntry(api:widget.api!,onSelect:(target)=>onGo('reward',target)),
+      if(widget.api!=null)PendingBankPayments(api:widget.api!,onGo:onGo),
+        if(widget.api!=null)WebRewardEntry(api:widget.api!,onSelect:(target)=>onGo('reward',target)),
       if(subscription?['is_ad_supported']==true)const Notice('Подписка получена за рекламу. Деньги не списывались.'),
       ...extraPurchases(context,offers),
       for(final queued in bases.where((r)=>r['status']=='scheduled')) DataCard('Запланировано продление',subtitle:'${queued['plan']=='premium'?'Премиум':queued['plan']=='customer'?'Заказчик':'Стандарт'} · с ${date(context,{'valid_until':queued['valid_from']})} до ${date(context,queued)}'),

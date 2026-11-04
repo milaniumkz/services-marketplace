@@ -1,3 +1,4 @@
+import {vtbSandbox} from './vtb-gateway';
 import {issueDiscount,bestDiscount,discountedPrice,useDiscount} from './personal-discounts';
 import {createPeriod,periodPlan} from './subscription-periods';
 import {subscriptionRole} from './subscription-plans';
@@ -105,13 +106,13 @@ export class Growth {
     const buyer=await this.store.get(owner),discount=buyer?await bestDiscount(this.store,buyer,'boost'):undefined;
     return this.store.put(this.record('boost',owner,country,{target_id:target.id,placement_id:b.placement_id,price_snapshot:{...price.payload,...discountedPrice(price.payload.amount_minor,discount)},policy_snapshot:policy.payload,status:'reserved',starts_at:new Date().toISOString(),ends_at:end,reservation_expires_at:new Date(Date.now()+settings.boost_reservation_minutes*60000).toISOString()}));
   }
-  async verifyBoost(owner:string,country:string,b:any) {
+  async verifyBoost(owner:string,country:string,b:any,evidence?:import('./providers').VerifiedPurchase) {
     const boost=await this.store.get(b.reservation_id);if(!boost||boost.kind!=='boost'||boost.owner!==owner||boost.country!==country)fail('NOT_FOUND','Резерв не найден',404);
     const provider=this.providers.billing.get(b.provider);if(!provider)fail('PROVIDER_UNAVAILABLE','Платёжный адаптер не подключён',503);
     if(boost.price_snapshot.provider!==b.provider)fail('PROVIDER_MISMATCH','Резерв связан с другим провайдером',422);
-    const p=await provider.verifyPurchase(String(b.transaction_reference),owner);
+    const p=evidence??await provider.verifyPurchase(String(b.transaction_reference),owner);
     if(p.user_id!==owner||p.country!==country||p.provider!==b.provider||p.product_id!==boost.price_snapshot.product_id||p.amount_minor!==boost.price_snapshot.amount_minor||p.currency!==boost.price_snapshot.currency)fail('PURCHASE_OWNERSHIP_MISMATCH','Покупка не соответствует резерву',403);
-    if(process.env.NODE_ENV==='production'&&p.environment!=='production')fail('PROVIDER_ENVIRONMENT_MISMATCH','Недопустимая среда покупки',422);
+    if(process.env.NODE_ENV==='production'&&p.environment!=='production'&&!vtbSandbox(provider))fail('PROVIDER_ENVIRONMENT_MISMATCH','Недопустимая среда покупки',422);
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-target:'+country+':'+boost.target_id]);
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['boost-capacity:'+country+':'+boost.placement_id]);
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['payment-transaction:'+country+':'+p.provider+':'+p.transaction_id]);
@@ -121,7 +122,7 @@ export class Growth {
     if(previous){if(previous.boost_id!==boost.id)fail('TRANSACTION_ALREADY_USED','Покупка уже связана с другим правом',403);return {...boost,duplicate:true};}
     if(p.state==='pending')return this.store.put({...boost,status:'payment_pending',provider:p.provider,version:boost.version+1});
     if(!['active','revoked'].includes(p.state))fail('PAYMENT_PENDING','Покупка ещё не подтверждена',409);
-    await this.store.put(this.record('payment_transaction',owner,country,{provider:p.provider,transaction_id:p.transaction_id,state:p.state,amount_minor:p.amount_minor,currency:p.currency,benefit:'boost',environment:p.environment,boost_id:boost.id,source_id:boost.id,operation:p.state==='active'?'purchase':'revoke',cash_amount_minor:p.state==='active'?p.amount_minor:0}));
+    await this.store.put(this.record('payment_transaction',owner,country,{provider:p.provider,transaction_id:p.transaction_id,state:p.state,amount_minor:p.amount_minor,currency:p.currency,benefit:'boost',environment:p.environment,is_test:p.provider==='vtb'&&p.environment==='sandbox',bank_checkout_id:p.provider==='vtb'?p.original_transaction_id:undefined,boost_id:boost.id,source_id:boost.id,operation:p.state==='active'?'purchase':'revoke',cash_amount_minor:p.state==='active'&&!(p.provider==='vtb'&&p.environment==='sandbox')?p.amount_minor:0}));
     if(p.state==='revoked')return this.store.put({...boost,status:'revoked',version:boost.version+1});
     let resolution=false;
     try {
@@ -131,7 +132,8 @@ export class Growth {
       if(!(e instanceof HttpException)||!['TARGET_INELIGIBLE','PLACEMENT_UNAVAILABLE','TARGET_EXPIRES_EARLY','BOOST_OVERLAP','PLACEMENT_FULL'].includes((e.getResponse() as any)?.error?.code))throw e;
       resolution=true;
     }
-    if(!resolution)try{await useDiscount(this.store,owner,country,boost.price_snapshot,new Date(),boost.id);}catch(error){if((error as any).getResponse?.()?.error?.code!=='OFFER_CHANGED')throw error;resolution=true;}
+    const bankCheckout=evidence&&p.provider==='vtb'?await this.store.get(p.original_transaction_id??''):undefined;
+    if(!resolution)try{await useDiscount(this.store,owner,country,boost.price_snapshot,bankCheckout?.created_at?new Date(bankCheckout.created_at):new Date(),boost.id);}catch(error){if((error as any).getResponse?.()?.error?.code!=='OFFER_CHANGED')throw error;resolution=true;}
     return this.store.put({...boost,status:resolution?'resolution_required':'active',provenance:'paid',provider:p.provider,transaction_id:p.transaction_id,confirmed_at:new Date().toISOString(),version:boost.version+1});
   }
   async previewAdminBoost(country:string,b:any,excludedId?:string) {

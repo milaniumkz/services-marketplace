@@ -1,4 +1,5 @@
 import '../advertising/web_ads.dart';
+import 'bank_payment.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -88,6 +89,10 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
         final current = sessionGuard();
         if (!current()) return;
         final Json result;
+        if(offer['hosted_checkout']==true){
+          final payment=await api.request('/billing/vtb/checkout',method:'POST',body:{'offer_id':offer['id'],'amount_minor':offer['amount_minor'],'currency':offer['currency'],'accepted':true});
+          if(current())widget.onGo('bank-payment-open',payment['id']);return;
+        }
         if (offer['is_test'] == true) {
           result = await api
               .request('/billing/test-purchase', method: 'POST', body: {
@@ -347,6 +352,10 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
           () => run(() async {
                 final api = widget.api;
                 final current = sessionGuard();
+                if(widget.gateway is DisconnectedCommerceGateway){final pending=await api.request('/billing/vtb/pending');
+                if(!current())return;
+                if(items(pending).isNotEmpty){widget.onGo('bank-payment',items(pending).first['id']);return;}
+                if(pending['enabled']==true){widget.onGo('my-access',null);return;}}
                 final receipts = await widget.gateway.restore();
                 if (!current()) return;
                 String? pendingCheck;
@@ -516,7 +525,8 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                   const Notice(
                       'Тестовая подписка. Деньги не списываются, автоматического продления нет.'),
                 if(r['is_ad_supported']==true)...[const Notice('Подписка получена за рекламу. Деньги не списываются, автоматического продления нет.'),WebRewardEntry(api:widget.api,target:r['plan'],onSelect:(target)=>widget.onGo('reward',target))],
-                if (r['is_test'] != true && r['is_ad_supported']!=true) ...[
+                if(r['provider']=='vtb')const Notice('Автоматическое списание с карты выключено. Продлить доступ или сменить тариф можно в разделе «Мой доступ».'),
+                if (r['is_test'] != true && r['is_ad_supported']!=true && r['provider']!='vtb') ...[
                   const SizedBox(height: 20),
                   const UiText(
                       'Отключение автопродления не закрывает уже оплаченный срок. Для изменения условий откройте управление подпиской и дождитесь подтверждения провайдера.',
@@ -577,6 +587,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                       : 'Поиск заказов и публикация услуг исполнителя.',
                   style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
               const SizedBox(height: 20),
+              PendingBankPayments(api:widget.api,onGo:widget.onGo),
               if (offers.length > 1 || (offer == null && offers.isNotEmpty))
                 for (final r in offers)
                   ListTile(
@@ -648,6 +659,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                     style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
                 const SizedBox(height: 20),
               ],
+              if(offer?['bank_test']==true)const Notice('Тестовая оплата на странице ВТБ. Реальные деньги не списываются; используйте тестовые карты банка.'),
               if (offer?['is_test'] == true)
                 const Notice(
                     'Тестовая оплата без списания денег. Срок и условия выбранного доступа указаны выше.',

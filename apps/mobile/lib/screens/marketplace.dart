@@ -1,3 +1,4 @@
+import 'bank_payment.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../core/native_diagnostics.dart';
 import 'face_access.dart';
@@ -466,6 +467,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     JobaPush.instance.onOpen=(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');};
     unawaited(JobaPush.instance.attach(api));
     if(!pushLinkHandled&&Uri.base.queryParameters['joba_push']=='notifications'){pushLinkHandled=true;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');});}
+    if(!pushLinkHandled&&RegExp(r'^[0-9a-f-]{36}$',caseSensitive:false).hasMatch(Uri.base.queryParameters['joba_payment']??'')){pushLinkHandled=true;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&!locked&&!authNavigationBlocked)go('bank-payment',Uri.base.queryParameters['joba_payment']);});}
     refreshUnread();unreadTimer=Timer.periodic(const Duration(seconds:30),(_)=>refreshUnread());
     final uri = api
         .url('/events/ws')
@@ -593,8 +595,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     setState(() {
       if (!executor && ['home', 'account', 'orders'].contains(next)) executorSetupRequested = false;
       authCredentialFailure = false;
-      if(next=='test-payment-success'||next=='my-access'&&['checkout','payment-pending','restore'].contains(route)){
+      if(next=='test-payment-success'||next=='my-access'&&['checkout','payment-pending','restore','bank-payment','bank-payment-open'].contains(route)){
         history..clear()..add(('home',null));if(next=='test-payment-success')history.add(('my-access',null));
+      }else if(next=='bank-payment'&&route=='bank-payment-open'&&objectId==id){
       }else if(next=='published'||next=='publish'&&route=='create'){
         history..clear()..add(('home',null))..add(('orders',null));
         ordersBucket=next=='published'?'active':'drafts';
@@ -1281,6 +1284,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return page('Платежи и возвраты', RefundsScreen(api: api, onSupport: () => go('support')), titleOffset: -12);
       case 'my-access':
         return accessScreen();
+      case 'bank-payment':
+      case 'bank-payment-open':
+        return page('Оплата ВТБ',BankPaymentScreen(key:ValueKey('bank:$route:$objectId'),api:api,id:objectId!,autoOpen:route=='bank-payment-open',onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'test-payment-success':
       case 'checkout':
       case 'manage-subscription':

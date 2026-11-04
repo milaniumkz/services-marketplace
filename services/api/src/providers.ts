@@ -9,6 +9,9 @@ export interface VerifiedPurchase {
 export interface VerifiedRefund { environment:'sandbox'|'production';provider:string;request_id:string;refund_id:string;transaction_id:string;user_id:string;country:string;amount_minor:number;currency:string;status:'pending'|'succeeded'|'failed'; }
 export interface BillingProvider {
   readonly name: string;
+  readonly countries?: readonly string[];
+  readonly hostedCheckout?: boolean;
+  readonly environment?: 'sandbox' | 'production';
   requestRefund?(request:{request_id:string;transaction_id:string;user_id:string;country:string;amount_minor:number;currency:string}):Promise<{reference:string}>;
   verifyRefund?(requestId:string,accountId:string):Promise<VerifiedRefund>;
   verifyPurchase(reference: string, accountId: string): Promise<VerifiedPurchase>;
@@ -31,6 +34,8 @@ export interface FileScanner { scan(file:Buffer,mime:string):Promise<'clean'|'in
 export interface PdfSanitizer { sanitize(file:Buffer):Promise<Buffer>; }
 export class Providers {
   readonly billing=new Map<string,BillingProvider>();
+  billingFor(country:string){return [...this.billing.values()].some(p=>!p.countries||p.countries.includes(country));}
+  hostedFor(country:string){return [...this.billing.values()].find(p=>p.hostedCheckout&&(!p.countries||p.countries.includes(country)));}
   readonly rewards=new Map<string,RewardProvider>();
   readonly banners=new Map<string,BannerProvider>();
   push?:PushProvider;

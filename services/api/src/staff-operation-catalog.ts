@@ -1,5 +1,6 @@
 // Explicit reviewable API operation catalogue. No wildcards may be assigned.
 export const staffOperations=[
+{id:'GET /admin/vtb-status',method:'GET',path:'/admin/vtb-status',block:'price-versions',label:'Смотреть состояние оплаты ВТБ'},
   {id:'GET /admin/mobile-crashes',method:'GET',path:'/admin/mobile-crashes',block:'dashboard',label:'Просматривать сбои мобильного приложения'},
 {id:'DELETE /admin/orders/{id}',method:'DELETE',path:'/admin/orders/{id}',block:'orders',label:'Удалять заказ'},
 {id:'PUT /admin/languages',method:'PUT',path:'/admin/languages',block:'languages',label:'Изменять список языков общения'},

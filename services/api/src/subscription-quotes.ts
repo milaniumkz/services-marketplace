@@ -14,30 +14,32 @@ export async function subscriptionState(store:Store,user:RecordData,now=new Date
  const premium=periods.some(r=>periodActive(r,now)&&periodPlan(r)==='premium'&&(!r.is_upgrade||current.length>0)),standard=current.some(r=>periodPlan(r)==='standard');
  return {periods,bases,current,premium,standard,paid_until:bases.reduce((v,r)=>Math.max(v,Date.parse(r.valid_until)),now.getTime())};
 }
-async function contextKey(store:Store,user:RecordData,now=new Date()){
+export async function quoteContext(store:Store,user:RecordData,now=new Date()){
  const state=await subscriptionState(store,user,now),catalog=(await store.all('subscription_catalog',user.country))[0],settings=await testPaymentSettings(store,user.country,false);
  const discounts=(await store.select('referral_discount',user.country,{owner:user.id,limit:1000})).filter(d=>d.status==='active'&&d.valid_until>now.toISOString()).sort((a,b)=>a.id.localeCompare(b.id));
  const reservations=(await store.select('boost',user.country,{owner:user.id,limit:1000})).filter(b=>['reserved','payment_pending'].includes(b.status)&&b.reservation_expires_at>now.toISOString()&&b.price_snapshot?.discount_id).map(b=>[b.id,b.version]).sort();
- const context=createHash('sha256').update(JSON.stringify({reservations,role:subscriptionRole(user),catalog:catalog?.version??0,settings:settings.version,periods:state.periods.map(s=>[s.id,s.version,s.status]).sort(),discounts:discounts.map(d=>[d.id,d.version])})).digest('hex');
+ const bankReservations=(await store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>['registering','pending'].includes(p.status)&&p.expires_at>now.toISOString()).map(p=>p.id).sort();
+ const context=createHash('sha256').update(JSON.stringify({bankReservations,reservations,role:subscriptionRole(user),catalog:catalog?.version??0,settings:settings.version,periods:state.periods.map(s=>[s.id,s.version,s.status]).sort(),discounts:discounts.map(d=>[d.id,d.version])})).digest('hex');
  return {state,catalog,settings,context};
 }
 export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordData,now=new Date()){
- const {state,catalog,settings,context}=await contextKey(store,user,now),role=subscriptionRole(user);
+ const {state,catalog,settings,context}=await quoteContext(store,user,now),role=subscriptionRole(user);
  const raw=await commerce.offers(user.country,role,role==='executor'&&state.standard&&!state.premium);
- if(!settings.enabled||commerce.providers.billing.size)return {...raw,subscription_state:{paid_until:new Date(state.paid_until).toISOString(),premium:state.premium,standard:state.standard}};
+ const hosted=raw.items.some(o=>o.hosted_checkout===true);
+ if((!settings.enabled||commerce.providers.billingFor(user.country))&&!hosted)return {...raw,subscription_state:{paid_until:new Date(state.paid_until).toISOString(),premium:state.premium,standard:state.standard}};
  const prior=(await store.select('checkout_quote',user.country,{owner:user.id,limit:1000})).filter(q=>q.status==='available'&&q.offer?.calculation_version===2&&q.context===context&&q.expires_at>now.toISOString());
- const templates:any[]=raw.items.filter(o=>o.is_test&&!(role==='executor'&&((state.standard&&!state.premium&&o.plan==='premium')||(state.premium&&o.plan==='standard')))).map(o=>({...o,offer_kind:o.plan==='top100'?'addon':state.bases.length?'renewal':'purchase'}));
+ const templates:any[]=raw.items.filter(o=>(o.is_test||o.hosted_checkout)&&!(role==='executor'&&((state.standard&&!state.premium&&o.plan==='premium')||(state.premium&&o.plan==='standard')))).map(o=>({...o,offer_kind:o.plan==='top100'?'addon':state.bases.length?'renewal':'purchase'}));
  if(role==='executor'&&state.standard&&!state.premium){
   const current=state.current.filter(s=>periodPlan(s)==='standard').sort((a,b)=>Date.parse(a.valid_until)-Date.parse(b.valid_until))[0];
   const futurePremium=state.bases.filter(s=>periodPlan(s)==='premium'&&Date.parse(s.valid_from??s.created_at)>now.getTime()).sort((a,b)=>Date.parse(a.valid_from??a.created_at)-Date.parse(b.valid_from??b.created_at))[0];
   const cap=futurePremium?Date.parse(futurePremium.valid_from??futurePremium.created_at):state.paid_until;
   const end=Math.max(Date.parse(current.valid_until),cap),standardPrice=catalog?.prices?.standard??100000,premiumPrice=catalog?.prices?.premium??150000;
   const duration=(end-now.getTime())/1000,amount=Math.ceil(Math.max(0,premiumPrice-standardPrice)*duration/(30*86400));
-  const premiumOffer=raw.items.find(o=>o.plan==='premium'&&o.is_test);
+  const premiumOffer=raw.items.find(o=>o.plan==='premium'&&(o.is_test||o.hosted_checkout));
   if(premiumOffer&&duration>0)templates.unshift({...premiumOffer,offer_kind:'upgrade',title:'Перейти на Премиум',amount_minor:amount,duration_seconds:duration,valid_until:new Date(end).toISOString()});
  }
  if(role==='executor'&&state.premium){
-  const standardOffer=raw.items.find(o=>o.plan==='standard'&&o.is_test);
+  const standardOffer=raw.items.find(o=>o.plan==='standard'&&(o.is_test||o.hosted_checkout));
   if(standardOffer&&standardOffer.amount_minor>0){
    // Value the unused portion at its purchased price, not today's tariff.
    // Scheduled periods and the separately paid Premium upgrade are included once.
@@ -74,12 +76,12 @@ export async function buyTestQuote(store:Store,commerce:Commerce,user:RecordData
  const quote=await store.get(String(b.offer_id));
  if(!quote||quote.kind!=='checkout_quote'||quote.country!==user.country||quote.owner!==user.id)fail('OFFER_CHANGED','Предложение недоступно. Обновите условия оплаты');
  await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-periods:'+user.country+':'+user.id]);
- const activeMode=await testPaymentSettings(store,user.country,commerce.providers.billing.size>0);
- if(!activeMode.enabled||commerce.providers.billing.size)fail('TEST_PAYMENTS_UNAVAILABLE','Тестовая оплата выключена');
+ const activeMode=await testPaymentSettings(store,user.country,commerce.providers.billingFor(user.country));
+ if(!activeMode.enabled||commerce.providers.billingFor(user.country))fail('TEST_PAYMENTS_UNAVAILABLE','Тестовая оплата выключена');
  if(quote.offer.role!==subscriptionRole(user))fail('OFFER_CHANGED','Выберите предложение текущей роли');
  if(quote.status==='consumed'){const subscription=await store.get(quote.subscription_id);if(subscription)return {subscription,is_test:true,duplicate:true};}
- const {state,settings,context}=await contextKey(store,user,now),offer=quote.offer;
- if(!settings.enabled||commerce.providers.billing.size)fail('TEST_PAYMENTS_UNAVAILABLE','Тестовая оплата выключена');
+ const {state,settings,context}=await quoteContext(store,user,now),offer=quote.offer;
+ if(!settings.enabled||commerce.providers.billingFor(user.country))fail('TEST_PAYMENTS_UNAVAILABLE','Тестовая оплата выключена');
  if(quote.offer?.calculation_version!==2||quote.status!=='available'||quote.expires_at<=now.toISOString()||quote.context!==context)fail('OFFER_CHANGED','Цена или подписка изменилась. Обновите условия оплаты');
  if(b.amount_minor!==offer.amount_minor||b.currency!==offer.currency)fail('OFFER_CHANGED','Итоговая цена изменилась. Обновите условия оплаты');
  if(subscriptionRole(user)!==offer.role||!(user.roles??['customer']).includes(offer.role))fail('ROLE_REQUIRED','Выберите тариф текущей роли',403);
@@ -89,7 +91,11 @@ export async function buyTestQuote(store:Store,commerce:Commerce,user:RecordData
  if(offer.offer_kind==='upgrade'&&(!state.standard||state.premium))fail('OFFER_CHANGED','Текущий тариф изменился');
  if(offer.offer_kind==='downgrade'&&!state.premium)fail('OFFER_CHANGED','Текущий тариф изменился');
  if(offer.plan==='standard'&&state.premium&&offer.offer_kind!=='downgrade')fail('OFFER_CHANGED','Выберите немедленный переход на Стандарт с пересчётом остатка');
- await useDiscount(store,user.id,user.country,offer,now);
+ return fulfillQuotedSubscription(store,user,quote,state,offer,now);
+}
+
+export async function fulfillQuotedSubscription(store:Store,user:RecordData,quote:RecordData,state:Awaited<ReturnType<typeof subscriptionState>>,offer:any,now=new Date(),proof?:{provider:string;environment:'sandbox'|'production';transaction_id:string;payment_id:string;created_at:string}){
+ await useDiscount(store,user.id,user.country,offer,proof?new Date(proof.created_at):now,proof?.payment_id);
  const seconds=offer.offer_kind==='upgrade'?(Date.parse(offer.valid_until)-now.getTime())/1000:30*86400+(offer.bonus_seconds??0);
  if(seconds<=0)fail('OFFER_CHANGED','Оплаченный период уже закончился');
  if(offer.offer_kind==='downgrade'){
@@ -99,10 +105,26 @@ export async function buyTestQuote(store:Store,commerce:Commerce,user:RecordData
    for(const g of grants)await store.put({...g,valid_until:now.toISOString(),revoked_at:now.toISOString(),version:g.version+1});
   }
  }
- const subscription=await createPeriod(store,user,{plan:offer.plan,seconds,from:offer.starts_at??undefined,price:offer.offer_kind==='downgrade'?{...offer,period_total_value_minor:offer.amount_minor+offer.credit_amount_minor,duration_seconds:seconds}:offer,provider:'test',is_test:true,is_upgrade:offer.offer_kind==='upgrade',quote_id:quote.id},now);
+ const from=offer.offer_kind==='renewal'?new Date(Math.max(now.getTime(),state.paid_until,Date.parse(offer.starts_at??now.toISOString()))).toISOString():offer.starts_at??undefined;
+ const created=await createPeriod(store,user,{plan:offer.plan,seconds,from,price:offer.offer_kind==='downgrade'?{...offer,period_total_value_minor:offer.amount_minor+offer.credit_amount_minor,duration_seconds:seconds}:offer,provider:proof?.provider??'test',is_test:!proof||proof.environment==='sandbox',is_upgrade:offer.offer_kind==='upgrade',quote_id:quote.id},now);
+ const subscription=proof?await store.put({...created,environment:proof.environment,current_transaction_id:proof.transaction_id,original_transaction_id:proof.payment_id,version:created.version+1}):created;
  const row=(kind:string,data:any):RecordData=>({id:randomUUID(),kind,owner:user.id,country:user.country,version:1,created_at:now.toISOString(),...data});
- await store.put(row('payment_transaction',{provider:'test',is_test:true,environment:'sandbox',transaction_id:randomUUID(),operation:'test_purchase',state:'active',benefit:'subscription',source_id:subscription.id,amount_minor:offer.amount_minor,original_amount_minor:offer.original_amount_minor,discount_id:offer.discount_id,discount_percent:offer.discount_percent,cash_amount_minor:0,currency:offer.currency,accepted_terms:true}));
- await store.put(row('audit',{actor_id:user.id,action:'billing.test_subscription_created',target_id:subscription.id,reason:'Подтверждённая пользователем имитация оплаты без списания денег',plan:offer.plan,offer_kind:offer.offer_kind}));
+ await store.put(row('payment_transaction',{provider:proof?.provider??'test',is_test:!proof||proof.environment==='sandbox',environment:proof?.environment??'sandbox',transaction_id:proof?.transaction_id??randomUUID(),original_transaction_id:proof?.payment_id,bank_checkout_id:proof?.payment_id,operation:proof?(offer.offer_kind==='renewal'?'renewal':'purchase'):'test_purchase',state:'active',benefit:'subscription',source_id:subscription.id,amount_minor:offer.amount_minor,original_amount_minor:offer.original_amount_minor,discount_id:offer.discount_id,discount_percent:offer.discount_percent,cash_amount_minor:proof?.environment==='production'?offer.amount_minor:0,currency:offer.currency,accepted_terms:true}));
+ await store.put(row('audit',{actor_id:user.id,action:proof?'billing.vtb_subscription_created':'billing.test_subscription_created',target_id:subscription.id,reason:proof?'Подтверждённая сервером оплата ВТБ':'Подтверждённая пользователем имитация оплаты без списания денег',plan:offer.plan,offer_kind:offer.offer_kind}));
  await store.put({...quote,status:'consumed',subscription_id:subscription.id,version:quote.version+1});
- return {subscription,is_test:true,duplicate:false};
+ return {subscription,is_test:!proof||proof.environment==='sandbox',duplicate:false};
+}
+
+export async function validateHostedQuote(store:Store,commerce:Commerce,user:RecordData,b:any,now=new Date()) {
+ if(user.status!=='active'||user.verification!=='passed')fail('VERIFICATION_REQUIRED','Сначала подтвердите личность',403);
+ if(b.accepted!==true)fail('CONSENT_REQUIRED','Подтвердите условия оплаты',403);
+ await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-periods:'+user.country+':'+user.id]);
+ const quote=await store.get(String(b.offer_id));
+ const {state,context}=await quoteContext(store,user,now);
+ if(!quote||quote.kind!=='checkout_quote'||quote.owner!==user.id||quote.country!==user.country||quote.status!=='available'||quote.expires_at<=now.toISOString()||quote.context!==context||quote.offer?.hosted_checkout!==true||quote.offer?.provider!=='vtb')fail('OFFER_CHANGED','Цена или подписка изменились. Обновите условия оплаты');
+ const offer=quote.offer,provider=commerce.providers.hostedFor(user.country);
+ if(!provider||offer.environment!==provider.environment||offer.role!==subscriptionRole(user)||!user.roles.includes(offer.role)||b.amount_minor!==offer.amount_minor||b.currency!==offer.currency)fail('OFFER_CHANGED','Условия оплаты изменились. Обновите предложение');
+ if(offer.plan==='top100'&&(!state.standard||state.premium))fail('ENTITLEMENT_REQUIRED','Для отдельного Топ-100 нужен активный Стандарт',403);
+ if(offer.offer_kind==='upgrade'&&(!state.standard||state.premium)||offer.offer_kind==='downgrade'&&!state.premium)fail('OFFER_CHANGED','Текущий тариф изменился');
+ return {quote,state,offer};
 }

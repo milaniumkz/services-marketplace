@@ -16,9 +16,10 @@ async function bootstrap() {
   await app.listen(port, process.env.API_HOST ?? '127.0.0.1');
   const stopRealtime=startRealtime(app.getHttpServer(),marketplace);
   const worker=setInterval(()=>marketplace.maintenance().catch(()=>console.error('Maintenance failed; records remain pending for retry')),60000);
+  const bankWorker=setInterval(()=>marketplace.reconcileBankPayments().catch(()=>console.error('Bank reconciliation pending; no client proof accepted')),60000);
   const fileWorker=setInterval(()=>marketplace.processPendingUploads().catch(()=>console.error('File processing failed; uploads remain private for retry')),2000);
   const pushWorker=setInterval(()=>marketplace.deliverOutbox().catch(()=>console.error('Outbox delivery failed; pending events will retry')),3000);
-  const shutdown=async()=>{clearInterval(worker);clearInterval(pushWorker);clearInterval(fileWorker);stopRealtime();await app.close();await marketplace.store.close();};
+  const shutdown=async()=>{clearInterval(worker);clearInterval(bankWorker);clearInterval(pushWorker);clearInterval(fileWorker);stopRealtime();await app.close();await marketplace.store.close();};
   process.once('SIGTERM',shutdown);process.once('SIGINT',shutdown);
 }
 void bootstrap();

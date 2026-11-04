@@ -1,3 +1,5 @@
+import {VtbGateway,loadVtbConfig} from './vtb-gateway';
+import {VtbPayments} from './vtb-payments';
 import {receiveMobileCrash,mobileCrashes} from './mobile-crashes';
 import {FaceRecovery,FaceEngine} from './face-recovery';
 import {AsyncLocalStorage} from 'node:async_hooks';
@@ -105,6 +107,7 @@ export class Marketplace {
   private scanWaiters:Array<()=>void>=[];
   store: Store;
   readonly providers: Providers;
+  readonly vtb?:VtbPayments;
   readonly commerce: Commerce;
   readonly refunds:Refunds;
   readonly files: PrivateFiles;
@@ -117,6 +120,7 @@ export class Marketplace {
     this.store=store;this.providers=providers;this.commerce=new Commerce(store,providers);this.refunds=new Refunds(store,providers);this.files=files;
     this.face=new FaceRecovery(store,files,faceEngine);
     this.configuration=new Configuration(store,providers);this.growth=new Growth(store,providers);this.branding=new Branding(store,files);
+    let bank=providers.billing.get('vtb');const bankConfig=!bank?loadVtbConfig():undefined;if(bankConfig){bank=new VtbGateway(bankConfig,store);providers.billing.set('vtb',bank);}if(bank instanceof VtbGateway)this.vtb=new VtbPayments(store,bank,this.commerce,this.growth,files,run=>this.vtbTransaction(run));
     store.transitionKinds=notificationTransitionKinds;store.transitionHook=(before,after)=>notifyTransition(store,before,after,(owner,country,type,target)=>this.notify(owner,{id:after.owner,country},type,target));
     const moderation=new Moderation(store);store.contentHook=data=>moderation.check(data);
     if(process.env.JOBA_CLAMSCAN_PATH)providers.scanner=new ClamAvScanner();
@@ -238,6 +242,7 @@ export class Marketplace {
       if(actor)assertStaffOperation(actor.user,actor.mfa,method,path,body,query);
       // Counters commit independently of rejected business commands.
       if(actor)await this.limited('mutations:'+actor.id,120);
+      if(path.startsWith('/public/billing/vtb/'))await this.limited('vtb-public:'+ip,120);
       if(path==='/public/mobile-crashes')await this.limited('mobile-crashes:'+ip,120);
       if(path==='/auth/register')await this.limited('register:'+ip,5);
       if(['/auth/login','/auth/staff-login'].includes(path)){await this.limited('login:'+ip,10);await this.limited('login-account:'+String(body.country)+':'+(path==='/auth/staff-login'?String(body.phone).trim().toLowerCase():String(body.phone)),10);}
@@ -279,7 +284,7 @@ export class Marketplace {
       if(finished.status==='rejected')fail(422,'POLICY_REJECTED','Файл не прошёл безопасную обработку');
       return finished;
     });
-    return pending;
+    return pending.then(async result=>{if(result?._vtb_action){if(!this.vtb)fail(503,'PROVIDER_UNAVAILABLE','ВТБ пока не подключён');const payment=await this.vtb!.perform(result._vtb_action,result.id);return result._vtb_action==='callback'?{accepted:true}:payment;}return result;});
   }
   private async dispatch(method: string,path: string,b: any,authorization: string|undefined,q: any,ip: string): Promise<any> {
     const db=this.store.db;
@@ -289,13 +294,21 @@ export class Marketplace {
     if(path==='/reports')path='/cases';
     if(method==='GET'&&path.startsWith('/public/site/'))return publicSitePage(this.store,this.commerce,path,q);
     if(path==='/public/web-ads'&&method==='GET'){const c=await webAdsConfig(this.store);return {enabled:c.enabled,banner_id:c.banner_id,notice:webAdNotice,notice_version:webAdNoticeVersion};}
+    if(path==='/public/billing/vtb/return'&&method==='GET'){
+      const id=String(q.payment_id??'');if(!/^[0-9a-f-]{36}$/i.test(id))fail(400,'VALIDATION_ERROR','Некорректный платёж');
+      const origin=this.vtb?.gateway.config.public_origin??'https://joba.com.kz';
+      return {public_html:'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата JOBA</title><body style="font:18px system-ui;padding:32px;max-width:600px;margin:auto"><h1>Вернитесь в JOBA</h1><p>Статус оплаты проверяется напрямую в банке. Сам возврат на эту страницу не подтверждает списание.</p><p><a href="'+origin+'/?joba_payment='+id+'">Проверить оплату в JOBA</a></p><p>Если оплачивали из установленного приложения, закройте окно банка и вернитесь в приложение.</p></body></html>'};
+    }
+    if(path==='/public/billing/vtb/callback'&&['GET','POST'].includes(method)){
+      if(!this.vtb)fail(503,'PROVIDER_UNAVAILABLE','ВТБ пока не подключён');return this.vtb!.callback(String(q.payment_id??b.payment_id??''),String(q.token??b.token??''));
+    }
     if(path==='/public/push-config'&&method==='GET')return firebasePublicConfig();
     if(path==='/public/config'&&method==='GET') {
       const controls=await this.store.all('country_control');
       return {countries:await Promise.all(Object.entries(countries).map(async ([code,c])=>{
         const control=controls.find(r=>r.country===code&&r.status==='effective');
         const cityData=await cityCatalog(this.store,code);
-        return {code,name:({KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,cities:cityData.items.map(city=>city.name),cities_count:cityData.meta.total,launch_status:'unverified',checkout_enabled:false,
+        return {code,name:({KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,cities:cityData.items.map(city=>city.name),cities_count:cityData.meta.total,launch_status:'unverified',checkout_enabled:!!this.providers.hostedFor(code),
           active:countryEnabled(code)&&(control?.payload.registration_enabled??true)&&!(control?.payload.stop_new_business??false),registration_enabled:countryEnabled(code)&&(control?.payload.registration_enabled??true),stop_new_business:!countryEnabled(code)||(control?.payload.stop_new_business??false)};
       })),subscription_enabled:true,subscription_scope:'customer_and_executor',subscription_plans:subscriptionPlans,customer_access:'subscription',banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
     }
@@ -518,11 +531,11 @@ export class Marketplace {
     if(path==='/me/monetization-config'&&method==='GET') {
       const config=(await this.store.all('monetization_config',a.country)).find(x=>x.status==='effective');
       const usage=(await db.query<{used:string;last:string|null}>("SELECT count(*) AS used,max(data->>'created_at') AS last FROM records WHERE kind='ad_session' AND country=$1 AND owner=$2 AND left(data->>'created_at',10)=$3",[a.country,a.id,new Date().toISOString().slice(0,10)])).rows[0];
-      const testMode=await testPaymentSettings(this.store,a.country,this.providers.billing.size>0);
+      const testMode=await testPaymentSettings(this.store,a.country,this.providers.billingFor(a.country));
       const usedToday=Number(usage.used),dailyCap=config?.payload.daily_cap??5;
       const last=usage.last?Date.parse(usage.last):0;
       const cooldownUntil=last?new Date(last+(config?.payload.cooldown_seconds??300)*1000).toISOString():null;
-      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:testMode.enabled,test_payments_enabled:testMode.enabled,verification_status:a.user.verification,subscription_enabled:config?.payload.subscription_enabled!==false,subscription_scope:'customer_and_executor',plans:(await this.commerce.plans(a.country)).items.filter(p=>p.role===(subscriptionRole(a.user))),country_gate:'unverified',offers:config?.payload.subscription_enabled!==false?(await checkoutOffers(this.store,this.commerce,a.user)).items:[],addons:(await this.commerce.plans(a.country)).addons};
+      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:testMode.enabled||!!this.providers.hostedFor(a.country),test_payments_enabled:testMode.enabled,verification_status:a.user.verification,subscription_enabled:config?.payload.subscription_enabled!==false,subscription_scope:'customer_and_executor',plans:(await this.commerce.plans(a.country)).items.filter(p=>p.role===(subscriptionRole(a.user))),country_gate:'unverified',offers:config?.payload.subscription_enabled!==false?(await checkoutOffers(this.store,this.commerce,a.user)).items:[],addons:(await this.commerce.plans(a.country)).addons};
     }
     if(path==='/me/entitlements'&&method==='GET'){await activatePeriods(this.store,a.user);await this.promotionGrant(a);return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};}
     if(path==='/me/verification'&&method==='GET') {
@@ -1080,6 +1093,15 @@ export class Marketplace {
       }
       return this.store.put(this.record('case_message',a,{case_id:c.id,author_type:'participant',text:text(b,'text',1,3000),upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[]}));
     }
+    if(path==='/billing/vtb/pending'&&method==='GET'&&!this.vtb)return {enabled:false,items:[]};
+    if(path.startsWith('/billing/vtb/')){
+      if(!this.vtb)fail(503,'PROVIDER_UNAVAILABLE','ВТБ пока не подключён');
+      if(path==='/billing/vtb/checkout'&&method==='POST')return this.vtb!.prepare(a.user,b);
+      if(path==='/billing/vtb/pending'&&method==='GET')return this.vtb!.list(a.user);
+      const payment=path.match(/^\/billing\/vtb\/payments\/([0-9a-f-]{36})(?:\/(cancel))?$/i);
+      if(payment&&(!payment[2]&&method==='GET'||payment[2]&&method==='POST'))return this.vtb!.owned(a.user,payment[1],payment[2]?'cancel':'poll');
+    }
+    if(['/billing/verify-purchase','/billing/restore'].includes(path)&&method==='POST'&&b.provider==='vtb'&&this.vtb)return this.vtb.byReference(a.user,String(b.transaction_reference));
     if(path==='/billing/test-purchase'&&method==='POST'){const result=await buyTestQuote(this.store,this.commerce,a.user,b);await this.growth.redeemEligible(a.id,a.country);return result;}
     if(path==='/billing/offers'&&method==='GET')return checkoutOffers(this.store,this.commerce,a.user);
     if(['/billing/verify-purchase','/billing/restore'].includes(path)&&method==='POST'){return this.commerce.verify(a.id,a.country,String(b.provider),text(b,'transaction_reference',1,10000));}
@@ -1088,7 +1110,7 @@ export class Marketplace {
     if(path==='/me/subscriptions'&&method==='GET'){await activatePeriods(this.store,a.user);return {items:(await this.store.all('subscription',a.country)).filter(x=>x.owner===a.id).map(r=>presentSubscription(r))};}
     if(path==='/billing/refundable-payments'&&method==='GET'){
       const limit=this.pageLimit(q),after=await this.cursor(q);
-      const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND ($1='ALL' OR country=$1) AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
+      const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND ($1='ALL' OR country=$1) AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND (CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 OR data->>'provider'='vtb' AND data->>'environment'='sandbox' AND data->>'is_test'='true') AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
       const batch=rows.rows.slice(0,limit).map(x=>x.data),balances=await this.refunds.balances(batch);
       return {items:batch.map((p,i)=>({id:p.id,created_at:p.created_at,amount_minor:p.amount_minor,currency:p.currency,benefit:p.benefit,balance:balances[i]})),meta:{next_cursor:rows.rows.length>limit?await this.nextCursor(batch.at(-1)!.id,q):null}};
     }
@@ -1111,6 +1133,7 @@ export class Marketplace {
     if(path==='/promoted-listings'&&method==='GET'){const placement=String(q.placement_id??'');if(!promotedPlacements.includes(placement))fail(400,'VALIDATION_ERROR','Неизвестное размещение');await this.entitlement(a,placement.includes('.orders.')?'search_full':'view_contractors',placement.includes('.orders.'));return promotedListings(this.store,a.country,a.id,placement,q);}
     if(path==='/boost-offers'&&method==='GET'){await this.entitlement(a,'search_full');return {items:(await this.store.all('price_version',a.country)).filter(x=>x.status==='effective'&&x.payload.product_type==='boost').map(x=>({id:x.id,...x.payload})),placements:(await this.store.all('placement_policy',a.country)).filter(x=>x.status==='effective')};}
     if(path==='/boost-reservations'&&method==='POST'){const target=await this.object(String(b.target_id),a,undefined,true);await this.entitlement(a,'search_full',target.kind==='contractor');return this.growth.reserveBoost(a.id,a.country,b);}
+    if(path==='/boost-purchases/verify'&&method==='POST'&&b.provider==='vtb'&&this.vtb)return this.vtb.byReference(a.user,String(b.transaction_reference));
     if(path==='/boost-purchases/verify'&&method==='POST')return this.growth.verifyBoost(a.id,a.country,b);
     if(path==='/me/boosts'&&method==='GET'){
       if(q.bucket!==undefined&&!['active','history'].includes(q.bucket))fail(400,'VALIDATION_ERROR','Выберите раздел размещений');
@@ -1216,8 +1239,9 @@ export class Marketplace {
         await this.audit(a,'brand.bundle_read',record.id,text(q,'reason',10,1000));
         return {download_stream:await this.files.readStream(record.bundle_file_id),download_size:record.bundle_size,download_filename:'joba-icons.zip',mime:'application/zip'};
       }
-      const permission=({categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing','payment-transactions':'billing','refund-requests':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
+      const permission=({categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','vtb-status':'billing','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing','payment-transactions':'billing','refund-requests':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
+      if(path==='/admin/vtb-status'&&method==='GET')return {enabled:!!this.providers.hostedFor(a.country),environment:this.vtb?.gateway.environment??null,currency:'KZT',country:'KZ',auto_renew:false,configured:!!this.vtb};
       if(path==='/admin/mobile-crashes'&&method==='GET')return mobileCrashes(this.store,q);
       if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,_id)=>this.notify(user,a,'account.updated',user)});if(result!==undefined)return result;}
       if(section==='banner-campaigns'){if(path==='/admin/banner-campaigns'&&method==='GET')return this.page('banner_campaign',a,q,{statuses:q.status?[String(q.status)]:undefined});const result=await bannerCampaigns(this.store,a,method,path,b,{object:id=>this.object(id,a,'banner_campaign'),record:data=>this.record('banner_campaign',a,data),audit:(action,id,reason)=>this.audit(a,action,id,reason)});if(result!==undefined)return result;}
@@ -1258,7 +1282,7 @@ export class Marketplace {
       if(holdRelease&&method==='POST'){const hold=await this.object(holdRelease[1],a,'legal_hold');this.version(hold,b);if(hold.status!=='active')fail(409,'STATE_CONFLICT','Удержание уже закрыто');const reason=text(b,'reason',10,1000);const result=await this.store.put({...hold,status:'released',field_snapshot:undefined,release_reason:reason,released_by:a.id,released_at:new Date().toISOString(),version:hold.version+1});await this.audit(a,'privacy.hold_released',hold.id,reason);await this.notify(hold.subject_user_id,a,'privacy.hold.released',hold.id);return result;}
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy','country-controls':'country_control',verifications:'verification'};
       if(path==='/admin/analytics'&&method==='GET'){const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');return productAnalytics(this.store,a.country,days);}
-      if(path==='/admin/test-payments'&&['GET','PUT'].includes(method)){if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Режим тестовой оплаты доступен только владельцу');return method==='GET'?testPaymentSettings(this.store,a.country,this.providers.billing.size>0):updateTestPayments(this.store,a.country,a.id,b,this.providers.billing.size>0);}
+      if(path==='/admin/test-payments'&&['GET','PUT'].includes(method)){if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Режим тестовой оплаты доступен только владельцу');return method==='GET'?testPaymentSettings(this.store,a.country,this.providers.billingFor(a.country)):updateTestPayments(this.store,a.country,a.id,b,this.providers.billingFor(a.country));}
       if(path==='/admin/server-metrics'&&method==='GET') {
         if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Показатели сервера доступны только владельцу');
         return serverMetrics();
@@ -1848,6 +1872,9 @@ export class Marketplace {
   private async audit(a:Actor,action:string,target:string,reason:string) {
     return this.store.put(this.record('audit',a,{actor_id:a.id,action,target_id:target,reason,occurred_at:new Date().toISOString()}));
   }
+  private async vtbTransaction<T>(run:()=>Promise<T>):Promise<T>{return this.exclusive(async()=>{await this.store.db.exec('BEGIN');try{const value=await run();await this.store.db.exec('COMMIT');return value;}catch(error){await this.store.db.exec('ROLLBACK');throw error;}});}
+  private bankReconciling=false;
+  async reconcileBankPayments(){if(!this.vtb||this.bankReconciling)return;this.bankReconciling=true;try{for(const id of await this.vtb.pendingIds())await this.vtb.perform('poll',id);}finally{this.bankReconciling=false;}}
   private async exclusive<T>(run:()=>Promise<T>) {const pending=this.queue.then(run,run);this.queue=pending.catch(()=>{});return pending;}
   async deliverOutbox(now=new Date()) {
     if(!this.providers.push)return {sent:0,blocked:'push_provider_unavailable'};

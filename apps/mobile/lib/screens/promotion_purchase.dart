@@ -187,7 +187,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
             final end = DateTime.tryParse('${r['reservation_expires_at']}');
             final active =
                 r['status'] == 'reserved' && end?.isAfter(widget.now()) == true;
-            final connected = widget.gateway is! DisconnectedCommerceGateway;
+            final connected = p?['provider']=='vtb'||widget.gateway is! DisconnectedCommerceGateway;
             return ActionForm(
                 stickySubmit: true,
                 externalBusy: busy,
@@ -275,6 +275,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
                   }
                   final api = widget.api;
                   final reservationId = widget.id;
+                  if(p?['provider']=='vtb'){final payment=await api.request('/billing/vtb/checkout',method:'POST',body:{'reservation_id':reservationId,'amount_minor':p!['amount_minor'],'currency':p['currency'],'accepted':true});if(ownsScreen())widget.onGo('bank-payment-open',payment['id']);return;}
                   setState(() => busy = true);
                   try {
                     if (receipt == null) {

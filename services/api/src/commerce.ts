@@ -16,12 +16,14 @@ export class Commerce {
   }
   async offers(country:string,role?:string,includeTop100=false) {
     const catalog=await this.plans(country);
-    const test=await testPaymentSettings(this.store,country,this.providers.billing.size>0);
+    const test=await testPaymentSettings(this.store,country,this.providers.billingFor(country));
     const plans=[...catalog.items,...(includeTop100?catalog.addons:[])].filter(p=>!role||p.role===role);
     const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective'&&(!role||subscriptionPlan(p.payload.plan).role===role)&&(!p.payload.plan||plans.find(plan=>plan.code===p.payload.plan)?.amount_minor===p.payload.amount_minor));
     const realOffers=prices.filter(p=>p.payload.product_type!=='boost'&&p.payload.period==='days'&&p.payload.duration_days===30&&[...subscriptionPlans,top100Addon].some(plan=>plan.code===p.payload.plan)&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}));
     const simulated=test.enabled?plans.filter(p=>Number.isSafeInteger(p.amount_minor)&&p.amount_minor!>=0).map(p=>({...p,plan:p.code,test_settings_version:test.version,catalog_version:catalog.version,id:'test-'+p.code+'-v'+catalog.version+'-s'+test.version,provider:'test',product_id:'test.joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',is_test:true,auto_renew:false})):[];
-    return {plans,items:[...realOffers,...simulated],test_payments_enabled:test.enabled};
+    const hosted=this.providers.hostedFor(country);
+    const bankOffers=hosted?plans.map(p=>({...p,plan:p.code,id:'vtb-'+p.code+'-v'+catalog.version,provider:hosted.name,product_id:'joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',hosted_checkout:true,is_test:false,environment:hosted.environment,bank_test:hosted.environment==='sandbox',auto_renew:false})):[];
+    return {plans,items:[...realOffers.filter(o=>o.provider!==hosted?.name),...bankOffers,...simulated],test_payments_enabled:test.enabled,hosted_checkout_enabled:!!hosted};
   }
   async verify(owner:string,country:string,providerName:string,reference:string) {
     const provider=this.providers.billing.get(providerName);if(!provider)fail('PROVIDER_UNAVAILABLE','Платёжный провайдер ещё не подключён');

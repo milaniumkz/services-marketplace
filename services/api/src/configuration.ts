@@ -34,7 +34,7 @@ export class Configuration {
       const provider=this.providers.billing.get(p.provider);if(!provider)fail('PROVIDER_UNAVAILABLE','Сначала подключите платёжного провайдера',503);
       const product=await provider.validateProduct(p.product_id,r.country);
       if(product.product_id!==p.product_id||product.currency!==p.currency||product.amount_minor!==p.amount_minor)fail('PRICE_MISMATCH','Цена не синхронизирована с провайдером');
-      return {provider_verified:true};
+      return {provider_verified:true,...(provider.hostedCheckout?{pricing_source:'joba_server_quote',bank_has_product_catalog:false}:{})};
     }
     if(r.kind==='monetization_config') {
       if(p.subscription_enabled===false)fail('SUBSCRIPTION_REQUIRED','Опцию подписки нельзя удалить');

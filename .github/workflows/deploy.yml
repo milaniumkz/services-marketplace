@@ -8,6 +8,10 @@ on:
         description: Use the existing one-time encrypted SSH credential channel instead of stored credentials
         type: boolean
         default: false
+      vtb_setup:
+        description: Install owner supplied VTB sandbox configuration using a single-job encrypted channel
+        type: boolean
+        default: false
       firebase_setup:
         description: Receive the owner supplied Firebase credential over a single-job encrypted channel
         type: boolean
@@ -114,6 +118,11 @@ jobs:
           SSH_PRIVATE_KEY: ${{ inputs.credential_handoff != true && secrets.JOBA_SSH_PRIVATE_KEY || '' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-deployment-credential.py
+      - name: Acquire protected VTB sandbox configuration
+        env:
+          JOBA_VTB_HANDOFF: ${{ inputs.vtb_setup && '1' || '0' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/acquire-vtb-configuration.py
       - name: Acquire protected Firebase configuration
         env:
           JOBA_FIREBASE_HANDOFF: ${{ inputs.firebase_setup && '1' || '0' }}
@@ -161,6 +170,12 @@ jobs:
             "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "umask 077; mkdir '$joba_firebase_remote'"
             "${joba_scp[@]}" "$joba_firebase_stage/service-account.json" "$joba_firebase_stage/client-config.json" scripts/install-firebase-deployment.py "root@$JOBA_SSH_HOST:$joba_firebase_remote/"
             "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "trap 'rm -rf \"$joba_firebase_remote\"' EXIT; python3 '$joba_firebase_remote/install-firebase-deployment.py' '$joba_firebase_remote'"
+          fi
+          if test -n "${JOBA_VTB_PREPARED_FILE:-}"; then
+            joba_vtb_remote="/tmp/joba-vtb-$GITHUB_SHA.json"
+            "${joba_scp[@]}" "$JOBA_VTB_PREPARED_FILE" "root@$JOBA_SSH_HOST:$joba_vtb_remote"
+            "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "install -d -m 0750 -o 1000 -g 1000 /etc/joba/payments; install -m 0600 -o 1000 -g 1000 '$joba_vtb_remote' /etc/joba/payments/vtb.json; rm -f '$joba_vtb_remote'"
+            rm -f "$JOBA_VTB_PREPARED_FILE"
           fi
           joba_remote_archive="/tmp/joba-release-$GITHUB_SHA.tgz"
           "${joba_scp[@]}" release-web.tgz "root@$JOBA_SSH_HOST:$joba_remote_archive"

@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
 export const discountServices=['standard','premium','customer','renewal','upgrade','top100','boost'] as const;
-async function holds(store:Store,user:{id:string;country:string},now:Date,exclude?:string){return (await store.select('boost',user.country,{owner:user.id,limit:1000})).filter(b=>b.id!==exclude&&['reserved','payment_pending'].includes(b.status)&&b.reservation_expires_at>now.toISOString());}
+async function holds(store:Store,user:{id:string;country:string},now:Date,exclude?:string){const boosts=(await store.select('boost',user.country,{owner:user.id,limit:1000})).filter(b=>b.id!==exclude&&['reserved','payment_pending'].includes(b.status)&&b.reservation_expires_at>now.toISOString());const bank=(await store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(b=>b.id!==exclude&&b.benefit!=='boost'&&['registering','pending'].includes(b.status)&&b.expires_at>now.toISOString());return [...boosts,...bank.map(b=>({...b,price_snapshot:b.offer}))];}
 export async function bestDiscount(store:Store,user:RecordData,service:string,action?:string,now=new Date()){
  const reserved=await holds(store,user as {id:string;country:string},now);
  const rows=(await store.select('referral_discount',user.country,{owner:user.id,limit:1000})).filter(d=>d.status==='active'&&d.valid_until>now.toISOString()&&(!d.max_uses||(d.uses??0)+reserved.filter(b=>b.price_snapshot?.discount_id===d.id).length<d.max_uses)&&(d.services?.includes('all')||d.services?.includes(service)||action&&d.services?.includes(action)));
