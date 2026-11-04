@@ -3,7 +3,7 @@ const {mkdtemp,rm}=require('node:fs/promises');const {join}=require('node:path')
 const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store'),{PrivateFiles}=require('../dist/private-files'),{Providers}=require('../dist/providers');
 const {bootstrapStaff}=require('../dist/staff-bootstrap');const {publishRoleAccess,previousNotice}=require('../../../scripts/publish-role-access.cjs');
 const sharp=require('sharp');
-test('both roles submit three private photographs; reviewer sees labeled files and only approved selfie becomes a sanitized avatar',async()=>{
+test('both roles submit three private photographs; reviewer sees labeled files and approved identity selfie never becomes a public avatar',async()=>{
  const directory=await mkdtemp(join(tmpdir(),'joba-identity-')),api=new Marketplace(new Store('memory://'),new Providers(),new PrivateFiles(directory));await api.initialize();
  try{
   const first=await publishRoleAccess(api.store);assert.equal(first.length,4);assert.ok((await publishRoleAccess(api.store)).every(r=>r.status==='already_applied'));
@@ -32,12 +32,11 @@ test('both roles submit three private photographs; reviewer sees labeled files a
    const contact=await call('GET',path,{}, {include_phone:'true',reason:'Проверка телефона заявителя'},staff);assert.equal(contact.subject.phone,'+7700000072'+index);
    const detail=await call('GET',path,{}, {include_documents:'true',reason:'Проверка двух сторон и селфи'},staff);assert.deepEqual(detail.document_refs,ids);assert.equal(detail.document_labels[2],'Селфи');
    await call('POST',path+'/decision',{expected_version:sent.version,document_revision:sent.document_revision,decision:'passed',expires_at:new Date(Date.now()+365*86400000).toISOString(),reason:'Фотографии проверены сотрудником'}, {},staff);
-   const me=await call('GET','/me');assert.equal(me.verification,'passed');assert.ok(me.avatar_id);assert.equal(ids.includes(me.avatar_id),false);
-   const avatar=await api.store.get(me.avatar_id);assert.equal(avatar.purpose,'avatar');assert.equal(avatar.derived_from,ids[2]);assert.equal(avatar.status,'clean');
-   const data=await api.files.read(avatar.id),metadata=await sharp(data).metadata(),stats=await sharp(data).stats();assert.equal(metadata.width,512);assert.equal(metadata.height,512);assert.equal(metadata.exif,undefined);assert.ok(stats.dominant.g>stats.dominant.r);
+   const me=await call('GET','/me');assert.equal(me.verification,'passed');assert.equal(me.avatar_id,undefined);
+   assert.equal((await api.store.all('upload','KZ')).filter(r=>r.owner===user.user.id&&r.source_verification_id).length,0);
    assert.equal((await call('GET','/me/verification')).items[0].document_refs,undefined);
    await call('POST','/me/consents',{document_id:doc.id,document_hash:doc.hash,accepted:false});
-   const revoked=await call('GET','/me');assert.equal(revoked.verification,'not_started');assert.equal(revoked.avatar_id,null);
+   const revoked=await call('GET','/me');assert.equal(revoked.verification,'not_started');assert.ok(revoked.avatar_id==null);
   }
  }finally{await api.store.close();await rm(directory,{recursive:true,force:true});}
 });
