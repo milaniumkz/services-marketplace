@@ -50,7 +50,7 @@ export class VtbPayments {
   return {_vtb_action:'callback',id};
  }
  private async get(id:string){return this.transaction(async()=>{const p=await this.store.get(id);if(!p||p.kind!=='bank_checkout')fail('NOT_FOUND','Платёж не найден',404);return p;});}
- private async save(id:string,data:any){return this.transaction(async()=>{const p=await this.store.get(id);if(!p)fail('NOT_FOUND','Платёж не найден',404);return this.store.put({...p,...data,version:p.version+1});});}
+ private async save(id:string,data:any){return this.transaction(async()=>{const p=await this.store.get(id);if(!p)fail('NOT_FOUND','Платёж не найден',404);if(!pending(p))return p;return this.store.put({...p,...data,version:p.version+1});});}
  async perform(action:string,id:string){
   const existing=this.work.get(id);if(existing)return existing;
   const job=this.process(action,id).finally(()=>this.work.delete(id));this.work.set(id,job);return job;
@@ -84,7 +84,7 @@ export class VtbPayments {
  private async settle(p:RecordData,status:number,free=false){
   return this.transaction(async()=>{
    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['vtb-payment:'+p.id]);
-   const payment=(await this.store.get(p.id))!;if(payment.status==='completed'||payment.status==='resolution_required')return this.present(payment);
+   const payment=(await this.store.get(p.id))!;if(!pending(payment))return this.present(payment);
    const user=await this.store.get(payment.owner),now=new Date();
    const proof={provider:'vtb',environment:payment.environment as 'sandbox'|'production',transaction_id:payment.bank_order_id??'free-'+payment.id,payment_id:payment.id,created_at:payment.created_at};
    let subscription:RecordData|undefined,boost:RecordData|undefined,resolution:string|undefined;
