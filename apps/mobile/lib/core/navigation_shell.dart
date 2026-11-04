@@ -9,7 +9,9 @@ class NavigationState {
   final Widget? banner;
   final String? bannerPlacement;
   const NavigationState(
-      {this.banner,this.bannerPlacement,required this.route,
+      {this.banner,
+      this.bannerPlacement,
+      required this.route,
       required this.executor,
       required this.enabled,
       required this.messages,
@@ -34,7 +36,9 @@ class NavigationFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final nav = navigation;
     if (nav == null) return child;
-    final banner=MediaQuery.viewInsetsOf(context).bottom==0?nav.banner:null;
+    final banner = nav.banner;
+    final bannerVisible = nav.bannerPlacement != null &&
+        MediaQuery.viewInsetsOf(context).bottom == 0;
     return Padding(
         padding:
             EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -43,7 +47,11 @@ class NavigationFrame extends StatelessWidget {
             removeBottom: true,
             child: Column(children: [
               Expanded(child: child),
-              if(banner!=null)Material(color:Colors.white,child:banner),
+              if (banner != null)
+                Visibility(
+                    visible: bannerVisible,
+                    maintainState: true,
+                    child: Material(color: Colors.white, child: banner)),
               Material(
                   color: Colors.white,
                   child: JobaNavigation(

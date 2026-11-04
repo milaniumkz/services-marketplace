@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
+import 'external_activity.dart';
 
 Future<Map<String, dynamic>?> currentLocation() =>
-    const MethodChannel('joba.location')
+    withExternalActivity(() => const MethodChannel('joba.location')
         .invokeMapMethod<String, dynamic>('current')
-        .timeout(const Duration(seconds: 20));
+        .timeout(const Duration(seconds: 45)));

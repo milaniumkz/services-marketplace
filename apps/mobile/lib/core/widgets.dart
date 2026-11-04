@@ -1,11 +1,11 @@
 import 'field_validation.dart';
+import 'device_location.dart';
 import 'package:intl/intl.dart';
 import 'design_widgets.dart' show JobaBadge;
 import 'design_states.dart';
 import '../screens/search_filters.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'l10n.dart';
 import 'api.dart';
 import 'theme.dart';
@@ -1198,16 +1198,13 @@ class _SearchListingsState extends State<SearchListings> {
     if (choosing) return;
     setState(() => choosing = true);
     try {
-      final point = await const MethodChannel('joba.location')
-          .invokeMapMethod<String, dynamic>('current');
+      final point = await currentDeviceLocation();
       if (!mounted) return;
-      if (point == null)
-        throw ApiException('GPS_DENIED', 'Выберите город вручную');
       setState(() {
         filters.remove('city');
         filters.addAll({
-          'near_lat': ((point['latitude'] as num) * 100).round() / 100,
-          'near_lon': ((point['longitude'] as num) * 100).round() / 100,
+          'near_lat': point['latitude'],
+          'near_lon': point['longitude'],
           'radius_km': 50
         });
       });

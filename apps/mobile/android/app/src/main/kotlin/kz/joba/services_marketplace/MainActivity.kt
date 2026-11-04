@@ -28,54 +28,90 @@ class MainActivity : FlutterFragmentActivity() {
     }
     private var locationResult: MethodChannel.Result? = null
     private val locationRequest = 18035
+    private val locationHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val locationSignals = mutableListOf<androidx.core.os.CancellationSignal>()
+    private var locationDeadline: Runnable? = null
+
+    private fun finishLocation(result: MethodChannel.Result, location: android.location.Location?, code: String = "LOCATION_UNAVAILABLE") {
+        if (locationResult !== result) return
+        locationResult = null
+        locationDeadline?.let { locationHandler.removeCallbacks(it) }
+        locationDeadline = null
+        locationSignals.forEach { try { it.cancel() } catch (_: Exception) {} }
+        locationSignals.clear()
+        if (location == null) result.error(code, "Не удалось определить местоположение. Выберите точку на карте.", null)
+        else result.success(mapOf("latitude" to location.latitude, "longitude" to location.longitude, "accuracy" to location.accuracy))
+    }
+
     private fun locate(result: MethodChannel.Result) {
-        if (locationResult != null) { result.error("LOCATION_BUSY", "Location request is active", null); return }
-        locationResult=result
-        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            androidx.core.app.ActivityCompat.requestPermissions(this,arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION,android.Manifest.permission.ACCESS_COARSE_LOCATION),locationRequest)
-        } else readLocation()
-    }
-    override fun onRequestPermissionsResult(requestCode:Int, permissions:Array<out String>, grants:IntArray) {
-        super.onRequestPermissionsResult(requestCode,permissions,grants)
-        if(requestCode==locationRequest) {
-            if(grants.any { it==android.content.pm.PackageManager.PERMISSION_GRANTED }) readLocation()
-            else { locationResult?.error("GPS_DENIED","Choose a city manually",null);locationResult=null }
-        }
-    }
-    private fun readLocation() {
-        val result=locationResult?:return
-        val manager=getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
-        val cancellation=android.os.CancellationSignal()
-        var listener:android.location.LocationListener?=null
-        fun finish(location:android.location.Location?) {
-            if(locationResult!==result)return
-            locationResult=null
-            cancellation.cancel()
-            listener?.let { manager.removeUpdates(it) }
-            if(location==null)result.error("LOCATION_UNAVAILABLE","Choose a point manually",null)
-            else result.success(mapOf("latitude" to location.latitude,"longitude" to location.longitude,"accuracy" to location.accuracy))
-        }
+        if (locationResult != null) { result.error("LOCATION_BUSY", "Определение местоположения уже выполняется", null); return }
+        locationResult = result
+        locationDeadline = Runnable { finishLocation(result, null) }.also { locationHandler.postDelayed(it, 40000) }
         try {
-            val fine=androidx.core.content.ContextCompat.checkSelfPermission(this,android.Manifest.permission.ACCESS_FINE_LOCATION)==android.content.pm.PackageManager.PERMISSION_GRANTED
-            val gps=fine&&manager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
-            val network=manager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
-            if(!gps&&!network){finish(null);return}
-            val provider=if(gps)android.location.LocationManager.GPS_PROVIDER else android.location.LocationManager.NETWORK_PROVIDER
-            if(android.os.Build.VERSION.SDK_INT>=30){
-                manager.getCurrentLocation(provider,cancellation,mainExecutor){location->if(location!=null||!gps||!network)finish(location) else manager.getCurrentLocation(android.location.LocationManager.NETWORK_PROVIDER,cancellation,mainExecutor){fallback->finish(fallback)}}
-                if(gps&&network)android.os.Handler(mainLooper).postDelayed({if(locationResult===result)try{manager.getCurrentLocation(android.location.LocationManager.NETWORK_PROVIDER,cancellation,mainExecutor){location->finish(location)}}catch(_:Exception){finish(null)}},8000)
-            }else{
-                listener=object:android.location.LocationListener{
-                    override fun onLocationChanged(location:android.location.Location){finish(location)}
-                    override fun onProviderEnabled(provider:String){}
-                    override fun onProviderDisabled(provider:String){}
-                    @Deprecated("Legacy callback") override fun onStatusChanged(provider:String,status:Int,extras:android.os.Bundle?){}
-                }
-                manager.requestSingleUpdate(provider,listener!!,mainLooper)
-                if(gps&&network)manager.requestSingleUpdate(android.location.LocationManager.NETWORK_PROVIDER,listener!!,mainLooper)
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION), locationRequest)
+            } else readLocation()
+        } catch (_: Exception) { finishLocation(result, null) }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grants: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grants)
+        if (requestCode == locationRequest) {
+            if (grants.any { it == android.content.pm.PackageManager.PERMISSION_GRANTED }) readLocation()
+            else locationResult?.let { finishLocation(it, null, "GPS_DENIED") }
+        }
+    }
+
+    private fun readLocation() {
+        val result = locationResult ?: return
+        try {
+            val manager = getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+            val fine = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            val providers = listOf(android.location.LocationManager.NETWORK_PROVIDER, android.location.LocationManager.GPS_PROVIDER)
+                .filter { (it != android.location.LocationManager.GPS_PROVIDER || fine) && manager.isProviderEnabled(it) }
+            if (providers.isEmpty()) { finishLocation(result, null); return }
+            // Never use stale city/country coordinates as the device position.
+            val cached = providers.mapNotNull { provider ->
+                try { manager.getLastKnownLocation(provider) } catch (_: Exception) { null }
+            }.filter {
+                val age = (android.os.SystemClock.elapsedRealtimeNanos() - it.elapsedRealtimeNanos) / 1000000
+                age in 0..120000 && it.hasAccuracy() && it.accuracy <= 5000 && validLocation(it)
+            }.minByOrNull { it.accuracy }
+            if (cached != null && cached.accuracy <= 200 && (android.os.SystemClock.elapsedRealtimeNanos() - cached.elapsedRealtimeNanos) / 1000000 <= 30000) {
+                finishLocation(result, cached); return
             }
-            android.os.Handler(mainLooper).postDelayed({finish(null)},15000)
-        } catch (_:Exception) { finish(null) }
+            locationDeadline?.let { locationHandler.removeCallbacks(it) }
+            locationDeadline = Runnable { finishLocation(result, cached) }.also { locationHandler.postDelayed(it, 15000) }
+            var remaining = providers.size
+            // Race network and GPS: GPS may never get a fix indoors. A null
+            // response from either provider must not discard the other request.
+            for (provider in providers) {
+                if (locationResult !== result) break
+                val cancellation = androidx.core.os.CancellationSignal()
+                locationSignals.add(cancellation)
+                try {
+                    androidx.core.location.LocationManagerCompat.getCurrentLocation(manager, provider, cancellation, ContextCompat.getMainExecutor(this)) { location ->
+                        if (locationResult === result) {
+                            remaining--
+                            if (location != null && validLocation(location)) finishLocation(result, location)
+                            else if (remaining == 0) finishLocation(result, cached)
+                        }
+                    }
+                } catch (_: Exception) {
+                    remaining--
+                    if (remaining == 0) finishLocation(result, cached)
+                }
+            }
+        } catch (_: Exception) { finishLocation(result, null) }
+    }
+
+    private fun validLocation(location: android.location.Location): Boolean =
+        location.latitude.isFinite() && location.longitude.isFinite() &&
+            location.latitude in -90.0..90.0 && location.longitude in -180.0..180.0
+
+    override fun onDestroy() {
+        locationResult?.let { finishLocation(it, null, "LOCATION_CANCELLED") }
+        super.onDestroy()
     }
     private var exportResult: MethodChannel.Result? = null
     private var exportSource: java.io.File? = null
@@ -119,6 +155,23 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
+        MethodChannel(engine.dartExecutor.binaryMessenger, "joba.runtime").setMethodCallHandler { call, result ->
+            if (call.method != "previousExits") { result.notImplemented(); return@setMethodCallHandler }
+            try {
+                if (Build.VERSION.SDK_INT < 30) { result.success(emptyList<Map<String, Any>>()); return@setMethodCallHandler }
+                val preferences = getSharedPreferences("joba-runtime", MODE_PRIVATE)
+                val seen = preferences.getLong("last-exit", 0L)
+                val manager = getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                val exits = manager.getHistoricalProcessExitReasons(packageName, 0, 5)
+                val recent = exits.filter { it.timestamp > seen && it.timestamp > System.currentTimeMillis() - 7 * 86400000L }
+                val newest = exits.maxOfOrNull { it.timestamp }
+                if (newest != null) preferences.edit().putLong("last-exit", newest).apply()
+                result.success(recent.filter { it.reason in listOf(2, 3, 4, 5, 6, 7, 9) }.map {
+                    mapOf("reason" to it.reason, "status" to it.status, "timestamp" to it.timestamp, "pss_kb" to it.pss, "rss_kb" to it.rss)
+                })
+            } catch (_: Exception) { result.success(emptyList<Map<String, Any>>()) }
+        }
+
         MethodChannel(engine.dartExecutor.binaryMessenger,"joba.location").setMethodCallHandler {call,result->
             if(call.method=="current")locate(result) else result.notImplemented()
         }

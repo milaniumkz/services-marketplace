@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../core/native_diagnostics.dart';
 import 'face_access.dart';
 import '../core/release_channel.dart';
 import '../core/external_activity.dart';
@@ -599,6 +601,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         if(route=='create'){unawaited(orderDrafts.clear(currentOrderScope));draftOrderLocation=null;newOrderValues.clear();draftPhotos.clear();draftWindow=null;draftCategory=null;}
       }else{history.add((route, objectId));}
       route = next;
+      NativeDiagnostics.screen(next);
       if (next == 'catalog') catalogPresentation = 'loading';
       if (next == 'export-pending') exportTitle = 'Экспорт готовится';
       if (next == 'select-contractor') {
@@ -740,10 +743,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     const placements={'home','jobs','catalog','account','orders','messages','notifications','reviews','invitations','top'};
     return placements.contains(route)?'$route:${api.session?['user']?['id']}':null;
   }
-  Widget? get navigationBanner=>bannerPlacement==null?null:WebAdsPanel(key:ValueKey('footer-ad:$bannerPlacement'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'));
+  Widget? get navigationBanner=>kIsWeb&&bannerPlacement==null?null:WebAdsPanel(key:ValueKey(kIsWeb?'footer-ad:$bannerPlacement':'footer-ad:${api.sessionGeneration}:${api.session?['user']?['id']}'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'));
   Widget navigationWithAd(Widget navigation){
-    final banner=MediaQuery.viewInsetsOf(context).bottom==0?navigationBanner:null;
-    return banner==null?navigation:Column(mainAxisSize:MainAxisSize.min,children:[Material(color:Colors.white,child:banner),navigation]);
+    final banner=navigationBanner;
+    return banner==null?navigation:Column(mainAxisSize:MainAxisSize.min,children:[Visibility(visible:bannerPlacement!=null&&MediaQuery.viewInsetsOf(context).bottom==0,maintainState:true,child:Material(color:Colors.white,child:banner)),navigation]);
   }
   Widget listBody(List<Widget> content) =>
       ListView(padding: const EdgeInsets.all(20), children: content);
