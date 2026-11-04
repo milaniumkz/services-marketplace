@@ -11,6 +11,8 @@ env = dict(os.environ, JOBA_UPLOAD_KEYSTORE=config['keystore'],
            JOBA_UPLOAD_STORE_PASSWORD=config['store_password'],
            JOBA_UPLOAD_KEY_ALIAS=config['alias'], JOBA_UPLOAD_KEY_PASSWORD=config['key_password'])
 flutter = Path(os.environ.get('FLUTTER_ROOT', str(Path.home() / 'flutter-sdk/flutter'))) / 'bin/flutter'
+subprocess.run([str(flutter), 'pub', 'get'],
+               cwd=root / 'apps/mobile', env=env, check=True)
 subprocess.run([str(flutter), 'build', 'appbundle', '--release', '--no-pub',
                 '--dart-define=JOBA_FREE_MOBILE=false',
                 '--dart-define=JOBA_API_URL=https://joba.com.kz'],

@@ -940,16 +940,19 @@ class PrivatePhoto extends StatelessWidget {
           onTap: onOpen ?? () => open(context),
           child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: Image.memory(bytes,
+              child: LayoutBuilder(builder: (context, constraints) => Image.memory(bytes,
                   height: height,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  cacheWidth: (MediaQuery.sizeOf(context).width *
+                  // Gallery thumbnails must not decode full-screen bitmaps.
+                  cacheWidth: ((constraints.hasBoundedWidth
+                              ? constraints.maxWidth
+                              : MediaQuery.sizeOf(context).width) *
                           MediaQuery.devicePixelRatioOf(context))
                       .ceil()
                       .clamp(1, 1920),
                   errorBuilder: (c, error, stack) =>
-                      const Notice('Не удалось показать фотографию')))));
+                      const Notice('Не удалось показать фотографию'))))));
 }
 
 class _PrivatePhotoViewer extends StatefulWidget {
