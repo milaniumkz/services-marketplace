@@ -46,9 +46,11 @@ class CrashReportQueue {
         final data = jsonDecode(candidate.readAsStringSync());
         final restored = <Map<String, dynamic>>[];
         for (final item in (data['reports'] as List).take(50)) {
-          if (item is Map && item['id'] is String) restored.add(Map<String, dynamic>.from(item));
+          if (item is Map && item['id'] is String)
+            restored.add(Map<String, dynamic>.from(item));
         }
-        if (data['installation_id'] is String) installationId = data['installation_id'];
+        if (data['installation_id'] is String)
+          installationId = data['installation_id'];
         _reports.addAll(restored);
         break;
       } catch (_) {/* Try the last committed diagnostic snapshot instead. */}

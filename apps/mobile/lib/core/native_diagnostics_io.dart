@@ -67,7 +67,8 @@ class NativeDiagnostics with WidgetsBindingObserver {
           [];
       // Acknowledge older exits first so a crash during transfer cannot hide
       // earlier, not-yet-persisted entries behind the newest timestamp.
-      exits.sort((a,b)=>(a['timestamp'] as int).compareTo(b['timestamp'] as int));
+      exits.sort(
+          (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
       for (final item in exits) {
         final exit = Map<String, dynamic>.from(item);
         final timestamp = exit.remove('timestamp');
@@ -124,7 +125,8 @@ class NativeDiagnostics with WidgetsBindingObserver {
         'fatal': fatal,
         'screen': _screen,
         'breadcrumbs': List.of(_breadcrumbs),
-        'message': '${error.runtimeType}: ${diagnosticText(error)}',
+        'message':
+            '${error.runtimeType}: ${diagnosticText(error.toString().split('\n').first)}',
         'stack': diagnosticText(stack ?? '', 10000)
       });
       _flush();

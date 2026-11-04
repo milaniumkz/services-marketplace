@@ -123,16 +123,29 @@ void main() {
         'original');
     queue.close();
   });
-  test('an interrupted atomic write restores a valid temporary snapshot and ignores a partial one', () async {
+  test(
+      'an interrupted atomic write restores a valid temporary snapshot and ignores a partial one',
+      () async {
     final file = File('${directory.path}/queue.json');
-    file.writeAsStringSync(jsonEncode({'installation_id':'old','reports':[]}));
-    final temporary=File('${file.path}.tmp');
-    temporary.writeAsStringSync(jsonEncode({'installation_id':'new','reports':[{'id':'crash-before-rename','kind':'android_java','fatal':true}]}));
-    final restored=open(MockClient((_)async=>http.Response('offline',503)));
-    expect(restored.pending,1);expect(restored.installationId,'new');restored.close();
+    file.writeAsStringSync(
+        jsonEncode({'installation_id': 'old', 'reports': []}));
+    final temporary = File('${file.path}.tmp');
+    temporary.writeAsStringSync(jsonEncode({
+      'installation_id': 'new',
+      'reports': [
+        {'id': 'crash-before-rename', 'kind': 'android_java', 'fatal': true}
+      ]
+    }));
+    final restored =
+        open(MockClient((_) async => http.Response('offline', 503)));
+    expect(restored.pending, 1);
+    expect(restored.installationId, 'new');
+    restored.close();
     temporary.writeAsStringSync('{partial');
-    final fallback=open(MockClient((_)async=>http.Response('offline',503)));
-    expect(fallback.pending,0);expect(fallback.installationId,'old');fallback.close();
+    final fallback =
+        open(MockClient((_) async => http.Response('offline', 503)));
+    expect(fallback.pending, 0);
+    expect(fallback.installationId, 'old');
+    fallback.close();
   });
-
 }
