@@ -1,0 +1,32 @@
+{
+  "version": "1.0.4",
+  "versionCode": 6,
+  "source": "fe1b8481dd8088622a190a802cbcbe5968e1d0e3",
+  "backendSource": "56160935e8c19faa9a5fe73b127c34dd6dde8522",
+  "bytes": 71875880,
+  "sha256": "7f0c3562d5d8637526e8f2e47af5674d2f0a352680b09567f84781c169d978b9",
+  "buildMode": "release",
+  "signing": "testing",
+  "certificateSha256": "de02e49c7caea7a27003e06fdb341c01d3e1e0ac8c06f5ac44c947bd006ac3dc",
+  "minSdk": 24,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "api": "https://joba.com.kz",
+  "bankEnvironment": "sandbox",
+  "checks": {
+    "apiScenariosVerified": 211,
+    "financialFinalChecks": 11,
+    "flutterPassed": 311,
+    "flutterSkipped": 2,
+    "browserScenarios": 21,
+    "analyzer": "clean",
+    "realVtbSandboxCaptureAndRefund": true,
+    "signature": true,
+    "zipalign16KiB": true,
+    "realDeviceRun": false
+  },
+  "builtAt": "2026-11-04T15:14:44.954842+00:00"
+}
