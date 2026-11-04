@@ -65,6 +65,9 @@ class NativeDiagnostics with WidgetsBindingObserver {
               .invokeListMethod<dynamic>('previousExits')
               .timeout(const Duration(seconds: 2)) ??
           [];
+      // Acknowledge older exits first so a crash during transfer cannot hide
+      // earlier, not-yet-persisted entries behind the newest timestamp.
+      exits.sort((a,b)=>(a['timestamp'] as int).compareTo(b['timestamp'] as int));
       for (final item in exits) {
         final exit = Map<String, dynamic>.from(item);
         final timestamp = exit.remove('timestamp');

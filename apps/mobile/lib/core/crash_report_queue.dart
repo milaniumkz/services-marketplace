@@ -38,18 +38,23 @@ class CrashReportQueue {
       required this.transport,
       required this.endpoint,
       required this.metadata}) {
-    try {
-      if (file.existsSync()) {
-        final data = jsonDecode(file.readAsStringSync());
-        if (data['installation_id'] is String)
-          installationId = data['installation_id'];
+    // A process can die between flushing the temporary file and renaming it.
+    // Prefer a complete temporary snapshot; fall back to the committed file.
+    for (final candidate in [File('${file.path}.tmp'), file]) {
+      try {
+        if (!candidate.existsSync()) continue;
+        final data = jsonDecode(candidate.readAsStringSync());
+        final restored = <Map<String, dynamic>>[];
         for (final item in (data['reports'] as List).take(50)) {
-          if (item is Map && item['id'] is String)
-            _reports.add(Map<String, dynamic>.from(item));
+          if (item is Map && item['id'] is String) restored.add(Map<String, dynamic>.from(item));
         }
-      }
-    } catch (_) {/* A damaged diagnostic file must never block the app. */}
+        if (data['installation_id'] is String) installationId = data['installation_id'];
+        _reports.addAll(restored);
+        break;
+      } catch (_) {/* Try the last committed diagnostic snapshot instead. */}
+    }
   }
+
   int get pending => _reports.length;
   void _save() {
     final temporary = File('${file.path}.tmp');

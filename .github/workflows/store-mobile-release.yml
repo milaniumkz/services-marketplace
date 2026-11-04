@@ -31,7 +31,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build --workspace @marketplace/api
-      - run: node --test services/api/test/mobile-free-access.test.cjs services/api/test/customer-subscription-access.test.cjs
+      - run: node --test services/api/test/mobile-free-access.test.cjs services/api/test/customer-subscription-access.test.cjs services/api/test/mobile-crashes.test.cjs
       - name: Deploy free mobile core with identity and authorization checks intact
         env:
           SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
