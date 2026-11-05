@@ -12,7 +12,7 @@ if [[ ! -d "$joba_source/.git" ]]; then
  git -C "$joba_source" remote add origin https://github.com/milaniumkz/services-marketplace.git
  git -C "$joba_source" fetch --update-shallow --no-tags /opt/joba/current HEAD
 fi
-git -C "$joba_source" fetch --depth=1 origin "$joba_commit"
+timeout 300 git -C "$joba_source" -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=90 fetch --progress --depth=1 origin "$joba_commit"
 git -C "$joba_source" checkout --detach FETCH_HEAD
 test "$(git -C "$joba_source" rev-parse HEAD)" = "$joba_commit"
 joba_previous=(docker compose --env-file /etc/joba/production.env -f /opt/joba/current/infra/production/compose.yaml)

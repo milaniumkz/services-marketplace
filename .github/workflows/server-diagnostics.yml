@@ -4,6 +4,10 @@ on:
     branches: [ops/joba-diagnostics]
   workflow_dispatch:
     inputs:
+      stalled_source_commit:
+        description: Stop only a 10-minute stale Git fetch of this exact source commit
+        type: string
+        default: ''
       deployment_status:
         description: Read deployment process health without arguments or account data
         type: boolean
@@ -34,7 +38,7 @@ permissions:
   checks: write
 jobs:
   diagnose:
-    if: ${{ !inputs.deployment_status && !inputs.account_phone && !inputs.advertising_stats && !inputs.mobile_crashes && !inputs.vtb_status }}
+    if: ${{ !inputs.stalled_source_commit && !inputs.deployment_status && !inputs.account_phone && !inputs.advertising_stats && !inputs.mobile_crashes && !inputs.vtb_status }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -45,7 +49,7 @@ jobs:
           JOBA_DIAGNOSTIC_JOB: '116494604449'
 
   account:
-    if: ${{ inputs.deployment_status || inputs.account_phone != '' || inputs.advertising_stats || inputs.mobile_crashes || inputs.vtb_status }}
+    if: ${{ inputs.stalled_source_commit != '' || inputs.deployment_status || inputs.account_phone != '' || inputs.advertising_stats || inputs.mobile_crashes || inputs.vtb_status }}
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -59,6 +63,7 @@ jobs:
       - name: Read account metadata without changing production
         env:
           SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          JOBA_STALLED_SOURCE_COMMIT: ${{ inputs.stalled_source_commit }}
           JOBA_DEPLOYMENT_STATUS: ${{ inputs.deployment_status && '1' || '0' }}
           JOBA_LOOKUP_PHONE: ${{ inputs.account_phone }}
           JOBA_VTB_STATUS: ${{ inputs.vtb_status && '1' || '0' }}
@@ -83,7 +88,10 @@ jobs:
             sudo apt-get install -y sshpass
             joba_ssh=(sshpass -e "${joba_ssh[@]}")
           fi
-          if test "$JOBA_DEPLOYMENT_STATUS" = '1'; then
+          if test -n "$JOBA_STALLED_SOURCE_COMMIT"; then
+            python3 -c 'import os,re;assert re.fullmatch("[0-9a-f]{40}",os.environ["JOBA_STALLED_SOURCE_COMMIT"])'
+            "${joba_ssh[@]}" root@188.241.217.228 "python3 - '$JOBA_STALLED_SOURCE_COMMIT'" < scripts/diagnose-deployment-runtime.py > account-diagnosis.json
+          elif test "$JOBA_DEPLOYMENT_STATUS" = '1'; then
             "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-deployment-runtime.py > account-diagnosis.json
           elif test "$JOBA_MOBILE_CRASHES" = '1'; then
             "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-mobile-crashes.py > account-diagnosis.json
