@@ -1,5 +1,5 @@
 import { createCipheriv,createDecipheriv,randomBytes,createHmac,hkdfSync } from 'node:crypto';
-import { mkdir,readFile,writeFile,open,rename,rm } from 'node:fs/promises';
+import { mkdir,readFile,writeFile,open,rename,rm,link } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { Readable,Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -17,7 +17,17 @@ export class PrivateFiles {
     if(process.env.JOBA_FILE_KEY){this.key=Buffer.from(process.env.JOBA_FILE_KEY,'hex');if(this.key.length!==32)throw Error('JOBA_FILE_KEY must be 32 bytes encoded as hex');return;}
     if(process.env.NODE_ENV==='production')throw Error('Production requires JOBA_FILE_KEY supplied outside Git');
     const path=resolve(this.directory,'storage.key');
-    try {this.key=await readFile(path);}catch(e:any){if(e.code!=='ENOENT')throw e;this.key=randomBytes(32);try{await writeFile(path,this.key,{mode:0o600,flag:'wx'});}catch(writeError:any){if(writeError.code!=='EEXIST')throw writeError;this.key=await readFile(path);}}
+    try {this.key=await readFile(path);}catch(e:any){
+      if(e.code!=='ENOENT')throw e;
+      // Publish only a fully written key: opening storage.key with wx leaves a
+      // brief empty-file window for another worker initializing concurrently.
+      const temporary=path+'.pending-'+randomBytes(12).toString('hex');
+      try{
+        await writeFile(temporary,randomBytes(32),{mode:0o600,flag:'wx'});
+        try{await link(temporary,path);}catch(writeError:any){if(writeError.code!=='EEXIST')throw writeError;}
+        this.key=await readFile(path);
+      }finally{await rm(temporary,{force:true});}
+    }
     if(this.key.length!==32)throw Error('Invalid private storage key');
   }
   private path(id:string) {if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid upload id');return resolve(this.directory,id+'.encrypted');}
