@@ -13,7 +13,10 @@ env = dict(os.environ, JOBA_UPLOAD_KEYSTORE=config['keystore'],
 flutter = Path(os.environ.get('FLUTTER_ROOT', str(Path.home() / 'flutter-sdk/flutter'))) / 'bin/flutter'
 subprocess.run([str(flutter), 'pub', 'get'],
                cwd=root / 'apps/mobile', env=env, check=True)
-subprocess.run([str(flutter), 'build', 'appbundle', '--release', '--no-pub',
-                '--dart-define=JOBA_FREE_MOBILE=false',
+artifact = os.environ.get('JOBA_ANDROID_FORMAT', 'appbundle')
+if artifact not in ('appbundle', 'apk'):
+    raise ValueError('JOBA_ANDROID_FORMAT must be appbundle or apk')
+subprocess.run([str(flutter), 'build', artifact, '--release', '--no-pub',
+                '--dart-define=JOBA_FREE_MOBILE=' + os.environ.get('JOBA_FREE_MOBILE', 'true'),
                 '--dart-define=JOBA_API_URL=https://joba.com.kz'],
                cwd=root / 'apps/mobile', env=env, check=True)
