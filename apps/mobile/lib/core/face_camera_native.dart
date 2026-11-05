@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'face_sequence.dart';
 import 'photo_file.dart';
-import 'photo_source_native.dart';
+import 'selfie_capture_native.dart';
 
-// Native source uses the same steps. APK is not built in this web release.
+// Keep the same five poses; every frame uses the in-app front camera.
 Future<FaceSequence?> captureFacePhotos(BuildContext context) async {
   final photos = <PhotoFile>[];
   for (var i = 0; i < faceSteps.length; i++) {
@@ -19,8 +19,7 @@ Future<FaceSequence?> captureFacePhotos(BuildContext context) async {
                     child: const Text('Отмена')),
                 FilledButton(
                     onPressed: () async {
-                      final frame =
-                          await pickPhotoFile(PhotoSource.camera, selfie: true);
+                      final frame = await captureSelfiePhoto(dialog);
                       if (dialog.mounted) Navigator.pop(dialog, frame);
                     },
                     child: const Text('Снять кадр'))

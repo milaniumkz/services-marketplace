@@ -4,6 +4,8 @@ import 'photo_file.dart';
 import 'photo_source_native.dart'
     if (dart.library.js_interop) 'photo_source_web.dart';
 import 'l10n.dart';
+import 'selfie_capture_native.dart'
+    if (dart.library.js_interop) 'selfie_capture_web.dart';
 export 'photo_file.dart';
 
 typedef PhotoSourcePicker = Future<PhotoFile?> Function(PhotoSource source,
@@ -16,9 +18,15 @@ class _PhotoResult {
 }
 
 Future<PhotoFile?> choosePhoto(BuildContext context,
-    {bool selfie = false, bool identity = false,
-    PhotoSourcePicker sourcePicker = pickPhotoFile}) async {
-  if(identity||selfie)return sourcePicker(kIsWeb&&!selfie?PhotoSource.gallery:PhotoSource.camera,selfie:selfie);
+    {bool selfie = false,
+    bool identity = false,
+    PhotoSourcePicker? sourcePicker}) async {
+  final picker = sourcePicker ?? pickPhotoFile;
+  if (selfie)
+    return sourcePicker == null
+        ? captureSelfiePhoto(context)
+        : picker(PhotoSource.camera, selfie: true);
+  if (identity && kIsWeb) return picker(PhotoSource.gallery, selfie: false);
   var busy = false;
   final result = await showModalBottomSheet<_PhotoResult>(
       context: context,
@@ -29,8 +37,9 @@ Future<PhotoFile?> choosePhoto(BuildContext context,
               update(() => busy = true);
               try {
                 // Open immediately in this tap: awaiting API here loses browser activation.
-                final photo = await sourcePicker(source, selfie: selfie);
-                if (sheet.mounted && ModalRoute.of(sheet)?.isCurrent == true) Navigator.pop(sheet, _PhotoResult(photo));
+                final photo = await picker(source, selfie: selfie);
+                if (sheet.mounted && ModalRoute.of(sheet)?.isCurrent == true)
+                  Navigator.pop(sheet, _PhotoResult(photo));
               } catch (error) {
                 if (sheet.mounted)
                   Navigator.pop(sheet, _PhotoResult(null, error));

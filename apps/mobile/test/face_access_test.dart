@@ -125,4 +125,50 @@ void main() {
     expect(find.text('Лицо не совпало'), findsWidgets);
     expect(find.byType(SnackBar), findsOneWidget);
   });
+  for (final scale in [1.0, 1.8]) {
+    testWidgets(
+        'optional face skip stays tappable on a small phone with text scale $scale',
+        (t) async {
+      t.view.physicalSize = const Size(320, 568);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      var skipped = false;
+      final api = JobaApi('https://example.test', vault: Vault(),
+          transport: MockClient((r) async {
+        expect(r.method, 'GET');
+        return ok({
+          'enrolled': false,
+          'can_enroll_without_password': true,
+          'notice':
+              List.filled(30, 'Согласие на сохранение шаблона лица.').join(' ')
+        });
+      }));
+      addTearDown(api.dispose);
+      api.session = {
+        'access_token': 'token',
+        'user': {'id': 'u'}
+      };
+      await t.pumpWidget(MaterialApp(
+          builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!),
+          home: Scaffold(
+              appBar: AppBar(title: const Text('Регистрация')),
+              bottomNavigationBar: const SizedBox(height: 64),
+              body: FaceAccess(
+                  api: api, onDone: () {}, onSkip: () => skipped = true))));
+      await t.pumpAndSettle();
+      final button =
+          find.widgetWithText(TextButton, 'Продолжить без настройки лица');
+      final rect = t.getRect(button);
+      expect(rect.height, greaterThanOrEqualTo(48));
+      expect(rect.bottom, lessThanOrEqualTo(504));
+      await t.tap(button);
+      await t.pump();
+      expect(skipped, true);
+      expect(t.takeException(), isNull);
+    });
+  }
 }

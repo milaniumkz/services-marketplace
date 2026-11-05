@@ -52,7 +52,8 @@ class _FaceAccessState extends State<FaceAccess> {
         backgroundColor: failure ? Colors.red.shade700 : null));
   }
 
-  Future<void> run(Future<void> Function() action) async {
+  Future<void> run(Future<void> Function() action,
+      {bool announceFailure = true}) async {
     if (busy) return;
     final generation = widget.api.sessionGeneration;
     setState(() {
@@ -67,7 +68,7 @@ class _FaceAccessState extends State<FaceAccess> {
             ? e.message
             : 'Не удалось выполнить действие. Повторите попытку.';
         setState(() => error = message);
-        notice(message, failure: true);
+        if (announceFailure) notice(message, failure: true);
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -77,7 +78,7 @@ class _FaceAccessState extends State<FaceAccess> {
   Future<void> load() => run(() async {
         final data = await widget.api.request('/me/face-recovery') as Json;
         if (mounted) setState(() => settings = data);
-      });
+      }, announceFailure: false);
   Future<void> capture() => run(() async {
         final generation = widget.api.sessionGeneration;
         final injected = widget.capturePhoto;
@@ -153,84 +154,100 @@ class _FaceAccessState extends State<FaceAccess> {
           decoration: InputDecoration(
               labelText: label, border: const OutlineInputBorder())));
   @override
-  Widget build(BuildContext context) =>
-      ListView(padding: const EdgeInsets.all(20), children: [
-        Icon(resetToken != null ? Icons.lock_reset : Icons.face_outlined,
-            size: 68, color: const Color(0xff245bdb)),
-        const SizedBox(height: 20),
-        Text(
-            resetToken != null
-                ? 'Установите новый пароль'
-                : recovering
-                    ? 'Подтвердите личность'
-                    : 'Восстановление по лицу',
-            style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 12),
-        Text(resetToken != null
-            ? 'Лицо совпало. После смены пароля войдите с новым паролем. Остальные сессии завершатся.'
-            : recovering
-                ? 'После двух неверных паролей можно сравнить лицо с ранее сохранённым шаблоном. Если способ не настроен, вернитесь ко входу или обратитесь в поддержку.'
-                : 'Камера сама фиксирует движения. Сохраните пять шаблонов лица для восстановления пароля: прямо, налево, направо, моргнуть и улыбнуться. Это отдельная настройка: проверка документов и биометрия устройства не изменятся.'),
-        if (resetToken == null)
-          const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                  'Базовое сравнение без проверки живого присутствия. Фотография или видео могут пройти такую проверку.')),
-        if (error != null)
-          Semantics(
-              liveRegion: true,
-              child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child:
-                      Text(error!, style: const TextStyle(color: Colors.red)))),
-        if (busy) const LinearProgressIndicator(),
-        if (resetToken != null) ...[
-          field(next, 'Новый пароль'),
-          field(repeat, 'Повторите новый пароль'),
-          FilledButton(
-              onPressed: busy ? null : reset,
-              child: const Text('Сменить пароль')),
-        ] else if (recovering)
-          FilledButton(
-              onPressed: busy ? null : capture,
-              child: const Text('Открыть фронтальную камеру'))
-        else if (settings != null) ...[
-          if (settings!['update_required'] == true)
-            const Text(
-                'Обновите прежний шаблон: теперь процедура состоит из пяти кадров.'),
-          if (settings!['enrolled'] == true)
-            const Text(
-                'Шаблоны лица сохранены. Можно пройти процедуру заново или удалить их.'),
-          if (settings!['can_enroll_without_password'] != true)
-            field(password, 'Текущий пароль'),
-          CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: consent,
-              onChanged:
-                  busy ? null : (v) => setState(() => consent = v ?? false),
-              title: Text(settings!['notice'] as String),
-              controlAffinity: ListTileControlAffinity.leading),
-          FilledButton(
-              onPressed: busy || !consent ? null : capture,
-              child: const Text('Сохранить лицо через камеру')),
-          if (settings!['enrolled'] == true)
-            OutlinedButton(
-                onPressed: busy
-                    ? null
-                    : () => run(() async {
-                          await widget.api.request('/me/face-recovery',
-                              method: 'DELETE',
-                              body: {'current_password': password.text});
-                          if (mounted) widget.onDone();
-                        }),
-                child: const Text('Отключить и удалить шаблон')),
-        ] else if (!busy)
-          TextButton(onPressed: load, child: const Text('Повторить загрузку')),
+  Widget build(BuildContext context) => Column(children: [
+        Expanded(
+            child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.all(20),
+                children: [
+              Icon(resetToken != null ? Icons.lock_reset : Icons.face_outlined,
+                  size: 48, color: const Color(0xff245bdb)),
+              const SizedBox(height: 12),
+              Text(
+                  resetToken != null
+                      ? 'Установите новый пароль'
+                      : recovering
+                          ? 'Подтвердите личность'
+                          : 'Восстановление по лицу',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 12),
+              Text(resetToken != null
+                  ? 'Лицо совпало. После смены пароля войдите с новым паролем. Остальные сессии завершатся.'
+                  : recovering
+                      ? 'После двух неверных паролей можно сравнить лицо с ранее сохранённым шаблоном. Если способ не настроен, вернитесь ко входу или обратитесь в поддержку.'
+                      : 'Настройте восстановление пароля по лицу. Камера сохранит пять кадров: прямо, налево, направо, моргание и улыбка. Это не заменяет проверку документов.'),
+              if (resetToken == null)
+                const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                        'Базовое сравнение без проверки живого присутствия. Фотография или видео могут пройти такую проверку.')),
+              if (error != null)
+                Semantics(
+                    liveRegion: true,
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(error!,
+                            style: const TextStyle(color: Colors.red)))),
+              if (busy) const LinearProgressIndicator(),
+              if (resetToken != null) ...[
+                field(next, 'Новый пароль'),
+                field(repeat, 'Повторите новый пароль'),
+                FilledButton(
+                    onPressed: busy ? null : reset,
+                    child: const Text('Сменить пароль')),
+              ] else if (recovering)
+                FilledButton(
+                    onPressed: busy ? null : capture,
+                    child: const Text('Открыть фронтальную камеру'))
+              else if (settings != null) ...[
+                if (settings!['update_required'] == true)
+                  const Text(
+                      'Обновите прежний шаблон: теперь процедура состоит из пяти кадров.'),
+                if (settings!['enrolled'] == true)
+                  const Text(
+                      'Шаблоны лица сохранены. Можно пройти процедуру заново или удалить их.'),
+                if (settings!['can_enroll_without_password'] != true)
+                  field(password, 'Текущий пароль'),
+                CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: consent,
+                    onChanged: busy
+                        ? null
+                        : (v) => setState(() => consent = v ?? false),
+                    title: Text(settings!['notice'] as String),
+                    controlAffinity: ListTileControlAffinity.leading),
+                FilledButton(
+                    onPressed: busy || !consent ? null : capture,
+                    child: const Text('Сохранить лицо через камеру')),
+                if (settings!['enrolled'] == true)
+                  OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () => run(() async {
+                                await widget.api.request('/me/face-recovery',
+                                    method: 'DELETE',
+                                    body: {'current_password': password.text});
+                                if (mounted) widget.onDone();
+                              }),
+                      child: const Text('Отключить и удалить шаблон')),
+              ] else if (!busy)
+                TextButton(
+                    onPressed: load, child: const Text('Повторить загрузку')),
+            ])),
         if (widget.onSkip != null)
-          TextButton(
-              onPressed: busy ? null : widget.onSkip,
-              child: Text(recovering
-                  ? 'Вернуться ко входу'
-                  : 'Продолжить без настройки лица')),
+          SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48)),
+                    onPressed: busy ? null : widget.onSkip,
+                    child: Text(recovering
+                        ? 'Вернуться ко входу'
+                        : 'Продолжить без настройки лица'),
+                  ))),
       ]);
 }
