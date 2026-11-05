@@ -730,8 +730,9 @@ export class Marketplace {
         if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');await this.entitlement(a,'publish_order',false,false);
         await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['invites:'+a.country+':'+a.id]);
         if(o.status!=='open'||o.expires_at<=new Date().toISOString()||['quarantined','hidden','rejected'].includes(o.moderation_status))fail(409,'STATE_CONFLICT','Заказ закрыт');
-        const p=await this.object(String(b.contractor_id),a,'contractor'),owner=await this.store.get(p.owner);if(owner?.status!=='active'||owner.verification!=='passed'||await this.blocked(a,p.owner)||p.owner===a.id||p.status!=='published'||p.availability==='paused')fail(422,'POLICY_REJECTED','Исполнитель недоступен');
-        await this.entitlement({...a,id:owner!.id,user:owner!},'send_offer',true,false);
+        const p=await this.object(String(b.contractor_id),a,'contractor'),owner=await this.store.get(p.owner);if(owner?.status!=='active'||owner.verification!=='passed'||!owner.roles?.includes('executor')||await this.blocked(a,p.owner)||p.owner===a.id||p.status!=='published'||p.availability==='paused')fail(422,'POLICY_REJECTED','Исполнитель недоступен');
+        // Receiving an invitation is free. Only the sender's own customer access
+        // is required here; the executor's access is checked when accepting.
         const now=new Date();
         const active=(await db.query("SELECT id FROM records WHERE kind='invite' AND country=$1 AND data->>'order_id'=$2 AND data->>'recipient_id'=$3 AND data->>'status'='pending' AND (data->>'expires_at' IS NULL OR (data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP) LIMIT 1",[a.country,o.id,p.owner])).rows;
         if(active.length)fail(409,'STATE_CONFLICT','Исполнителю уже отправлено приглашение');
@@ -841,7 +842,8 @@ export class Marketplace {
         const o=await this.object(r.order_id,a,'order'),sender=await this.store.get(r.owner);
         if(o.status!=='open'||o.expires_at<=new Date().toISOString()||['quarantined','hidden','rejected'].includes(o.moderation_status)||o.revision!==r.order_revision)fail(409,'STATE_CONFLICT','Заказ закрыт или условия изменились');
         if(!sender||sender.status!=='active'||await this.blocked(a,r.owner))fail(404,'NOT_FOUND','Приглашение недоступно');
-        await this.entitlement({...a,id:sender!.id,user:sender!},'publish_order',false,false);
+        try{await this.entitlement({...a,id:sender!.id,user:sender!},'publish_order',false,false);}
+        catch(error){if(error instanceof HttpException&&(error.getResponse() as any)?.error?.code==='ENTITLEMENT_REQUIRED')fail(409,'INVITE_CUSTOMER_ACCESS_EXPIRED','Срок подписки заказчика истёк. Приглашение будет доступно после продления его подписки.');throw error;}
         await this.entitlement(a,'send_offer',true,false);
       }return this.store.put({...r,status:b.decision==='accept'?'accepted':'declined',version:r.version+1});
     }

@@ -40,3 +40,22 @@ test('invitations enforce expiry, active pair and daily limit without spending a
   await assert.rejects(()=>post(customer,`/orders/${order.id}/invites`,{contractor_id:profile.id}),e=>e.getResponse().error.code==='RATE_LIMITED');
  }finally{await api.store.close();}
 });
+test('a paid customer can invite an executor without buying access for that executor; cross-account expiry never requests caller payment',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();try{
+  const register=phone=>api.handle('POST','/auth/register',{country:'KZ',phone,password:'Isolated invitation access!'},undefined,randomUUID());
+  const buyer=await register('+77000001651'),worker=await register('+77000001652');await paidCustomer(api,buyer);
+  await api.store.put({...await api.store.get(worker.user.id),roles:['customer','executor'],active_role:'executor',verification:'passed'});
+  const now=new Date().toISOString(),future=new Date(Date.now()+86400000).toISOString();
+  const row=(kind,owner,data)=>api.store.put({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:now,...data});
+  const profile=await row('contractor',worker.user.id,{status:'published',availability:'available'}),order=await row('order',buyer.user.id,{status:'open',revision:1,expires_at:future,title:'Приглашение без чужой оплаты'});
+  const post=(u,path,b)=>api.handle('POST',path,b,'Bearer '+u.access_token,randomUUID());
+  const invite=await post(buyer,`/orders/${order.id}/invites`,{contractor_id:profile.id});assert.equal(invite.status,'pending');
+  assert.equal((await api.store.select('grant','KZ',{owner:worker.user.id,limit:100})).length,0);
+  await assert.rejects(()=>post(worker,`/order-invites/${invite.id}/respond`,{expected_version:1,decision:'accept'}),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
+  await row('grant',worker.user.id,{role:'executor',plan:'standard',valid_until:future,capabilities:['send_offer','search_full']});
+  const buyerGrant=(await api.store.select('grant','KZ',{owner:buyer.user.id,limit:100}))[0];await api.store.put({...buyerGrant,valid_until:'2000-01-01T00:00:00Z',version:buyerGrant.version+1});
+  await assert.rejects(()=>post(worker,`/order-invites/${invite.id}/respond`,{expected_version:1,decision:'accept'}),e=>e.getResponse().error.code==='INVITE_CUSTOMER_ACCESS_EXPIRED');
+  await api.store.put({...buyerGrant,version:buyerGrant.version+2});
+  assert.equal((await post(worker,`/order-invites/${invite.id}/respond`,{expected_version:1,decision:'accept'})).status,'accepted');
+ }finally{await api.store.close();}
+});
