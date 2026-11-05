@@ -169,7 +169,7 @@ void main() {
     expect(find.text('Категории услуг'), findsOneWidget);
   });
   testWidgets(
-      'native identity and selfie open camera directly without gallery options',
+      'native documents offer gallery choice while selfies remain camera-only',
       (t) async {
     for (final selfie in [false, true]) {
       PhotoSource? selected;
@@ -188,9 +188,17 @@ void main() {
                       child: const Text('Снять'))))));
       await t.tap(find.text('Снять'));
       await t.pumpAndSettle();
-      expect(selected, PhotoSource.camera);
+      if (!selfie) {
+        expect(selected, isNull);
+        expect(find.text('Выбрать из галереи'), findsOneWidget);
+        await t.tap(find.text('Выбрать из галереи'));
+        await t.pumpAndSettle();
+        expect(selected, PhotoSource.gallery);
+      } else {
+        expect(selected, PhotoSource.camera);
+        expect(find.text('Выбрать из галереи'), findsNothing);
+      }
       expect(front, selfie);
-      expect(find.text('Выбрать из галереи'), findsNothing);
     }
   });
 }
