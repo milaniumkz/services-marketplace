@@ -1,0 +1,28 @@
+{
+  "version": "1.0.5",
+  "versionCode": 7,
+  "source": "fbe8c3b1e75aea497f248302e4aab9036aeac9b5",
+  "bytes": 72367485,
+  "sha256": "718d6ed7746f25c2b78883977e309bd4beb2cad759626eb9c2f210d8cfee261b",
+  "buildMode": "release",
+  "signing": "testing",
+  "certificateSha256": "de02e49c7caea7a27003e06fdb341c01d3e1e0ac8c06f5ac44c947bd006ac3dc",
+  "minSdk": 24,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "api": "https://joba.com.kz",
+  "bankEnvironment": "sandbox",
+  "checks": {
+    "paymentAndResumeTests": 10,
+    "analyzer": "clean",
+    "webBuild": true,
+    "mobileUserAgentBankCaptureAndRefund": true,
+    "signature": true,
+    "zipalign16KiB": true,
+    "realDeviceRun": false
+  },
+  "builtAt": "2026-11-05T07:33:37.985492+00:00"
+}
