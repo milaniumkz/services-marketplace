@@ -20,13 +20,17 @@ class FakeCamera extends CameraPlatform {
   final errors = StreamController<CameraErrorEvent>.broadcast();
   CameraDescription? opened;
   MediaSettings? settings;
-  int released = 0;
+  int released = 0, openedCount = 0;
   File? temporary;
   @override
   Future<List<CameraDescription>> availableCameras() async => devices;
   @override
   Future<int> createCameraWithSettings(
       CameraDescription cameraDescription, MediaSettings mediaSettings) async {
+    if (openedCount > released)
+      throw CameraException(
+          'CAMERA_BUSY', 'Previous camera has not been released');
+    openedCount++;
     opened = cameraDescription;
     settings = mediaSettings;
     return 1;
@@ -137,5 +141,44 @@ void main() {
     await t.pump();
     expect(fake.released, 2);
     expect(t.takeException(), isNull);
+  });
+  testWidgets(
+      'consecutive face frames release hardware before opening the next pose',
+      (t) async {
+    final fake = FakeCamera();
+    CameraPlatform.instance = fake;
+    final photos = <PhotoFile>[];
+    final folders = <Directory>[];
+    await t.pumpWidget(MaterialApp(
+        home: Builder(
+            builder: (context) => Scaffold(
+                body: TextButton(
+                    onPressed: () async {
+                      for (var i = 0; i < 2; i++) {
+                        final p = await captureSelfiePhoto(context);
+                        if (p == null) return;
+                        photos.add(p);
+                      }
+                    },
+                    child: const Text('Sequence'))))));
+    await t.tap(find.text('Sequence'));
+    await t.pumpAndSettle();
+    for (var step = 0; step < 2; step++) {
+      await t.tap(find.text('Сделать селфи'));
+      for (var i = 0; i < 100 && photos.length <= step; i++) {
+        await t.pump(const Duration(milliseconds: 10));
+        await t.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      }
+      folders.add(fake.temporary!.parent);
+      await t.pumpAndSettle();
+    }
+    expect(photos.length, 2);
+    expect(fake.openedCount, 2);
+    expect(fake.released, 2);
+    expect(t.takeException(), isNull);
+    await t.runAsync(() async {
+      for (final d in folders) await d.delete();
+    });
   });
 }

@@ -120,7 +120,12 @@ class _NativeSelfieState extends State<NativeSelfieCamera>
             await File(photo.path).delete();
           } catch (_) {}
         }
-        if (current(g)) Navigator.of(context).pop(result);
+        if (current(g)) {
+          // The next pose may open immediately after this route returns.
+          // Release hardware before returning its frame to the caller.
+          await release();
+          if (current(g)) Navigator.of(context).pop(result);
+        }
       } catch (_) {
         if (current(g))
           setState(() => error = 'Не удалось сделать селфи. Повторите снимок.');
