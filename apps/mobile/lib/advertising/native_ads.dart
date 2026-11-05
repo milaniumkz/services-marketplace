@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
+import 'banner_policy.dart';
+import 'google_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:yandex_mobileads/mobile_ads.dart';
 import '../core/api.dart';
@@ -42,9 +45,60 @@ void _releaseAd(Future<void> Function() release) {
 }
 
 class _BannerState extends State<WebAdsPanel> {
+  Json? config;
+  List<String> networks = [];
+  int index = 0;
+  @override
+  void initState() {
+    super.initState();
+    final generation = widget.api.sessionGeneration;
+    widget.api.request('/me/web-ads').then((c) {
+      if (!mounted || generation != widget.api.sessionGeneration) return;
+      setState(() {
+        config = Json.from(c);
+        networks = nativeBannerNetworks(config!,
+            android: Platform.isAndroid,
+            googleFirst: Random.secure().nextBool());
+      });
+    }).catchError((Object _) {});
+  }
+
+  void fallback() {
+    if (mounted) setState(() => index++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (index >= networks.length || MediaQuery.sizeOf(context).width < 320) {
+      return const SizedBox.shrink();
+    }
+    return networks[index] == 'google'
+        ? GoogleBanner(
+            unitId: config!['admob_android_banner_id'],
+            personalized: config!['consent'] == true,
+            onFailed: fallback)
+        : _YandexBanner(api: widget.api, onFailed: fallback);
+  }
+}
+
+class _YandexBanner extends StatefulWidget {
+  final JobaApi api;
+  final VoidCallback onFailed;
+  const _YandexBanner({required this.api, required this.onFailed});
+  @override
+  State<_YandexBanner> createState() => _YandexBannerState();
+}
+
+class _YandexBannerState extends State<_YandexBanner> {
   BannerAd? ad;
   bool failed = false, loading = false;
   StreamSubscription<BannerAdLoadState>? states;
+  void fail() {
+    if (!mounted || failed) return;
+    setState(() => failed = true);
+    widget.onFailed();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -82,15 +136,12 @@ class _BannerState extends State<WebAdsPanel> {
         return;
       }
       states = banner.loadStateStream.listen((state) {
-        if (mounted && state is BannerAdLoadStateError)
-          setState(() => failed = true);
-      }, onError: (Object _) {
-        if (mounted) setState(() => failed = true);
-      });
+        if (state is BannerAdLoadStateError) fail();
+      }, onError: (Object _) => fail());
       setState(() => ad = banner);
       created = null;
     } catch (_) {
-      if (current()) setState(() => failed = true);
+      if (current()) fail();
     } finally {
       if (created != null) _releaseAd(created.destroy);
       loading = false;

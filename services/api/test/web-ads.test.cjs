@@ -56,3 +56,18 @@ test('rewarded subscriptions require separate complete server-side bundles, pres
  const revoke=require('../dist/processing-consent-retention').revokeOptionalProcessing;await revoke(api.store,b.user.id,'BY',new Date());await revoke(api.store,b.user.id,'BY',new Date());const history=(await api.store.all('web_ad_consent','BY')).filter(x=>x.owner===b.user.id).sort((x,y)=>y.sequence-x.sequence);assert.equal(history[0].accepted,false);assert.equal(history[0].revocation_source,'account_deletion');
  }finally{await api.store.close();}
 });
+
+test('AdMob settings preserve old admin clients, validate IDs and share the global banner switch',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();try{
+ const u=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000879',password:'Ads settings test password'});await api.store.put({...await api.store.get(u.user.id),staff_permissions:['platform_owner']});
+ const owner=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:u.user.phone,password:'Ads settings test password'});
+ const call=(m,p,b={})=>api.handle(m,p,b,'Bearer '+owner.access_token,randomUUID());
+ const old=await call('GET','/admin/web-ads');assert.equal(old.admob_enabled,true);assert.equal(old.admob_android_banner_id,'ca-app-pub-5590941579295248/9567708649');
+ const valid={...old,enabled:true,banner_id:'R-A-20302217-1',mobile_rewarded_id:'R-A-20302217-2',desktop_rewarded_id:'R-A-20302217-3',expected_version:old.version};
+ await assert.rejects(()=>call('PUT','/admin/web-ads',{...valid,admob_android_banner_id:'ca-app-pub-5590941579295248~1739074102'}),e=>e.getStatus()===422);
+ const saved=await call('PUT','/admin/web-ads',{...valid,admob_enabled:false});assert.equal(saved.admob_enabled,false);
+ const legacy={...valid,expected_version:saved.version};delete legacy.admob_enabled;delete legacy.admob_android_banner_id;
+ await call('PUT','/admin/web-ads',legacy);
+ const config=await api.handle('GET','/me/web-ads',{},'Bearer '+u.access_token);assert.equal(config.admob_enabled,false);assert.equal(config.enabled,true);assert.equal(config.admob_android_banner_id,old.admob_android_banner_id);
+ }finally{await api.store.close();}
+});

@@ -30,6 +30,7 @@ dependencies:
   webview_flutter: ^4.13.0
   webview_flutter_android: ^4.12.0
   camera: ^0.11.2
+  google_mobile_ads: ^6.0.0
 dev_dependencies:
   flutter_secure_storage_web: ^1.2.1
   flutter_web_plugins:
