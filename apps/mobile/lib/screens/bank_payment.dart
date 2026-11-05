@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'bank_form.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/api.dart';
 import '../core/currency.dart';
@@ -74,7 +76,6 @@ class _BankPaymentState extends State<BankPaymentScreen>
       if (widget.autoOpen && !autoOpened && payment!['payment_url'] is String) {
         autoOpened = true;
         final url = payment!['payment_url'] as String;
-        widget.onGo('bank-payment', widget.id);
         await openBank(url);
       }
     } catch (e) {
@@ -90,13 +91,32 @@ class _BankPaymentState extends State<BankPaymentScreen>
     opening = true;
     try {
       final uri = Uri.parse(value);
-      if (uri.scheme != 'https' ||
-          !['vtbkz.rbsuat.com', 'payment.vtb.kz'].contains(uri.host) ||
-          uri.userInfo.isNotEmpty)
+      if (!trustedBankEntry(uri))
         throw ApiException(
             'PAYMENT_URL_INVALID', 'Некорректный адрес банковской страницы');
-      final opened = await withExternalActivity(() => launchUrl(uri,
-          mode: LaunchMode.externalApplication, webOnlyWindowName: '_self'));
+      // Capture the root navigator before replacing the auto-open route.
+      final navigator = Navigator.of(context);
+      final api = widget.api,
+          generation = api.sessionGeneration,
+          id = widget.id;
+      if (widget.autoOpen) widget.onGo('bank-payment', id);
+      final opened = kIsWeb
+          ? await launchUrl(uri, webOnlyWindowName: '_self')
+          : await withExternalActivity(() async {
+              await navigator.push<bool>(MaterialPageRoute(
+                  builder: (_) => BankForm(
+                      entry: uri,
+                      paymentId: id,
+                      testMode: payment?['bank_test'] == true)));
+              return true;
+            });
+      if (!kIsWeb &&
+          mounted &&
+          api == widget.api &&
+          generation == api.sessionGeneration) {
+        // Always ask the server; neither a URL redirect nor closing the form is proof.
+        unawaited(load());
+      }
       if (!opened)
         throw ApiException('PAYMENT_OPEN_FAILED',
             'Не удалось открыть банк. Нажмите «Перейти к оплате» ещё раз.');
