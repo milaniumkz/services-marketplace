@@ -1,0 +1,30 @@
+{
+  "version": "1.0.6",
+  "versionCode": 8,
+  "source": "1c6e283fdbe5c42b95799cd227e020b29822a9f4",
+  "backendSource": "bfa4cc1044fc581965bb6eb08c770bfd380d24db",
+  "bytes": 73830860,
+  "sha256": "95b5201a70e1ed320b956122234b2e97c647bae65079ce1c011225b9ae92b2e6",
+  "buildMode": "release",
+  "signing": "testing",
+  "certificateSha256": "de02e49c7caea7a27003e06fdb341c01d3e1e0ac8c06f5ac44c947bd006ac3dc",
+  "minSdk": 24,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "api": "https://joba.com.kz",
+  "checks": {
+    "targetedFlutterTests": 30,
+    "apiInviteAndBillingTests": 11,
+    "analyzer": "clean",
+    "signature": true,
+    "zipalign16KiB": true,
+    "elfAlignment16KiB": true,
+    "cameraPermission": true,
+    "microphonePermission": false,
+    "realDeviceRun": false
+  },
+  "builtAt": "2026-11-05T09:04:46.084198+00:00"
+}
