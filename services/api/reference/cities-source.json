@@ -1,0 +1,43 @@
+{
+  "source": "GeoNames",
+  "license": "CC BY 4.0",
+  "attribution": "GeoNames geographical database, https://www.geonames.org/",
+  "downloaded_at": "2026-10-20T09:23:05.319103+00:00",
+  "corrections": [
+    {
+      "geonames_id": 1539946,
+      "name": "Алатау",
+      "source": "https://www.akorda.kz/ru/ob-izmeneniyah-v-administrativno-territorialnom-ustroystve-almatinskoy-oblasti-902819"
+    },
+    {
+      "geonames_id": 1528249,
+      "name": "Манас",
+      "source": "https://24.kg/vlast/343904_sadyir_japarov_podpisal_zakon_opereimenovanii_djalal-abada_vgorod_manas/"
+    }
+  ],
+  "scope": "Cities and populated settlements from cities500 (population over 500 or administrative seats); not an official national city-status register. Excludes neighbourhoods, abandoned and historical places.",
+  "urls": [
+    "https://download.geonames.org/export/dump/KZ.zip",
+    "https://download.geonames.org/export/dump/cities500.zip",
+    "https://download.geonames.org/export/dump/admin1CodesASCII.txt",
+    "https://download.geonames.org/export/dump/alternatenames/KZ.zip",
+    "https://download.geonames.org/export/dump/alternatenames/KG.zip",
+    "https://download.geonames.org/export/dump/alternatenames/RU.zip",
+    "https://download.geonames.org/export/dump/alternatenames/BY.zip"
+  ],
+  "counts": {
+    "KZ": 351,
+    "KG": 107,
+    "RU": 5143,
+    "BY": 314
+  },
+  "source_sha256": {
+    "admin1CodesASCII.txt": "b577baa3476bbe94f0454545e517e1835401d79c5b1105c8e02cf1d4a505e8ec",
+    "BY-alternates.zip": "52d3a3d3fc0453a0f2f2b440b7faf3548f5490e68a1f9877b72069f3b88a59ec",
+    "KG-alternates.zip": "d9f20ab93362e6619c52d7219d81952c77b5039263ef4b70189f8643f8ef7be6",
+    "KZ.zip": "1a2327f9282af7410408f2a1331638aae5b14676de7e37719141917d3ac7c318",
+    "KZ-alternates.zip": "6c165d0cf2ff70a2f58018a40b924b22384e110401166880f9c234dd7e26bb59",
+    "cities500.zip": "2b80cc4a7d9a7c784ba4892f7fdc1900ffff73ab9780bc064ffe5c539a6fabac",
+    "RU-alternates.zip": "e10a683ffd615112db2a25bba4fd34a613e5cfa839eb55c3495b3aa2b1d54330"
+  }
+}

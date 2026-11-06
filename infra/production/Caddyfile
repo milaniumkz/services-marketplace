@@ -1,0 +1,56 @@
+{$JOBA_DOMAIN}, joba.com.kz {
+  encode zstd gzip
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    X-Frame-Options DENY
+    -Server
+  }
+  @entrypoints path / /index.html /app /app/ /app/* /admin/ /admin/index.html /site/ /site/*.html
+  header @entrypoints Cache-Control "no-cache"
+  handle /api/v1/* {
+    reverse_proxy api:3000
+  }
+  handle /health {
+    reverse_proxy api:3000
+  }
+  @publicSite path /site/ /site/index.html /site/W01.html /site/W02.html /site/W03.html /site/W04.html /site/W05.html /site/W06.html /site/W07.html /site/W08.html /site/W09.html /site/customers.html /site/executors.html /site/categories.html /site/safety.html /site/faq.html /site/support.html /site/availability.html /site/pricing.html /site/privacy.html /site/terms.html /site/payments.html /site/refunds.html /site/offer.html /site/contacts.html /site/verification.html /site/deletion.html
+  handle @publicSite {
+    rewrite * /api/v1/public/site{uri}
+    reverse_proxy api:3000
+  }
+  redir /app /app/ 308
+  handle /app/* {
+    root * /srv/mobile
+    rewrite * /index.html
+    header Cache-Control "no-cache"
+    file_server
+  }
+  redir /admin /admin/ 308
+  redir /site /site/ 308
+  handle_path /admin/* {
+    root * /srv/admin
+    try_files {path} /index.html
+    file_server
+  }
+  handle_path /site/* {
+    root * /srv/site
+    file_server
+  }
+  # Shared design assets have distinct names from Flutter's assets/assets tree.
+  @shared path /assets/fonts/NotoSans-Regular.ttf /assets/fonts/NotoSans-Bold.ttf /assets/joba-logo-original.jpeg /assets/joba-logo.png /assets/joba-logo-192.png /assets/joba-logo-source.png /assets/joba-favicon.png
+  handle @shared {
+    root * /srv/admin
+    file_server
+  }
+  handle {
+    root * /srv/mobile
+    header /flutter_bootstrap.js Cache-Control "no-cache"
+    header /index.html Cache-Control "no-cache"
+    header /firebase-messaging-sw.js Cache-Control "no-cache"
+    header /flutter_service_worker.js Cache-Control "no-cache"
+    header /main.dart.js Cache-Control "no-cache"
+    header /joba-web-ads.js Cache-Control "no-cache"
+    file_server
+  }
+}

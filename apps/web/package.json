@@ -1,0 +1,13 @@
+{
+  "name": "@marketplace/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "node ../../scripts/build-public-legal.cjs && vite build"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0"
+  }
+}

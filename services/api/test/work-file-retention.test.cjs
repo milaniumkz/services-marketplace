@@ -1,0 +1,29 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto'),{mkdtemp,rm}=require('node:fs/promises'),{tmpdir}=require('node:os'),{join}=require('node:path');
+const {Store}=require('../dist/store'),{Marketplace}=require('../dist/marketplace'),{PrivateFiles}=require('../dist/private-files'),{liveFileReferences}=require('../dist/work-file-retention');
+const row=(kind,owner,data={})=>({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:'2025-01-01T00:00:00.000Z',...data});
+test('nested file references include drafts and frozen evidence while technical trails are not live references',()=>{
+ const id=randomUUID(),technical=randomUUID();assert.deepEqual(liveFileReferences({draft:{order_snapshot:{completion_upload_ids:[id]}},field_snapshot:{file:id},retention_file_ids:[technical]}),[id]);
+});
+test('physical work cleanup retries both files and preserves shared snapshots, case evidence, holds and unrelated uploads',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'joba-work-files-')),files=new PrivateFiles(dir),a=new Marketplace(new Store('memory://'),undefined,files);await a.initialize();try{
+ const owner=randomUUID(),other=randomUUID(),now=new Date('2026-01-01T00:00:00Z');await a.store.put(row('user',owner,{id:owner,status:'deleted'}));await a.store.put(row('user',other,{id:other,status:'active'}));const job=row('privacy',owner,{type:'delete',status:'limited_retention',retention_plan:{categories:[],file_categories:[{category:'chat',execution_state:'pending_category_worker'}]}}),policy=row('retention_policy','staff',{status:'effective',payload:{document_days:30,chat_days:30,security_days:30,logs_days:30}});await a.store.put(job);await a.store.put(policy);
+ const upload=async(extra={})=>{const r=row('upload',owner,{purpose:'chat',status:'clean',...extra});await a.store.put(r);await files.write(r.id,Buffer.from('isolated original'));return r;};
+ const trail=async r=>a.store.put(row('message',owner,{text:'',tombstone:true,retention_minimized_at:'2025-12-01T00:00:00.000Z',retention_policy_id:policy.id,retention_file_ids:[r.id]}));
+ const preview=randomUUID(),free=await upload({preview_file_id:preview}),shared=await upload(),evidence=await upload(),held=await upload(),untraced=await upload(),foreign=await upload({country:'KG'}),otherOwner=await upload({owner:other});await files.write(preview,Buffer.from('isolated preview'));for(const r of [free,shared,evidence,held,foreign,otherOwner])await trail(r);
+ const snapshot=row('assignment',other,{order_snapshot:{completion_upload_ids:[shared.id]}}),incident=row('case',other,{status:'closed',target_snapshot:{draft:{upload_ids:[evidence.id]}}}),hold=row('legal_hold','staff',{target_id:held.id,status:'active',fields:['file'],field_snapshot:{file:held.id},review_at:'2020-01-01T00:00:00Z'});for(const r of [snapshot,incident,hold])await a.store.put(r);
+ const remove=files.remove.bind(files);let failed=false;files.remove=async id=>{if(id===preview&&!failed){failed=true;throw Error('isolated preview removal failure');}return remove(id);};
+ await a.maintenance(now);assert.equal((await a.store.get(free.id)).status,'purge_pending');await assert.rejects(()=>files.read(free.id),e=>e.code==='ENOENT');assert.equal((await files.read(preview)).toString(),'isolated preview');assert.equal((await a.store.get(job.id)).category_progress.work_files.purge_pending,1);
+ for(const r of [shared,evidence,held,untraced,foreign,otherOwner]){assert.equal((await a.store.get(r.id)).status,'clean');assert.equal((await files.read(r.id)).toString(),'isolated original');}
+ await a.maintenance(now);assert.equal((await a.store.get(free.id)).status,'purged');await assert.rejects(()=>files.read(preview),e=>e.code==='ENOENT');assert.equal((await a.store.get(job.id)).category_progress.work_files.purged,1);assert.equal((await a.store.get(job.id)).fully_erased,false);
+ await a.store.put({...snapshot,order_snapshot:undefined,version:2});await a.store.put({...incident,target_snapshot:undefined,version:2});await a.store.put({...hold,status:'released',field_snapshot:undefined,version:2});await a.maintenance(now);
+ for(const r of [shared,evidence,held]){assert.equal((await a.store.get(r.id)).status,'purged');await assert.rejects(()=>files.read(r.id),e=>e.code==='ENOENT');}assert.equal((await a.store.get(untraced.id)).status,'clean');assert.equal((await a.store.get(job.id)).category_progress.work_files.purged,4);assert.equal((await a.store.get(job.id)).retention_plan.file_categories[0].physical_purged_count,4);
+ }finally{await a.store.close();await rm(dir,{recursive:true,force:true});}
+});
+test('work cleanup requires a valid policy trail and limits new purge decisions to fifty',async()=>{
+ const {planFileRetention}=require('../dist/retention'),s=new Store('memory://');await s.initialize();try{
+ const owner=randomUUID(),now=new Date('2026-01-01T00:00:00Z'),policy=row('retention_policy','staff',{status:'effective',payload:{document_days:30,chat_days:30}});await s.put(policy);await s.put(row('user',owner,{id:owner,status:'deleted'}));
+ const ids=[];for(let i=0;i<51;i++){const file=row('upload',owner,{purpose:'order',status:'clean'});ids.push(file.id);await s.put(file);}await s.put(row('order',owner,{retention_minimized_at:'2025-12-01T00:00:00.000Z',retention_policy_id:policy.id,retention_file_ids:ids}));
+ const invalid=row('upload',owner,{purpose:'chat',status:'clean'});await s.put(invalid);await s.put(row('message',owner,{retention_minimized_at:'2025-12-01T00:00:00.000Z',retention_policy_id:randomUUID(),retention_file_ids:[invalid.id]}));
+ const pending=await planFileRetention(s,now);assert.equal(pending.length,50);assert.equal((await s.get(invalid.id)).status,'clean');assert.equal((await s.all('upload')).filter(r=>r.status==='purge_pending').length,50);assert.equal((await planFileRetention(s,now)).length,51);
+ }finally{await s.close();}
+});
