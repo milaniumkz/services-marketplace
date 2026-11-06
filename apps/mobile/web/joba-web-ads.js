@@ -49,7 +49,54 @@
       removal.observe(document.documentElement,{childList:true,subtree:true});visibility.observe(host);
     });
   }
+  let googleLoading;
+  function googleSdk(client) {
+    if (googleLoading) return googleLoading;
+    googleLoading = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      let settled = false;
+      const finish = error => {
+        if (settled) return; settled = true; clearTimeout(timer);
+        if (error) { script.remove(); googleLoading = undefined; reject(error); }
+        else resolve();
+      };
+      const timer = setTimeout(() => finish(new Error('Google не ответил.')), 15000);
+      script.async = true; script.crossOrigin = 'anonymous';
+      script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + client;
+      script.onload = () => finish(); script.onerror = () => finish(new Error('Google недоступен.'));
+      document.head.append(script);
+    });
+    return googleLoading;
+  }
+  async function googleBanner(elementId, client, slot, personalized) {
+    if (!/^ca-pub-\d{16}$/.test(client) || !/^\d{10}$/.test(slot)) throw new Error('Некорректный блок Google.');
+    const host = await connectedHost(elementId);
+    if (!host?.isConnected || !await visibleHost(host)) return false;
+    await googleSdk(client);
+    if (!host.isConnected) return false;
+    const ad = document.createElement('ins'); ad.className = 'adsbygoogle';
+    Object.assign(ad.style, {display:'block',width:'100%',height:'50px'});
+    ad.dataset.adClient = client; ad.dataset.adSlot = slot;
+    ad.dataset.adFormat = 'horizontal'; ad.dataset.fullWidthResponsive = 'false';
+    host.replaceChildren(ad);
+    return await new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = shown => {if(settled)return;settled=true;clearTimeout(timer);observer.disconnect();resolve(shown);};
+      const observer = new MutationObserver(() => {
+        if (ad.dataset.adStatus === 'filled') finish(true);
+        if (ad.dataset.adStatus === 'unfilled' || !host.isConnected) finish(false);
+      });
+      observer.observe(ad,{attributes:true});
+      const timer = setTimeout(() => finish(false),30000);
+      try {
+        window.adsbygoogle = window.adsbygoogle || [];
+        window.adsbygoogle.requestNonPersonalizedAds = personalized === true ? 0 : 1;
+        window.adsbygoogle.push({});
+      } catch (error) {finish(false);}
+    });
+  }
   window.JobaWebAds = Object.freeze({
+    googleBanner,
     async platform() { const manager = await sdk(); return manager.getPlatform() === 'desktop' ? 'desktop' : 'touch'; },
     async banner(elementId, blockId) {
       if (!validId(blockId)) throw new Error('Некорректный рекламный блок.');

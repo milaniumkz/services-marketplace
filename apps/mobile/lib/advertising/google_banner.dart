@@ -1,8 +1,19 @@
 import 'dart:async';
+import 'ad_lifecycle.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 Future<InitializationStatus>? _initialization;
+
+Future<void> initializeGoogleAds() async {
+  final future = _initialization ??= MobileAds.instance.initialize();
+  try {
+    await future.timeout(const Duration(seconds: 20));
+  } catch (_) {
+    if (identical(_initialization, future)) _initialization = null;
+    rethrow;
+  }
+}
 
 class GoogleBanner extends StatefulWidget {
   final String unitId;
@@ -22,7 +33,7 @@ class _GoogleBannerState extends State<GoogleBanner> {
   bool _ready = false, _failed = false;
   Timer? _timeout;
   void _release(BannerAd ad) {
-    ad.dispose().catchError((Object _) {});
+    releaseBanner(ad.dispose);
   }
 
   void _fail() {
@@ -43,13 +54,9 @@ class _GoogleBannerState extends State<GoogleBanner> {
 
   Future<void> _load() async {
     try {
-      try {
-        await (_initialization ??= MobileAds.instance.initialize())
-            .timeout(const Duration(seconds: 20));
-      } catch (_) {
-        _initialization = null;
-        rethrow;
-      }
+      await waitForBannerRelease();
+      if (!mounted) return;
+      await initializeGoogleAds();
       if (!mounted) return;
       final ad = BannerAd(
         adUnitId: widget.unitId,

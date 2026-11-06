@@ -22,14 +22,35 @@ void main(){
    if(r.method=='POST')posts.add(r.url.path);
    return ok({'enabled':true,'rewarded_enabled':false,'banner_id':'R-A-20302217-1','consent':false,'consent_recorded':false});
   }))..session={'access_token':'isolated','user':{'id':'user'}};
-  await t.pumpWidget(MaterialApp(home:Scaffold(body:SingleChildScrollView(child:WebAdsPanel(api:api,onReward:(){})))));await t.pumpAndSettle();await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:80)));await t.pumpAndSettle();expect(find.byType(HtmlElementView),findsOneWidget);expect(web.window.localStorage.getItem('joba.web.ads.consent.v1'),isNull);expect(find.text('Разрешить рекламные показы'),findsNothing);expect(posts,isEmpty);
+  await t.pumpWidget(MaterialApp(home:Scaffold(body:SingleChildScrollView(child:WebAdsPanel(api:api,route:'orders',onReward:(){})))));await t.pumpAndSettle();await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:80)));await t.pumpAndSettle();expect(find.byType(HtmlElementView),findsOneWidget);expect(web.window.localStorage.getItem('joba.web.ads.consent.v1'),isNull);expect(find.text('Разрешить рекламные показы'),findsNothing);expect(posts,isEmpty);
   await t.tap(find.byTooltip('Скрыть баннер'));await t.pumpAndSettle();expect(find.byType(HtmlElementView),findsNothing);expect(posts,isEmpty);
+  await t.pumpWidget(const SizedBox());api.dispose();
+ });
+ testWidgets('Google page has a banner slot; payment pages never create a platform view',(t)async{
+  web.window.localStorage.removeItem('joba.web.ads.consent.v1');
+
+  final sdk=JSObject();
+  sdk.setProperty('googleBanner'.toJS,((JSString host,JSString client,JSString slot,JSBoolean personalized){
+    expect(client.toDart,'ca-pub-5590941579295248');expect(slot.toDart,'8113418919');expect(personalized.toDart,false);
+    return Future.value(true.toJS).toJS;
+  }).toJS);
+  sdk.setProperty('banner'.toJS,((JSString h,JSString b){return Future.value(true.toJS).toJS;}).toJS);bridge=sdk;
+  final api=JobaApi('https://isolated.example',transport:MockClient((r)async=>ok({
+    'enabled':true,'adsense_enabled':true,'adsense_client':'ca-pub-5590941579295248','adsense_slot':'8113418919',
+    'banner_id':'R-A-20302217-1','consent':false,'consent_recorded':false,
+  })))..session={'access_token':'isolated','user':{'id':'user'}};
+  for(final route in ['home','bank-payment','checkout']){
+    await t.pumpWidget(MaterialApp(home:Scaffold(body:WebAdsPanel(key:ValueKey(route),route:route,api:api,onReward:(){}))));
+    await t.pumpAndSettle();await t.runAsync(()=>Future<void>.delayed(const Duration(milliseconds:80)));await t.pumpAndSettle();
+    expect(find.byType(HtmlElementView),route=='home'?findsOneWidget:findsNothing);
+  }
+  expect(t.takeException(),isNull);
   await t.pumpWidget(const SizedBox());api.dispose();
  });
  testWidgets('a previously recorded opt-out is retained without prompting or starting the SDK',(t)async{
   var banners=0;final sdk=JSObject();sdk.setProperty('banner'.toJS,((JSString h,JSString b){banners++;return Future.value(true.toJS).toJS;}).toJS);bridge=sdk;
   final api=JobaApi('https://isolated.example',transport:MockClient((r)async=>ok({'enabled':true,'banner_id':'R-A-20302217-1','consent':false,'consent_recorded':true})))..session={'access_token':'isolated','user':{'id':'user'}};
-  await t.pumpWidget(MaterialApp(home:Scaffold(body:WebAdsPanel(api:api,onReward:(){})))) ;await t.pumpAndSettle();expect(banners,0);expect(find.text('Разрешить рекламные показы'),findsNothing);await t.pumpWidget(const SizedBox());api.dispose();
+  await t.pumpWidget(MaterialApp(home:Scaffold(body:WebAdsPanel(api:api,route:'orders',onReward:(){})))) ;await t.pumpAndSettle();expect(banners,0);expect(find.text('Разрешить рекламные показы'),findsNothing);await t.pumpWidget(const SizedBox());api.dispose();
  });
  for(final completed in [false,true])testWidgets('web Rewarded submits only the actual SDK callback: $completed',(t)async{
   final completion=Completer<JSBoolean>(),outcomes=<Map<String,dynamic>>[];

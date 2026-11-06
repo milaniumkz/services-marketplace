@@ -3,6 +3,10 @@ import 'dart:io';
 import 'dart:math';
 import 'banner_policy.dart';
 import 'google_banner.dart';
+import 'google_rewarded.dart';
+import 'rewarded_attempts.dart';
+import 'placements.dart';
+import 'ad_lifecycle.dart';
 import 'package:flutter/material.dart';
 import 'package:yandex_mobileads/mobile_ads.dart';
 import '../core/api.dart';
@@ -18,11 +22,13 @@ class WebAdsPanel extends StatefulWidget {
   final VoidCallback onReward;
   final VoidCallback? onPrivacy;
   final bool compact;
+  final String route;
   const WebAdsPanel(
       {required this.api,
       required this.onReward,
       this.onPrivacy,
       this.compact = false,
+      this.route = 'home',
       super.key});
   @override
   State<WebAdsPanel> createState() => _BannerState();
@@ -57,10 +63,21 @@ class _BannerState extends State<WebAdsPanel> {
       setState(() {
         config = Json.from(c);
         networks = nativeBannerNetworks(config!,
-            android: Platform.isAndroid,
-            googleFirst: Random.secure().nextBool());
+            android: Platform.isAndroid, route: widget.route);
       });
     }).catchError((Object _) {});
+  }
+
+  @override
+  void didUpdateWidget(covariant WebAdsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.route != widget.route &&
+        config != null &&
+        bannerPlacements.containsKey(widget.route)) {
+      index = 0;
+      networks = nativeBannerNetworks(config!,
+          android: Platform.isAndroid, route: widget.route);
+    }
   }
 
   void fallback() {
@@ -122,6 +139,8 @@ class _YandexBannerState extends State<_YandexBanner> {
           c['consent_recorded'] == true && c['consent'] != true ||
           id is! String ||
           id.isEmpty) return;
+      await waitForBannerRelease();
+      if (!current()) return;
       await _initializeAds();
       await YandexAds.setUserConsent(c['consent'] == true);
       if (!current()) return;
@@ -143,7 +162,7 @@ class _YandexBannerState extends State<_YandexBanner> {
     } catch (_) {
       if (current()) fail();
     } finally {
-      if (created != null) _releaseAd(created.destroy);
+      if (created != null) releaseBanner(created.destroy);
       loading = false;
     }
   }
@@ -153,7 +172,7 @@ class _YandexBannerState extends State<_YandexBanner> {
     states?.cancel();
     final banner = ad;
     ad = null;
-    if (banner != null) _releaseAd(banner.destroy);
+    if (banner != null) releaseBanner(banner.destroy);
     super.dispose();
   }
 
@@ -249,11 +268,12 @@ class _RewardState extends State<WebRewardScreen> {
 
   Future<void> confirm() async {
     final s = pending!;
+    final generation = widget.api.sessionGeneration;
     final result = await widget.api.request(
         '/me/web-ads/reward-sessions/${s['id']}/outcome',
         method: 'POST',
         body: {'nonce': s['nonce'], 'completed': completed});
-    if (!mounted) return;
+    if (!mounted || generation != widget.api.sessionGeneration) return;
     setState(() {
       pending = null;
       completed = null;
@@ -273,8 +293,6 @@ class _RewardState extends State<WebRewardScreen> {
     final api = widget.api, generation = api.sessionGeneration;
     bool current() =>
         mounted && api.authenticated && generation == api.sessionGeneration;
-    RewardedAdLoader? loader;
-    RewardedAd? ad;
     try {
       if (pending != null) {
         await confirm();
@@ -293,35 +311,72 @@ class _RewardState extends State<WebRewardScreen> {
       if (config?['consent'] != true)
         await api.request('/me/web-ads/consent',
             method: 'POST', body: {'accepted': true});
-      await _initializeAds();
-      if (!current()) return;
-      await YandexAds.setUserConsent(true);
-      final s = Json.from(await api.request('/me/web-ads/reward-sessions',
-          method: 'POST',
-          body: {'platform': _platform, 'target': offer!['target']}));
-      if (!current()) return;
-      pending = s;
-      completed = false;
-      loader = RewardedAdLoader();
-      ad = await loader
-          .loadAd(adRequest: AdRequest(adUnitId: s['block_id']))
-          .timeout(const Duration(seconds: 45));
-      if (!current()) return;
-      await ad.setAdEventListener(
-          eventListener: RewardedAdEventListener(onRewarded: (_) {
-        completed = true;
-      }));
-      await withExternalActivity(() async {
-        await ad!.show();
-        await ad.waitForDismiss();
-      });
-      if (current()) await confirm();
+      final providers = nativeRewardNetworks(config!,
+          android: Platform.isAndroid, googleFirst: Random.secure().nextBool());
+      await runRewardedAttempts<Json>(
+        providers: providers,
+        current: current,
+        start: (provider) async {
+          final session = Json.from(await api
+              .request('/me/web-ads/reward-sessions', method: 'POST', body: {
+            'platform': _platform,
+            'target': offer!['target'],
+            'provider': provider
+          }));
+          if (current()) {
+            pending = session;
+            completed = false;
+          }
+          return session;
+        },
+        play: (provider, session) => provider == 'google'
+            ? playGoogleRewarded(session['block_id'], current: current)
+            : playYandexRewarded(session['block_id'], current),
+        report: (value) async {
+          completed = value;
+          await confirm();
+        },
+      );
     } catch (e) {
       if (current()) setState(() => message = _message(e));
     } finally {
-      ad?.destroy();
-      loader?.destroy();
       if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<bool> playYandexRewarded(
+      String blockId, bool Function() current) async {
+    await _initializeAds();
+    await YandexAds.setUserConsent(true);
+    if (!current()) return false;
+    final loader = RewardedAdLoader();
+    RewardedAd? ad;
+    bool abandoned = false, earned = false;
+    try {
+      final loading = loader.loadAd(adRequest: AdRequest(adUnitId: blockId));
+      unawaited(loading.then<void>((lateAd) {
+        if (abandoned) _releaseAd(lateAd.destroy);
+      }, onError: (Object _) {}));
+      ad = await loading.timeout(const Duration(seconds: 45));
+      if (!current()) return false;
+      await ad.setAdEventListener(
+          eventListener:
+              RewardedAdEventListener(onRewarded: (_) => earned = true));
+      await withExternalActivity(() async {
+        await ad!.show();
+        await ad.waitForDismiss().timeout(const Duration(minutes: 5));
+      });
+      return earned;
+    } finally {
+      abandoned = true;
+      if (ad != null) {
+        try {
+          await ad.destroy();
+        } catch (_) {}
+      }
+      try {
+        loader.destroy();
+      } catch (_) {}
     }
   }
 

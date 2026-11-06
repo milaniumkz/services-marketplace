@@ -61,6 +61,7 @@ import 'city_selector.dart';
 import '../core/share_invitation.dart';
 import 'verification_editor.dart';
 import 'dart:async';
+import '../advertising/placements.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
@@ -732,7 +733,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       child: SafeArea(
                           bottom: false,
                           child: Container(color: canvas, child: body))),
-              bottomNavigationBar: widget.onNavigationChanged==null&&(_api?.authenticated==true && !locked && !onboardingNavigationBlocked)
+              bottomNavigationBar: _api?.authenticated==true && !locked && onboardingNavigationBlocked && bannerPlacement!=null
+                  ? Visibility(visible:MediaQuery.viewInsetsOf(context).bottom==0,maintainState:true,child:Material(color:Colors.white,child:navigationBanner))
+                  : widget.onNavigationChanged==null&&(_api?.authenticated==true && !locked && !onboardingNavigationBlocked)
                   ? Padding(
                       padding: EdgeInsets.only(bottom: ['create','edit-order'].contains(route)?MediaQuery.viewInsetsOf(context).bottom:0),
                       child: navigationWithAd(JobaNavigation(
@@ -743,10 +746,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       onSelect: selectMainTab)))
                   : null));
   String? get bannerPlacement {
-    const placements={'home','jobs','catalog','account','orders','messages','notifications','reviews','invitations','top'};
-    return placements.contains(route)?'$route:${api.session?['user']?['id']}':null;
+    const placements=bannerPlacements;
+    return placements.containsKey(route)?'$route:${api.session?['user']?['id']}':null;
   }
-  Widget? get navigationBanner=>kIsWeb&&bannerPlacement==null?null:WebAdsPanel(key:ValueKey(kIsWeb?'footer-ad:$bannerPlacement':'footer-ad:${api.sessionGeneration}:${api.session?['user']?['id']}'),api:api,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'));
+  Widget? get navigationBanner=>kIsWeb&&bannerPlacement==null?null:WebAdsPanel(key:ValueKey(kIsWeb?'footer-ad:$bannerPlacement':'footer-ad:${api.sessionGeneration}:${api.session?['user']?['id']}'),api:api,route:route,compact:true,onReward:()=>go('reward'),onPrivacy:()=>go('privacy'));
   Widget navigationWithAd(Widget navigation){
     final banner=navigationBanner;
     return banner==null?navigation:Column(mainAxisSize:MainAxisSize.min,children:[Visibility(visible:bannerPlacement!=null&&MediaQuery.viewInsetsOf(context).bottom==0,maintainState:true,child:Material(color:Colors.white,child:banner)),navigation]);
