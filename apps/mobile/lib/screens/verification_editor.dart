@@ -10,6 +10,11 @@ class VerificationEditor extends StatefulWidget {
   final String country;
   final int revision;
   final bool executor;
+  final bool documentOnly;
+
+  String get consentText => documentOnly
+      ? 'Согласен на ручную проверку двух сторон документа.'
+      : 'Согласен на проверку документа и селфи. После одобрения селфи станет фото профиля.';
   final Future<Json?> Function(String) pick;
   final Future<PhotoFile?> Function(bool selfie)? choosePhoto;
   final Future<Json> Function(PhotoFile photo, String sessionId)? uploadPhoto;
@@ -23,6 +28,7 @@ class VerificationEditor extends StatefulWidget {
       {required this.api,
       this.revision = 0,
       this.executor = false,
+      this.documentOnly = false,
       required this.country,
       required this.pick,
       this.choosePhoto,
@@ -126,12 +132,12 @@ class _VerificationEditorState extends State<VerificationEditor> {
     final requirements = policy?['required_pages'] as Json?;
     final snapshot =
         session?['document_type'] == type ? (session?['required_pages']) : null;
-    return ((snapshot ?? requirements?[type] ?? ['Документ']) as List)
-        .cast<String>();
+    final labels = ((snapshot ?? requirements?[type] ?? ['Документ']) as List).cast<String>();
+    return widget.documentOnly ? labels.take(2).toList() : labels;
   }
 
   List<String> get selected =>
-      session == null || session!['document_type'] != type
+      session == null || (session!['document_only'] == true) != widget.documentOnly || session!['document_type'] != type
           ? []
           : widget.uploads.putIfAbsent(session!['id'], () => []);
   Future<void> execute(Future<void> Function(int) command) async {
@@ -182,12 +188,13 @@ class _VerificationEditorState extends State<VerificationEditor> {
       policy['consent_accepted'] = true;
     }
     if (session == null ||
+        (session!['document_only'] == true) != widget.documentOnly ||
         session!['document_type'] != type ||
         !['draft', 'rejected'].contains(session!['status']) ||
         session!['policy_id'] != policy['id'] ||
         session!['policy_version'] != policy['version']) {
       final created = await widget.api.request('/me/verification-sessions',
-          method: 'POST', body: {'document_type': type}) as Json;
+          method: 'POST', body: {'document_type': type, if (widget.documentOnly) 'document_only': true}) as Json;
       if (valid(current)) setState(() => session = created);
     }
   }
@@ -225,7 +232,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
         if (!consent) {
           final accepted = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
             title: const UiText('Согласие на проверку'),
-            content: const UiText('Согласен на проверку документа и селфи. После одобрения селфи станет фото профиля.'),
+            content: UiText(widget.consentText),
             actions: [
               TextButton(onPressed: () => Navigator.pop(dialog, false), child: const UiText('Отмена')),
               FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const UiText('Согласен и продолжить')),
@@ -237,7 +244,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
         // Select locally first. No document or consent request precedes the picker.
         PhotoFile? photo;
         if (widget.choosePhoto != null) {
-          photo = await widget.choosePhoto!(index == pages.length - 1);
+          photo = await widget.choosePhoto!(!widget.documentOnly && index == pages.length - 1);
           if (!valid(current) || photo == null) return;
         }
         await ensureSession(current);
@@ -422,7 +429,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                         MaterialLocalizations.of(context).formatMediumDate(
                             DateTime.parse(session!['expires_at']).toLocal()))
                 ])),
-          if (passed)
+          if (passed && !widget.documentOnly)
             const Notice(
                 'Селфи станет фото профиля после одобрения. Снимите только лицо, без удостоверения в кадре. Фотографии удостоверения остаются приватными.'),
           TextButton(
@@ -455,9 +462,11 @@ class _VerificationEditorState extends State<VerificationEditor> {
             rejected ? 'Давайте попробуем ещё раз' : 'Подтвердите документ',
             rejected
                 ? 'Снимите документ при рассеянном свете. Все края должны быть в кадре.'
-                : 'Для заказчиков и исполнителей: две стороны удостоверения и селфи. После одобрения селфи станет фото профиля.'),
-        const Notice(
-            'Удостоверение видят только сотрудники проверки. В профиле будет только селфи после одобрения.',
+                : widget.documentOnly
+                    ? 'Загрузите две стороны документа для ручной проверки.'
+                    : 'Для заказчиков и исполнителей: две стороны удостоверения и селфи. После одобрения селфи станет фото профиля.'),
+        Notice(
+            widget.documentOnly ? 'Удостоверение доступно только уполномоченным сотрудникам проверки.' : 'Удостоверение видят только сотрудники проверки. В профиле будет только селфи после одобрения.',
             icon: 'shield',
             margin: EdgeInsets.zero),
         if (rejected && session?['reason'] != null)
@@ -508,7 +517,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                                       (((policy?['required_pages']
                                                   as Json?)?[value] as List?) ??
                                               ['Документ'])
-                                          .join(' · '),
+                                          .take(widget.documentOnly ? 2 : 3).join(' · '),
                                       style: const TextStyle(
                                           color: Color(0xFF627187),
                                           fontSize: 12))
@@ -532,7 +541,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                                     : null)
                           ]))))),
         const SizedBox(height: 10),
-        const UiText('Документ и селфи',
+        UiText(widget.documentOnly ? 'Документ' : 'Документ и селфи',
             style: TextStyle(fontWeight: FontWeight.w700)),
         if (selected.length < pages.length)
           Padding(
@@ -585,9 +594,9 @@ class _VerificationEditorState extends State<VerificationEditor> {
             value: consent,
             onChanged:
                 busy || policy == null ? null : (v) => changeConsent(v == true),
-            title: const UiText(
-                'Согласен на проверку документа и селфи. После одобрения селфи станет фото профиля.',
-                style: TextStyle(fontSize: 12, height: 1.55))),
+            title: UiText(
+                widget.consentText,
+                style: const TextStyle(fontSize: 12, height: 1.55))),
         TextButton(
             onPressed: widget.onTerms, child: const UiText('Условия проверки')),
         if (rejected)

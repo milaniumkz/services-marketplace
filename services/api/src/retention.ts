@@ -1,6 +1,8 @@
 import {eligibleWorkFiles,liveFileReferences} from './work-file-retention';
 import {heldFileIds} from './legal-holds';
 import {Store,RecordData} from './store';
+
+export const documentOnlyRetentionDays = 30;
 /** Runs inside the maintenance transaction; bytes are removed only after commit. */
 export async function planFileRetention(store:Store,now:Date,onExpired?:(verification:RecordData)=>Promise<void>):Promise<string[]> {
  const policies=(await store.all('retention_policy')).filter(r=>r.status==='effective');
@@ -23,7 +25,12 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
  for(const file of await store.all('upload')){
   if(file.status==='purge_pending'){removals.push(file.id);continue;}
   if(file.status==='purged'||protectedFiles.has(file.country+':'+file.id))continue;
-  const policy=policies.find(p=>p.country===file.country);if(!policy)continue;
+  const policy=policies.find(p=>p.country===file.country);
+  const verification=file.purpose==='identity'
+    ?verifications.find(v=>v.id===file.verification_id&&v.country===file.country)
+    :undefined;
+  const documentOnly=verification?.document_only===true;
+  if(!policy&&!documentOnly)continue;
   let reason:string|undefined;
   if(deleted.has(file.country+':'+file.owner)&&['avatar','portfolio','export'].includes(file.purpose))reason='account_deleted_personal_media';
   if(['initiated','uploaded','rejected','infected','failed'].includes(file.status)&&Date.parse(file.created_at)+86400000<=now.getTime())reason='abandoned_upload_24h';
@@ -31,14 +38,13 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
   if(workQueued<50&&work&&work.owners.includes(file.owner)&&deleted.has(file.country+':'+file.owner)&&['order','chat'].includes(file.purpose)){reason='closed_work_unreferenced';workQueued++;}
   if(file.purpose==='export'&&file.expires_at<=now.toISOString())reason='export_link_expired';
   if(file.purpose==='identity'){
-   const verification=verifications.find(v=>v.id===file.verification_id&&v.country===file.country);
-   if(verification&&['passed','rejected','expired','revoked'].includes(verification.status)&&verification.decided_at&&Date.parse(verification.decided_at)+policy.payload.document_days*86400000<=now.getTime())reason='document_retention_expired';
+   if(verification&&['passed','rejected','expired','revoked'].includes(verification.status)&&verification.decided_at&&Date.parse(verification.decided_at)+(documentOnly?documentOnlyRetentionDays:policy!.payload.document_days)*86400000<=now.getTime())reason='document_retention_expired';
    if(verification&&['draft','pending_review'].includes(verification.status)&&Date.parse(verification.created_at)+14*86400000<=now.getTime()){
     const held=holds.some(h=>h.country===verification.country&&h.target_id===verification.id&&h.fields.includes('document_refs'));
     if(!held){reason='verification_incomplete_14d';if(verification.status!=='expired'){const current=await store.get(verification.id);if(current?.status!=='expired'){const expired=await store.put({...current!,status:'expired',failure_code:'DOCUMENT_WINDOW_EXPIRED',decided_at:now.toISOString(),version:current!.version+1});if(onExpired)await onExpired(expired);}}}
    }
   }
-  if(reason){await store.put({...file,status:'purge_pending',purge_reason:reason,policy_id:policy.id,purge_requested_at:now.toISOString(),version:file.version+1});removals.push(file.id);}
+  if(reason){await store.put({...file,status:'purge_pending',purge_reason:reason,policy_id:policy?.id,purge_requested_at:now.toISOString(),version:file.version+1});removals.push(file.id);}
  }
  return removals;
 }
