@@ -1,3 +1,4 @@
+import {refreshPublicServiceInformation} from './public-service-information';
 import {VtbGateway,loadVtbConfig} from './vtb-gateway';
 import {VtbPayments} from './vtb-payments';
 import {receiveMobileCrash,mobileCrashes} from './mobile-crashes';
@@ -126,7 +127,7 @@ export class Marketplace {
     if(process.env.JOBA_CLAMSCAN_PATH)providers.scanner=new ClamAvScanner();
     if(process.env.JOBA_PDFTOPPM_PATH)providers.pdfSanitizer=new PopplerPdfSanitizer();
   }
-  async initialize() { await this.store.initialize();await seedReferenceData(this.store); }
+  async initialize() { await this.store.initialize();await seedReferenceData(this.store);await refreshPublicServiceInformation(this.store); }
   private record(kind: string, actor: {id:string;country:string}, data: any = {}): RecordData { return {...data,id:randomUUID(),kind,owner:actor.id,country:actor.country,version:1,created_at:new Date().toISOString()}; }
   private async limited(key:string,max=20){
     const scope=await this.files.requestDigest('rate-limit:'+key);
