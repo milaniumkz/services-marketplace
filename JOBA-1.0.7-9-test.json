@@ -1,0 +1,39 @@
+{
+  "version": "1.0.7",
+  "versionCode": 9,
+  "source": "50ef35b44639bf53e253fec4b1026ae5fb068d95",
+  "bytes": 76020073,
+  "sha256": "963b84e79013e473297b98d21572d442680a4ad878a19420c055e6c3346f50ff",
+  "buildMode": "release",
+  "signing": "testing; same certificate as earlier test APKs",
+  "certificateSha256": "de02e49c7caea7a27003e06fdb341c01d3e1e0ac8c06f5ac44c947bd006ac3dc",
+  "api": "https://joba.com.kz",
+  "free_mobile": false,
+  "advertising_sdks_integrated": true,
+  "checks": {
+    "flutterTestsPassed": 343,
+    "apiTestsPassed": 228,
+    "browserTestsPassed": 22,
+    "signature": true,
+    "zipalign16KiB": true,
+    "elfAlignment16KiB": true,
+    "cameraPermission": true,
+    "microphonePermission": false,
+    "realDeviceRun": false
+  },
+  "nativeLibraries": {
+    "lib/arm64-v8a/libapp.so": 65536,
+    "lib/arm64-v8a/libdartjni.so": 16384,
+    "lib/arm64-v8a/libdatastore_shared_counter.so": 16384,
+    "lib/arm64-v8a/libflutter.so": 65536,
+    "lib/arm64-v8a/libimage_processing_util_jni.so": 16384,
+    "lib/arm64-v8a/libsurface_util_jni.so": 16384,
+    "lib/x86_64/libapp.so": 65536,
+    "lib/x86_64/libdartjni.so": 16384,
+    "lib/x86_64/libdatastore_shared_counter.so": 16384,
+    "lib/x86_64/libflutter.so": 65536,
+    "lib/x86_64/libimage_processing_util_jni.so": 16384,
+    "lib/x86_64/libsurface_util_jni.so": 16384
+  },
+  "builtAt": "2026-11-09T11:08:59.507103+00:00"
+}
