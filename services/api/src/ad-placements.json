@@ -84,6 +84,12 @@
     "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
   },
   {
+    "route": "guest-catalog",
+    "title": "Гостевой каталог App Store",
+    "network": null,
+    "excluded_reason": "Гостевой просмотр до входа в режиме App Store"
+  },
+  {
     "route": "login",
     "title": "Вход",
     "network": null,
