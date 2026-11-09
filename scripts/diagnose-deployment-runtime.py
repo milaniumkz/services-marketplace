@@ -45,8 +45,12 @@ for name in ['mobile-api-release']:
  if p.is_file():
   value=p.read_text().strip()
   markers[name]=value if re.fullmatch('[0-9a-f]{40}',value) else 'invalid'
+recent_sql="""SELECT json_build_object('country',r.country,'created_at',r.data->>'created_at','status',r.data->>'status','profile_started',length(COALESCE(r.data->>'display_name',''))>0,'credentials_present',EXISTS(SELECT 1 FROM credentials c WHERE c.user_id=r.id),'old_first_page',((SELECT count(*) FROM records earlier WHERE earlier.kind='user' AND COALESCE(earlier.data->>'status','')<>'deleted' AND COALESCE(jsonb_array_length(earlier.data->'staff_permissions'),0)=0 AND earlier.id<r.id)<20)) FROM records r WHERE r.kind='user' AND COALESCE(r.data->>'status','')<>'deleted' AND COALESCE(jsonb_array_length(r.data->'staff_permissions'),0)=0 ORDER BY r.data->>'created_at' DESC,r.id DESC LIMIT 12"""
+geo_sql="""SELECT json_build_object('country',country,'city',data->>'city','published',count(*),'missing_point',count(*) FILTER(WHERE data->'public_location'->>'latitude' IS NULL)) FROM records WHERE kind='contractor' AND data->>'status'='published' GROUP BY country,data->>'city'"""
+compose=['docker','compose','--env-file','/etc/joba/production.env','-f','/opt/joba/current/infra/production/compose.yaml','exec','-T','database','psql','-U','joba','-d','joba','-At','-c']
+recent=run(compose+[recent_sql]);locations=run(compose+[geo_sql])
 print(json.dumps({'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),
- 'read_only':len(sys.argv)==1,'stopped_stale_fetches':stopped,'load':list(os.getloadavg()),'release_markers':markers,
+ 'recent_registration_metadata':recent,'published_location_coverage':locations,'read_only':len(sys.argv)==1,'stopped_stale_fetches':stopped,'load':list(os.getloadavg()),'release_markers':markers,
  'processes':run(['ps','-eo','pid,ppid,etimes,pcpu,pmem,comm','--sort=-pcpu']),
  'containers':run(['docker','ps','--format','{{.Names}} {{.Status}}']),
  'deployment_locks':run(['lslocks','--noheadings','--output','PID,COMMAND,PATH']),
