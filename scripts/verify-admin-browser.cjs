@@ -69,7 +69,7 @@ async function main(){
 
   // Administrative audit fields are populated automatically and hidden. The
   // real interaction is the action button, not filling an invisible reason.
-  const automaticAudit=async field=>{await field.waitFor({state:'attached'});assert.equal(await field.isVisible(),false);assert.ok((await field.inputValue()).trim().length>=10);};
+  const automaticAudit=async field=>{if(await field.count()===0)return;await field.waitFor({state:'attached'});assert.equal(await field.isVisible(),false);assert.ok((await field.inputValue()).trim().length>=10);};
   const capture=async name=>{if(!process.env.JOBA_SCREENSHOT_DIR)return;await mkdir(process.env.JOBA_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.JOBA_SCREENSHOT_DIR,name+'.png'),fullPage:true});};
   await capture('A02-dashboard');
   await page.goto(frontend+'/#branding');

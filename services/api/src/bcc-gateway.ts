@@ -51,7 +51,7 @@ export class BccGateway implements HostedBank {
   return ['2','3','6','7'].includes(String(r.ACTION))?6:0;
  }
  async decline(_payment:RecordData){return {pending:true};} // An unopened form has no bank charge; always recheck before local expiry.
- async validateProduct(productId:string,country:string){const p=(await this.store.all('price_version',country)).find(x=>x.payload?.provider==='bcc'&&x.payload.product_id===productId);if(!p)return fail('PRICE_MISMATCH');return {product_id:productId,amount_minor:p.payload.amount_minor,currency:p.payload.currency};}
+ async validateProduct(productId:string,country:string){const p=(await this.store.all('price_version',country)).find(x=>x.payload?.provider==='bcc'&&x.payload.product_id===productId);if(!p)return fail('PRICE_MISMATCH');if(!this.countries.includes(country)||!this.currencies.includes(p.payload.currency))return fail('BCC_CURRENCY_UNAVAILABLE');return {product_id:productId,amount_minor:p.payload.amount_minor,currency:p.payload.currency};}
  async verifyPurchase(_reference:string,_account:string):Promise<VerifiedPurchase>{return fail('BCC_VERIFICATION_ROUTE');}
  async verifyWebhook(_raw:Buffer,_headers:Record<string,string>):Promise<never>{return fail('BCC_CALLBACK_ROUTE');}
  private refundPath(id:string){if(!/^[a-f0-9-]{36}$/i.test(id))return fail('REFUND_MISMATCH');return join(this.config.refund_journal_dir??(process.env.NODE_ENV==='production'?'/app/.local/bcc-refunds':'/tmp/joba-bcc-refunds'),createHash('sha256').update(this.environment+':'+this.config.terminal+':'+id).digest('hex')+'.json');}
