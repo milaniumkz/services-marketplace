@@ -292,6 +292,19 @@ export class Marketplace {
   }
   private async dispatch(method: string,path: string,b: any,authorization: string|undefined,q: any,ip: string): Promise<any> {
     const db=this.store.db;
+    if(path==='/public/contractors'&&method==='GET'){
+      const country=String(q.country??'KZ');
+      if(!countryEnabled(country))fail(400,'VALIDATION_ERROR','Страна недоступна');
+      if(q.q!==undefined&&(typeof q.q!=='string'||q.q.length>100))fail(400,'VALIDATION_ERROR','Проверьте поисковый запрос');
+      const after=typeof q.after==='string'&&/^[0-9a-f-]{36}$/i.test(q.after)?q.after:undefined;
+      const limit=20;
+      const rows=await this.store.select('contractor',country,{statuses:['published'],publicActor:'anonymous-catalog',search:q.q?.trim()||undefined,after,limit:limit+1});
+      const visible=rows.slice(0,limit);
+      return {items:visible.map(row=>{
+        const item=publicContent(row);
+        return {id:item.id,title:item.title,description:item.description,city:item.city,category_id:item.category_id};
+      }),next_cursor:rows.length>limit?visible.at(-1)?.id:null};
+    }
     if(path==='/public/mobile-release'&&method==='GET')return {free_core_access:process.env.JOBA_MOBILE_FREE_ACCESS==='1',channel:'mobile-free-v1',purchases_enabled:true,default_channel:'standard',minimum_paid_build:3};
     path=path.replace(/\/select-offer$/, '/select').replace(/\/request-completion$/, '/complete');
     const orderReview=path.match(/^\/orders\/([^/]+)\/reviews$/);if(orderReview){b={...b,order_id:orderReview[1]};path='/reviews';}
@@ -567,7 +580,8 @@ export class Marketplace {
       if(!document||document.kind!=='legal_document'||document.country!==a.country||document.status!=='published')fail(503,'COUNTRY_FLOW_UNAPPROVED','Правовое основание проверки недоступно');
       if(!consent?.accepted||!legalHashAccepted(document!,consent.document_hash))fail(403,'CONSENT_REQUIRED','Требуется согласие на проверку документа');
       if(!verificationDocumentTypes(policy!.payload,a.country).includes(b.document_type))fail(400,'VALIDATION_ERROR','Тип документа не разрешён');
-      return this.store.put(this.record('verification',a,{status:'draft',submitted_role:subscriptionRole(a.user),document_type:b.document_type,policy_id:policy!.id,policy_version:policy!.version,document_revision:1,required_pages:verificationPages(policy!.payload,b.document_type,a.country),selfie_index:verificationPages(policy!.payload,b.document_type,a.country).length-1,document_refs:[]}));
+      const documentOnly=b.document_only===true,allPages=verificationPages(policy!.payload,b.document_type,a.country),pages=documentOnly?allPages.slice(0,-1):allPages;
+      return this.store.put(this.record('verification',a,{status:'draft',submitted_role:subscriptionRole(a.user),document_type:b.document_type,policy_id:policy!.id,policy_version:policy!.version,document_revision:1,required_pages:pages,selfie_index:documentOnly?null:pages.length-1,document_only:documentOnly,document_refs:[]}));
     }
     const verificationSubmit=path.match(/^\/me\/verification-sessions\/([^/]+)\/submit$/);
     if(verificationSubmit&&method==='POST') {
@@ -580,7 +594,7 @@ export class Marketplace {
       const document=await this.store.get(policy!.payload.document_id);
       const consent=(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id&&x.document_id===policy!.payload.document_id).sort((x,y)=>(y.sequence??0)-(x.sequence??0)||y.created_at.localeCompare(x.created_at))[0];
       if(!document||document.country!==a.country||document.status!=='published'||!consent?.accepted||!legalHashAccepted(document,consent.document_hash))fail(403,'CONSENT_REQUIRED','Требуется актуальное согласие на проверку документа');
-      const uploads=await this.safeUploads(a,b.upload_ids,'identity');const photoLayout=verificationPhotoLayout(r);if(!photoLayout||uploads.length!==photoLayout.count)fail(400,'VALIDATION_ERROR','Загрузите все указанные страницы документа и отдельное селфи; для старой заявки создайте новую');
+      const uploads=await this.safeUploads(a,b.upload_ids,'identity');const photoLayout=verificationPhotoLayout(r);if(!photoLayout||uploads.length!==photoLayout.count)fail(400,'VALIDATION_ERROR','Загрузите все указанные страницы документа'+(r.document_only===true?'':' и отдельное селфи')+'; для старой заявки создайте новую');
       for(const id of uploads){const upload=await this.store.get(id);if(!['image/jpeg','image/png'].includes(upload?.mime))fail(422,'UNSAFE_UPLOAD','Загрузите фотографии в формате JPEG или PNG');if(upload?.verification_id!==r.id)fail(422,'POLICY_REJECTED','Документ загружен для другой заявки');}
       await this.store.put({...a.user,verification:'pending_review',version:a.user.version+1});
       return this.store.put({...r,status:'pending_review',document_refs:uploads,document_revision:r.document_revision+1,version:r.version+1});
@@ -1440,14 +1454,22 @@ export class Marketplace {
         const r=await this.object(vd[1],a,'verification');this.version(r,b);if(!(['passed','rejected'].includes(b.decision)&&r.status==='pending_review'||b.decision==='revoked'&&r.status==='passed')||b.document_revision!==r.document_revision)fail(409,'STATE_CONFLICT','Ревизия документа изменилась');
         if(!['passed','rejected','revoked'].includes(b.decision))fail(400,'VALIDATION_ERROR','Недопустимое решение');const reason=staffReason(b,'Решение администратора по проверке личности');
         const u=(await this.store.get(r.owner))!;
-        if(b.decision==='passed'&&(!verificationPhotoLayout(r)||r.document_refs?.length!==verificationPhotoLayout(r)!.count))fail(422,'VERIFICATION_PHOTOS_REQUIRED','Нужны все указанные страницы документа и отдельное селфи. Запросите новую заявку.');
+        if(b.decision==='passed'){
+          if(!verificationPhotoLayout(r)||r.document_refs?.length!==verificationPhotoLayout(r)!.count)fail(422,'VERIFICATION_PHOTOS_REQUIRED','Нужны все материалы действующей заявки.');
+          if(r.document_only===true&&b.document_check_confirmed!==true)fail(422,'DOCUMENT_CHECK_REQUIRED','Подтвердите ручную проверку подлинности документа и принадлежности заявителю.');
+        }
         let avatarId=u.avatar_id;
-        if(b.decision==='passed'&&verificationPhotoLayout(r)){
+        if(b.decision==='passed'){
           const policy=await this.store.get(r.policy_id),document=policy?await this.store.get(policy.payload.document_id):undefined;
           const consent=document?(await this.store.all('consent',a.country)).filter(c=>c.owner===u.id&&c.document_id===document.id).sort((x,y)=>y.sequence-x.sequence)[0]:undefined;
           if(!policy||policy.status!=='effective'||policy.version!==r.policy_version)fail(409,'POLICY_CHANGED','Правила проверки изменились; нужна новая заявка');
           if(!document||document.status!=='published'||!consent?.accepted||!legalHashAccepted(document,consent.document_hash))fail(403,'CONSENT_REQUIRED','Согласие на проверку отозвано или изменилось');
-          if(r.document_refs?.length!==verificationPhotoLayout(r)!.count)fail(422,'UNSAFE_UPLOAD','Нужны все страницы документа и селфи');
+          for(const id of r.document_refs){
+            const file=await this.store.get(id);
+            if(!file||file.owner!==u.id||file.country!==a.country||file.purpose!=='identity'||file.verification_id!==r.id||file.status!=='clean'||!['image/jpeg','image/png'].includes(file.mime))fail(422,'UNSAFE_UPLOAD','Материал заявки недоступен или не прошёл проверку');
+          }
+        }
+        if(b.decision==='passed'&&r.document_only!==true&&verificationPhotoLayout(r)){
           const selfie=await this.store.get(r.document_refs[r.selfie_index]);
           if(!selfie||selfie.owner!==u.id||selfie.country!==a.country||selfie.purpose!=='identity'||selfie.verification_id!==r.id||selfie.status!=='clean'||!['image/jpeg','image/png'].includes(selfie.mime))fail(422,'UNSAFE_UPLOAD','Селфи недоступно или не прошло проверку');
           const bytes=await sharp(await this.files.read(selfie!.id),{limitInputPixels:25000000}).rotate().resize(512,512,{fit:'cover'}).jpeg({quality:85}).toBuffer();

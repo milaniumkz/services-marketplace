@@ -1,5 +1,5 @@
 import 'bank_payment.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import '../core/native_diagnostics.dart';
 import 'face_access.dart';
 import '../core/release_channel.dart';
@@ -60,6 +60,7 @@ import 'pin_limit.dart';
 import 'city_selector.dart';
 import '../core/share_invitation.dart';
 import 'verification_editor.dart';
+import 'guest_catalog.dart';
 import 'dart:async';
 import '../advertising/placements.dart';
 import 'dart:convert';
@@ -186,6 +187,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   Json? me, recovery, faceChallenge;
   String faceSetupReturnRoute = 'lock-setup';
   String country = 'KZ', route = 'welcome';
+  bool get appleCatalog => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  String get identityDocumentLabel => ['RU','BY'].contains(country)?'Паспорт':country=='KG'?'ID-карта или паспорт':'Удостоверение с двух сторон';
+  String get identityVerificationSubtitle => identityDocumentLabel+(appleCatalog?'':' и селфи');
   String locale = 'ru';
   String? pendingLocale;
   bool registrationInProgress = false;
@@ -952,6 +956,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         button('Переключить роль', () => go('roles'), outline: true),
       ]));
     }
+    if (appleCatalog && ['face-enroll', 'face-settings', 'face-recovery'].contains(route)) {
+      return api.authenticated ? lockSetup() : authScreen();
+    }
     switch (route) {
       case 'face-enroll':
       case 'face-settings':
@@ -1041,6 +1048,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             titleOffset: -12);
       case 'welcome':
         return welcomeScreen();
+      case 'guest-catalog':
+        return page('Специалисты', GuestCatalog(
+          api: api, country: country, onSignIn: () => go('login'),
+        ), nav: false);
       case 'login':
       case 'register':
         return authScreen();
@@ -1616,9 +1627,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     ? null
                     : () => act(() async {
                           if (_api == null) await chooseCountry(country);
-                          go('login');
+                          go(appleCatalog ? 'guest-catalog' : 'login');
                         }),
-                child: const UiText('Продолжить'))),
+                child: UiText(appleCatalog ? 'Смотреть специалистов без входа' : 'Продолжить'))),
       ])));
   Widget authScreen() {
     final register = route == 'register';
@@ -1635,7 +1646,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             if (!mounted) return;
             setState(() {
               authCredentialFailure = !register && error is ApiException && ['INVALID_CREDENTIALS', 'RATE_LIMITED'].contains(error.code);
-              if (!register && error is ApiException && error.details['face_recovery'] is Map) {
+              if (!appleCatalog && !register && error is ApiException && error.details['face_recovery'] is Map) {
                 faceChallenge = Map<String, dynamic>.from(error.details['face_recovery'] as Map);
                 route = 'face-recovery';
               }
@@ -1776,7 +1787,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               Error.throwWithStackTrace(error, stack);
             }
             var offerFaceSetup = false;
-            if (register && me?['face_recovery_available'] == true) {
+            if (!appleCatalog && register && me?['face_recovery_available'] == true) {
               try {final face = await api.request('/me/face-recovery') as Json; offerFaceSetup = face['prompt_required'] == true;} catch (_) {}
             }
             registrationInProgress = register || needsProfile(me!);
@@ -2632,7 +2643,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         }
       },
       builder: (c, data, retry) {
-        if (data['verification_required'] == true) return JobaMenu([JobaMenuEntry('Подтвердить личность', 'shield', () => go('verification'), subtitle: ['RU','BY'].contains(country)?'Паспорт и селфи':country=='KG'?'ID-карта или паспорт и селфи':'Удостоверение с двух сторон и селфи')]);
+        if (data['verification_required'] == true) return JobaMenu([JobaMenuEntry('Подтвердить личность', 'shield', () => go('verification'), subtitle: identityVerificationSubtitle)]);
         if (data['access_required'] == true && freeMobileRelease)
           return const Notice('Поиск временно недоступен. Попробуйте позже.');
         if (data['access_required'] == true)
@@ -2745,7 +2756,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       if(executor)JobaMenuEntry('Подключить Топ-100','crown',()=>go('my-access'),subtitle:'Отдельно к Стандарту · в Премиуме включён')
                     ]),
                     const SizedBox(height: 16),
-                    JobaMenu([JobaMenuEntry('Проверка личности', 'shield', () => go('verification'), subtitle: 'Документ с двух сторон и селфи')]),
+                    JobaMenu([JobaMenuEntry('Проверка личности', 'shield', () => go('verification'), subtitle: identityVerificationSubtitle)]),
                     const SizedBox(height: 16),
                     JobaMenu([
                       JobaMenuEntry('Мои заказы', 'brief', () => go('orders'),
@@ -4885,7 +4896,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       subtitle: result[1] == true ? 'Настроен' : 'Не настроен'),
                   JobaMenuEntry('Биометрия', 'face', () => go('biometric'),
                       subtitle: result[2] == true ? 'Включена на этом устройстве' : 'Отключена'),
-                  if (me?['face_recovery_available'] == true) JobaMenuEntry('Восстановление по лицу', 'face', () => go('face-settings'), subtitle: 'Сохранить или удалить шаблон лица'),
+                  if (!appleCatalog && me?['face_recovery_available'] == true) JobaMenuEntry('Восстановление по лицу', 'face', () => go('face-settings'), subtitle: 'Сохранить или удалить шаблон лица'),
                   JobaMenuEntry('Пароль', 'lock', () => go('password'),
                       subtitle: 'Изменить пароль аккаунта'),
                   JobaMenuEntry(
@@ -5525,6 +5536,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       verificationTitle,
       VerificationEditor(
           api: api,
+          documentOnly: appleCatalog,
           executor: executor,
           country: country,
           uploads: verificationUploads,

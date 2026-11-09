@@ -9,8 +9,9 @@ export function verificationPages(policy:any,type:string,country?:string):string
  const supplied=Array.isArray(policy?.required_pages?.[type])?policy.required_pages[type].filter((x:any)=>typeof x==='string'&&!/селфи|selfie/i.test(x)):[];
  return [supplied[0]??'Лицевая сторона удостоверения',supplied[1]??'Обратная сторона удостоверения','Селфи'];
 }
-export function verificationPhotoLayout(record:any):{count:number;selfie:number}|null{
- const count=Array.isArray(record.required_pages)?record.required_pages.length:3;
+export function verificationPhotoLayout(record:any):{count:number;selfie:number|null}|null{
+ const count=Array.isArray(record.required_pages)?record.required_pages.length:(record.document_only===true?2:3);
+ if(record.document_only===true)return record.selfie_index===null&&[1,2].includes(count)&&(count!==1||record.document_type==='passport')?{count,selfie:null}:null;
  if(![2,3].includes(count)||record.selfie_index!==count-1)return null;
  if(count===2&&record.document_type!=='passport')return null;
  return {count,selfie:count-1};

@@ -9,4 +9,5 @@ const mobilePaidRoutes = {
   'reward-granted', 'reward-nofill', 'reward-pending', 'promotion',
   'promotion-checkout', 'promotion-no-slots', 'promotion-terms',
   'promotion-pending', 'promotion-resolution', 'promotion-history', 'referrals',
+  'bank-payment', 'bank-payment-open',
 };

@@ -27,3 +27,16 @@ test('Russia/Belarus passport spread and Kyrgyz ID/passport work through private
  assert.equal(verificationPhotoLayout({document_type:'id_card',required_pages:['Front','Selfie'],selfie_index:1}),null);
  }finally{await api.store.close();await rm(directory,{recursive:true,force:true});}
 });
+test('manual passport-only review accepts one spread, requires explicit staff decision and never makes the passport a public avatar',async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'joba-manual-passport-')),api=new Marketplace(new Store('memory://'),new Providers(),new PrivateFiles(directory));await api.initialize();try{
+ await publishRoleAccess(api.store);await refreshVerificationWording(api.store);
+ await bootstrapStaff(api.store,api.files,{country:'KZ',identifier:'manual-passport-reviewer',display_name:'Проверяющий',password:'Manual review password123',authentication:'password',permissions:['platform_owner'],reason:'Manual passport review regression'},async()=>{});
+ const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:'manual-passport-reviewer',password:'Manual review password123'});
+ const user=await api.handle('POST','/auth/register',{country:'RU',phone:'+79161234568',password:'Manual passport password123'},undefined,randomUUID(),{},randomUUID());const call=(m,p,b={})=>api.handle(m,p,b,'Bearer '+user.access_token,randomUUID(),{},randomUUID());
+ const policy=(await call('GET','/me/verification')).policy,doc=await api.store.get(policy.document_id);await call('POST','/me/consents',{document_id:doc.id,document_hash:doc.hash,accepted:true});
+ const v=await call('POST','/me/verification-sessions',{document_type:'passport',document_only:true});assert.equal(v.selfie_index,null);assert.equal(v.required_pages.length,1);
+ const bytes=await sharp({create:{width:16,height:24,channels:3,background:'#ff0000'}}).jpeg().toBuffer();const upload=await call('POST','/uploads/initiate',{purpose:'identity',verification_id:v.id,mime:'image/jpeg',size:bytes.length});await api.files.write(upload.id,bytes);await api.store.put({...upload,status:'clean'});
+ const sent=await call('POST','/me/verification-sessions/'+v.id+'/submit',{expected_version:1,upload_ids:[upload.id]});const review=confirmed=>api.handle('POST','/admin/verifications/'+v.id+'/decision',{expected_version:sent.version,document_revision:sent.document_revision,decision:'passed',document_check_confirmed:confirmed},'Bearer '+staff.access_token,randomUUID(),{admin_country:'RU'});
+ await assert.rejects(()=>review(false),e=>e.getResponse().error.code==='DOCUMENT_CHECK_REQUIRED');await review(true);const me=await call('GET','/me');assert.equal(me.verification,'passed');assert.equal(me.avatar_id??null,null);assert.equal((await api.store.all('upload','RU')).filter(u=>u.purpose==='avatar').length,0);
+ }finally{await api.store.close();await rm(directory,{recursive:true,force:true});}
+});

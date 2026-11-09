@@ -36,6 +36,25 @@ test('verification choices follow the effective regional policy and latest expli
   await assert.rejects(()=>call('POST','/me/verification-sessions/'+check.id+'/submit',{expected_version:1,upload_ids:uploads}),e=>e.getResponse().error.code==='CONSENT_REQUIRED');
   await call('POST','/me/consents',{document_id:documentId,document_hash:'isolated-document-hash',accepted:true});
   const sent=await call('POST','/me/verification-sessions/'+check.id+'/submit',{expected_version:1,upload_ids:uploads});assert.equal(sent.status,'pending_review');assert.deepEqual(sent.document_refs,uploads);
+  const manual=await call('POST','/me/verification-sessions',{document_type:'id_card',document_only:true});
+  assert.deepEqual(manual.required_pages,['Лицевая сторона','Оборотная сторона']);
+  assert.equal(manual.selfie_index,null);
+  const sides=[];
+  for(let i=0;i<2;i++){
+   const id=randomUUID();sides.push(id);
+   await api.store.put({id,kind:'upload',owner:session.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'clean',purpose:'identity',mime:'image/jpeg',verification_id:manual.id});
+  }
+  await assert.rejects(()=>call('POST','/me/verification-sessions/'+manual.id+'/submit',{expected_version:1,upload_ids:[sides[0],uploads[2]]}),e=>e.getResponse().error.code==='POLICY_REJECTED');
+  const manualSent=await call('POST','/me/verification-sessions/'+manual.id+'/submit',{expected_version:1,upload_ids:sides});
+  assert.equal(manualSent.status,'pending_review');
+  assert.deepEqual(manualSent.document_refs,sides);
+  assert.equal((await api.store.get(session.user.id)).verification,'pending_review');
+  const decisionTime=new Date();
+  await api.store.put({...manualSent,status:'rejected',decided_at:decisionTime.toISOString()});
+  const {planFileRetention}=require('../dist/retention');
+  const pending=await planFileRetention(api.store,new Date(decisionTime.getTime()+30*86400000));
+  assert.ok(sides.every(id=>pending.includes(id)));
+  assert.ok(uploads.every(id=>!pending.includes(id)));
   const document=await api.store.get(documentId);await api.store.put({...document,hash:'revised-document-hash',version:2});
   assert.equal((await call('GET','/me/verification')).policy.consent_accepted,false);
   await assert.rejects(()=>call('POST','/me/verification-sessions',{document_type:'id_card'}),e=>e.getResponse().error.code==='CONSENT_REQUIRED');

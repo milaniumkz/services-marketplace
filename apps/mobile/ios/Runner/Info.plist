@@ -25,7 +25,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Съёмка документа, селфи и фотографий для JOBA по вашему выбору.</string>
+	<string>Съёмка документа для ручной проверки и фотографий для ваших заказов и профиля.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Выбор фотографий документа, профиля и заказов в JOBA.</string>
 	<key>NSFaceIDUsageDescription</key>
