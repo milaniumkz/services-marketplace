@@ -20,7 +20,7 @@ export async function pushWorkspace({key,country,canManageTests,api,esc,card,tab
   form.elements.title.value=record?.title??'';for(const l of ['ru','kk','sr','be'])form.elements['title_'+l].value=p.title?.[l]??'';
   const renderPreview=()=>{const l=document.getElementById('push-preview-locale').value;document.getElementById('push-title-preview').textContent=form.elements['title_'+l].value||'Заголовок уведомления';document.getElementById('push-body-preview').textContent=form.elements['body_'+l].value||'Текст уведомления';};
   renderPreview();document.getElementById('push-preview-locale').onchange=renderPreview;
-  form.addEventListener('input',e=>{if(e.target.id!=='push-preview-locale')dirty=true;renderPreview();});form.addEventListener('change',e=>{if(e.target.id!=='push-preview-locale')dirty=true;});
+  form.addEventListener('input',e=>{if(e.target.name!=='reason'&&e.target.id!=='push-preview-locale')dirty=true;renderPreview();});form.addEventListener('change',e=>{if(e.target.name!=='reason'&&e.target.id!=='push-preview-locale')dirty=true;});
   const updateLocales=()=>form.querySelectorAll('[data-locale]').forEach(el=>el.hidden=![...form.querySelectorAll('[name=locales]:checked')].some(c=>c.value===el.dataset.locale));updateLocales();form.querySelectorAll('[name=locales]').forEach(el=>el.onchange=updateLocales);
   if(!editable)form.querySelectorAll('input,textarea,select').forEach(el=>el.disabled=true);
   form.onsubmit=async e=>{e.preventDefault();if(!editable)return;const fd=new FormData(form),values=Object.fromEntries(fd),locales=fd.getAll('locales'),roles=fd.getAll('roles');const button=form.querySelector('button');button.disabled=true;try{

@@ -8,7 +8,8 @@ export function prepareAdministrativeForms(root=document) {
     field.hidden=true;field.style.display='none';
     const wrapper=field.closest('.formfield, .field, label');if(wrapper){wrapper.hidden=true;wrapper.style.display='none';}
     if(field.id)for(const label of root.querySelectorAll('label[for]'))if(label.htmlFor===field.id){label.hidden=true;label.style.display='none';}
-    if(changed){field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));}
+    // Audit metadata must not mark the business editor as changed and disable its commands.
+    if(changed){field.dispatchEvent(new Event('input'));field.dispatchEvent(new Event('change'));}
   }
   for(const field of root.querySelectorAll('form input[type="checkbox"][name="confirm"]')) {
     field.checked=true;field.required=false;

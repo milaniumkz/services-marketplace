@@ -90,7 +90,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
         if (!current()) return;
         final Json result;
         if(offer['hosted_checkout']==true){
-          final payment=await api.request('/billing/vtb/checkout',method:'POST',body:{'offer_id':offer['id'],'amount_minor':offer['amount_minor'],'currency':offer['currency'],'accepted':true});
+          final payment=await api.request('/billing/${offer['provider']=='bcc'?'bcc':'vtb'}/checkout',method:'POST',body:{'offer_id':offer['id'],'amount_minor':offer['amount_minor'],'currency':offer['currency'],'accepted':true});
           if(current())widget.onGo('bank-payment-open',payment['id']);return;
         }
         if (offer['is_test'] == true) {
@@ -525,8 +525,8 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                   const Notice(
                       'Тестовая подписка. Деньги не списываются, автоматического продления нет.'),
                 if(r['is_ad_supported']==true)...[const Notice('Подписка получена за рекламу. Деньги не списываются, автоматического продления нет.'),WebRewardEntry(api:widget.api,target:r['plan'],onSelect:(target)=>widget.onGo('reward',target))],
-                if(r['provider']=='vtb')const Notice('Автоматическое списание с карты выключено. Продлить доступ или сменить тариф можно в разделе «Мой доступ».'),
-                if (r['is_test'] != true && r['is_ad_supported']!=true && r['provider']!='vtb') ...[
+                if(['vtb','bcc'].contains(r['provider']))const Notice('Автоматическое списание с карты выключено. Продлить доступ или сменить тариф можно в разделе «Мой доступ».'),
+                if (r['is_test'] != true && r['is_ad_supported']!=true && !['vtb','bcc'].contains(r['provider'])) ...[
                   const SizedBox(height: 20),
                   const UiText(
                       'Отключение автопродления не закрывает уже оплаченный срок. Для изменения условий откройте управление подпиской и дождитесь подтверждения провайдера.',
@@ -659,7 +659,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                     style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
                 const SizedBox(height: 20),
               ],
-              if(offer?['bank_test']==true)const Notice('Тестовая оплата на странице ВТБ. Реальные деньги не списываются; используйте тестовые карты банка.'),
+              if(offer?['bank_test']==true)const Notice('Тестовая оплата на странице банка. Реальные деньги не списываются; используйте тестовые карты банка.'),
               if (offer?['is_test'] == true)
                 const Notice(
                     'Тестовая оплата без списания денег. Срок и условия выбранного доступа указаны выше.',

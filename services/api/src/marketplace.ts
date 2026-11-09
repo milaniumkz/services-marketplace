@@ -1,3 +1,5 @@
+import {BccGateway,loadBccConfig} from './bcc-gateway';
+import {refreshPublicServiceInformation} from './public-service-information';
 import {VtbGateway,loadVtbConfig} from './vtb-gateway';
 import {VtbPayments} from './vtb-payments';
 import {receiveMobileCrash,mobileCrashes} from './mobile-crashes';
@@ -17,7 +19,7 @@ import {geocode,geoPoint,nearestCity,orderAddress} from './osm-geocoding';
 import {adminReviewQueues} from './admin-review-queues';
 import {adminContentDetail} from './admin-content-detail';
 import {testPaymentSettings,updateTestPayments,simulateSubscription} from './test-payments';
-import {verificationPages} from './verification-pages';
+import {verificationPages,verificationDocumentTypes,verificationPhotoLayout,refreshVerificationWording} from './verification-pages';
 import {cityCatalog,cityName} from './city-catalog';
 import {subscriptionPlans,subscriptionPlan,subscriptionRole} from './subscription-plans';
 import {notificationCategory} from './notification-category';
@@ -108,6 +110,7 @@ export class Marketplace {
   store: Store;
   readonly providers: Providers;
   readonly vtb?:VtbPayments;
+  readonly bcc?:VtbPayments;
   readonly commerce: Commerce;
   readonly refunds:Refunds;
   readonly files: PrivateFiles;
@@ -121,12 +124,13 @@ export class Marketplace {
     this.face=new FaceRecovery(store,files,faceEngine);
     this.configuration=new Configuration(store,providers);this.growth=new Growth(store,providers);this.branding=new Branding(store,files);
     let bank=providers.billing.get('vtb');const bankConfig=!bank?loadVtbConfig():undefined;if(bankConfig){bank=new VtbGateway(bankConfig,store);providers.billing.set('vtb',bank);}if(bank instanceof VtbGateway)this.vtb=new VtbPayments(store,bank,this.commerce,this.growth,files,run=>this.vtbTransaction(run));
+    let bcc=providers.billing.get('bcc');const bccConfig=!bcc?loadBccConfig():undefined;if(bccConfig){bcc=new BccGateway(bccConfig,store);providers.billing.set('bcc',bcc);}if(bcc instanceof BccGateway)this.bcc=new VtbPayments(store,bcc,this.commerce,this.growth,files,run=>this.vtbTransaction(run));
     store.transitionKinds=notificationTransitionKinds;store.transitionHook=(before,after)=>notifyTransition(store,before,after,(owner,country,type,target)=>this.notify(owner,{id:after.owner,country},type,target));
     const moderation=new Moderation(store);store.contentHook=data=>moderation.check(data);
     if(process.env.JOBA_CLAMSCAN_PATH)providers.scanner=new ClamAvScanner();
     if(process.env.JOBA_PDFTOPPM_PATH)providers.pdfSanitizer=new PopplerPdfSanitizer();
   }
-  async initialize() { await this.store.initialize();await seedReferenceData(this.store); }
+  async initialize() { await this.store.initialize();await seedReferenceData(this.store);await refreshPublicServiceInformation(this.store);await refreshVerificationWording(this.store); }
   private record(kind: string, actor: {id:string;country:string}, data: any = {}): RecordData { return {...data,id:randomUUID(),kind,owner:actor.id,country:actor.country,version:1,created_at:new Date().toISOString()}; }
   private async limited(key:string,max=20){
     const scope=await this.files.requestDigest('rate-limit:'+key);
@@ -242,7 +246,7 @@ export class Marketplace {
       if(actor)assertStaffOperation(actor.user,actor.mfa,method,path,body,query);
       // Counters commit independently of rejected business commands.
       if(actor)await this.limited('mutations:'+actor.id,120);
-      if(path.startsWith('/public/billing/vtb/'))await this.limited('vtb-public:'+ip,120);
+      if(path.startsWith('/public/billing/vtb/')||path.startsWith('/public/billing/bcc/'))await this.limited('vtb-public:'+ip,120);
       if(path==='/public/mobile-crashes')await this.limited('mobile-crashes:'+ip,120);
       if(path==='/auth/register')await this.limited('register:'+ip,5);
       if(['/auth/login','/auth/staff-login'].includes(path)){await this.limited('login:'+ip,10);await this.limited('login-account:'+String(body.country)+':'+(path==='/auth/staff-login'?String(body.phone).trim().toLowerCase():String(body.phone)),10);}
@@ -284,7 +288,7 @@ export class Marketplace {
       if(finished.status==='rejected')fail(422,'POLICY_REJECTED','Файл не прошёл безопасную обработку');
       return finished;
     });
-    return pending.then(async result=>{if(result?._vtb_action){if(!this.vtb)fail(503,'PROVIDER_UNAVAILABLE','ВТБ пока не подключён');const payment=await this.vtb!.perform(result._vtb_action,result.id);return result._vtb_action==='callback'?{accepted:true}:payment;}return result;});
+    return pending.then(async result=>{if(result?._vtb_action){const bank=result._vtb_provider==='bcc'?this.bcc:this.vtb;if(!bank)fail(503,'PROVIDER_UNAVAILABLE','Банк пока не подключён');const payment=await bank!.perform(result._vtb_action,result.id);return result._vtb_action==='callback'?{accepted:true}:payment;}return result;});
   }
   private async dispatch(method: string,path: string,b: any,authorization: string|undefined,q: any,ip: string): Promise<any> {
     const db=this.store.db;
@@ -294,7 +298,17 @@ export class Marketplace {
     if(path==='/reports')path='/cases';
     if(method==='GET'&&path.startsWith('/public/site/'))return publicSitePage(this.store,this.commerce,path,q);
     if(path==='/public/web-ads'&&method==='GET'){const c=await webAdsConfig(this.store);return {enabled:c.enabled,banner_id:c.banner_id,notice:webAdNotice,notice_version:webAdNoticeVersion};}
-    if(path==='/public/billing/vtb/return'&&method==='GET'){
+    if(path==='/public/billing/bcc/form'&&method==='GET'){
+      if(!this.bcc)fail(503,'PROVIDER_UNAVAILABLE','БЦК пока не подключён');
+      await this.bcc!.callback(String(q.payment_id??''),String(q.token??''));
+      const payment=(await this.store.get(String(q.payment_id)))!;
+      if(payment.provider!=='bcc'||!['registering','pending'].includes(payment.status)||payment.cancel_requested||payment.expires_at<=new Date().toISOString())fail(409,'PAYMENT_EXPIRED','Срок оплаты истёк. Вернитесь в JOBA и проверьте статус.');
+      return {public_html:(this.bcc!.gateway as BccGateway).form(payment)};
+    }
+    if(path==='/public/billing/bcc/callback'&&['GET','POST'].includes(method)){
+      if(!this.bcc)fail(503,'PROVIDER_UNAVAILABLE','БЦК пока не подключён');return this.bcc!.callback(String(q.payment_id??b.payment_id??''),String(q.token??b.token??''));
+    }
+    if(['/public/billing/vtb/return','/public/billing/bcc/return'].includes(path)&&['GET','POST'].includes(method)){
       const id=String(q.payment_id??'');if(!/^[0-9a-f-]{36}$/i.test(id))fail(400,'VALIDATION_ERROR','Некорректный платёж');
       const origin=this.vtb?.gateway.config.public_origin??'https://joba.com.kz';
       return {public_html:'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата JOBA</title><body style="font:18px system-ui;padding:32px;max-width:600px;margin:auto"><h1>Вернитесь в JOBA</h1><p>Статус оплаты проверяется напрямую в банке. Сам возврат на эту страницу не подтверждает списание.</p><p><a href="'+origin+'/?joba_payment='+id+'">Проверить оплату в JOBA</a></p><p>Если оплачивали из установленного приложения, закройте окно банка и вернитесь в приложение.</p></body></html>'};
@@ -535,14 +549,14 @@ export class Marketplace {
       const usedToday=Number(usage.used),dailyCap=config?.payload.daily_cap??5;
       const last=usage.last?Date.parse(usage.last):0;
       const cooldownUntil=last?new Date(last+(config?.payload.cooldown_seconds??300)*1000).toISOString():null;
-      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:testMode.enabled||!!this.providers.hostedFor(a.country),test_payments_enabled:testMode.enabled,verification_status:a.user.verification,subscription_enabled:config?.payload.subscription_enabled!==false,subscription_scope:'customer_and_executor',plans:(await this.commerce.plans(a.country)).items.filter(p=>p.role===(subscriptionRole(a.user))),country_gate:'unverified',offers:config?.payload.subscription_enabled!==false?(await checkoutOffers(this.store,this.commerce,a.user)).items:[],addons:(await this.commerce.plans(a.country)).addons};
+      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:testMode.enabled||!!this.providers.hostedFor(a.country),test_payments_enabled:testMode.enabled,verification_status:a.user.verification,subscription_enabled:config?.payload.subscription_enabled!==false,subscription_scope:'customer_and_executor',plans:(await this.commerce.plans(a.country)).items.filter(p=>p.role===(subscriptionRole(a.user))),country_gate:'unverified',offers:config?.payload.subscription_enabled!==false?(await checkoutOffers(this.store,this.commerce,a.user,new Date(),q.bank_capability==='bcc-v1'?undefined:this.vtb?'vtb':undefined)).items:[],addons:(await this.commerce.plans(a.country)).addons};
     }
     if(path==='/me/entitlements'&&method==='GET'){await activatePeriods(this.store,a.user);await this.promotionGrant(a);return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};}
     if(path==='/me/verification'&&method==='GET') {
       const policy=(await this.store.all('verification_policy',a.country)).filter(x=>x.status==='effective').sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id))[0];
       const consent=policy?(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id&&x.document_id===policy!.payload.document_id).sort((x,y)=>(y.sequence??0)-(x.sequence??0)||y.created_at.localeCompare(x.created_at))[0]:null;
       const document=policy?await this.store.get(policy!.payload.document_id):null;
-      return {status:a.user.verification,policy:policy&&document?.kind==='legal_document'&&document.country===a.country&&document.status==='published'?{id:policy.id,version:policy.version,document_types:policy.payload.document_types,required_pages:Object.fromEntries(policy.payload.document_types.map((type:string)=>[type,verificationPages(policy.payload,type)])),document_id:policy.payload.document_id,consent_accepted:consent?.accepted===true&&legalHashAccepted(document,consent.document_hash)}:null,items:(await this.store.all('verification',a.country)).filter(x=>x.owner===a.id).map(({document_refs,reviewer_id,...r})=>r)};
+      return {status:a.user.verification,policy:policy&&document?.kind==='legal_document'&&document.country===a.country&&document.status==='published'?{id:policy.id,version:policy.version,document_types:verificationDocumentTypes(policy.payload,a.country),required_pages:Object.fromEntries(verificationDocumentTypes(policy.payload,a.country).map((type:string)=>[type,verificationPages(policy.payload,type,a.country)])),document_id:policy.payload.document_id,consent_accepted:consent?.accepted===true&&legalHashAccepted(document,consent.document_hash)}:null,items:(await this.store.all('verification',a.country)).filter(x=>x.owner===a.id).map(({document_refs,reviewer_id,...r})=>r)};
     }
     if(path==='/me/verification-sessions'&&method==='POST') {
       if(a.user.verification==='passed')fail(409,'VERIFICATION_ALREADY_PASSED','Личность уже подтверждена. Повторная отправка не требуется');
@@ -552,8 +566,8 @@ export class Marketplace {
       const document=await this.store.get(policy!.payload.document_id);
       if(!document||document.kind!=='legal_document'||document.country!==a.country||document.status!=='published')fail(503,'COUNTRY_FLOW_UNAPPROVED','Правовое основание проверки недоступно');
       if(!consent?.accepted||!legalHashAccepted(document!,consent.document_hash))fail(403,'CONSENT_REQUIRED','Требуется согласие на проверку документа');
-      if(!policy!.payload.document_types.includes(b.document_type))fail(400,'VALIDATION_ERROR','Тип документа не разрешён');
-      return this.store.put(this.record('verification',a,{status:'draft',submitted_role:subscriptionRole(a.user),document_type:b.document_type,policy_id:policy!.id,policy_version:policy!.version,document_revision:1,required_pages:verificationPages(policy!.payload,b.document_type),selfie_index:2,document_refs:[]}));
+      if(!verificationDocumentTypes(policy!.payload,a.country).includes(b.document_type))fail(400,'VALIDATION_ERROR','Тип документа не разрешён');
+      return this.store.put(this.record('verification',a,{status:'draft',submitted_role:subscriptionRole(a.user),document_type:b.document_type,policy_id:policy!.id,policy_version:policy!.version,document_revision:1,required_pages:verificationPages(policy!.payload,b.document_type,a.country),selfie_index:verificationPages(policy!.payload,b.document_type,a.country).length-1,document_refs:[]}));
     }
     const verificationSubmit=path.match(/^\/me\/verification-sessions\/([^/]+)\/submit$/);
     if(verificationSubmit&&method==='POST') {
@@ -562,10 +576,11 @@ export class Marketplace {
       if(a.user.verification==='passed')fail(409,'VERIFICATION_ALREADY_PASSED','Личность уже подтверждена. Повторная отправка не требуется');
       const policy=await this.store.get(r.policy_id);
       if(!policy||policy.country!==a.country||policy.status!=='effective'||policy.version!==r.policy_version)fail(409,'POLICY_CHANGED','Правила проверки изменились. Создайте новую заявку.');
+      if(!verificationDocumentTypes(policy!.payload,a.country).includes(r.document_type))fail(409,'POLICY_CHANGED','Для страны теперь требуется другой документ. Создайте новую заявку.');
       const document=await this.store.get(policy!.payload.document_id);
       const consent=(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id&&x.document_id===policy!.payload.document_id).sort((x,y)=>(y.sequence??0)-(x.sequence??0)||y.created_at.localeCompare(x.created_at))[0];
       if(!document||document.country!==a.country||document.status!=='published'||!consent?.accepted||!legalHashAccepted(document,consent.document_hash))fail(403,'CONSENT_REQUIRED','Требуется актуальное согласие на проверку документа');
-      const uploads=await this.safeUploads(a,b.upload_ids,'identity');if(uploads.length!==3||r.selfie_index!==2)fail(400,'VALIDATION_ERROR','Загрузите две стороны документа и отдельное селфи; для старой заявки создайте новую');
+      const uploads=await this.safeUploads(a,b.upload_ids,'identity');const photoLayout=verificationPhotoLayout(r);if(!photoLayout||uploads.length!==photoLayout.count)fail(400,'VALIDATION_ERROR','Загрузите все указанные страницы документа и отдельное селфи; для старой заявки создайте новую');
       for(const id of uploads){const upload=await this.store.get(id);if(!['image/jpeg','image/png'].includes(upload?.mime))fail(422,'UNSAFE_UPLOAD','Загрузите фотографии в формате JPEG или PNG');if(upload?.verification_id!==r.id)fail(422,'POLICY_REJECTED','Документ загружен для другой заявки');}
       await this.store.put({...a.user,verification:'pending_review',version:a.user.version+1});
       return this.store.put({...r,status:'pending_review',document_refs:uploads,document_revision:r.document_revision+1,version:r.version+1});
@@ -1095,24 +1110,29 @@ export class Marketplace {
       }
       return this.store.put(this.record('case_message',a,{case_id:c.id,author_type:'participant',text:text(b,'text',1,3000),upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'chat'):[]}));
     }
-    if(path==='/billing/vtb/pending'&&method==='GET'&&!this.vtb)return {enabled:false,items:[]};
-    if(path.startsWith('/billing/vtb/')){
-      if(!this.vtb)fail(503,'PROVIDER_UNAVAILABLE','ВТБ пока не подключён');
-      if(path==='/billing/vtb/checkout'&&method==='POST')return this.vtb!.prepare(a.user,b);
-      if(path==='/billing/vtb/pending'&&method==='GET')return this.vtb!.list(a.user);
-      const payment=path.match(/^\/billing\/vtb\/payments\/([0-9a-f-]{36})(?:\/(cancel))?$/i);
-      if(payment&&(!payment[2]&&method==='GET'||payment[2]&&method==='POST'))return this.vtb!.owned(a.user,payment[1],payment[2]?'cancel':'poll');
+    if(/^\/billing\/(vtb|bcc)\//.test(path)){
+      const requested=path.split('/')[2];
+      let bank=requested==='bcc'?this.bcc:this.vtb;
+
+      const payment=path.match(/^\/billing\/(?:vtb|bcc)\/payments\/([0-9a-f-]{36})(?:\/(cancel))?$/i);
+      if(payment){const saved=await this.store.get(payment[1]);if(saved?.provider==='bcc')bank=this.bcc;else if(saved?.provider==='vtb')bank=this.vtb;}
+      if(path.endsWith('/pending')&&method==='GET'){
+        const lists=await Promise.all([this.vtb,this.bcc].filter((x):x is VtbPayments=>!!x).map(x=>x.list(a.user)));return {enabled:lists.some(x=>x.enabled),items:lists.flatMap(x=>x.items)};
+      }
+      if(!bank)fail(503,'PROVIDER_UNAVAILABLE','Банк пока не подключён для страны аккаунта');
+      if(path.endsWith('/checkout')&&method==='POST')return bank!.prepare(a.user,b);
+      if(payment&&(!payment[2]&&method==='GET'||payment[2]&&method==='POST'))return bank!.owned(a.user,payment[1],payment[2]?'cancel':'poll');
     }
-    if(['/billing/verify-purchase','/billing/restore'].includes(path)&&method==='POST'&&b.provider==='vtb'&&this.vtb)return this.vtb.byReference(a.user,String(b.transaction_reference));
+    if(['/billing/verify-purchase','/billing/restore'].includes(path)&&method==='POST'&&['vtb','bcc'].includes(b.provider)){const bank=b.provider==='bcc'?this.bcc:this.vtb;if(bank)return bank.byReference(a.user,String(b.transaction_reference));}
     if(path==='/billing/test-purchase'&&method==='POST'){const result=await buyTestQuote(this.store,this.commerce,a.user,b);await this.growth.redeemEligible(a.id,a.country);return result;}
-    if(path==='/billing/offers'&&method==='GET')return checkoutOffers(this.store,this.commerce,a.user);
+    if(path==='/billing/offers'&&method==='GET')return checkoutOffers(this.store,this.commerce,a.user,new Date(),q.bank_capability==='bcc-v1'?undefined:this.vtb?'vtb':undefined);
     if(['/billing/verify-purchase','/billing/restore'].includes(path)&&method==='POST'){return this.commerce.verify(a.id,a.country,String(b.provider),text(b,'transaction_reference',1,10000));}
     const purchaseCheck=path.match(/^\/me\/purchase-checks\/([^/]+)$/);if(purchaseCheck&&method==='GET'){const r=await this.object(purchaseCheck[1],a,'purchase_check',true);return {id:r.id,status:r.status,subscription_id:r.subscription_id??null};}
     const ownSubscription=path.match(/^\/me\/subscriptions\/([^/]+)$/);if(ownSubscription&&method==='GET'){await activatePeriods(this.store,a.user);return presentSubscription(await this.object(ownSubscription[1],a,'subscription',true));}
     if(path==='/me/subscriptions'&&method==='GET'){await activatePeriods(this.store,a.user);return {items:(await this.store.all('subscription',a.country)).filter(x=>x.owner===a.id).map(r=>presentSubscription(r))};}
     if(path==='/billing/refundable-payments'&&method==='GET'){
       const limit=this.pageLimit(q),after=await this.cursor(q);
-      const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND ($1='ALL' OR country=$1) AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND (CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 OR data->>'provider'='vtb' AND data->>'environment'='sandbox' AND data->>'is_test'='true') AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
+      const rows=await this.store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='payment_transaction' AND ($1='ALL' OR country=$1) AND owner=$2 AND data->>'state'='active' AND data->>'operation' IN ('purchase','renewal') AND (CASE WHEN jsonb_typeof(data->'cash_amount_minor')='number' THEN (data->>'cash_amount_minor')::numeric ELSE 0 END>0 OR data->>'provider' IN ('vtb','bcc') AND data->>'environment'='sandbox' AND data->>'is_test'='true') AND ($3::uuid IS NULL OR id>$3) ORDER BY id LIMIT $4",[a.country,a.id,after??null,limit+1]);
       const batch=rows.rows.slice(0,limit).map(x=>x.data),balances=await this.refunds.balances(batch);
       return {items:batch.map((p,i)=>({id:p.id,created_at:p.created_at,amount_minor:p.amount_minor,currency:p.currency,benefit:p.benefit,balance:balances[i]})),meta:{next_cursor:rows.rows.length>limit?await this.nextCursor(batch.at(-1)!.id,q):null}};
     }
@@ -1135,7 +1155,7 @@ export class Marketplace {
     if(path==='/promoted-listings'&&method==='GET'){const placement=String(q.placement_id??'');if(!promotedPlacements.includes(placement))fail(400,'VALIDATION_ERROR','Неизвестное размещение');await this.entitlement(a,placement.includes('.orders.')?'search_full':'view_contractors',placement.includes('.orders.'));return promotedListings(this.store,a.country,a.id,placement,q);}
     if(path==='/boost-offers'&&method==='GET'){await this.entitlement(a,'search_full');return {items:(await this.store.all('price_version',a.country)).filter(x=>x.status==='effective'&&x.payload.product_type==='boost').map(x=>({id:x.id,...x.payload})),placements:(await this.store.all('placement_policy',a.country)).filter(x=>x.status==='effective')};}
     if(path==='/boost-reservations'&&method==='POST'){const target=await this.object(String(b.target_id),a,undefined,true);await this.entitlement(a,'search_full',target.kind==='contractor');return this.growth.reserveBoost(a.id,a.country,b);}
-    if(path==='/boost-purchases/verify'&&method==='POST'&&b.provider==='vtb'&&this.vtb)return this.vtb.byReference(a.user,String(b.transaction_reference));
+    if(path==='/boost-purchases/verify'&&method==='POST'&&['vtb','bcc'].includes(b.provider)){const bank=b.provider==='bcc'?this.bcc:this.vtb;if(bank)return bank.byReference(a.user,String(b.transaction_reference));}
     if(path==='/boost-purchases/verify'&&method==='POST')return this.growth.verifyBoost(a.id,a.country,b);
     if(path==='/me/boosts'&&method==='GET'){
       if(q.bucket!==undefined&&!['active','history'].includes(q.bucket))fail(400,'VALIDATION_ERROR','Выберите раздел размещений');
@@ -1243,7 +1263,11 @@ export class Marketplace {
       }
       const permission=({categories:'content','category-tree':'content','banner-campaigns':'campaign','account-restriction-jobs':'bulk_restrict','vtb-status':'billing','security-events':'security','legal-holds':'privacy','push-test-accounts':'campaign',languages:'content',bulk:'content',revenue:'billing',audit:'auditor','support-threads':'support','recovery-threads':'support',verifications:'verification_reviewer',portfolio:'content',contractors:'content','price-versions':'billing','monetization-configs':'billing','monetization-summary':'billing','payment-transactions':'billing','refund-requests':'billing',promotions:'billing','referral-campaigns':'campaign','push-campaigns':'campaign','moderation-dictionaries':'moderator_manager','ranking-configs':'content','boost-grants':'promotion','boost-reports':'promotion','placement-policies':'promotion','brand-icons':path.endsWith('/approve')?'brand_owner':path.endsWith('/generate')?'release':'content',cases:'moderator','privacy-requests':'privacy',blacklist:'senior_moderator'} as Record<string,string>)[section]??'administrator';
       await this.staff(a,permission);
-      if(path==='/admin/vtb-status'&&method==='GET')return {enabled:!!this.providers.hostedFor(a.country),environment:this.vtb?.gateway.environment??null,currency:'KZT',country:'KZ',auto_renew:false,configured:!!this.vtb};
+      if(path==='/admin/vtb-status'&&method==='GET'){
+        const bankCountry=a.country==='ALL'?a.user.country:a.country,provider=this.providers.hostedFor(bankCountry),currency=({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[bankCountry];
+        const enabled=!!provider&&(!(provider as any).currencies||(provider as any).currencies.includes(currency));
+        return {enabled,provider:provider?.name??null,environment:provider?.environment??null,currency:currency??null,country:bankCountry,auto_renew:false,configured:!!provider,banks:[this.bcc,this.vtb].filter((x):x is VtbPayments=>!!x).map(x=>({provider:x.gateway.name,environment:x.gateway.environment,countries:x.gateway.countries,currencies:x.gateway.currencies??['KZT']})),country_routes:{KZ:'bcc',KG:'bcc',RU:'vtb',BY:'vtb'},message:enabled?null:provider?'Для валюты страны банк ещё не выдал параметры. Автоматический пересчёт валют не выполняется.':'Для страны не предоставлены параметры банковского терминала.'};
+      }
       if(path==='/admin/mobile-crashes'&&method==='GET')return mobileCrashes(this.store,q);
       if(section==='account-restriction-jobs'){const result=await accountRestrictionJobs(this.store,a,method,path,b,{audit:(action,id,reason)=>this.audit(a,action,id,reason),notify:(user,_id)=>this.notify(user,a,'account.updated',user)});if(result!==undefined)return result;}
       if(section==='banner-campaigns'){if(path==='/admin/banner-campaigns'&&method==='GET')return this.page('banner_campaign',a,q,{statuses:q.status?[String(q.status)]:undefined});const result=await bannerCampaigns(this.store,a,method,path,b,{object:id=>this.object(id,a,'banner_campaign'),record:data=>this.record('banner_campaign',a,data),audit:(action,id,reason)=>this.audit(a,action,id,reason)});if(result!==undefined)return result;}
@@ -1416,15 +1440,15 @@ export class Marketplace {
         const r=await this.object(vd[1],a,'verification');this.version(r,b);if(!(['passed','rejected'].includes(b.decision)&&r.status==='pending_review'||b.decision==='revoked'&&r.status==='passed')||b.document_revision!==r.document_revision)fail(409,'STATE_CONFLICT','Ревизия документа изменилась');
         if(!['passed','rejected','revoked'].includes(b.decision))fail(400,'VALIDATION_ERROR','Недопустимое решение');const reason=staffReason(b,'Решение администратора по проверке личности');
         const u=(await this.store.get(r.owner))!;
-        if(b.decision==='passed'&&(r.selfie_index!==2||r.document_refs?.length!==3))fail(422,'VERIFICATION_PHOTOS_REQUIRED','Нужны две стороны удостоверения и селфи. Запросите новую заявку.');
+        if(b.decision==='passed'&&(!verificationPhotoLayout(r)||r.document_refs?.length!==verificationPhotoLayout(r)!.count))fail(422,'VERIFICATION_PHOTOS_REQUIRED','Нужны все указанные страницы документа и отдельное селфи. Запросите новую заявку.');
         let avatarId=u.avatar_id;
-        if(b.decision==='passed'&&r.selfie_index===2){
+        if(b.decision==='passed'&&verificationPhotoLayout(r)){
           const policy=await this.store.get(r.policy_id),document=policy?await this.store.get(policy.payload.document_id):undefined;
           const consent=document?(await this.store.all('consent',a.country)).filter(c=>c.owner===u.id&&c.document_id===document.id).sort((x,y)=>y.sequence-x.sequence)[0]:undefined;
           if(!policy||policy.status!=='effective'||policy.version!==r.policy_version)fail(409,'POLICY_CHANGED','Правила проверки изменились; нужна новая заявка');
           if(!document||document.status!=='published'||!consent?.accepted||!legalHashAccepted(document,consent.document_hash))fail(403,'CONSENT_REQUIRED','Согласие на проверку отозвано или изменилось');
-          if(r.document_refs?.length!==3)fail(422,'UNSAFE_UPLOAD','Нужны две стороны документа и селфи');
-          const selfie=await this.store.get(r.document_refs[2]);
+          if(r.document_refs?.length!==verificationPhotoLayout(r)!.count)fail(422,'UNSAFE_UPLOAD','Нужны все страницы документа и селфи');
+          const selfie=await this.store.get(r.document_refs[r.selfie_index]);
           if(!selfie||selfie.owner!==u.id||selfie.country!==a.country||selfie.purpose!=='identity'||selfie.verification_id!==r.id||selfie.status!=='clean'||!['image/jpeg','image/png'].includes(selfie.mime))fail(422,'UNSAFE_UPLOAD','Селфи недоступно или не прошло проверку');
           const bytes=await sharp(await this.files.read(selfie!.id),{limitInputPixels:25000000}).rotate().resize(512,512,{fit:'cover'}).jpeg({quality:85}).toBuffer();
           const avatar=this.record('upload',{id:u.id,country:a.country},{purpose:'avatar',mime:'image/jpeg',status:'clean',size:bytes.length,stored_size:bytes.length,derived_from:selfie!.id,source_verification_id:r.id});
@@ -1799,6 +1823,7 @@ export class Marketplace {
   private async page(kind:string,a:Actor,q:any,options:{adminOrder?:any;member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean}={}) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const filters:any={};
+    if(kind==='user'&&options.endUserOnly)filters.newestFirst=true;
     if(kind==='contractor'&&options.publicActor){
       if(q.work_mode!==undefined&&!['onsite','workshop','remote','hybrid'].includes(q.work_mode))fail(400,'VALIDATION_ERROR','Проверьте формат услуги');
       if(q.verified_only!==undefined&&!['true','false'].includes(q.verified_only))fail(400,'VALIDATION_ERROR','Проверьте фильтр документов');
@@ -1876,7 +1901,7 @@ export class Marketplace {
   }
   private async vtbTransaction<T>(run:()=>Promise<T>):Promise<T>{return this.exclusive(async()=>{await this.store.db.exec('BEGIN');try{const value=await run();await this.store.db.exec('COMMIT');return value;}catch(error){await this.store.db.exec('ROLLBACK');throw error;}});}
   private bankReconciling=false;
-  async reconcileBankPayments(){if(!this.vtb||this.bankReconciling)return;this.bankReconciling=true;try{for(const id of await this.vtb.pendingIds())await this.vtb.perform('poll',id);}finally{this.bankReconciling=false;}}
+  async reconcileBankPayments(){if(this.bankReconciling)return;this.bankReconciling=true;try{for(const bank of [this.vtb,this.bcc])if(bank)for(const id of await bank.pendingIds())await bank.perform('poll',id);}finally{this.bankReconciling=false;}}
   private async exclusive<T>(run:()=>Promise<T>) {const pending=this.queue.then(run,run);this.queue=pending.catch(()=>{});return pending;}
   async deliverOutbox(now=new Date()) {
     if(!this.providers.push)return {sent:0,blocked:'push_provider_unavailable'};

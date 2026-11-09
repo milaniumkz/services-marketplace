@@ -40,6 +40,14 @@ class LocalLock {
     await storage.write(key: '$key.biometry', value: 'enabled');
   }
 
+  Future<void> disableBiometry() async {
+    if (!kIsWeb) {
+      await const MethodChannel('joba.device_security')
+          .invokeMethod('clearBiometry', {'alias': alias});
+    }
+    await storage.delete(key: '$key.biometry');
+  }
+
   Future<bool> unlockBiometry(
       {String title = 'JOBA', String cancel = 'Cancel'}) async {
     if (!await hasBiometry())

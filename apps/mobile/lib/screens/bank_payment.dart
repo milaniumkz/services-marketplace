@@ -142,7 +142,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
                         ? 'Банк отклонил оплату'
                         : status == 'expired'
                             ? 'Время оплаты истекло'
-                            : 'Оплата в ВТБ';
+                            : (p?['provider']=='bcc'?'Оплата в БЦК':'Оплата в ВТБ');
     return ListView(padding: const EdgeInsets.all(20), children: [
       Text(title,
           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
@@ -151,7 +151,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
       if (p != null) ...[
         if (p['bank_test'] == true)
           const Notice(
-              'Тестовый шлюз ВТБ. Используйте только тестовые карты: реальные деньги не списываются.'),
+              'Тестовый шлюз банка. Используйте только тестовые карты: реальные деньги не списываются.'),
         DataCard('${p['title'] ?? 'Услуга JOBA'}',
             subtitle: formatMoney(p['amount_minor'], p['currency'], 'ru')),
         if (p['message'] != null) Notice(p['message']),
@@ -211,7 +211,7 @@ class PendingBankPayments extends StatelessWidget {
                 child: ListTile(
                     title: Text(row['status'] == 'resolution_required'
                         ? 'Проверить оплаченную услугу'
-                        : 'Незавершённая оплата ВТБ'),
+                        : 'Незавершённая банковская оплата'),
                     subtitle: Text(
                         '${row['title']} · ${formatMoney(row['amount_minor'], row['currency'], 'ru')}'),
                     trailing: const Icon(Icons.chevron_right),

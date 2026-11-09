@@ -5,7 +5,7 @@ export function staffApi({getSession,saveSession,getCountryScope=()=>undefined})
     if(getSession()!==session)throw error('Сессия изменилась. Повторите запрос.','SESSION_CHANGED',401);
     let response;
     try {
-      response=await fetch('/api/v1'+path,{method,redirect:'error',signal:AbortSignal.timeout(20000),
+      response=await fetch('/api/v1'+path,{method,cache:'no-store',redirect:'error',signal:AbortSignal.timeout(20000),
         headers:{'Content-Type':body instanceof Blob?'application/octet-stream':'application/json',...(session?{Authorization:'Bearer '+session.access_token}:{}),...(key?{'Idempotency-Key':key}:{})},
         body:method==='GET'?undefined:body instanceof Blob?body:JSON.stringify(body)});
     }catch{throw error('Нет соединения с сервером. Повторите запрос.','NETWORK_ERROR');}

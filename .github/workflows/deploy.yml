@@ -12,6 +12,10 @@ on:
         description: Install owner supplied VTB sandbox configuration using a single-job encrypted channel
         type: boolean
         default: false
+      bcc_setup:
+        description: Install the owner-authorized BCC sandbox configuration through the single-job encrypted channel
+        type: boolean
+        default: false
       firebase_setup:
         description: Receive the owner supplied Firebase credential over a single-job encrypted channel
         type: boolean
@@ -56,9 +60,10 @@ jobs:
         run: |
           python3 scripts/generate-ad-placements.py --check
           python3 scripts/test-vtb-configuration.py
+          python3 scripts/test-bcc-deployment.py
           python3 scripts/test-firebase-deployment.py
           python3 scripts/test-firebase-envelope.py
-          node --test scripts/test-firebase-worker.cjs scripts/test-web-ads.cjs
+          node --test scripts/test-firebase-worker.cjs scripts/test-web-ads.cjs scripts/test-native-face-camera.cjs
       - run: npm ci
       - name: Verify host resource collector
         run: python3 scripts/test-server-metrics.py
@@ -125,6 +130,11 @@ jobs:
           JOBA_VTB_HANDOFF: ${{ inputs.vtb_setup && '1' || '0' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-vtb-configuration.py
+      - name: Acquire protected BCC sandbox configuration
+        env:
+          JOBA_BCC_HANDOFF: ${{ inputs.bcc_setup && '1' || '0' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/acquire-bcc-configuration.py
       - name: Acquire protected Firebase configuration
         env:
           JOBA_FIREBASE_HANDOFF: ${{ inputs.firebase_setup && '1' || '0' }}
@@ -132,6 +142,7 @@ jobs:
         run: python3 scripts/acquire-firebase-configuration.py
       - name: Deploy exact Git revision and verify HTTPS
         env:
+          JOBA_BCC_CONFIG_JSON: ${{ secrets.JOBA_BCC_CONFIG_JSON }}
           JOBA_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.JOBA_FIREBASE_SERVICE_ACCOUNT_JSON }}
           JOBA_FIREBASE_WEB_CONFIG: ${{ secrets.JOBA_FIREBASE_WEB_CONFIG }}
           JOBA_FIREBASE_VAPID_KEY: ${{ secrets.JOBA_FIREBASE_VAPID_KEY }}
@@ -178,6 +189,20 @@ jobs:
             "${joba_scp[@]}" "$JOBA_VTB_PREPARED_FILE" "root@$JOBA_SSH_HOST:$joba_vtb_remote"
             "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "install -d -m 0750 -o 1000 -g 1000 /etc/joba/payments; install -m 0600 -o 1000 -g 1000 '$joba_vtb_remote' /etc/joba/payments/vtb.json; rm -f '$joba_vtb_remote'"
             rm -f "$JOBA_VTB_PREPARED_FILE"
+          fi
+          joba_bcc_stage="$RUNNER_TEMP/joba-bcc-$GITHUB_SHA"
+          if test -n "${JOBA_BCC_PREPARED_FILE:-}"; then
+            mkdir -p "$joba_bcc_stage"
+            cp "$JOBA_BCC_PREPARED_FILE" "$joba_bcc_stage/bcc.json"
+            rm -f "$JOBA_BCC_PREPARED_FILE"
+          else
+            python3 scripts/prepare-bcc-deployment.py "$joba_bcc_stage"
+          fi
+          if test -f "$joba_bcc_stage/bcc.json"; then
+            joba_bcc_remote="/tmp/joba-bcc-$GITHUB_SHA.json"
+            "${joba_scp[@]}" "$joba_bcc_stage/bcc.json" "root@$JOBA_SSH_HOST:$joba_bcc_remote"
+            "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "install -d -m 0750 -o 1000 -g 1000 /etc/joba/payments; install -m 0600 -o 1000 -g 1000 '$joba_bcc_remote' /etc/joba/payments/bcc.json; rm -f '$joba_bcc_remote'"
+            rm -rf "$joba_bcc_stage"
           fi
           joba_remote_archive="/tmp/joba-release-$GITHUB_SHA.tgz"
           "${joba_scp[@]}" release-web.tgz "root@$JOBA_SSH_HOST:$joba_remote_archive"

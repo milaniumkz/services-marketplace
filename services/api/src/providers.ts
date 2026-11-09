@@ -35,7 +35,7 @@ export interface PdfSanitizer { sanitize(file:Buffer):Promise<Buffer>; }
 export class Providers {
   readonly billing=new Map<string,BillingProvider>();
   billingFor(country:string){return [...this.billing.values()].some(p=>!p.countries||p.countries.includes(country));}
-  hostedFor(country:string){return [...this.billing.values()].find(p=>p.hostedCheckout&&(!p.countries||p.countries.includes(country)));}
+  hostedFor(country:string){const preferred=['KZ','KG'].includes(country)?'bcc':'vtb';const candidates=[...this.billing.values()].filter(p=>p.hostedCheckout&&(!p.countries||p.countries.includes(country)));return candidates.find(p=>p.name===preferred)??candidates[0];}
   readonly rewards=new Map<string,RewardProvider>();
   readonly banners=new Map<string,BannerProvider>();
   push?:PushProvider;

@@ -14,15 +14,15 @@ export class Commerce {
     const currency=({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country];
     return {addons:[{...top100Addon,amount_minor:config?.prices?.top100??50000,currency}],version:config?.version??0,items:subscriptionPlans.map(p=>({...p,amount_minor:config?.prices?.[p.code]??(p.code==='customer'?50000:p.code==='premium'?150000:100000),currency:({KZ:'KZT',KG:'KGS',RU:'RUB',BY:'BYN'} as Record<string,string>)[country]}))};
   }
-  async offers(country:string,role?:string,includeTop100=false) {
+  async offers(country:string,role?:string,includeTop100=false,bankName?:string) {
     const catalog=await this.plans(country);
     const test=await testPaymentSettings(this.store,country,this.providers.billingFor(country));
     const plans=[...catalog.items,...(includeTop100?catalog.addons:[])].filter(p=>!role||p.role===role);
     const prices=(await this.store.all('price_version',country)).filter(p=>p.status==='effective'&&(!role||subscriptionPlan(p.payload.plan).role===role)&&(!p.payload.plan||plans.find(plan=>plan.code===p.payload.plan)?.amount_minor===p.payload.amount_minor));
     const realOffers=prices.filter(p=>p.payload.product_type!=='boost'&&p.payload.period==='days'&&p.payload.duration_days===30&&[...subscriptionPlans,top100Addon].some(plan=>plan.code===p.payload.plan)&&this.providers.billing.has(p.payload.provider)).map(p=>({id:p.id,...p.payload,title:p.title,plan:p.payload.plan??'standard'}));
     const simulated=test.enabled?plans.filter(p=>Number.isSafeInteger(p.amount_minor)&&p.amount_minor!>=0).map(p=>({...p,plan:p.code,test_settings_version:test.version,catalog_version:catalog.version,id:'test-'+p.code+'-v'+catalog.version+'-s'+test.version,provider:'test',product_id:'test.joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',is_test:true,auto_renew:false})):[];
-    const hosted=this.providers.hostedFor(country);
-    const bankOffers=hosted?plans.map(p=>({...p,plan:p.code,id:'vtb-'+p.code+'-v'+catalog.version,provider:hosted.name,product_id:'joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',hosted_checkout:true,is_test:false,environment:hosted.environment,bank_test:hosted.environment==='sandbox',auto_renew:false})):[];
+    const candidate=bankName?this.providers.billing.get(bankName):this.providers.hostedFor(country);const hosted=candidate?.hostedCheckout&&(!candidate.countries||candidate.countries.includes(country))?candidate:undefined;
+    const bankOffers=hosted?plans.filter(p=>!(hosted as any).currencies||(hosted as any).currencies.includes(p.currency)).map(p=>({...p,plan:p.code,id:hosted.name+'-'+p.code+'-v'+catalog.version,provider:hosted.name,product_id:'joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',hosted_checkout:true,is_test:false,environment:hosted.environment,bank_test:hosted.environment==='sandbox',auto_renew:false})):[];
     return {plans,items:[...realOffers.filter(o=>o.provider!==hosted?.name),...bankOffers,...simulated],test_payments_enabled:test.enabled,hosted_checkout_enabled:!!hosted};
   }
   async verify(owner:string,country:string,providerName:string,reference:string) {

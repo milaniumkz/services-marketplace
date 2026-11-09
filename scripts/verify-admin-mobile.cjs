@@ -50,6 +50,22 @@ async function main(){
   console.log('Opening mobile login');await page.goto(frontend+'/#login');
   await page.getByLabel('Логин').fill('mobile-admin-test');await page.getByLabel('Пароль',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.locator('#staff-logout').waitFor();console.log('Mobile login passed');
+  // A newly registered account must appear without finishing face/documents.
+  await page.goto(frontend+'/#users');await page.waitForLoadState('networkidle');
+  assert.equal(await page.getByLabel('Фильтр по стране',{exact:true}).inputValue(),'ALL');
+  await api.handle('POST','/auth/register',{country:'BY',phone:'+375291234567',password:'New Belarus account test!',display_name:'Новый аккаунт Беларусь'},undefined,undefined,{},'new-belarus-browser');
+  const refreshed=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/admin/users'&&r.status()===200);
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await refreshed;
+  await page.locator('.tablewrap').getByText('Новый аккаунт Беларусь',{exact:true}).waitFor();
+  await page.getByLabel('Фильтр по стране',{exact:true}).selectOption('KZ');await page.waitForLoadState('networkidle');
+  assert.equal(await page.locator('.tablewrap').getByText('Новый аккаунт Беларусь',{exact:true}).count(),0);
+  await page.getByRole('button',{name:'Показать всех пользователей',exact:true}).click();await page.locator('.tablewrap').getByText('Новый аккаунт Беларусь',{exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Фильтр по стране',{exact:true}).inputValue(),'ALL');
+  await page.goto(frontend+'/#users?q=does-not-exist');await page.waitForLoadState('networkidle');
+  const filtered=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/admin/users'&&r.status()===200);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await filtered;
+  assert.equal(await page.getByLabel('Поиск по ID или названию',{exact:true}).inputValue(),'does-not-exist');
+  await page.getByRole('button',{name:'Показать всех пользователей',exact:true}).click();await page.locator('.tablewrap').getByText('Новый аккаунт Беларусь',{exact:true}).waitFor();
+  console.log('New Belarus registration, idle refresh, country filtering and explicit reset passed');
   const output=process.env.JOBA_ADMIN_MOBILE_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
   for(const width of [320,360,393,430,768]){
    await page.setViewportSize({width,height:852});

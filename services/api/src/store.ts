@@ -65,7 +65,8 @@ export class Store {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country==='ALL'?null:country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{adminOrder?:any;member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
+  async select(kind:string,country:string,options:{adminOrder?:any;member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean;newestFirst?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
+    let nearbyLocation:string|undefined;
     const args:any[]=[kind,country],where=['kind=$1',"($2='ALL' OR country=$2)"];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
     if(options.adminOrder)where.push(...adminOrderConditions(options.adminOrder,bind));
@@ -92,7 +93,7 @@ export class Store {
     if(options.executor)where.push("data->>'executor_id'="+bind(options.executor));
     if(options.participant){const participant=bind(options.participant);where.push(`(owner=${participant} OR data->>'executor_id'=${participant})`);}
     if(options.statuses)where.push("data->>'status'=ANY("+bind(options.statuses)+'::text[])');
-    if(options.after)where.push('id>'+bind(options.after)+'::uuid');
+    if(options.after){const cursor=bind(options.after);where.push(options.newestFirst?`(COALESCE(r.data->>'created_at',''),r.id)<(SELECT COALESCE(previous.data->>'created_at',''),previous.id FROM records previous WHERE previous.id=${cursor}::uuid)`:'id>'+cursor+'::uuid');}
     if(options.sourceId)where.push("data->>'source_id'="+bind(options.sourceId));
     if(options.city){const city=bind(options.city);where.push(kind==='contractor'?`(data->>'city'=${city} OR COALESCE(data->'service_cities','[]'::jsonb) ? ${city})`:"data->>'city'="+city);}
     if(kind==='contractor'){
@@ -104,7 +105,9 @@ export class Store {
     if(options.category){const category=bind(options.category);where.push(`EXISTS(WITH RECURSIVE category_scope(id) AS (SELECT ${category}::text UNION SELECT COALESCE(c.data->'payload'->>'category_id',c.id::text) FROM records c JOIN category_scope parent ON c.data->'payload'->>'parent_id'=parent.id WHERE c.kind='category' AND c.country=$2 AND c.data->>'status'='effective') SELECT 1 FROM category_scope s WHERE r.data->>'category_id'=s.id OR COALESCE(r.data->'category_ids','[]'::jsonb) ? s.id)`);}
     if(options.near){
       const lat=bind(options.near.latitude),lon=bind(options.near.longitude),radius=bind(options.near.radius);
-      const location=kind==='order'?`COALESCE(r.data->'public_location',(SELECT jsonb_build_object('latitude',city.data->'latitude','longitude',city.data->'longitude') FROM records city WHERE city.kind='city' AND city.country=r.country AND city.data->>'status'='active' AND city.data->>'name'=r.data->>'city' AND jsonb_typeof(city.data->'latitude')='number' AND jsonb_typeof(city.data->'longitude')='number' ORDER BY (city.data->>'population')::numeric DESC NULLS LAST,city.id LIMIT 1))`:`r.data->'public_location'`;
+      const location=`COALESCE(CASE WHEN jsonb_typeof(r.data->'public_location'->'latitude')='number' AND jsonb_typeof(r.data->'public_location'->'longitude')='number' THEN r.data->'public_location' END,(SELECT jsonb_build_object('latitude',city.data->'latitude','longitude',city.data->'longitude','precision','city') FROM records city WHERE city.kind='city' AND city.country=r.country AND city.data->>'status'='active' AND lower(trim(city.data->>'name'))=lower(trim(r.data->>'city')) AND jsonb_typeof(city.data->'latitude')='number' AND jsonb_typeof(city.data->'longitude')='number' ORDER BY (city.data->>'population')::numeric DESC NULLS LAST,city.id LIMIT 1))`;
+
+      nearbyLocation=location;
       where.push(`EXISTS(SELECT 1 FROM (SELECT ${location} AS point) geo WHERE jsonb_typeof(geo.point->'latitude')='number' AND jsonb_typeof(geo.point->'longitude')='number' AND 6371*ACOS(LEAST(1,GREATEST(-1,SIN(RADIANS(${lat}::numeric))*SIN(RADIANS((geo.point->>'latitude')::numeric))+COS(RADIANS(${lat}::numeric))*COS(RADIANS((geo.point->>'latitude')::numeric))*COS(RADIANS((geo.point->>'longitude')::numeric-${lon}::numeric)))))<=${radius}::numeric)`);
     }
     if(options.publicActor){
@@ -119,6 +122,7 @@ export class Store {
       else if(['order','contractor'].includes(kind))where.push(`(r.id::text ILIKE ${parameter} OR r.owner ILIKE ${parameter} OR r.data->>'title' ILIKE ${parameter} OR r.data->>'display_name' ILIKE ${parameter} OR r.data->>'description' ILIKE ${parameter} OR r.data->'category_snapshot'->>'title' ILIKE ${parameter} OR EXISTS(SELECT 1 FROM records category WHERE category.kind='category' AND category.country=r.country AND category.data->>'status'='effective' AND (r.data->>'category_id'=COALESCE(category.data->'payload'->>'category_id',category.id::text) OR COALESCE(r.data->'category_ids','[]'::jsonb) ? COALESCE(category.data->'payload'->>'category_id',category.id::text)) AND (category.data->>'title' ILIKE ${parameter} OR (category.data->'payload'->'labels')::text ILIKE ${parameter})))`);
       else where.push(`(id::text ILIKE ${parameter} OR owner ILIKE ${parameter} OR data->>'event' ILIKE ${parameter} OR data->>'title' ILIKE ${parameter} OR data->>'display_name' ILIKE ${parameter} OR data->>'subject' ILIKE ${parameter})`);
     }
+    const projection=kind==='contractor'&&options.publicActor&&nearbyLocation?`(r.data || jsonb_build_object('public_location',${nearbyLocation},'location_approximate',COALESCE((${nearbyLocation})->>'precision','')='city'))`:'r.data';
     if(options.ranking){
       const ranking=options.ranking,cutoff=bind(new Date(Date.now()-ranking.windowDays*86400000).toISOString());
       const alpha=bind(ranking.dislikeWeight),decay=bind(ranking.ageDays),viewer=options.publicActor?bind(options.publicActor):undefined;
@@ -128,13 +132,13 @@ export class Store {
       const mine=viewer?`(SELECT value FROM votes mine WHERE mine.voter=${viewer}::uuid AND mine.target=r.id)`:'NULL';
       const premium=kind==='contractor'?"CASE WHEN EXISTS(SELECT 1 FROM records entitlement WHERE entitlement.kind='grant' AND entitlement.country=r.country AND entitlement.owner=r.owner AND (entitlement.data->>'valid_until')::timestamptz>CURRENT_TIMESTAMP AND COALESCE(entitlement.data->'capabilities','[]'::jsonb) ? 'top100' AND (COALESCE(entitlement.data->>'requires_base','false')<>'true' OR EXISTS(SELECT 1 FROM records base_access WHERE base_access.kind='grant' AND base_access.country=r.country AND base_access.owner=r.owner AND (base_access.data->>'valid_until')::timestamptz>CURRENT_TIMESTAMP AND COALESCE(base_access.data->'capabilities','[]'::jsonb) ? 'publish_profile'))) THEN 0 ELSE 1 END,":'';
       const order=ranking.sort==='new'?`${published} DESC,r.id ASC`:`${score} DESC,${likes} DESC,${published} DESC,r.id ASC`;
-      const result=await this.db.query<{data:RecordData}>(`SELECT r.data || jsonb_build_object('likes',${likes},'dislikes',${dislikes},'organic_score',${score},'my_vote',${mine}) AS data FROM records r
+      const result=await this.db.query<{data:RecordData}>(`SELECT ${projection} || jsonb_build_object('likes',${likes},'dislikes',${dislikes},'organic_score',${score},'my_vote',${mine}) AS data FROM records r
         LEFT JOIN(SELECT v.target,count(*) FILTER(WHERE v.value=1) AS likes,count(*) FILTER(WHERE v.value=-1) AS dislikes FROM votes v JOIN records target ON target.id=v.target
           WHERE target.kind=$1 AND target.country=$2 AND v.created_at>${cutoff}::timestamptz AND v.voter::text<>target.owner GROUP BY v.target)vcounts ON vcounts.target=r.id
         WHERE ${where.join(' AND ')} ORDER BY ${premium}${order} LIMIT ${bind(options.limit??100)}`,args);
       return result.rows.map(row=>row.data);
     }
-    const limit=options.limit??101;const r=await this.db.query<{data:RecordData}>('SELECT data FROM records r WHERE '+where.join(' AND ')+' ORDER BY id LIMIT '+bind(limit),args);return r.rows.map(r=>r.data);
+    const limit=options.limit??101;const r=await this.db.query<{data:RecordData}>('SELECT '+projection+' AS data FROM records r WHERE '+where.join(' AND ')+(options.newestFirst?" ORDER BY COALESCE(data->>'created_at','') DESC,id DESC LIMIT ":' ORDER BY id LIMIT ')+bind(limit),args);return r.rows.map(r=>r.data);
   }
   async read(id:string):Promise<RecordData|undefined>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))return undefined;return (await this.db.query<{data:RecordData}>('SELECT data FROM records WHERE id=$1',[id])).rows[0]?.data;}
   async get(id: string): Promise<RecordData | undefined> {

@@ -83,11 +83,26 @@ void main() {
     await expectLater(lock.configure('123456'), throwsA(isA<ApiException>()));
     expect(values, isEmpty);
   });
-  test('Working secure storage allows PIN without hardware-backed keys', () async {
+  test('Working secure storage allows PIN without hardware-backed keys',
+      () async {
     hardware = false;
     final lock = LocalLock('software-keystore');
     await lock.configure('123456');
     expect(await lock.unlock('123456'), true);
+  });
+  test(
+      'disabling biometric unlock preserves the PIN and unrelated session storage',
+      () async {
+    final lock = LocalLock('disable-biometry');
+    await lock.configure('123456');
+    await lock.enableBiometry();
+    values['joba-test-session'] = 'session-must-stay';
+    expect(await lock.hasBiometry(), true);
+    await lock.disableBiometry();
+    expect(await lock.hasBiometry(), false);
+    expect(await lock.hasPin(), true);
+    expect(await lock.unlock('123456'), true);
+    expect(values['joba-test-session'], 'session-must-stay');
   });
   test('Changed biometric enrollment invalidates local unlock', () async {
     final lock = LocalLock('biometry-test');

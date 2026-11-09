@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import UIKit
 import Security
@@ -6,6 +7,7 @@ import CoreLocation
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private let faceSpeech = AVSpeechSynthesizer()
   private var locationService: JobaLocationService?
   private var fileExporter: JobaFileExporter?
   override func application(
@@ -16,6 +18,24 @@ import CoreLocation
     if let controller = window?.rootViewController as? FlutterViewController {
       fileExporter = JobaFileExporter(controller: controller)
       locationService = JobaLocationService()
+      let faceCamera = FlutterMethodChannel(name: "joba.face_camera", binaryMessenger: controller.binaryMessenger)
+      faceCamera.setMethodCallHandler { [weak self] call, result in
+        guard let self = self else { result(false); return }
+        switch call.method {
+        case "prepare":
+          AVCaptureDevice.requestAccess(for: .video) { granted in DispatchQueue.main.async { result(granted) } }
+        case "speak":
+          let args = call.arguments as? [String: String]
+          guard let text = args?["text"], text.count <= 180 else { result(false); return }
+          self.faceSpeech.stopSpeaking(at: .immediate)
+          let speech = AVSpeechUtterance(string: text)
+          speech.voice = AVSpeechSynthesisVoice.speechVoices().first { $0.language.hasPrefix("ru") && $0.gender == .female } ?? AVSpeechSynthesisVoice(language: "ru-RU")
+          speech.rate = AVSpeechUtteranceDefaultSpeechRate
+          self.faceSpeech.speak(speech); result(true)
+        case "stop": self.faceSpeech.stopSpeaking(at: .immediate); result(true)
+        default: result(FlutterMethodNotImplemented)
+        }
+      }
       let locationChannel = FlutterMethodChannel(name: "joba.location", binaryMessenger: controller.binaryMessenger)
       locationChannel.setMethodCallHandler { [weak self] call, result in
         if call.method == "current" { self?.locationService?.request(result) } else { result(FlutterMethodNotImplemented) }

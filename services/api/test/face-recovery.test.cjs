@@ -65,3 +65,13 @@ test('face recovery: consent, two failed passwords, encrypted account binding, s
 
  }finally{await api.store.close();}
 });
+test('correct password cancels the failure challenge and an existing user without a face reference is not forced into recovery',async()=>{
+ const api=new Marketplace(new Store('memory://'),undefined,undefined,{enabled:true,describe:async()=>vector()});await api.initialize();try{
+ const password='Valid existing password 123',phone='+77000000878';const user=await api.handle('POST','/auth/register',{country:'KZ',phone,password});await api.store.put({...await api.store.get(user.user.id),created_at:'2026-01-01T00:00:00Z'});
+ const call=(method,path,body={},auth)=>api.handle(method,path,body,auth,randomUUID(),{},randomUUID());
+ assert.equal((await call('GET','/me/face-recovery',{},'Bearer '+user.access_token)).prompt_required,false);
+ for(let i=0;i<2;i++)await assert.rejects(()=>call('POST','/auth/login',{country:'KZ',phone,password:'incorrect password'}),e=>e.getStatus()===401&&(i===0?!e.getResponse().error.details?.face_recovery:!!e.getResponse().error.details.face_recovery));
+ const success=await call('POST','/auth/login',{country:'KZ',phone,password});assert.equal(success.user.id,user.user.id);assert.equal(success.face_recovery,undefined);
+ await assert.rejects(()=>call('POST','/auth/login',{country:'KZ',phone,password:'wrong again'}),e=>e.getStatus()===401&&!e.getResponse().error.details?.face_recovery);
+ }finally{await api.store.close();}
+});

@@ -27,6 +27,32 @@ class MainActivity : FlutterFragmentActivity() {
             manager.createNotificationChannel(android.app.NotificationChannel("joba_events", "Сообщения и события JOBA", android.app.NotificationManager.IMPORTANCE_HIGH))
         }
     }
+    private var facePermissionResult: MethodChannel.Result? = null
+    private var faceSpeech: android.speech.tts.TextToSpeech? = null
+    private var faceSpeechReady = false
+    private val facePermissionCode = 18036
+    private fun faceCamera(call: io.flutter.plugin.common.MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "prepare" -> {
+                if (faceSpeech == null) faceSpeech = android.speech.tts.TextToSpeech(this) { status ->
+                    faceSpeechReady = status == android.speech.tts.TextToSpeech.SUCCESS
+                    if (faceSpeechReady) { faceSpeech?.language = java.util.Locale("ru", "RU"); faceSpeech?.setSpeechRate(1.0f)
+                        faceSpeech?.voices?.firstOrNull { it.locale.language == "ru" && !it.isNetworkConnectionRequired && (it.name.contains("female", true) || it.name.contains("woman", true)) }?.let { faceSpeech?.voice = it } }
+                }
+                if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) result.success(true)
+                else if (facePermissionResult != null) result.error("CAMERA_BUSY", "Запрос камеры уже открыт", null)
+                else { facePermissionResult = result; androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), facePermissionCode) }
+            }
+            "speak" -> {
+                val text = call.argument<String>("text") ?: ""
+                if (faceSpeechReady && text.length <= 180) faceSpeech?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "joba-face-step")
+                result.success(faceSpeechReady)
+            }
+            "stop" -> { faceSpeech?.stop(); result.success(true) }
+            else -> result.notImplemented()
+        }
+    }
+
     private var locationResult: MethodChannel.Result? = null
     private val locationRequest = 18035
     private val locationHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -57,6 +83,10 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grants: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grants)
+        if (requestCode == facePermissionCode) {
+            val pending = facePermissionResult; facePermissionResult = null
+            pending?.success(grants.isNotEmpty() && grants.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED })
+        }
         if (requestCode == locationRequest) {
             if (grants.any { it == android.content.pm.PackageManager.PERMISSION_GRANTED }) readLocation()
             else locationResult?.let { finishLocation(it, null, "GPS_DENIED") }
@@ -111,6 +141,8 @@ class MainActivity : FlutterFragmentActivity() {
             location.latitude in -90.0..90.0 && location.longitude in -180.0..180.0
 
     override fun onDestroy() {
+        faceSpeech?.stop(); faceSpeech?.shutdown(); faceSpeech = null
+        facePermissionResult?.error("CAMERA_CLOSED", "Экран камеры закрыт", null); facePermissionResult = null
         locationResult?.let { finishLocation(it, null, "LOCATION_CANCELLED") }
         super.onDestroy()
     }
@@ -156,6 +188,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
+        MethodChannel(engine.dartExecutor.binaryMessenger, "joba.face_camera").setMethodCallHandler { call, result -> faceCamera(call, result) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "joba.runtime").setMethodCallHandler { call, result ->
             try { when (call.method) {
                 "info" -> { result.success(NativeCrashSpool.info(applicationContext)); return@setMethodCallHandler }

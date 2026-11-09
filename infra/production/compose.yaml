@@ -41,6 +41,7 @@ services:
       JOBA_FIREBASE_CONFIG_FILE: /run/joba-firebase/client-config.json
       GOOGLE_APPLICATION_CREDENTIALS: /run/joba-firebase/service-account.json
       JOBA_VTB_CONFIG_FILE: /run/joba-payments/vtb.json
+      JOBA_BCC_CONFIG_FILE: /run/joba-payments/bcc.json
       JOBA_SERVER_METRICS_FILE: /run/joba-host/metrics.json
     volumes:
       - /etc/joba/firebase:/run/joba-firebase:ro

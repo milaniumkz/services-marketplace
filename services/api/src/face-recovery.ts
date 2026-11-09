@@ -46,7 +46,7 @@ export class FaceRecovery {
   await this.lock(user.id);const u=await this.eligible(user.id);if(!u)fail('Способ недоступен для этого аккаунта.',403);
   const old=await this.template(u!.id,u!.country),fresh=!old&&Date.now()-Date.parse(u!.created_at)<15*60000;
   if(method==='PATCH'){await this.store.put({...u!,face_recovery_prompted:true,face_recovery_sequence_prompted:2,version:u!.version+1});return {dismissed:true,version:u!.version+1};}
-  if(method==='GET')return {sequence_version:2,steps:FACE_STEPS,update_required:old?.status==='active'&&old.sequence_version!==2,prompt_required:old?.status==='active'&&old.sequence_version!==2?u!.face_recovery_sequence_prompted!==2:!old&&!u!.face_recovery_prompted,enabled:true,enrolled:old?.status==='active',can_enroll_without_password:fresh,notice:FACE_NOTICE,liveness:false};
+  if(method==='GET')return {sequence_version:2,steps:FACE_STEPS,update_required:old?.status==='active'&&old.sequence_version!==2,prompt_required:fresh&&!old&&!u!.face_recovery_prompted,enabled:true,enrolled:old?.status==='active',can_enroll_without_password:fresh,notice:FACE_NOTICE,liveness:false};
   if(method==='DELETE'){await this.password(u!,b.current_password);await this.revoke(u!.id,u!.country);return {disabled:true};}
   if(method!=='POST')fail('Действие не поддерживается.');
   if(b.consent!==true)fail('Для сохранения шаблона нужно ваше согласие.');

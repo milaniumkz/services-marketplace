@@ -956,7 +956,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'face-enroll':
       case 'face-settings':
         final signup = route == 'face-enroll';
-        return page('Восстановление по лицу', FaceAccess(key: ValueKey(route), api: api, onDone: () => finishFaceSetup(signup), onSkip: () async {if (signup) {try {final result = await api.request('/me/face-recovery', method: 'PATCH', body: {}) as Json; me?['version'] = result['version'];} catch (_) {return;} } if (mounted) finishFaceSetup(signup);}));
+        return page(signup ? 'Настройка восстановления по лицу' : 'Мой шаблон лица', FaceAccess(key: ValueKey(route), api: api, onDone: () => finishFaceSetup(signup), onSkip: () async {if (signup) {try {final result = await api.request('/me/face-recovery', method: 'PATCH', body: {}) as Json; me?['version'] = result['version'];} catch (_) {return;} } if (mounted) finishFaceSetup(signup);}));
       case 'face-recovery':
         return page('Подтверждение личности', FaceAccess(key: ValueKey(faceChallenge?['id']), api: api, challenge: faceChallenge, onDone: () {faceChallenge = null; success('Пароль изменён. Войдите с новым паролем.'); setState(() {route = 'login'; history.clear();});}, onSkip: () {faceChallenge = null; setState(() {route = 'login'; history.clear();});}));
       case 'pin-setup':
@@ -1776,7 +1776,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               Error.throwWithStackTrace(error, stack);
             }
             var offerFaceSetup = false;
-            if (me?['face_recovery_available'] == true) {
+            if (register && me?['face_recovery_available'] == true) {
               try {final face = await api.request('/me/face-recovery') as Json; offerFaceSetup = face['prompt_required'] == true;} catch (_) {}
             }
             registrationInProgress = register || needsProfile(me!);
@@ -1973,7 +1973,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         );
       var offerFaceSetup = false;
       if (profile['face_recovery_available'] == true) {
-        try {final face = await client.request('/me/face-recovery') as Json; offerFaceSetup = face['prompt_required'] == true;} catch (_) {}
+        // A restored or correctly authenticated account must not be forced into enrollment.
+        offerFaceSetup = false;
       }
       if (!current()) return;
       setState(() {
@@ -2263,7 +2264,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           child: Text(record['city'] ?? '',
                               style:
                                   const TextStyle(fontSize: 11, color: muted)))
-                    ])
+                    ]),
+                    if (record['location_approximate'] == true)
+                      const Padding(padding: EdgeInsets.only(top: 8), child: Text('Местоположение по городу; расстояние приблизительное', style: TextStyle(fontSize: 11, color: muted))),
                   ]))));
   Widget homeCategory(Json? category, int index) {
     final icons = ['tool', 'spark', 'truck', 'brush', 'book', 'grid'];
@@ -2316,7 +2319,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     final scope=route,client=api,generation=api.sessionGeneration;
     try {final value=await locateNearby();
       if(!mounted||route!=scope||client!=api||generation!=api.sessionGeneration)return;
-      listingFilters={...listingFilters,'near_lat':value['latitude'],'near_lon':value['longitude'],'radius_km':executor?50:20}..remove('city');go(executor||scope=='jobs'?'jobs':'map');
+      listingFilters={...listingFilters,'near_lat':value['latitude'],'near_lon':value['longitude'],'radius_km':executor?50:20}..remove('city');go(executor||scope=='jobs'?'jobs':'catalog');
     } catch(_){if(mounted&&route==scope&&client==api&&generation==api.sessionGeneration)go('gps-denied');}
   }
   Widget locationScreen() => page(
@@ -2629,7 +2632,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         }
       },
       builder: (c, data, retry) {
-        if (data['verification_required'] == true) return JobaMenu([JobaMenuEntry('Подтвердить личность', 'shield', () => go('verification'), subtitle: 'Удостоверение с двух сторон и селфи')]);
+        if (data['verification_required'] == true) return JobaMenu([JobaMenuEntry('Подтвердить личность', 'shield', () => go('verification'), subtitle: ['RU','BY'].contains(country)?'Паспорт и селфи':country=='KG'?'ID-карта или паспорт и селфи':'Удостоверение с двух сторон и селфи')]);
         if (data['access_required'] == true && freeMobileRelease)
           return const Notice('Поиск временно недоступен. Попробуйте позже.');
         if (data['access_required'] == true)
@@ -4881,9 +4884,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       'PIN приложения', 'lock', () => go('lock-setup'),
                       subtitle: result[1] == true ? 'Настроен' : 'Не настроен'),
                   JobaMenuEntry('Биометрия', 'face', () => go('biometric'),
-                      subtitle: result[2] == true
-                          ? 'Включена на этом устройстве'
-                          : 'Не настроена'),
+                      subtitle: result[2] == true ? 'Включена на этом устройстве' : 'Отключена'),
                   if (me?['face_recovery_available'] == true) JobaMenuEntry('Восстановление по лицу', 'face', () => go('face-settings'), subtitle: 'Сохранить или удалить шаблон лица'),
                   JobaMenuEntry('Пароль', 'lock', () => go('password'),
                       subtitle: 'Изменить пароль аккаунта'),
@@ -4893,6 +4894,28 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           '${items(result[0]).length} · ${localize(context, 'Активные')}',
                       translateSubtitle: false)
                 ]),
+                SwitchListTile.adaptive(
+                  title: const Text('Вход по биометрии'),
+                  subtitle: Text(kIsWeb ? 'Доступно в установленном приложении' :
+                    result[2] == true ? 'Включён: Face ID или отпечаток запрашивается автоматически при входе' : 'Отключён: включите для быстрого входа'),
+                  value: result[2] == true,
+                  onChanged: kIsWeb || actionBusy ? null : (enabled) => act(() async {
+                    final protection = lock;
+                    if (protection == null) throw ApiException('LOCAL_PROTECTION_UNAVAILABLE','Сначала войдите с паролем');
+                    if (enabled) {
+                      await protection.enableBiometry();
+                      await api.setPersistence(true);
+                      localProtected = true;
+                    } else {
+                      await protection.disableBiometry();
+                      if (!await protection.hasPin()) {
+                        await api.setPersistence(false);
+                        localProtected = false;
+                      }
+                    }
+                    if (mounted) { setState(() => revision++); success(enabled ? 'Биометрия включена на этом устройстве' : 'Биометрия отключена'); }
+                  }),
+                ),
                 const SizedBox(height: 20),
                 Container(
                     padding: const EdgeInsets.all(16),

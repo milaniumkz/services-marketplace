@@ -33,14 +33,14 @@ export class MarketplaceController {
     const marketplace=await getMarketplace();
     const path = req.path.replace(/^\/api\/v1/, '');
     const body=path.startsWith('/webhooks/')?{raw_body:req.rawBody,headers:req.headers}:Buffer.isBuffer(req.body)?req.body:{...req.body,...(req.headers['if-match']?{expected_version:Number(String(req.headers['if-match']).replaceAll('"',''))}:{})};
-    const result = await marketplace.handle(req.method,path,body??{},req.headers.authorization,path.startsWith('/webhooks/')?undefined:req.headers['idempotency-key'],req.query,req.ip,String(req.headers['x-joba-client']??'web'));
+    const result = await marketplace.handle(req.method,path,body??{},req.headers.authorization,path.startsWith('/webhooks/')?undefined:req.headers['idempotency-key'],{...req.query,...(req.headers['x-joba-payments']==='bcc-v1'?{bank_capability:'bcc-v1'}:{})},req.ip,String(req.headers['x-joba-client']??'web'));
     res.setHeader('Cache-Control','no-store');
     res.setHeader('Server-Timing',`application;dur=${(performance.now()-started).toFixed(2)}`);
     if(path==='/me/monetization-config'&&req.method==='GET') {
       const etag=`"config-${result.version}"`;res.setHeader('ETag',etag);res.setHeader('X-Config-Expires-At',result.expires_at);
       if(req.headers['if-none-match']===etag){res.status(304).end();return;}
     }
-    if((path.startsWith('/public/site/')||path==='/public/billing/vtb/return')&&typeof result?.public_html==='string'){res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('X-Content-Type-Options','nosniff');res.send(result.public_html);return;}
+    if((path.startsWith('/public/site/')||['/public/billing/vtb/return','/public/billing/bcc/return','/public/billing/bcc/form'].includes(path))&&typeof result?.public_html==='string'){res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('X-Content-Type-Options','nosniff');res.send(result.public_html);return;}
     if(path.startsWith('/public/site/')&&result?.public_redirect){res.redirect(302,result.public_redirect);return;}
     if(result?.download_stream){
       res.setHeader('Content-Type',result.mime);res.setHeader('Content-Disposition',`attachment; filename="${result.download_filename==='joba-icons.zip'?'joba-icons.zip':'joba-export.zip'}"`);res.setHeader('X-Content-Type-Options','nosniff');

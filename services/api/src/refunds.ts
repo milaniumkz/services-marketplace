@@ -1,4 +1,5 @@
 import {vtbSandbox} from './vtb-gateway';
+import {BccGateway} from './bcc-gateway';
 import {randomUUID} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
@@ -11,7 +12,7 @@ export class Refunds {
  async payment(id:string,country:string,owner?:string){
   const p=await this.store.get(id);
   if(!p||p.kind!=='payment_transaction'||p.country!==country||owner&&p.owner!==owner)fail('NOT_FOUND','Платёж не найден',404);
-  if(!['sandbox','production'].includes(p.environment)||p.state!=='active'||!['purchase','renewal'].includes(p.operation)||!Number.isSafeInteger(p.cash_amount_minor)||(p.cash_amount_minor<=0||p.cash_amount_minor!==p.amount_minor)&&!(p.provider==='vtb'&&p.environment==='sandbox'&&p.is_test&&vtbSandbox(this.providers.billing.get('vtb'))))fail('PAYMENT_REQUIRES_RECONCILIATION','Нужен подтверждённый платёж с проверенной суммой',409);
+  if(!['sandbox','production'].includes(p.environment)||p.state!=='active'||!['purchase','renewal'].includes(p.operation)||!Number.isSafeInteger(p.cash_amount_minor)||(p.cash_amount_minor<=0||p.cash_amount_minor!==p.amount_minor)&&!(['vtb','bcc'].includes(p.provider)&&p.environment==='sandbox'&&p.is_test&&(vtbSandbox(this.providers.billing.get(p.provider))||this.providers.billing.get(p.provider) instanceof BccGateway)))fail('PAYMENT_REQUIRES_RECONCILIATION','Нужен подтверждённый платёж с проверенной суммой',409);
   return p;
  }
  private async lock(p:RecordData){
@@ -80,13 +81,13 @@ export class Refunds {
   fail('VALIDATION_ERROR','Неизвестная команда возврата');
  }
  private async confirm(r:RecordData,p:RecordData,v:VerifiedRefund){
-  if(!v||v.environment!==p.environment||process.env.NODE_ENV==='production'&&v.environment!=='production'&&!vtbSandbox(this.providers.billing.get(p.provider))||v.provider!==p.provider||v.request_id!==r.id||v.user_id!==r.owner||v.country!==r.country||v.transaction_id!==p.transaction_id||v.amount_minor!==r.amount_minor||v.currency!==p.currency||!['pending','succeeded','failed'].includes(v.status)||typeof v.refund_id!=='string'||!v.refund_id||v.refund_id.length>300)fail('REFUND_EVIDENCE_MISMATCH','Подтверждение не соответствует заявке',409);
+  if(!v||v.environment!==p.environment||process.env.NODE_ENV==='production'&&v.environment!=='production'&&!vtbSandbox(this.providers.billing.get(p.provider))&&!(this.providers.billing.get(p.provider) instanceof BccGateway&&this.providers.billing.get(p.provider)?.environment==='sandbox')||v.provider!==p.provider||v.request_id!==r.id||v.user_id!==r.owner||v.country!==r.country||v.transaction_id!==p.transaction_id||v.amount_minor!==r.amount_minor||v.currency!==p.currency||!['pending','succeeded','failed'].includes(v.status)||typeof v.refund_id!=='string'||!v.refund_id||v.refund_id.length>300)fail('REFUND_EVIDENCE_MISMATCH','Подтверждение не соответствует заявке',409);
   if(v.status!=='succeeded')return this.store.put({...r,status:v.status==='failed'?'failed':'pending',provider_reference:v.refund_id,last_checked_at:new Date().toISOString(),last_error:undefined,version:r.version+1});
   await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['refund-evidence:'+r.country+':'+v.provider+':'+v.refund_id]);
   const prior=(await this.store.all('payment_transaction',r.country)).find(x=>x.provider===v.provider&&x.refund_id===v.refund_id);
   if(prior&&prior.refund_request_id!==r.id)fail('REFUND_ALREADY_USED','Подтверждение использовано другой заявкой',409);
   const balance=await this.balance(p,r.id);if(!prior&&r.amount_minor>balance.available_minor)fail('REFUND_EXCEEDS_REMAINING','Подтверждение превышает остаток',409);
-  if(!prior)await this.store.put(rec('payment_transaction',r.owner,r.country,{provider:p.provider,transaction_id:'refund:'+v.refund_id,refund_id:v.refund_id,refund_request_id:r.id,original_payment_id:p.id,original_transaction_id:p.transaction_id,amount_minor:r.amount_minor,cash_amount_minor:p.provider==='vtb'&&p.environment==='sandbox'?0:-r.amount_minor,environment:p.environment,is_test:p.is_test===true,currency:p.currency,operation:'refund',state:'refunded',benefit:p.benefit,source_id:p.source_id}));
+  if(!prior)await this.store.put(rec('payment_transaction',r.owner,r.country,{provider:p.provider,transaction_id:'refund:'+v.refund_id,refund_id:v.refund_id,refund_request_id:r.id,original_payment_id:p.id,original_transaction_id:p.transaction_id,amount_minor:r.amount_minor,cash_amount_minor:['vtb','bcc'].includes(p.provider)&&p.environment==='sandbox'?0:-r.amount_minor,environment:p.environment,is_test:p.is_test===true,currency:p.currency,operation:'refund',state:'refunded',benefit:p.benefit,source_id:p.source_id}));
   const total=balance.refunded_minor+(prior?0:r.amount_minor);let accessAction='preserved';
   if(total===p.amount_minor){
    const target=await this.store.get(p.source_id??'');

@@ -4,18 +4,18 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 bool trustedBankEntry(Uri uri) =>
-    uri.scheme == 'https' &&
-    uri.port == 443 &&
-    uri.userInfo.isEmpty &&
-    ['vtbkz.rbsuat.com', 'payment.vtb.kz'].contains(uri.host) &&
-    uri.path.startsWith('/payment/');
+    uri.scheme == 'https' && uri.userInfo.isEmpty && (
+      uri.port == 443 && ['vtbkz.rbsuat.com', 'payment.vtb.kz'].contains(uri.host) && uri.path.startsWith('/payment/') ||
+      uri.port == 443 && uri.host == 'joba.com.kz' && uri.path == '/api/v1/public/billing/bcc/form' && RegExp(r'^[0-9a-f-]{36}$').hasMatch(uri.queryParameters['payment_id'] ?? '') && RegExp(r'^[a-f0-9]{64}$').hasMatch(uri.queryParameters['token'] ?? '') ||
+      uri.host == 'test3ds.bcc.kz' && uri.port == 5445 && uri.path == '/cgi-bin/cgi_link' ||
+      uri.host == '3dsecure.bcc.kz' && uri.port == 443 && uri.path == '/webview');
 
 bool bankReturn(Uri uri, String paymentId) =>
     uri.scheme == 'https' &&
     uri.port == 443 &&
     uri.userInfo.isEmpty &&
     uri.host == 'joba.com.kz' &&
-    uri.path == '/api/v1/public/billing/vtb/return' &&
+    ['/api/v1/public/billing/vtb/return','/api/v1/public/billing/bcc/return'].contains(uri.path) &&
     uri.queryParameters['payment_id'] == paymentId;
 
 bool bankNavigationAllowed(Uri uri) =>
@@ -119,11 +119,11 @@ class _BankFormState extends State<BankForm> {
                     context: context,
                     builder: (dialog) => AlertDialog(
                           title: const Text('Карта для тестовой оплаты'),
-                          content: const SelectableText(
-                              '2201 3820 0000 0062\nСрок: 12/34\nCVC: 123\n\nНастоящую карту здесь использовать не нужно.'),
+                          content: SelectableText(
+                              widget.entry.path.contains('/bcc/') || widget.entry.host.contains('bcc.kz') ? 'Тестовые карты БЦК указаны в инструкции банка. Настоящую карту здесь использовать не нужно.' : '2201 3820 0000 0062\nСрок: 12/34\nCVC: 123\n\nНастоящую карту здесь использовать не нужно.'),
                           actions: [
                             TextButton(
-                                onPressed: () {
+                                onPressed: widget.entry.path.contains('/bcc/') || widget.entry.host.contains('bcc.kz') ? null : () {
                                   Clipboard.setData(const ClipboardData(
                                       text: '2201382000000062'));
                                   Navigator.of(dialog).pop();
@@ -138,7 +138,7 @@ class _BankFormState extends State<BankForm> {
           ],
           title:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Оплата ВТБ'),
+            Text(widget.entry.path.contains('/bcc/') || widget.entry.host.contains('bcc.kz') ? 'Оплата БЦК' : 'Оплата ВТБ'),
             Text(host, style: const TextStyle(fontSize: 12)),
           ]),
         ),

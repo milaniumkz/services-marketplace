@@ -22,9 +22,9 @@ export async function quoteContext(store:Store,user:RecordData,now=new Date()){
  const context=createHash('sha256').update(JSON.stringify({bankReservations,reservations,role:subscriptionRole(user),catalog:catalog?.version??0,settings:settings.version,periods:state.periods.map(s=>[s.id,s.version,s.status]).sort(),discounts:discounts.map(d=>[d.id,d.version])})).digest('hex');
  return {state,catalog,settings,context};
 }
-export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordData,now=new Date()){
+export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordData,now=new Date(),bankName?:string){
  const {state,catalog,settings,context}=await quoteContext(store,user,now),role=subscriptionRole(user);
- const raw=await commerce.offers(user.country,role,role==='executor'&&state.standard&&!state.premium);
+ const raw=await commerce.offers(user.country,role,role==='executor'&&state.standard&&!state.premium,bankName);
  const hosted=raw.items.some(o=>o.hosted_checkout===true);
  if((!settings.enabled||commerce.providers.billingFor(user.country))&&!hosted)return {...raw,subscription_state:{paid_until:new Date(state.paid_until).toISOString(),premium:state.premium,standard:state.standard}};
  const prior=(await store.select('checkout_quote',user.country,{owner:user.id,limit:1000})).filter(q=>q.status==='available'&&q.offer?.calculation_version===2&&q.context===context&&q.expires_at>now.toISOString());
@@ -58,7 +58,7 @@ export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordDa
  }
  const offers=[];
  for(const t of templates){
-  const found=prior.find(q=>q.plan===t.plan&&q.offer_kind===t.offer_kind);
+  const found=prior.find(q=>q.plan===t.plan&&q.offer_kind===t.offer_kind&&q.offer?.provider===t.provider);
   if(found){offers.push({...found.offer,id:found.id});continue;}
   const discount=await bestDiscount(store,user,t.plan,t.offer_kind,now),price=discountedPrice(t.amount_minor,discount);
   const topPeriods=state.periods.filter(s=>periodPlan(s)==='top100'),topEnd=topPeriods.reduce((v,s)=>Math.max(v,Date.parse(s.valid_until)),now.getTime());
@@ -110,7 +110,7 @@ export async function fulfillQuotedSubscription(store:Store,user:RecordData,quot
  const subscription=proof?await store.put({...created,environment:proof.environment,current_transaction_id:proof.transaction_id,original_transaction_id:proof.payment_id,version:created.version+1}):created;
  const row=(kind:string,data:any):RecordData=>({id:randomUUID(),kind,owner:user.id,country:user.country,version:1,created_at:now.toISOString(),...data});
  await store.put(row('payment_transaction',{provider:proof?.provider??'test',is_test:!proof||proof.environment==='sandbox',environment:proof?.environment??'sandbox',transaction_id:proof?.transaction_id??randomUUID(),original_transaction_id:proof?.payment_id,bank_checkout_id:proof?.payment_id,operation:proof?(offer.offer_kind==='renewal'?'renewal':'purchase'):'test_purchase',state:'active',benefit:'subscription',source_id:subscription.id,amount_minor:offer.amount_minor,original_amount_minor:offer.original_amount_minor,discount_id:offer.discount_id,discount_percent:offer.discount_percent,cash_amount_minor:proof?.environment==='production'?offer.amount_minor:0,currency:offer.currency,accepted_terms:true}));
- await store.put(row('audit',{actor_id:user.id,action:proof?'billing.vtb_subscription_created':'billing.test_subscription_created',target_id:subscription.id,reason:proof?'Подтверждённая сервером оплата ВТБ':'Подтверждённая пользователем имитация оплаты без списания денег',plan:offer.plan,offer_kind:offer.offer_kind}));
+ await store.put(row('audit',{actor_id:user.id,action:proof?'billing.'+proof.provider+'_subscription_created':'billing.test_subscription_created',target_id:subscription.id,reason:proof?'Подтверждённая сервером оплата банка':'Подтверждённая пользователем имитация оплаты без списания денег',plan:offer.plan,offer_kind:offer.offer_kind}));
  await store.put({...quote,status:'consumed',subscription_id:subscription.id,version:quote.version+1});
  return {subscription,is_test:!proof||proof.environment==='sandbox',duplicate:false};
 }
@@ -121,9 +121,9 @@ export async function validateHostedQuote(store:Store,commerce:Commerce,user:Rec
  await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-periods:'+user.country+':'+user.id]);
  const quote=await store.get(String(b.offer_id));
  const {state,context}=await quoteContext(store,user,now);
- if(!quote||quote.kind!=='checkout_quote'||quote.owner!==user.id||quote.country!==user.country||quote.status!=='available'||quote.expires_at<=now.toISOString()||quote.context!==context||quote.offer?.hosted_checkout!==true||quote.offer?.provider!=='vtb')fail('OFFER_CHANGED','Цена или подписка изменились. Обновите условия оплаты');
- const offer=quote.offer,provider=commerce.providers.hostedFor(user.country);
- if(!provider||offer.environment!==provider.environment||offer.role!==subscriptionRole(user)||!user.roles.includes(offer.role)||b.amount_minor!==offer.amount_minor||b.currency!==offer.currency)fail('OFFER_CHANGED','Условия оплаты изменились. Обновите предложение');
+ if(!quote||quote.kind!=='checkout_quote'||quote.owner!==user.id||quote.country!==user.country||quote.status!=='available'||quote.expires_at<=now.toISOString()||quote.context!==context||quote.offer?.hosted_checkout!==true||!['vtb','bcc'].includes(quote.offer?.provider))fail('OFFER_CHANGED','Цена или подписка изменились. Обновите условия оплаты');
+ const offer=quote.offer,provider=commerce.providers.billing.get(offer.provider);
+ if(!provider||!provider.hostedCheckout||provider.countries&&!provider.countries.includes(user.country)||offer.provider!==provider.name||offer.environment!==provider.environment||offer.role!==subscriptionRole(user)||!user.roles.includes(offer.role)||b.amount_minor!==offer.amount_minor||b.currency!==offer.currency)fail('OFFER_CHANGED','Условия оплаты изменились. Обновите предложение');
  if(offer.plan==='top100'&&(!state.standard||state.premium))fail('ENTITLEMENT_REQUIRED','Для отдельного Топ-100 нужен активный Стандарт',403);
  if(offer.offer_kind==='upgrade'&&(!state.standard||state.premium)||offer.offer_kind==='downgrade'&&!state.premium)fail('OFFER_CHANGED','Текущий тариф изменился');
  return {quote,state,offer};

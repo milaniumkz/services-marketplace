@@ -330,6 +330,7 @@ class JobaApi extends ChangeNotifier {
     final request = http.Request(method, uri)..followRedirects = false;
     request.headers.addAll({
       'Accept': 'application/json',
+      'X-Joba-Payments': 'bcc-v1',
       'Content-Type': 'application/json',
       if (freeMobileRelease) 'X-Joba-Client': 'mobile-free-v1',
       if (authenticated) 'Authorization': 'Bearer $sentAccessToken',

@@ -83,7 +83,7 @@ class _FaceAccessState extends State<FaceAccess> {
         final generation = widget.api.sessionGeneration;
         final injected = widget.capturePhoto;
         final sequence = injected == null
-            ? await captureFacePhotos(context)
+            ? await captureFacePhotos(context, origin: widget.api.base)
             : await (() async {
                 final photo = await injected(context);
                 return photo == null
