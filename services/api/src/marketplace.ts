@@ -569,7 +569,7 @@ export class Marketplace {
       const policy=(await this.store.all('verification_policy',a.country)).filter(x=>x.status==='effective').sort((x,y)=>String(y.published_at??y.created_at).localeCompare(String(x.published_at??x.created_at))||y.id.localeCompare(x.id))[0];
       const consent=policy?(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id&&x.document_id===policy!.payload.document_id).sort((x,y)=>(y.sequence??0)-(x.sequence??0)||y.created_at.localeCompare(x.created_at))[0]:null;
       const document=policy?await this.store.get(policy!.payload.document_id):null;
-      return {status:a.user.verification,policy:policy&&document?.kind==='legal_document'&&document.country===a.country&&document.status==='published'?{id:policy.id,version:policy.version,document_types:verificationDocumentTypes(policy.payload,a.country),required_pages:Object.fromEntries(verificationDocumentTypes(policy.payload,a.country).map((type:string)=>[type,verificationPages(policy.payload,type,a.country)])),document_id:policy.payload.document_id,consent_accepted:consent?.accepted===true&&legalHashAccepted(document,consent.document_hash)}:null,items:(await this.store.all('verification',a.country)).filter(x=>x.owner===a.id).map(({document_refs,reviewer_id,...r})=>r)};
+      return {status:a.user.verification,policy:policy&&document?.kind==='legal_document'&&document.country===a.country&&document.status==='published'?{id:policy.id,version:policy.version,document_types:verificationDocumentTypes(policy.payload,a.country),required_pages:Object.fromEntries(verificationDocumentTypes(policy.payload,a.country).map((type:string)=>[type,verificationPages(policy.payload,type,a.country)])),document_id:policy.payload.document_id,consent_accepted:consent?.accepted===true&&legalHashAccepted(document,consent.document_hash),video_selfie_available:true}:null,items:(await this.store.all('verification',a.country)).filter(x=>x.owner===a.id).map(({document_refs,reviewer_id,...r})=>r)};
     }
     if(path==='/me/verification-sessions'&&method==='POST') {
       if(a.user.verification==='passed')fail(409,'VERIFICATION_ALREADY_PASSED','Личность уже подтверждена. Повторная отправка не требуется');
@@ -580,8 +580,12 @@ export class Marketplace {
       if(!document||document.kind!=='legal_document'||document.country!==a.country||document.status!=='published')fail(503,'COUNTRY_FLOW_UNAPPROVED','Правовое основание проверки недоступно');
       if(!consent?.accepted||!legalHashAccepted(document!,consent.document_hash))fail(403,'CONSENT_REQUIRED','Требуется согласие на проверку документа');
       if(!verificationDocumentTypes(policy!.payload,a.country).includes(b.document_type))fail(400,'VALIDATION_ERROR','Тип документа не разрешён');
-      const documentOnly=b.document_only===true,allPages=verificationPages(policy!.payload,b.document_type,a.country),pages=documentOnly?allPages.slice(0,-1):allPages;
-      return this.store.put(this.record('verification',a,{status:'draft',submitted_role:subscriptionRole(a.user),document_type:b.document_type,policy_id:policy!.id,policy_version:policy!.version,document_revision:1,required_pages:pages,selfie_index:documentOnly?null:pages.length-1,document_only:documentOnly,document_refs:[]}));
+      const documentOnly=b.document_only===true,videoSelfie=b.video_selfie===true;
+      if(documentOnly&&videoSelfie)fail(400,'VALIDATION_ERROR','Выберите один способ проверки личности');
+      const pages=verificationPages(policy!.payload,b.document_type,a.country);
+      if(documentOnly)pages.pop();
+      if(videoSelfie)pages[pages.length-1]='Кадр видеоидентификации';
+      return this.store.put(this.record('verification',a,{status:'draft',submitted_role:subscriptionRole(a.user),document_type:b.document_type,policy_id:policy!.id,policy_version:policy!.version,document_revision:1,required_pages:pages,selfie_index:documentOnly?null:pages.length-1,document_only:documentOnly,...(videoSelfie?{video_selfie:true,video_selfie_consent_at:new Date().toISOString()}:{}),document_refs:[]}));
     }
     const verificationSubmit=path.match(/^\/me\/verification-sessions\/([^/]+)\/submit$/);
     if(verificationSubmit&&method==='POST') {
@@ -1469,7 +1473,7 @@ export class Marketplace {
             if(!file||file.owner!==u.id||file.country!==a.country||file.purpose!=='identity'||file.verification_id!==r.id||file.status!=='clean'||!['image/jpeg','image/png'].includes(file.mime))fail(422,'UNSAFE_UPLOAD','Материал заявки недоступен или не прошёл проверку');
           }
         }
-        if(b.decision==='passed'&&r.document_only!==true&&verificationPhotoLayout(r)){
+        if(b.decision==='passed'&&r.document_only!==true&&r.video_selfie!==true&&verificationPhotoLayout(r)){
           const selfie=await this.store.get(r.document_refs[r.selfie_index]);
           if(!selfie||selfie.owner!==u.id||selfie.country!==a.country||selfie.purpose!=='identity'||selfie.verification_id!==r.id||selfie.status!=='clean'||!['image/jpeg','image/png'].includes(selfie.mime))fail(422,'UNSAFE_UPLOAD','Селфи недоступно или не прошло проверку');
           const bytes=await sharp(await this.files.read(selfie!.id),{limitInputPixels:25000000}).rotate().resize(512,512,{fit:'cover'}).jpeg({quality:85}).toBuffer();

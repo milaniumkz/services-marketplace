@@ -19,7 +19,7 @@ test('verification choices follow the effective regional policy and latest expli
   assert.deepEqual(await configuration.validate({...draftPolicy,payload:{...draftPolicy.payload,required_pages:{id_card:['Лицевая сторона','Оборотная сторона']}}}),{valid:true});
   await assert.rejects(()=>configuration.validate({...draftPolicy,payload:{...draftPolicy.payload,required_pages:{id_card:['Лицевая сторона','Лицевая сторона']}}}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
   let response=await call('GET','/me/verification');
-  assert.deepEqual(response.policy,{id:policyId,version:1,document_id:documentId,document_types:['id_card'],required_pages:{id_card:['Лицевая сторона удостоверения','Обратная сторона удостоверения','Селфи']},consent_accepted:false});
+  assert.deepEqual(response.policy,{id:policyId,version:1,document_id:documentId,document_types:['id_card'],required_pages:{id_card:['Лицевая сторона удостоверения','Обратная сторона удостоверения','Селфи']},consent_accepted:false,video_selfie_available:true});
   await assert.rejects(()=>call('POST','/me/verification-sessions',{document_type:'id_card'}),e=>e.getResponse().error.code==='CONSENT_REQUIRED');
   for(const [sequence,accepted] of [[1,true],[2,false],[3,true]]){
    await api.store.put({id:randomUUID(),kind:'consent',owner:session.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),document_id:documentId,document_hash:'isolated-document-hash',sequence,accepted});

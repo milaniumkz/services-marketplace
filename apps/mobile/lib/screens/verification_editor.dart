@@ -12,11 +12,9 @@ class VerificationEditor extends StatefulWidget {
   final bool executor;
   final bool documentOnly;
 
-  String get consentText => documentOnly
-      ? 'Согласен на ручную проверку необходимых страниц документа.'
-      : 'Согласен на проверку документа и селфи. После одобрения селфи станет фото профиля.';
   final Future<Json?> Function(String) pick;
   final Future<PhotoFile?> Function(bool selfie)? choosePhoto;
+  final Future<PhotoFile?> Function()? chooseVideoSelfie;
   final Future<Json> Function(PhotoFile photo, String sessionId)? uploadPhoto;
   final VoidCallback onTerms, onProfile, onSupport;
   final VoidCallback? onCreateOrder;
@@ -32,6 +30,7 @@ class VerificationEditor extends StatefulWidget {
       required this.country,
       required this.pick,
       this.choosePhoto,
+      this.chooseVideoSelfie,
       this.uploadPhoto,
       required this.onTerms,
       required this.onProfile,
@@ -50,6 +49,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
   Json? data, session;
   String? type;
   bool consent = false, busy = false;
+  bool videoSelfie = false;
   Object? error;
   int epoch = 0, commandGeneration = 0;
   Object? commandOwner;
@@ -127,17 +127,50 @@ class _VerificationEditorState extends State<VerificationEditor> {
     }
   }
 
+  bool get documentOnly => widget.documentOnly && !videoSelfie;
+  bool get sameMethod => session != null &&
+      (session!['document_only'] == true) == documentOnly &&
+      (session!['video_selfie'] == true) == videoSelfie;
+  bool get videoAvailable => widget.chooseVideoSelfie != null &&
+      data?['policy']?['video_selfie_available'] == true;
+  String get consentText => videoSelfie
+      ? 'Согласен передать страницы документа и один кадр для ручной проверки личности. Видеопоток и остальные кадры не отправляются. Кадр не станет фото профиля.'
+      : documentOnly
+          ? 'Согласен на ручную проверку необходимых страниц документа.'
+          : 'Согласен на проверку документа и селфи. После одобрения селфи станет фото профиля.';
+
+  Future<void> selectVideoSelfie(bool value) async {
+    if (!value) {
+      setState(() => videoSelfie = false);
+      return;
+    }
+    final generation = widget.api.sessionGeneration;
+    final accepted = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+      title: const UiText('Видеоидентификация'),
+      content: const UiText('Камера проведёт вас через пять действий в одном окне. Для ручной проверки JOBA получит только один кадр лица. Видео и остальные кадры останутся на устройстве до закрытия камеры. Кадр хранится до 30 дней после решения и не публикуется. Можно выбрать проверку только по документу.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialog, false), child: const UiText('Только документ')),
+        FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const UiText('Согласен на видеоидентификацию')),
+      ],
+    ));
+    if (mounted && accepted == true && generation == widget.api.sessionGeneration && videoAvailable) {
+      setState(() => videoSelfie = true);
+    }
+  }
+
   List<String> get pages {
     final policy = data?['policy'] as Json?;
     final requirements = policy?['required_pages'] as Json?;
-    final snapshot =
-        session?['document_type'] == type ? (session?['required_pages']) : null;
+    final snapshot = sameMethod && session!['document_type'] == type
+        ? session!['required_pages']
+        : null;
     final labels = ((snapshot ?? requirements?[type] ?? ['Документ']) as List).cast<String>();
-    return widget.documentOnly ? labels.where((label)=>!RegExp('селфи|selfie',caseSensitive:false).hasMatch(label)).toList() : labels;
+    if (documentOnly) return labels.where((label)=>!RegExp('селфи|selfie',caseSensitive:false).hasMatch(label)).toList();
+    return videoSelfie ? [...labels.take(labels.length - 1), 'Кадр видеоидентификации'] : labels;
   }
 
   List<String> get selected =>
-      session == null || (session!['document_only'] == true) != widget.documentOnly || session!['document_type'] != type
+      !sameMethod || session!['document_type'] != type
           ? []
           : widget.uploads.putIfAbsent(session!['id'], () => []);
   Future<void> execute(Future<void> Function(int) command) async {
@@ -187,14 +220,17 @@ class _VerificationEditorState extends State<VerificationEditor> {
       if (!valid(current)) return;
       policy['consent_accepted'] = true;
     }
-    if (session == null ||
-        (session!['document_only'] == true) != widget.documentOnly ||
+    if (!sameMethod ||
         session!['document_type'] != type ||
         !['draft', 'rejected'].contains(session!['status']) ||
         session!['policy_id'] != policy['id'] ||
         session!['policy_version'] != policy['version']) {
       final created = await widget.api.request('/me/verification-sessions',
-          method: 'POST', body: {'document_type': type, if (widget.documentOnly) 'document_only': true}) as Json;
+          method: 'POST', body: {
+            'document_type': type,
+            if (documentOnly) 'document_only': true,
+            if (videoSelfie) 'video_selfie': true,
+          }) as Json;
       if (valid(current)) setState(() => session = created);
     }
   }
@@ -232,7 +268,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
         if (!consent) {
           final accepted = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
             title: const UiText('Согласие на проверку'),
-            content: UiText(widget.consentText),
+            content: UiText(consentText),
             actions: [
               TextButton(onPressed: () => Navigator.pop(dialog, false), child: const UiText('Отмена')),
               FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const UiText('Согласен и продолжить')),
@@ -244,7 +280,10 @@ class _VerificationEditorState extends State<VerificationEditor> {
         // Select locally first. No document or consent request precedes the picker.
         PhotoFile? photo;
         if (widget.choosePhoto != null) {
-          photo = await widget.choosePhoto!(!widget.documentOnly && index == pages.length - 1);
+          final selfie = !documentOnly && index == pages.length - 1;
+          photo = videoSelfie && selfie
+              ? await widget.chooseVideoSelfie!()
+              : await widget.choosePhoto!(selfie);
           if (!valid(current) || photo == null) return;
         }
         await ensureSession(current);
@@ -429,7 +468,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                         MaterialLocalizations.of(context).formatMediumDate(
                             DateTime.parse(session!['expires_at']).toLocal()))
                 ])),
-          if (passed && !widget.documentOnly)
+          if (passed && !widget.documentOnly && session?['video_selfie'] != true)
             const Notice(
                 'Селфи станет фото профиля после одобрения. Снимите только лицо, без документа в кадре. Фотографии документа остаются приватными.'),
           TextButton(
@@ -462,13 +501,23 @@ class _VerificationEditorState extends State<VerificationEditor> {
             rejected ? 'Давайте попробуем ещё раз' : 'Подтвердите документ',
             rejected
                 ? 'Снимите документ при рассеянном свете. Все края должны быть в кадре.'
-                : widget.documentOnly
+                : videoSelfie
+                    ? 'Добавьте страницы документа и пройдите проверку в одном окне камеры.'
+                : documentOnly
                     ? (type=='passport'?'Загрузите разворот паспорта с фотографией и личными данными для ручной проверки.':'Загрузите две стороны ID-карты для ручной проверки.')
                     : type == 'passport' ? 'Загрузите разворот паспорта с фотографией и личными данными, затем сделайте селфи. После одобрения селфи станет фото профиля.' : 'Загрузите обе стороны удостоверения личности (ID-карты) и сделайте селфи. После одобрения селфи станет фото профиля.'),
         Notice(
-            widget.documentOnly ? 'Документ доступен только уполномоченным сотрудникам проверки.' : 'Документ видят только сотрудники проверки. В профиле будет только селфи после одобрения.',
+            videoSelfie ? 'Документ и кадр лица доступны только уполномоченным сотрудникам проверки.' : documentOnly ? 'Документ доступен только уполномоченным сотрудникам проверки.' : 'Документ видят только сотрудники проверки. В профиле будет только селфи после одобрения.',
             icon: 'shield',
             margin: EdgeInsets.zero),
+        if (videoAvailable)
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const UiText('Видеоидентификация'),
+            subtitle: const UiText('По желанию. Проверка только по документу тоже доступна.'),
+            value: videoSelfie,
+            onChanged: busy ? null : selectVideoSelfie,
+          ),
         if (rejected && session?['reason'] != null)
           Notice('${session!['reason']}'),
         const SizedBox(height: 20),
@@ -541,7 +590,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
                                     : null)
                           ]))))),
         const SizedBox(height: 10),
-        UiText(widget.documentOnly ? 'Документ' : 'Документ и селфи',
+        UiText(videoSelfie ? 'Документ и видеоидентификация' : documentOnly ? 'Документ' : 'Документ и селфи',
             style: TextStyle(fontWeight: FontWeight.w700)),
         if (selected.length < pages.length)
           Padding(
@@ -564,8 +613,8 @@ class _VerificationEditorState extends State<VerificationEditor> {
                                     child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                      const UiText('Добавить фотографии',
-                                          style: TextStyle(
+                                      UiText(videoSelfie && selected.length == pages.length - 1 ? 'Начать видеоидентификацию' : 'Добавить фотографии',
+                                          style: const TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w400)),
                                       const SizedBox(height: 5),
@@ -595,7 +644,7 @@ class _VerificationEditorState extends State<VerificationEditor> {
             onChanged:
                 busy || policy == null ? null : (v) => changeConsent(v == true),
             title: UiText(
-                widget.consentText,
+                consentText,
                 style: const TextStyle(fontSize: 12, height: 1.55))),
         TextButton(
             onPressed: widget.onTerms, child: const UiText('Условия проверки')),

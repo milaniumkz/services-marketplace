@@ -23,6 +23,43 @@ http.Response ok(dynamic data) =>
     http.Response(jsonEncode({'data': data, 'meta': {}}), 200,
         headers: {'content-type': 'application/json; charset=utf-8'});
 void main() {
+  testWidgets('iOS offers a document-only path and uploads one private video frame only after opt-in', (t) async {
+    t.view.physicalSize = const Size(430, 1300);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    final requests = <Json>[];
+    final uploads = <PhotoFile>[];
+    final document = PhotoFile(Uint8List.fromList([1]));
+    final frame = PhotoFile(Uint8List.fromList([2]));
+    final api = JobaApi('https://isolated.example', vault: Vault(), transport: MockClient((r) async {
+      if (r.url.path.endsWith('/me/verification')) return ok({'status':'not_started','items':[],'policy':{
+        'id':'policy','version':1,'document_types':['passport'],'required_pages':{'passport':['Разворот','Селфи']},
+        'consent_accepted':true,'video_selfie_available':true,
+      }});
+      requests.add(jsonDecode(r.body) as Json);
+      return ok({'id':'video','version':1,'status':'draft','document_type':'passport','policy_id':'policy','policy_version':1,
+        'video_selfie':true,'required_pages':['Разворот','Кадр видеоидентификации']});
+    }));
+    api.session = {'access_token':'token','user':{'id':'owner'}};
+    addTearDown(api.dispose);
+    await t.pumpWidget(MaterialApp(home:Scaffold(body:VerificationEditor(api:api,country:'RU',documentOnly:true,
+      uploads:{},pick:(_) async=>null,choosePhoto:(selfie) async {expect(selfie,isFalse);return document;},
+      chooseVideoSelfie:() async=>frame,uploadPhoto:(photo,id) async {expect(id,'video');uploads.add(photo);return {'id':'upload-${uploads.length}'};},
+      onTerms:(){},onSupport:(){},onProfile:(){},
+    ))));
+    await t.pumpAndSettle();
+    expect(find.text('Начать видеоидентификацию'),findsNothing);
+    await t.tap(find.byType(SwitchListTile)); await t.pumpAndSettle();
+    await t.tap(find.text('Только документ')); await t.pumpAndSettle();
+    expect(uploads,isEmpty);
+    await t.tap(find.byType(SwitchListTile)); await t.pumpAndSettle();
+    await t.tap(find.text('Согласен на видеоидентификацию')); await t.pumpAndSettle();
+    await t.tap(find.text('Добавить фотографии')); await t.pumpAndSettle();
+    await t.tap(find.text('Начать видеоидентификацию')); await t.pumpAndSettle();
+    expect(requests,[{'document_type':'passport','video_selfie':true}]);
+    expect(uploads,[document,frame]);
+  });
   for (final executor in [false, true]) {
     testWidgets('verification result follows the active role even with both account roles: $executor', (t) async {
       final api=JobaApi('https://isolated.example',vault:Vault(),transport:MockClient((r) async => ok({'status':'passed','items':[]})));

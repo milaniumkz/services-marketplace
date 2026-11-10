@@ -1,6 +1,7 @@
 import 'bank_payment.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import '../core/native_diagnostics.dart';
+import '../core/face_camera.dart';
 import 'face_access.dart';
 import '../core/release_channel.dart';
 import '../core/external_activity.dart';
@@ -5548,6 +5549,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           },
           pick: (id) => pickUpload('identity', verificationId: id),
           choosePhoto: (selfie) => withExternalActivity(()=>choosePhoto(context, selfie: selfie,identity:true)),
+          chooseVideoSelfie: appleCatalog ? () async {
+            final sequence = await captureFacePhotos(context, origin: api.base);
+            return sequence?.photos.firstOrNull;
+          } : null,
           uploadPhoto: (photo, id) => api.upload(photo.bytes, photo.mime, 'identity', verificationId: id),
           onTerms: () => go('terms'),
           onAppeal: (session) => Navigator.push(context, MaterialPageRoute(builder: (c) => Scaffold(
