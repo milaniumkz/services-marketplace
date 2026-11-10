@@ -30,8 +30,8 @@ void main() {
     addTearDown(t.view.resetDevicePixelRatio);
     final requests = <Json>[];
     final uploads = <PhotoFile>[];
-    final document = PhotoFile(Uint8List.fromList([1]));
-    final frame = PhotoFile(Uint8List.fromList([2]));
+    final document = PhotoFile(Uint8List.fromList([255, 216, 255, 1]));
+    final frame = PhotoFile(Uint8List.fromList([255, 216, 255, 2]));
     final api = JobaApi('https://isolated.example', vault: Vault(), transport: MockClient((r) async {
       if (r.url.path.endsWith('/me/verification')) return ok({'status':'not_started','items':[],'policy':{
         'id':'policy','version':1,'document_types':['passport'],'required_pages':{'passport':['Разворот','Селфи']},
