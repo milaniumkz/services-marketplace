@@ -25,6 +25,15 @@ end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
+# AdMob placements exist only on Android. Its iOS SDK aborts at launch without an iOS app ID.
+alias joba_flutter_plugins_list flutter_get_plugins_list
+def flutter_get_plugins_list(dependencies_hash, platform)
+  plugins = joba_flutter_plugins_list(dependencies_hash, platform)
+  return plugins unless platform == 'ios'
+
+  plugins.reject { |plugin| plugin['name'] == 'google_mobile_ads' }
+end
+
 flutter_ios_podfile_setup
 
 target 'Runner' do

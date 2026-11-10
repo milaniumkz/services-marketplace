@@ -95,4 +95,11 @@ void main() {
             android: true, googleFirst: true),
         isEmpty);
   });
+
+  test('iOS banners use its own Yandex block on eligible screens', () {
+    final ios = {...config, 'ios_banner_id': 'R-M-12345678-1'};
+    expect(nativeBannerNetworks(ios, android: false, route: 'home'), ['yandex']);
+    expect(nativeBannerNetworks(ios, android: false, route: 'orders'), ['yandex']);
+    expect(nativeBannerNetworks(ios, android: false, route: 'checkout'), isEmpty);
+  });
 }

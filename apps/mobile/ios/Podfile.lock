@@ -179,16 +179,9 @@ PODS:
   - Flutter (1.0.0)
   - flutter_secure_storage (6.0.0):
     - Flutter
-  - Google-Mobile-Ads-SDK (12.2.0):
-    - GoogleUserMessagingPlatform (>= 1.1)
-  - google_mobile_ads (6.0.0):
-    - Flutter
-    - Google-Mobile-Ads-SDK (~> 12.2.0)
-    - webview_flutter_wkwebview
   - GoogleDataTransport (10.1.1):
     - nanopb (~> 3.30910.0)
     - PromisesObjC (~> 2.4)
-  - GoogleUserMessagingPlatform (3.1.0)
   - GoogleUtilities/AppDelegateSwizzler (8.1.5):
     - GoogleUtilities/Environment
     - GoogleUtilities/Logger
@@ -258,7 +251,6 @@ DEPENDENCIES:
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
   - Flutter (from `Flutter`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
-  - google_mobile_ads (from `.symlinks/plugins/google_mobile_ads/ios`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
@@ -298,9 +290,7 @@ SPEC REPOS:
     - FirebaseMessaging
     - FirebaseRemoteConfigInterop
     - FirebaseSessions
-    - Google-Mobile-Ads-SDK
     - GoogleDataTransport
-    - GoogleUserMessagingPlatform
     - GoogleUtilities
     - KSCrash
     - nanopb
@@ -325,8 +315,6 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_secure_storage:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
-  google_mobile_ads:
-    :path: ".symlinks/plugins/google_mobile_ads/ios"
   image_picker_ios:
     :path: ".symlinks/plugins/image_picker_ios/ios"
   path_provider_foundation:
@@ -377,10 +365,7 @@ SPEC CHECKSUMS:
   FirebaseSessions: 39bcaa7c16b5d8b91d58f495f29ce2988d2f915c
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
-  Google-Mobile-Ads-SDK: 1dfb0c3cb46c7e2b00b0f4de74a1e06d9ea25d67
-  google_mobile_ads: 535223588a6791b7a3cc3513a1bc7b89d12f3e62
   GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
-  GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   GoogleUtilities: 7dc09b3fa9ecb5c2298b952313d14628b61b9da3
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
   KSCrash: 8c4464fd5da7de520f2ce4a00fdf63f169a80f18
@@ -395,6 +380,6 @@ SPEC CHECKSUMS:
   yandex_mobileads: 83629cbbbeb878802aa8fd6b8aa6eaf06cb991bb
   YandexMobileAds: c1fc595860945630cc0ed0ebed1fa23ab6c5ce17
 
-PODFILE CHECKSUM: 263a3e327ec8c049d1083c4cdd9efcd73625e571
+PODFILE CHECKSUM: 18b959420771188e379715a9b480c2642ad4c77e
 
 COCOAPODS: 1.17.0

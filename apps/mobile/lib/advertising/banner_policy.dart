@@ -19,7 +19,8 @@ List<String> nativeBannerNetworks(Map<String, dynamic> config,
         RegExp(r'^ca-app-pub-\d{16}/\d{10}$').hasMatch(googleId))
       'google',
   ];
-  final assigned = bannerPlacements[route];
+  final placement = bannerPlacements[route];
+  final assigned = !android && placement != null ? 'yandex' : placement;
   return networks.where((network) => network == assigned).toList();
 }
 
