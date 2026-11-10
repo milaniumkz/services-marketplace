@@ -340,7 +340,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build\n# The iOS Podfile omits the Android-only AdMob plugin.\nsed '/^#if.*google_mobile_ads\//,/^#endif/d; /FLTGoogleMobileAdsPlugin/d' \"$SCRIPT_INPUT_FILE_0\" > \"$SCRIPT_OUTPUT_FILE_0\"\n";
+			shellScript = "set -e\n/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build\n# The iOS Podfile omits the Android-only AdMob plugin.\nsed '/^#if.*google_mobile_ads/,/^#endif/d; /FLTGoogleMobileAdsPlugin/d' \"$SCRIPT_INPUT_FILE_0\" > \"$SCRIPT_OUTPUT_FILE_0\"\n";
 		};
 		C40B34C36F0266AB66C2BB5C /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
