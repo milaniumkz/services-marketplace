@@ -2,9 +2,19 @@
   encode zstd gzip
   header {
     X-Content-Type-Options nosniff
+    -Server
+  }
+  @bankFrame path /api/v1/public/billing/bcc/form /api/v1/public/billing/bcc/return /api/v1/public/billing/vtb/return
+  @notBankFrame {
+    not path /api/v1/public/billing/bcc/form /api/v1/public/billing/bcc/return /api/v1/public/billing/vtb/return
+  }
+  header @notBankFrame {
     Referrer-Policy strict-origin-when-cross-origin
     X-Frame-Options DENY
-    -Server
+  }
+  header @bankFrame {
+    Referrer-Policy no-referrer
+    X-Frame-Options SAMEORIGIN
   }
   @entrypoints path / /index.html /app /app/ /app/* /admin/ /admin/index.html /site/ /site/*.html
   header @entrypoints Cache-Control "no-cache"
