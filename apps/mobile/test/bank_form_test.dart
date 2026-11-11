@@ -10,6 +10,12 @@ import 'widget_test.dart' show MemoryVault, ok;
 class TestDelegate extends PlatformNavigationDelegate {
   TestDelegate(super.params) : super.implementation();
   NavigationRequestCallback? navigate;
+  PageEventCallback? started;
+  @override
+  Future<void> setOnPageStarted(PageEventCallback value) async {
+    started = value;
+  }
+
   @override
   Future<void> setOnNavigationRequest(NavigationRequestCallback value) async {
     navigate = value;
@@ -68,6 +74,56 @@ class TestPlatform extends WebViewPlatform {
 }
 
 void main() {
+  testWidgets(
+      'BCC stays in app and a POST return closes on main-frame load without a navigation callback',
+      (t) async {
+    final platform = TestPlatform();
+    WebViewPlatform.instance = platform;
+    const id = '00000000-0000-4000-8000-000000000001';
+    var paid = false, reads = 0;
+    final api = JobaApi('https://joba.com.kz', vault: MemoryVault(),
+        transport: MockClient((request) async {
+      reads++;
+      return ok({
+        'id': id,
+        'provider': 'bcc',
+        'status': paid ? 'completed' : 'pending',
+        'amount_minor': 50000,
+        'currency': 'KZT',
+        'title': 'Подписка',
+        'payment_url': paid
+            ? null
+            : 'https://joba.com.kz/api/v1/public/billing/bcc/form?payment_id=$id&token=${'a' * 64}'
+      });
+    }));
+    addTearDown(api.dispose);
+    api.session = {
+      'access_token': 'isolated',
+      'user': {'id': 'synthetic'}
+    };
+    await t.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: BankPaymentScreen(api: api, id: id, onGo: (_, __) {}))));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Перейти к оплате в банке'));
+    await t.tap(find.text('Перейти к оплате в банке'));
+    await t.pumpAndSettle();
+    expect(find.text('Оплата БЦК'), findsOneWidget);
+    expect(find.text('Bank-owned web content'), findsOneWidget);
+    expect(platform.controller.loaded!.headers, isEmpty);
+    expect(
+        await platform.delegate.navigate!(const NavigationRequest(
+            url: 'https://test3ds.bcc.kz:5445/cgi-bin/cgi_link',
+            isMainFrame: true)),
+        NavigationDecision.navigate);
+    paid = true;
+    platform.delegate.started!(
+        'https://joba.com.kz/api/v1/public/billing/bcc/return?payment_id=$id');
+    await t.pumpAndSettle();
+    expect(reads, greaterThanOrEqualTo(2));
+    expect(find.text('Оплата подтверждена'), findsOneWidget);
+    await t.pumpWidget(const SizedBox.shrink());
+  });
   test(
       'bank entry and return are scoped while issuer HTTPS 3DS navigation stays supported',
       () {

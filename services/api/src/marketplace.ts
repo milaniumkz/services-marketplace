@@ -1,3 +1,4 @@
+import {bankReturnPage} from './bank-return';
 import {BccGateway,loadBccConfig} from './bcc-gateway';
 import {refreshPublicServiceInformation} from './public-service-information';
 import {VtbGateway,loadVtbConfig} from './vtb-gateway';
@@ -323,8 +324,9 @@ export class Marketplace {
     }
     if(['/public/billing/vtb/return','/public/billing/bcc/return'].includes(path)&&['GET','POST'].includes(method)){
       const id=String(q.payment_id??'');if(!/^[0-9a-f-]{36}$/i.test(id))fail(400,'VALIDATION_ERROR','Некорректный платёж');
-      const origin=this.vtb?.gateway.config.public_origin??'https://joba.com.kz';
-      return {public_html:'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата JOBA</title><body style="font:18px system-ui;padding:32px;max-width:600px;margin:auto"><h1>Вернитесь в JOBA</h1><p>Статус оплаты проверяется напрямую в банке. Сам возврат на эту страницу не подтверждает списание.</p><p><a href="'+origin+'/?joba_payment='+id+'">Проверить оплату в JOBA</a></p><p>Если оплачивали из установленного приложения, закройте окно банка и вернитесь в приложение.</p></body></html>'};
+      const bank=path.includes('/bcc/')?this.bcc:this.vtb;
+      const origin=bank?.gateway.config.public_origin??'https://joba.com.kz';
+      return {public_html:bankReturnPage(origin,id)};
     }
     if(path==='/public/billing/vtb/callback'&&['GET','POST'].includes(method)){
       if(!this.vtb)fail(503,'PROVIDER_UNAVAILABLE','ВТБ пока не подключён');return this.vtb!.callback(String(q.payment_id??b.payment_id??''),String(q.token??b.token??''));

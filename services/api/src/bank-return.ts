@@ -1,0 +1,5 @@
+/** A browser return requests a server status check; it never grants a benefit. */
+export function bankReturnPage(origin:string,id:string){
+ const message=JSON.stringify({type:'joba.bank.return',payment_id:id});
+ return '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата JOBA</title><body style="font:18px system-ui;padding:32px;max-width:600px;margin:auto"><h1>Проверяем оплату</h1><p>Статус оплаты проверяется напрямую в банке. Сам возврат на эту страницу не подтверждает списание.</p><p><a id="return-joba" href="'+origin+'/?joba_payment='+id+'">Проверить оплату в JOBA</a></p><p>Если оплачивали из установленного приложения, закройте окно банка и вернитесь в приложение.</p><script>const message='+message+';function notifyJoba(){if(window.parent!==window){window.parent.postMessage(message,'+JSON.stringify(origin)+');return true;}return false;}notifyJoba();document.getElementById("return-joba").addEventListener("click",event=>{if(notifyJoba())event.preventDefault();});</script></body></html>';
+}

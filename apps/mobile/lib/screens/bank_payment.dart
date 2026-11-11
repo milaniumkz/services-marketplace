@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'bank_form.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../core/api.dart';
 import '../core/currency.dart';
 import '../core/external_activity.dart';
@@ -63,6 +61,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
     if (loading) return;
     loading = true;
     final api = widget.api, generation = api.sessionGeneration;
+    String? bankUrl;
     try {
       final result = await api.request(
           '/billing/vtb/payments/${widget.id}${cancel ? '/cancel' : ''}',
@@ -75,14 +74,19 @@ class _BankPaymentState extends State<BankPaymentScreen>
       });
       if (widget.autoOpen && !autoOpened && payment!['payment_url'] is String) {
         autoOpened = true;
-        final url = payment!['payment_url'] as String;
-        await openBank(url);
+        bankUrl = payment!['payment_url'] as String;
       }
     } catch (e) {
       if (mounted && api == widget.api && generation == api.sessionGeneration)
         setState(() => error = e);
     } finally {
       loading = false;
+    }
+    if (bankUrl != null &&
+        mounted &&
+        api == widget.api &&
+        generation == api.sessionGeneration) {
+      await openBank(bankUrl);
     }
   }
 
@@ -100,26 +104,17 @@ class _BankPaymentState extends State<BankPaymentScreen>
           generation = api.sessionGeneration,
           id = widget.id;
       if (widget.autoOpen) widget.onGo('bank-payment', id);
-      final opened = kIsWeb
-          ? await launchUrl(uri, webOnlyWindowName: '_self')
-          : await withExternalActivity(() async {
-              await navigator.push<bool>(MaterialPageRoute(
-                  builder: (_) => BankForm(
-                      entry: uri,
-                      paymentId: id,
-                      testMode: payment?['bank_test'] == true)));
-              return true;
-            });
-      if (!kIsWeb &&
-          mounted &&
-          api == widget.api &&
-          generation == api.sessionGeneration) {
-        // Always ask the server; neither a URL redirect nor closing the form is proof.
-        unawaited(load());
+      await withExternalActivity(() async {
+        await navigator.push<bool>(MaterialPageRoute(
+            builder: (_) => BankForm(
+                entry: uri,
+                paymentId: id,
+                testMode: payment?['bank_test'] == true)));
+      });
+      if (mounted && api == widget.api && generation == api.sessionGeneration) {
+        // A frame return only requests verification; the bank proves the payment.
+        await load();
       }
-      if (!opened)
-        throw ApiException('PAYMENT_OPEN_FAILED',
-            'Не удалось открыть банк. Нажмите «Перейти к оплате» ещё раз.');
     } catch (e) {
       if (mounted) setState(() => error = e);
     } finally {
@@ -142,7 +137,9 @@ class _BankPaymentState extends State<BankPaymentScreen>
                         ? 'Банк отклонил оплату'
                         : status == 'expired'
                             ? 'Время оплаты истекло'
-                            : (p?['provider']=='bcc'?'Оплата в БЦК':'Оплата в ВТБ');
+                            : (p?['provider'] == 'bcc'
+                                ? 'Оплата в БЦК'
+                                : 'Оплата в ВТБ');
     return ListView(padding: const EdgeInsets.all(20), children: [
       Text(title,
           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),

@@ -40,6 +40,11 @@ export class MarketplaceController {
       const etag=`"config-${result.version}"`;res.setHeader('ETag',etag);res.setHeader('X-Config-Expires-At',result.expires_at);
       if(req.headers['if-none-match']===etag){res.status(304).end();return;}
     }
+    if(['/public/billing/vtb/return','/public/billing/bcc/return','/public/billing/bcc/form'].includes(path)){
+      res.setHeader('Content-Security-Policy',"frame-ancestors 'self'; base-uri 'none'");
+      res.setHeader('X-Frame-Options','SAMEORIGIN');
+      res.setHeader('Referrer-Policy','no-referrer');
+    }
     if((path.startsWith('/public/site/')||['/public/billing/vtb/return','/public/billing/bcc/return','/public/billing/bcc/form'].includes(path))&&typeof result?.public_html==='string'){res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('X-Content-Type-Options','nosniff');res.send(result.public_html);return;}
     if(path.startsWith('/public/site/')&&result?.public_redirect){res.redirect(302,result.public_redirect);return;}
     if(result?.download_stream){

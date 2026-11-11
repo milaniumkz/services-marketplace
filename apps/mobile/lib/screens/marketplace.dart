@@ -1301,7 +1301,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return accessScreen();
       case 'bank-payment':
       case 'bank-payment-open':
-        return page('Оплата ВТБ',BankPaymentScreen(key:ValueKey('bank:$route:$objectId'),api:api,id:objectId!,autoOpen:route=='bank-payment-open',onGo:(r,id)=>go(r,id)),titleOffset:-12);
+        return page('Оплата',BankPaymentScreen(key:ValueKey('bank:$route:$objectId'),api:api,id:objectId!,autoOpen:route=='bank-payment-open',onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'test-payment-success':
       case 'checkout':
       case 'manage-subscription':
@@ -1661,6 +1661,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               onPressed: authSubmitting ? null : () => go('recovery'),
               child: const UiText('Помощь со входом'),
             ),
+            LoginLegalLinks(api: api, country: country, locale: locale, enabled: !authSubmitting),
           ],
           onBusyChanged: (busy) {
             if (mounted) setState(() => authSubmitting = busy);
@@ -1816,6 +1817,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     onPressed: authSubmitting ? null : () => go('login'),
                     child: const UiText('Уже есть аккаунт? Войти'),
                   ),
+                  LoginLegalLinks(api: api, country: country, locale: locale, enabled: !authSubmitting),
                 ]
               : [
                   TextButton(
@@ -1854,6 +1856,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
+                  LoginLegalLinks(api: api, country: country, locale: locale, enabled: !authSubmitting),
                 ],
         ),
       ),
