@@ -7,7 +7,7 @@ import {receiveMobileCrash,mobileCrashes} from './mobile-crashes';
 import {FaceRecovery,FaceEngine} from './face-recovery';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {adminWebAds,userWebAds,recordWebAdConsent,webAdsConfig,webAdNotice,webAdNoticeVersion} from './web-ads';
-import {adminOperatorProfile} from './public-operator';
+import {adminOperatorProfile,publishOwnerActivityCodes} from './public-operator';
 import {publicSitePage} from './public-site';
 import {communicationLanguages,defaultCommunicationLanguages} from './communication-languages';
 import {checkoutOffers,buyTestQuote} from './subscription-quotes';
@@ -131,7 +131,7 @@ export class Marketplace {
     if(process.env.JOBA_CLAMSCAN_PATH)providers.scanner=new ClamAvScanner();
     if(process.env.JOBA_PDFTOPPM_PATH)providers.pdfSanitizer=new PopplerPdfSanitizer();
   }
-  async initialize() { await this.store.initialize();await seedReferenceData(this.store);await refreshPublicServiceInformation(this.store);await refreshVerificationWording(this.store); }
+  async initialize() { await this.store.initialize();await seedReferenceData(this.store);await refreshPublicServiceInformation(this.store);await refreshVerificationWording(this.store);await publishOwnerActivityCodes(this.store); }
   private record(kind: string, actor: {id:string;country:string}, data: any = {}): RecordData { return {...data,id:randomUUID(),kind,owner:actor.id,country:actor.country,version:1,created_at:new Date().toISOString()}; }
   private async limited(key:string,max=20){
     const scope=await this.files.requestDigest('rate-limit:'+key);
