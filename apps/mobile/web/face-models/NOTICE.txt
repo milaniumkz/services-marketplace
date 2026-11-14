@@ -1,0 +1,9 @@
+MediaPipe Tasks Vision 0.10.32 — Copyright Google LLC. Apache License 2.0.
+Face Landmarker float16 model v1 is distributed by Google MediaPipe Models.
+Upstream: https://github.com/google-ai-edge/mediapipe
+https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+Exact package integrity and individual asset SHA-256 values:
+scripts/face-browser-assets.json in the JOBA source repository.
+Images are processed locally in the browser; only the five selected captures
+are sent to JOBA for template creation/comparison. These models do not provide
+photo/video/deepfake/stream-spoofing resistance.

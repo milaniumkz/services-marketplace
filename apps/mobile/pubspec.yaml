@@ -1,14 +1,52 @@
 name: services_marketplace
-description: Service marketplace demo scaffold
+description: JOBA mobile marketplace client
 publish_to: none
-version: 0.1.0+1
+version: 1.0.9+11
 environment:
   sdk: ">=3.5.0 <4.0.0"
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  url_launcher: ^6.3.2
+  http: ^1.5.0
+  flutter_secure_storage: ^9.2.4
+  uuid: ^4.5.1
+  file_picker: ^10.3.3
+  image_picker: ^1.2.0
+  crypto: ^3.0.6
+  web_socket_channel: ^3.0.3
+  flutter_svg: ^2.2.1
+  path_provider: ^2.1.5
+  web: ^1.1.1
+  intl: ^0.20.2
+  firebase_core: ^4.2.0
+  firebase_messaging: ^16.0.4
+  yandex_mobileads: ^8.6.0
+  firebase_crashlytics: ^5.0.0
+  webview_flutter: ^4.13.0
+  webview_flutter_wkwebview: ^3.25.0
+  webview_flutter_android: ^4.12.0
+  camera: ^0.11.2
+  google_mobile_ads: ^6.0.0
 dev_dependencies:
+  flutter_secure_storage_web: ^1.2.1
+  flutter_web_plugins:
+    sdk: flutter
   flutter_test:
     sdk: flutter
+  webview_flutter_platform_interface: ^2.15.1
+  camera_platform_interface: ^2.13.0
 flutter:
   uses-material-design: true
+  assets:
+    - assets/joba-logo.png
+  fonts:
+    - family: Noto
+      fonts:
+        - asset: assets/NotoSans-Regular.ttf
+        - asset: assets/NotoSans-Bold.ttf
+          weight: 700

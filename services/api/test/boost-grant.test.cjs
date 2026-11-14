@@ -1,0 +1,48 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {randomUUID,randomBytes}=require('node:crypto');
+const {Marketplace}=require('../dist/marketplace');
+const {Store}=require('../dist/store');
+const {totp}=require('../dist/totp');
+test('promotion staff preview grants without mutation; final rechecks versions, access, overlap and capacity atomically',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ const password='Isolated grant review password!';
+ const register=phone=>api.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID(),{},phone);
+ const row=(kind,owner,extra)=>({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:new Date().toISOString(),...extra});
+ const reject=(fn,code)=>assert.rejects(fn,e=>e.getResponse().error.code===code);
+ try{
+  const staffUser=await register('+77000000791'),owner=await register('+77000000792');
+  const secret=randomBytes(20).toString('hex');await api.store.put({...await api.store.get(staffUser.user.id),staff_permissions:['promotion'],totp_secret:secret});
+  const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:'+77000000791',password,mfa_code:totp(secret)},undefined,randomUUID(),{},'grant-staff');
+  const call=(u,path,b,key=randomUUID())=>api.handle('POST',path,b,'Bearer '+u.access_token,key);
+  await api.store.put({...await api.store.get(owner.user.id),verification:'passed'});
+  const grant=row('grant',owner.user.id,{valid_until:new Date(Date.now()+86400000).toISOString(),capabilities:['search_full']});await api.store.put(grant);
+  const target=row('contractor',owner.user.id,{status:'published',title:'Изолированный профиль',city:'Алматы'});await api.store.put(target);
+  const policy=row('placement_policy',staff.user.id,{status:'effective',payload:{placement_id:'home.promoted.services',capacity:1}});await api.store.put(policy);
+  const b={target_id:target.id,placement_id:policy.payload.placement_id,ends_at:new Date(Date.now()+3600000).toISOString(),reason:'Компенсация по проверенному обращению'};
+  await reject(()=>call(owner,'/admin/boost-grants/preview',b),'FORBIDDEN');
+  const later=row('boost',owner.user.id,{target_id:randomUUID(),placement_id:b.placement_id,status:'scheduled',starts_at:new Date(Date.now()+86400000).toISOString(),ends_at:new Date(Date.now()+172800000).toISOString()});await api.store.put(later);
+  assert.equal((await call(staff,'/admin/boost-grants/preview',b)).available_slots,1,'a nonoverlapping future promise does not consume current capacity');
+  await api.store.db.query('DELETE FROM records WHERE id=$1',[later.id]);
+  await api.store.put({...policy,payload:{...policy.payload,capacity:2}});
+  const midpoint=new Date(Date.now()+1200000).toISOString();
+  const firstPromise=row('boost',owner.user.id,{target_id:randomUUID(),placement_id:b.placement_id,status:'active',starts_at:new Date().toISOString(),ends_at:midpoint});
+  const secondPromise=row('boost',owner.user.id,{target_id:randomUUID(),placement_id:b.placement_id,status:'scheduled',starts_at:midpoint,ends_at:new Date(Date.now()+2400000).toISOString()});
+  await api.store.put(firstPromise);await api.store.put(secondPromise);
+  assert.equal((await call(staff,'/admin/boost-grants/preview',b)).available_slots,1,'capacity uses peak simultaneous occupancy, not the sum of sequential promises');
+  await api.store.db.query('DELETE FROM records WHERE id=ANY($1::uuid[])',[[firstPromise.id,secondPromise.id]]);await api.store.put(policy);
+  const preview=await call(staff,'/admin/boost-grants/preview',b);assert.equal(preview.available_slots,1);assert.equal(preview.organic_rank_changed,false);assert.equal((await api.store.all('boost','KZ')).length,0);
+  await reject(()=>call(staff,'/admin/boost-grants',b),'VALIDATION_ERROR');
+  const confirmed={...b,expected_target_version:preview.expected_target_version,expected_policy_version:preview.expected_policy_version};
+  await api.store.put({...target,version:2});await reject(()=>call(staff,'/admin/boost-grants',confirmed),'STATE_CONFLICT');await api.store.put(target);
+  await api.store.put({...target,moderation_status:'hidden'});await reject(()=>call(staff,'/admin/boost-grants/preview',b),'TARGET_INELIGIBLE');await api.store.put(target);
+  await api.store.put({...grant,balance:0});await reject(()=>call(staff,'/admin/boost-grants/preview',b),'TARGET_INELIGIBLE');await api.store.put(grant);
+  const foreign=row('order',owner.user.id,{country:'BY',status:'open'});await api.store.put(foreign);await reject(()=>call(staff,'/admin/boost-grants/preview',{...b,target_id:foreign.id}),'TARGET_INELIGIBLE');
+  const key=randomUUID(),saved=await call(staff,'/admin/boost-grants',confirmed,key);assert.equal(saved.status,'active');assert.equal(saved.provenance,'admin_grant');assert.equal(saved.amount_minor,0);
+  assert.equal((await call(staff,'/admin/boost-grants',confirmed,key)).id,saved.id);
+  await reject(()=>call(staff,'/admin/boost-grants/preview',b),'BOOST_OVERLAP');
+  const second=row('contractor',owner.user.id,{status:'published',title:'Вторая карточка'});await api.store.put(second);
+  await reject(()=>call(staff,'/admin/boost-grants/preview',{...b,target_id:second.id}),'PLACEMENT_FULL');
+  assert.equal((await api.store.all('boost','KZ')).length,1);assert.equal((await api.store.all('audit','KZ')).filter(r=>r.action==='boost.admin_grant').length,1);
+ }finally{await api.store.close();}
+});

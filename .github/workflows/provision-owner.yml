@@ -1,0 +1,36 @@
+name: Provision owner login
+on:
+  push:
+    branches: [ops/joba-owner-access]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: joba-production
+  cancel-in-progress: false
+jobs:
+  provision:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Provision explicitly requested owner accounts
+        env:
+          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          ssh-keyscan -T 10 -t ed25519 188.241.217.228 > "$HOME/.ssh/known_hosts"
+          test "$(ssh-keygen -lf "$HOME/.ssh/known_hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Bt3HkaktjLmWe4tB1pOK9b8gOnHuxp+tvp1hhEDtxp8'
+          sudo apt-get update -q
+          sudo apt-get install -y sshpass
+          sshpass -e scp -o StrictHostKeyChecking=yes scripts/provision-owner-login.cjs scripts/provision-owner-server.sh infra/production/admin-delivery-public.pem root@188.241.217.228:/tmp/
+          sshpass -e ssh -n -o StrictHostKeyChecking=yes root@188.241.217.228 "test \"\$(readlink -f /opt/joba/current)\" = '/opt/joba/releases/$GITHUB_SHA/source'"
+          sshpass -e ssh -n -o StrictHostKeyChecking=yes root@188.241.217.228 "bash /tmp/provision-owner-server.sh '$GITHUB_SHA'" > owner-login.encrypted
+          test -s owner-login.encrypted
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: encrypted-owner-login
+          path: owner-login.encrypted
+          retention-days: 1

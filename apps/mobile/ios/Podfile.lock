@@ -1,0 +1,385 @@
+PODS:
+  - AppMetricaAdSupport (6.7.1):
+    - AppMetricaCore (= 6.7.1)
+    - AppMetricaCoreExtension (= 6.7.1)
+  - AppMetricaCore (6.7.1):
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaEncodingUtils (= 6.7.1)
+    - AppMetricaFMDB (= 6.7.1)
+    - AppMetricaHostState (= 6.7.1)
+    - AppMetricaIdentifiers (= 6.7.1)
+    - AppMetricaKeychain (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+    - AppMetricaNetwork (= 6.7.1)
+    - AppMetricaPlatform (= 6.7.1)
+    - AppMetricaProtobuf (= 6.7.1)
+    - AppMetricaProtobufUtils (= 6.7.1)
+    - AppMetricaStorageUtils (= 6.7.1)
+    - AppMetricaSynchronization (= 6.7.1)
+  - AppMetricaCoreExtension (6.7.1):
+    - AppMetricaCore (= 6.7.1)
+    - AppMetricaStorageUtils (= 6.7.1)
+  - AppMetricaCoreUtils (6.7.1):
+    - AppMetricaLog (= 6.7.1)
+  - AppMetricaCrashes (6.7.1):
+    - AppMetricaCore (= 6.7.1)
+    - AppMetricaCoreExtension (= 6.7.1)
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaEncodingUtils (= 6.7.1)
+    - AppMetricaHostState (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+    - AppMetricaPlatform (= 6.7.1)
+    - AppMetricaProtobuf (= 6.7.1)
+    - AppMetricaProtobufUtils (= 6.7.1)
+    - AppMetricaStorageUtils (= 6.7.1)
+    - KSCrash/Recording (< 2.6.0, >= 2.5.1)
+  - AppMetricaEncodingUtils (6.7.1):
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+    - AppMetricaPlatform (= 6.7.1)
+  - AppMetricaFMDB (6.7.1)
+  - AppMetricaHostState (6.7.1):
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+  - AppMetricaIdentifiers (6.7.1):
+    - AppMetricaKeychain (= 6.7.1)
+    - AppMetricaLogSwift (= 6.7.1)
+    - AppMetricaPlatform (= 6.7.1)
+    - AppMetricaStorageUtils (= 6.7.1)
+    - AppMetricaSynchronization (= 6.7.1)
+  - AppMetricaIDSync (6.7.1):
+    - AppMetricaCore (= 6.7.1)
+    - AppMetricaCoreExtension (= 6.7.1)
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+    - AppMetricaNetwork (= 6.7.1)
+    - AppMetricaPlatform (= 6.7.1)
+    - AppMetricaStorageUtils (= 6.7.1)
+  - AppMetricaKeychain (6.7.1):
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+    - AppMetricaStorageUtils (= 6.7.1)
+  - AppMetricaLibraryAdapter (6.7.1):
+    - AppMetricaCore (= 6.7.1)
+    - AppMetricaCoreExtension (= 6.7.1)
+  - AppMetricaLog (6.7.1)
+  - AppMetricaLogSwift (6.7.1):
+    - AppMetricaLog (= 6.7.1)
+  - AppMetricaNetwork (6.7.1):
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+    - AppMetricaPlatform (= 6.7.1)
+  - AppMetricaPlatform (6.7.1):
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+  - AppMetricaProtobuf (6.7.1)
+  - AppMetricaProtobufUtils (6.7.1):
+    - AppMetricaProtobuf (= 6.7.1)
+  - AppMetricaStorageUtils (6.7.1):
+    - AppMetricaCoreUtils (= 6.7.1)
+    - AppMetricaLog (= 6.7.1)
+  - AppMetricaSynchronization (6.7.1):
+    - AppMetricaLogSwift (= 6.7.1)
+  - camera_avfoundation (0.0.1):
+    - Flutter
+  - DKImagePickerController/Core (4.3.9):
+    - DKImagePickerController/ImageDataManager
+    - DKImagePickerController/Resource
+  - DKImagePickerController/ImageDataManager (4.3.9)
+  - DKImagePickerController/PhotoGallery (4.3.9):
+    - DKImagePickerController/Core
+    - DKPhotoGallery
+  - DKImagePickerController/Resource (4.3.9)
+  - DKPhotoGallery (0.0.19):
+    - DKPhotoGallery/Core (= 0.0.19)
+    - DKPhotoGallery/Model (= 0.0.19)
+    - DKPhotoGallery/Preview (= 0.0.19)
+    - DKPhotoGallery/Resource (= 0.0.19)
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Core (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Preview
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Model (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Preview (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Resource
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Resource (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - file_picker (0.0.1):
+    - DKImagePickerController/PhotoGallery
+    - Flutter
+  - Firebase/CoreOnly (12.19.3):
+    - FirebaseCore (~> 12.19.3)
+  - Firebase/Crashlytics (12.19.3):
+    - Firebase/CoreOnly
+    - FirebaseCrashlytics (~> 12.19.0)
+  - Firebase/Messaging (12.19.3):
+    - Firebase/CoreOnly
+    - FirebaseMessaging (~> 12.19.0)
+  - firebase_core (4.15.2):
+    - Firebase/CoreOnly (= 12.19.3)
+    - Flutter
+  - firebase_crashlytics (5.4.1):
+    - Firebase/Crashlytics (= 12.19.3)
+    - firebase_core
+    - Flutter
+  - firebase_messaging (16.7.1):
+    - Firebase/Messaging (= 12.19.3)
+    - firebase_core
+    - Flutter
+  - FirebaseCore (12.19.3):
+    - FirebaseCoreInternal (~> 12.19.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/Logger (~> 8.1)
+  - FirebaseCoreExtension (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+  - FirebaseCoreInternal (12.19.0):
+    - "GoogleUtilities/NSData+zlib (~> 8.1)"
+  - FirebaseCrashlytics (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+    - FirebaseInstallations (~> 12.19.0)
+    - FirebaseRemoteConfigInterop (~> 12.19.0)
+    - FirebaseSessions (~> 12.19.0)
+    - GoogleDataTransport (~> 10.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - nanopb (~> 3.30910.0)
+    - PromisesObjC (~> 2.4)
+  - FirebaseInstallations (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/UserDefaults (~> 8.1)
+    - PromisesObjC (~> 2.4)
+  - FirebaseMessaging (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+    - FirebaseInstallations (~> 12.19.0)
+    - GoogleDataTransport (~> 10.1)
+    - GoogleUtilities/AppDelegateSwizzler (~> 8.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/Reachability (~> 8.1)
+    - GoogleUtilities/UserDefaults (~> 8.1)
+    - nanopb (~> 3.30910.0)
+  - FirebaseRemoteConfigInterop (12.19.0)
+  - FirebaseSessions (12.19.0):
+    - FirebaseCore (~> 12.19.0)
+    - FirebaseCoreExtension (~> 12.19.0)
+    - FirebaseInstallations (~> 12.19.0)
+    - GoogleDataTransport (~> 10.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/UserDefaults (~> 8.1)
+    - nanopb (~> 3.30910.0)
+    - PromisesSwift (~> 2.1)
+  - Flutter (1.0.0)
+  - flutter_secure_storage (6.0.0):
+    - Flutter
+  - GoogleDataTransport (10.1.1):
+    - nanopb (~> 3.30910.0)
+    - PromisesObjC (~> 2.4)
+  - GoogleUtilities/AppDelegateSwizzler (8.1.5):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Network
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Environment (8.1.5):
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Logger (8.1.5):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Network (8.1.5):
+    - GoogleUtilities/Logger
+    - "GoogleUtilities/NSData+zlib"
+    - GoogleUtilities/Privacy
+    - GoogleUtilities/Reachability
+  - "GoogleUtilities/NSData+zlib (8.1.5)":
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Privacy (8.1.5)
+  - GoogleUtilities/Reachability (8.1.5):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/UserDefaults (8.1.5):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - image_picker_ios (0.0.1):
+    - Flutter
+  - KSCrash/Core (2.5.1)
+  - KSCrash/Recording (2.5.1):
+    - KSCrash/RecordingCore
+  - KSCrash/RecordingCore (2.5.1):
+    - KSCrash/Core
+  - nanopb (3.30910.0):
+    - nanopb/decode (= 3.30910.0)
+    - nanopb/encode (= 3.30910.0)
+  - nanopb/decode (3.30910.0)
+  - nanopb/encode (3.30910.0)
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - PromisesObjC (2.4.1)
+  - PromisesSwift (2.4.1):
+    - PromisesObjC (= 2.4.1)
+  - SDWebImage (5.21.7):
+    - SDWebImage/Core (= 5.21.7)
+  - SDWebImage/Core (5.21.7)
+  - SwiftyGif (5.4.5)
+  - url_launcher_ios (0.0.1):
+    - Flutter
+  - webview_flutter_wkwebview (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - yandex_mobileads (8.6.0):
+    - Flutter
+    - YandexMobileAds (~> 8.6.0)
+  - YandexMobileAds (8.6.0):
+    - AppMetricaAdSupport (>= 6.7.0, ~> 6.7)
+    - AppMetricaCore (>= 6.7.0, ~> 6.7)
+    - AppMetricaCrashes (>= 6.7.0, ~> 6.7)
+    - AppMetricaIDSync (>= 6.7.0, ~> 6.7)
+    - AppMetricaLibraryAdapter (>= 6.7.0, ~> 6.7)
+
+DEPENDENCIES:
+  - camera_avfoundation (from `.symlinks/plugins/camera_avfoundation/ios`)
+  - file_picker (from `.symlinks/plugins/file_picker/ios`)
+  - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
+  - firebase_crashlytics (from `.symlinks/plugins/firebase_crashlytics/ios`)
+  - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
+  - Flutter (from `Flutter`)
+  - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
+  - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
+  - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
+  - yandex_mobileads (from `.symlinks/plugins/yandex_mobileads/ios`)
+
+SPEC REPOS:
+  trunk:
+    - AppMetricaAdSupport
+    - AppMetricaCore
+    - AppMetricaCoreExtension
+    - AppMetricaCoreUtils
+    - AppMetricaCrashes
+    - AppMetricaEncodingUtils
+    - AppMetricaFMDB
+    - AppMetricaHostState
+    - AppMetricaIdentifiers
+    - AppMetricaIDSync
+    - AppMetricaKeychain
+    - AppMetricaLibraryAdapter
+    - AppMetricaLog
+    - AppMetricaLogSwift
+    - AppMetricaNetwork
+    - AppMetricaPlatform
+    - AppMetricaProtobuf
+    - AppMetricaProtobufUtils
+    - AppMetricaStorageUtils
+    - AppMetricaSynchronization
+    - DKImagePickerController
+    - DKPhotoGallery
+    - Firebase
+    - FirebaseCore
+    - FirebaseCoreExtension
+    - FirebaseCoreInternal
+    - FirebaseCrashlytics
+    - FirebaseInstallations
+    - FirebaseMessaging
+    - FirebaseRemoteConfigInterop
+    - FirebaseSessions
+    - GoogleDataTransport
+    - GoogleUtilities
+    - KSCrash
+    - nanopb
+    - PromisesObjC
+    - PromisesSwift
+    - SDWebImage
+    - SwiftyGif
+    - YandexMobileAds
+
+EXTERNAL SOURCES:
+  camera_avfoundation:
+    :path: ".symlinks/plugins/camera_avfoundation/ios"
+  file_picker:
+    :path: ".symlinks/plugins/file_picker/ios"
+  firebase_core:
+    :path: ".symlinks/plugins/firebase_core/ios"
+  firebase_crashlytics:
+    :path: ".symlinks/plugins/firebase_crashlytics/ios"
+  firebase_messaging:
+    :path: ".symlinks/plugins/firebase_messaging/ios"
+  Flutter:
+    :path: Flutter
+  flutter_secure_storage:
+    :path: ".symlinks/plugins/flutter_secure_storage/ios"
+  image_picker_ios:
+    :path: ".symlinks/plugins/image_picker_ios/ios"
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  url_launcher_ios:
+    :path: ".symlinks/plugins/url_launcher_ios/ios"
+  webview_flutter_wkwebview:
+    :path: ".symlinks/plugins/webview_flutter_wkwebview/darwin"
+  yandex_mobileads:
+    :path: ".symlinks/plugins/yandex_mobileads/ios"
+
+SPEC CHECKSUMS:
+  AppMetricaAdSupport: 519297cae5217760d62e64cd0d1e135334ec97c1
+  AppMetricaCore: a32773b3d39edf9b0626340f83cbcdd35f584808
+  AppMetricaCoreExtension: 7b204a7263da6783bae8f73250628ac78ee8f4f5
+  AppMetricaCoreUtils: 4ca4b199358fca754a760148ddeb49bcf91b3b34
+  AppMetricaCrashes: d34a38f5afc10183bfc5aa182e425373427a616a
+  AppMetricaEncodingUtils: 57bc0c120761144e20bd163634dc4767fdbce592
+  AppMetricaFMDB: ac844005296d9b9d02fc8afa59829b2fc177a353
+  AppMetricaHostState: 2d4bfd7a1b9e7a3276a744443091c83246a21434
+  AppMetricaIdentifiers: 52a65343eb119584ef322d150bfefd7a32a096bd
+  AppMetricaIDSync: d7dbc7789f31db4a0f4df19db11fe5468b620e47
+  AppMetricaKeychain: 8226df4ffc743761ab00e48dded31da325a007b4
+  AppMetricaLibraryAdapter: fa3abf36651c9500e14b8283cbd4d1be6a0689d4
+  AppMetricaLog: 9be39350dfbd36945cce74d654f0b520681678c3
+  AppMetricaLogSwift: ea9c055914b5de9ec5f18aa790e0c91807f5aebd
+  AppMetricaNetwork: 8d1b7ea3c830bf4bf73c2ac3f8b0cb5cd77d4e9e
+  AppMetricaPlatform: 324a8477b7f0f3b3e49d883b847f0376cc0411ab
+  AppMetricaProtobuf: 210a28d22fc817ec92df6ea89126e790175bbc8a
+  AppMetricaProtobufUtils: a34eb6f931b428c696f9464bf7d0e520438e0203
+  AppMetricaStorageUtils: f97f397d93b9db6194ddaec047112531c317dd0e
+  AppMetricaSynchronization: fce593b29a4149b54415ed6a22eb43184837677d
+  camera_avfoundation: 5675ca25298b6f81fa0a325188e7df62cc217741
+  DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
+  DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
+  file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
+  Firebase: e3c5ab38229ae085490d02398d97b9f5374bbe6e
+  firebase_core: 4d065e808a89f0eaa0df16660666783f9ea13d38
+  firebase_crashlytics: d4d2cffdd16f240f8b563c2351b9285595b82e5f
+  firebase_messaging: d66dd9b68ca259955678628aa4f3e4294d055790
+  FirebaseCore: ab948de5d99e69aeed3cd6f5ace263ce795b2559
+  FirebaseCoreExtension: 201c78d7491a273d61d8afbf491214276a951e6d
+  FirebaseCoreInternal: 656b1c2fd5a1c5976183dc54b73deda78fb26ee3
+  FirebaseCrashlytics: 5c8e09beebcd41913b35250cd0e533b58e4961a0
+  FirebaseInstallations: f70a49eed611f5602f373e40974b3b01556ac217
+  FirebaseMessaging: c15f48126adbe8b4d3238a5e1fa24bab3ad3e472
+  FirebaseRemoteConfigInterop: 90659b3cac8f6de884f2d930fbdbeb711533e142
+  FirebaseSessions: 39bcaa7c16b5d8b91d58f495f29ce2988d2f915c
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
+  GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
+  GoogleUtilities: 7dc09b3fa9ecb5c2298b952313d14628b61b9da3
+  image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
+  KSCrash: 8c4464fd5da7de520f2ce4a00fdf63f169a80f18
+  nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
+  path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
+  PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
+  PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
+  SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
+  SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
+  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
+  webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
+  yandex_mobileads: 83629cbbbeb878802aa8fd6b8aa6eaf06cb991bb
+  YandexMobileAds: c1fc595860945630cc0ed0ebed1fa23ab6c5ce17
+
+PODFILE CHECKSUM: 18b959420771188e379715a9b480c2642ad4c77e
+
+COCOAPODS: 1.17.0

@@ -1,0 +1,115 @@
+name: Server deployment diagnostics
+on:
+  push:
+    branches: [ops/joba-diagnostics]
+  workflow_dispatch:
+    inputs:
+      stalled_source_commit:
+        description: Stop only a 10-minute stale Git fetch of this exact source commit
+        type: string
+        default: ''
+      deployment_status:
+        description: Read deployment process health without arguments or account data
+        type: boolean
+        default: false
+      account_phone:
+        description: Optional targeted read-only account diagnosis (E.164)
+        type: string
+        default: ''
+      diagnostic_public_key:
+        description: Ephemeral public DER key in base64 for encrypted crash export
+        type: string
+        default: ''
+      mobile_crashes:
+        description: Read recent mobile crash reports and stack traces
+        type: boolean
+        default: false
+      vtb_status:
+        description: Verify deployed VTB environment and private mount without exposing credentials
+        type: boolean
+        default: false
+      advertising_stats:
+        description: Read aggregate advertising counters (no account data)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+  checks: write
+jobs:
+  diagnose:
+    if: ${{ !inputs.stalled_source_commit && !inputs.deployment_status && !inputs.account_phone && !inputs.advertising_stats && !inputs.mobile_crashes && !inputs.vtb_status }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: python3 scripts/report-server-deployment.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JOBA_DIAGNOSTIC_JOB: '116494604449'
+
+  account:
+    if: ${{ inputs.stalled_source_commit != '' || inputs.deployment_status || inputs.account_phone != '' || inputs.advertising_stats || inputs.mobile_crashes || inputs.vtb_status }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Acquire protected deployment credential
+        env:
+          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
+          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/acquire-deployment-credential.py
+      - name: Read account metadata without changing production
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.JOBA_SSH_PRIVATE_KEY }}
+          JOBA_STALLED_SOURCE_COMMIT: ${{ inputs.stalled_source_commit }}
+          JOBA_DEPLOYMENT_STATUS: ${{ inputs.deployment_status && '1' || '0' }}
+          JOBA_LOOKUP_PHONE: ${{ inputs.account_phone }}
+          JOBA_VTB_STATUS: ${{ inputs.vtb_status && '1' || '0' }}
+          JOBA_AD_STATS: ${{ inputs.advertising_stats && '1' || '0' }}
+          JOBA_MOBILE_CRASHES: ${{ inputs.mobile_crashes && '1' || '0' }}
+          JOBA_DIAGNOSTIC_PUBLIC_KEY: ${{ inputs.diagnostic_public_key }}
+          JOBA_DIAGNOSTIC_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          export SSHPASS="${JOBA_RUNTIME_SSH_PASSWORD:-}"
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          ssh-keyscan -T 10 -t ed25519 -p 22 188.241.217.228 > "$HOME/.ssh/known_hosts"
+          joba_fingerprint="$(ssh-keygen -lf "$HOME/.ssh/known_hosts" -E sha256 | awk '{print $2}')"
+          test "$joba_fingerprint" = 'SHA256:Bt3HkaktjLmWe4tB1pOK9b8gOnHuxp+tvp1hhEDtxp8'
+          joba_ssh=(ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -p 22)
+          if test -n "$SSH_PRIVATE_KEY"; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/joba_deploy"
+            joba_ssh+=(-i "$HOME/.ssh/joba_deploy" -o IdentitiesOnly=yes)
+          else
+            sudo apt-get update -q
+            sudo apt-get install -y sshpass
+            joba_ssh=(sshpass -e "${joba_ssh[@]}")
+          fi
+          if test -n "$JOBA_STALLED_SOURCE_COMMIT"; then
+            python3 -c 'import os,re;assert re.fullmatch("[0-9a-f]{40}",os.environ["JOBA_STALLED_SOURCE_COMMIT"])'
+            "${joba_ssh[@]}" root@188.241.217.228 "python3 - '$JOBA_STALLED_SOURCE_COMMIT'" < scripts/diagnose-deployment-runtime.py > account-diagnosis.json
+          elif test "$JOBA_DEPLOYMENT_STATUS" = '1'; then
+            "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-deployment-runtime.py > account-diagnosis.json
+          elif test "$JOBA_MOBILE_CRASHES" = '1'; then
+            "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-mobile-crashes.py > account-diagnosis.json
+          elif test "$JOBA_VTB_STATUS" = '1'; then
+            "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-vtb.py > account-diagnosis.json
+          elif test "$JOBA_AD_STATS" = '1'; then
+            "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-advertising.py > account-diagnosis.json
+          else
+            python3 -c 'import os,re;assert re.fullmatch(r"\+[0-9]{8,15}",os.environ["JOBA_LOOKUP_PHONE"])'
+            "${joba_ssh[@]}" root@188.241.217.228 "python3 - '$JOBA_LOOKUP_PHONE'" < scripts/diagnose-login-account.py > account-diagnosis.json
+          fi
+          if test "$JOBA_MOBILE_CRASHES" = '1'; then
+            python3 scripts/encrypt-mobile-crash-export.py
+          else
+            python3 -m json.tool account-diagnosis.json
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: account-diagnosis
+          path: account-diagnosis.json
+          retention-days: 1
