@@ -332,7 +332,8 @@ export class Marketplace {
       await this.bcc!.callback(String(q.payment_id??''),String(q.token??''));
       const payment=(await this.store.get(String(q.payment_id)))!;
       if(payment.provider!=='bcc'||!['registering','pending'].includes(payment.status)||payment.cancel_requested||payment.expires_at<=new Date().toISOString())fail(409,'PAYMENT_EXPIRED','Срок оплаты истёк. Вернитесь в JOBA и проверьте статус.');
-      return {public_html:(this.bcc!.gateway as BccGateway).form(payment)};
+      const owner=await this.store.get(payment.owner),phone=String(owner?.phone??'').replace(/\D/g,''),cc=owner?.country==='KG'?'996':'7';
+      return {public_html:(this.bcc!.gateway as BccGateway).form(payment,{clientIp:ip,...(phone.startsWith(cc)?{mobilePhone:{cc,subscriber:phone.slice(cc.length)}}:{}),...(typeof owner?.billing_address==='string'?{billingAddress:owner.billing_address}:{})})};
     }
     if(path==='/public/billing/bcc/callback'&&['GET','POST'].includes(method)){
       if(!this.bcc)fail(503,'PROVIDER_UNAVAILABLE','БЦК пока не подключён');return this.bcc!.bankNotification(authorization,{...q,...b});

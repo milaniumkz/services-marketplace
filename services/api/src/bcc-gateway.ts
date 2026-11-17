@@ -1,5 +1,6 @@
 import {existsSync,readFileSync,mkdirSync,writeFileSync,renameSync} from 'node:fs';
 import {join} from 'node:path';
+import {isIP} from 'node:net';
 import {parseBccResponse} from './bcc-response';
 import {createHmac,randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
@@ -22,6 +23,8 @@ export function validateBccConfig(c:any):BccConfig{
 }
 export function loadBccConfig():BccConfig|undefined{const file=process.env.JOBA_BCC_CONFIG_FILE??'/run/joba-payments/bcc.json';if(!existsSync(file))return;const c=JSON.parse(readFileSync(file,'utf8'));return c.enabled===false?undefined:validateBccConfig(c);}
 export function bccMac(fields:Record<string,string>,keys:string[],key:string){return createHmac('sha1',Buffer.from(key,'hex')).update(keys.map(k=>Buffer.byteLength(fields[k]??'','utf8')+(fields[k]??'')).join(''),'utf8').digest('hex').toUpperCase();}
+export const bccMerchantReference=(id:string)=>id.replaceAll('-','').slice(0,16).toUpperCase();
+export type BccBrowserContext={clientIp:string;mobilePhone?:{cc:string;subscriber:string};billingAddress?:string};
 export function bccOrder(id:string){return (BigInt('0x'+id.replaceAll('-',''))%10n**28n+10n**28n).toString();}
 const esc=(v:any)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 export class BccGateway implements HostedBank {
@@ -42,10 +45,12 @@ export class BccGateway implements HostedBank {
  }
  async ping(){const r=await this.api({TERMINAL:this.config.terminal,TRTYPE:'800',LANG:'ru'});return r.ACTION==='0'&&r.RC==='00'&&r.TERMINAL===this.config.terminal;}
  async register(payment:RecordData,callback:string){const token=new URL(callback).searchParams.get('token')!;return {order_id:bccOrder(payment.id),form_url:this.config.public_origin+'/api/v1/public/billing/bcc/form?payment_id='+payment.id+'&token='+encodeURIComponent(token)};}
- form(payment:RecordData){
+ form(payment:RecordData,context:BccBrowserContext){
+  const ip=context?.clientIp?.replace(/^::ffff:/,'');if(!ip||!isIP(ip))fail('BCC_CLIENT_IP_REQUIRED','Не удалось определить адрес браузера для защищённой оплаты.');
   if(!this.currencies.includes(payment.currency)||!Number.isSafeInteger(payment.amount_minor)||payment.amount_minor<1)fail('BCC_CURRENCY_UNAVAILABLE','Для выбранной валюты банк ещё не выдал параметры приёма платежей.');
-  const fields=this.signed({AMOUNT:(payment.amount_minor/100).toFixed(2),CURRENCY:currencyCodes[payment.currency],ORDER:bccOrder(payment.id),MERCHANT:this.config.merchant,TERMINAL:this.config.terminal,MERCH_GMT:'0',...this.fresh(),TRTYPE:'1',LANG:'ru',DESC:'JOBA '+(payment.benefit==='boost'?'продвижение':'подписка'),MERCH_NAME:'JOBA',BACKREF:this.config.public_origin+'/api/v1/public/billing/bcc/return?payment_id='+payment.id,...(this.config.notify_user?{NOTIFY_URL:'https://joba.com.kz:443/api/v1/public/billing/bcc/callback'}:{})},['AMOUNT','CURRENCY','ORDER','MERCHANT','TERMINAL','MERCH_GMT','TIMESTAMP','TRTYPE','NONCE']);
-  return '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Оплата JOBA через БЦК</title><body><h1>Переход к защищённой оплате БЦК</h1><p>Данные карты вводятся только на странице банка.</p><form id="bank" method="POST" action="'+esc(this.endpoint)+'">'+Object.entries(fields).map(([k,v])=>'<input type="hidden" name="'+esc(k)+'" value="'+esc(v)+'">').join('')+'<button>Перейти к оплате</button></form><script>document.getElementById("bank").submit()</script></body></html>';
+  const fields=this.signed({AMOUNT:(payment.amount_minor/100).toFixed(2),CURRENCY:currencyCodes[payment.currency],ORDER:bccOrder(payment.id),MERCH_RN_ID:payment.bcc_merchant_reference??bccMerchantReference(payment.id),CLIENT_IP:ip,MERCHANT:this.config.merchant,TERMINAL:this.config.terminal,MERCH_GMT:'0',...this.fresh(),TRTYPE:'1',LANG:'ru',DESC:'JOBA '+(payment.benefit==='boost'?'продвижение':'подписка'),MERCH_NAME:'JOBA',BACKREF:this.config.public_origin+'/api/v1/public/billing/bcc/return?payment_id='+payment.id,...(this.config.notify_user?{NOTIFY_URL:'https://joba.com.kz:443/api/v1/public/billing/bcc/callback'}:{})},['AMOUNT','CURRENCY','ORDER','MERCHANT','TERMINAL','MERCH_GMT','TIMESTAMP','TRTYPE','NONCE']);
+  const info={...(context.mobilePhone?{mobilePhone:context.mobilePhone}:{}),...(context.billingAddress?{billAddrLine1:context.billingAddress}:{})};const browserInfo=JSON.stringify(info).replace(/</g,'\\u003c');
+  return '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Оплата JOBA через БЦК</title><body><h1>Переход к защищённой оплате БЦК</h1><p>Данные карты вводятся только на странице банка.</p><form id="bank" method="POST" action="'+esc(this.endpoint)+'">'+Object.entries({...fields,M_INFO:''}).map(([k,v])=>'<input type="hidden" name="'+esc(k)+'" value="'+esc(v)+'">').join('')+'<button>Перейти к оплате</button></form><script>const info='+browserInfo+';info.browserScreenHeight=String(screen.height);info.browserScreenWidth=String(screen.width);document.querySelector("[name=M_INFO]").value=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(info))));document.getElementById("bank").submit()</script></body></html>';
  }
  async status(values:{orderId?:string;orderNumber?:string}){const order=values.orderId??(values.orderNumber?bccOrder(values.orderNumber):'');return this.api(this.signed({ORDER:order,TERMINAL:this.config.terminal,TRTYPE:'90',TRAN_TRTYPE:'1',MERCH_GMT:'0',...this.fresh()},['ORDER','TERMINAL','TIMESTAMP','TRTYPE','NONCE']));}
  validateStatus(payment:RecordData,r:any){
@@ -68,7 +73,8 @@ export class BccGateway implements HostedBank {
   if(existsSync(path)){const prior=JSON.parse(readFileSync(path,'utf8'));if(prior.fingerprint!==fingerprint)return fail('REFUND_MISMATCH');return {reference:request.request_id};}
   const payment=(await this.store.select('bank_checkout',request.country,{owner:request.user_id,limit:1000})).find(p=>p.provider==='bcc'&&p.bank_order_id===request.transaction_id);
   if(!payment||payment.environment!==this.environment||!payment.bank_evidence?.rrn||!payment.bank_evidence?.int_ref||request.currency!==payment.currency||!Number.isSafeInteger(request.amount_minor)||request.amount_minor<1||request.amount_minor>payment.amount_minor||Date.now()-Date.parse(payment.confirmed_at)>30*86400000)return fail('REFUND_MISMATCH');
-  const fields=this.signed({ORDER:payment.bank_order_id,ORG_AMOUNT:(payment.amount_minor/100).toFixed(2),AMOUNT:(request.amount_minor/100).toFixed(2),CURRENCY:currencyCodes[payment.currency],RRN:payment.bank_evidence.rrn,INT_REF:payment.bank_evidence.int_ref,TERMINAL:this.config.terminal,MERCH_GMT:'0',MERCH_RN_ID:request.request_id.replaceAll('-','').slice(0,16),TRTYPE:'14',...this.fresh()},['ORDER','ORG_AMOUNT','AMOUNT','CURRENCY','RRN','INT_REF','TERMINAL','TIMESTAMP','TRTYPE','NONCE']);
+  const originalReference=payment.bcc_merchant_reference??payment.bank_evidence.merch_rn_id;if(!/^[A-Za-z0-9]{16}$/.test(originalReference??''))return fail('BCC_ORIGINAL_REFERENCE_REQUIRED','Для возврата нужна сверка идентификатора первичной покупки с банком.');
+  const fields=this.signed({ORDER:payment.bank_order_id,ORG_AMOUNT:(payment.amount_minor/100).toFixed(2),AMOUNT:(request.amount_minor/100).toFixed(2),CURRENCY:currencyCodes[payment.currency],RRN:payment.bank_evidence.rrn,INT_REF:payment.bank_evidence.int_ref,TERMINAL:this.config.terminal,MERCH_GMT:'0',MERCH_RN_ID:originalReference,LANG:'ru',TRTYPE:'14',...this.fresh()},['ORDER','ORG_AMOUNT','AMOUNT','CURRENCY','RRN','INT_REF','TERMINAL','TIMESTAMP','TRTYPE','NONCE']);
   // A durable, exclusive marker precedes the financial command, outside the DB
   // transaction. A process crash or SQL rollback must never resend a refund.
   mkdirSync(join(path,'..'),{recursive:true,mode:0o700});

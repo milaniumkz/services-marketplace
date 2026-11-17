@@ -1,4 +1,4 @@
-import {BccGateway,bccOrder} from './bcc-gateway';
+import {BccGateway,bccOrder,bccMerchantReference} from './bcc-gateway';
 import {randomUUID,timingSafeEqual} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
@@ -33,7 +33,7 @@ export class VtbPayments {
   if(offer.provider!==this.gateway.name)fail('OFFER_CHANGED','Выбран другой банк. Обновите предложение оплаты.');
   if(!(this.gateway.currencies??['KZT']).includes(offer.currency)||!Number.isSafeInteger(offer.amount_minor)||offer.amount_minor<0||offer.amount_minor>999999999999)fail('PRICE_MISMATCH','Банк пока не поддерживает валюту выбранного предложения');
   const now=new Date(),id=randomUUID();
-  const payment:RecordData={id,kind:'bank_checkout',owner:user.id,country:user.country,version:1,created_at:now.toISOString(),status:'registering',provider:this.gateway.name,environment:this.gateway.environment,benefit:boost?'boost':'subscription',source_id:source,role:boost?'boost':offer.role,offer,amount_minor:offer.amount_minor,currency:offer.currency,expires_at:new Date(Math.min(now.getTime()+20*60000,boost?Date.parse(boost.reservation_expires_at):Infinity)).toISOString(),boost_ends_at:boost?.ends_at,baseline_periods:state?.periods.map((p:RecordData)=>p.id)??[],attempts:0};
+  const payment:RecordData={id,kind:'bank_checkout',owner:user.id,country:user.country,version:1,created_at:now.toISOString(),status:'registering',provider:this.gateway.name,environment:this.gateway.environment,...(this.gateway.name==='bcc'?{bcc_merchant_reference:bccMerchantReference(id)}:{}),benefit:boost?'boost':'subscription',source_id:source,role:boost?'boost':offer.role,offer,amount_minor:offer.amount_minor,currency:offer.currency,expires_at:new Date(Math.min(now.getTime()+20*60000,boost?Date.parse(boost.reservation_expires_at):Infinity)).toISOString(),boost_ends_at:boost?.ends_at,baseline_periods:state?.periods.map((p:RecordData)=>p.id)??[],attempts:0};
   await this.store.put(payment);
   if(quote)await this.store.put({...quote,status:'payment_pending',payment_id:id,version:quote.version+1});
   return {_vtb_provider:this.gateway.name,_vtb_action:'register',id};
