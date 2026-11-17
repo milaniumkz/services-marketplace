@@ -367,6 +367,10 @@ async function main(){
   await page.locator('a[href="#support-live/'+supportThread.id+'"]').waitFor();
   const arriving=await marketplace.handle('POST','/support/threads',{subject:'Новое обращение без обновления страницы',text:'Сообщение видно до назначения сотруднику'},'Bearer '+applicant.access_token,randomUUID());
   await page.locator('a[href="#support-live/'+arriving.id+'"]').waitFor({timeout:15000});
+  await page.setViewportSize({width:393,height:852});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  assert.equal(await page.locator('#support-content .tablewrap').count(),1);
+  await page.setViewportSize({width:1440,height:1000});
   await page.locator('a[href="#support-live/'+arriving.id+'"]').click();
   await page.locator('#support-content').filter({hasText:'Сообщение видно до назначения сотруднику'}).waitFor();
   await page.goto(frontend+'/#support-live/'+supportThread.id);
