@@ -61,7 +61,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
     super.dispose();
   }
 
-  String periodLabel(Json p) => localize(
+  String periodLabel(Json p) => p['period']=='days'&&p['duration_days']==1?localize(context,'24 часа'):localize(
       context,
       const {'week': 'Неделя', 'month': 'Месяц', 'year': 'Год'}[p['period']] ??
           '${p['duration_days'] ?? '—'} дн.');
@@ -308,11 +308,14 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
         builder: (context, data, reload) {
           final options = data[0], profile = data[1]['profile'];
           final targets = <Json>[
-            if (profile?['status'] == 'published') profile,
+            if (profile?['status'] == 'published'||profile?['public_status']=='published') profile,
             ...items(data[2])
           ];
           final prices = items(options),
               places = (options['placements'] as List).cast<Json>();
+          if(prices.isEmpty||places.isEmpty)return SingleChildScrollView(child:JobaStatePanel(title:'Продвижение пока недоступно',message:'Сейчас нет доступных предложений для разового размещения. Попробуйте позже.',icon:'spark',primaryLabel:'Обновить',onPrimary:reload,secondaryLabel:'Мои продвижения',onSecondary:()=>widget.onGo('promotion-history',null)));
+          if(target!=null&&!targets.any((r)=>r['id']==target))target=null;
+          if(price!=null&&!prices.any((r)=>r['id']==price))price=null;
           if (target == null && targets.length == 1)
             target = targets.first['id'];
           if (price == null && prices.isNotEmpty) price = prices.first['id'];
@@ -439,7 +442,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
                 if (targets.isEmpty)
                   const Notice('Нет доступных объявлений для продвижения.'),
                 if (prices.isEmpty || compatible.isEmpty)
-                  const Notice('Действующие предложения пока недоступны.'),
+                  const Notice('Для этого объявления пока нет доступных мест. Выберите другое объявление.'),
               ],
               fields: const [],
               button: 'Проверить размещение',

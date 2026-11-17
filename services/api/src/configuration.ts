@@ -9,6 +9,7 @@ import {rankingParameters} from './ranking';
 import { Temporal } from '@js-temporal/polyfill';
 import { HttpException } from '@nestjs/common';
 import { RecordData, Store } from './store';
+import {isStaffOwner} from './staff-access';
 import { Providers } from './providers';
 import { validateRules } from './moderation';
 function fail(code:string,message:string,status=422):never{throw new HttpException({error:{code,message,details:{},retryable:status===503}},status);};
@@ -88,7 +89,7 @@ export class Configuration {
   }
   async publish(r:RecordData,actor:string,version:number) {
     if(r.version!==version)fail('STATE_CONFLICT','Настройка изменилась',409);
-    if(r.owner===actor)fail('SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника',403);
+    if(r.owner===actor){const owner=await this.store.get(actor),promotionSetting=r.kind==='placement_policy'||r.kind==='price_version'&&r.payload?.product_type==='boost';if(!promotionSetting||!owner||owner.status!=='active'||!isStaffOwner(owner))fail('SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника',403);}
     if(!['draft','validated','approved'].includes(r.status))fail('STATE_CONFLICT','Версия уже опубликована',409);
     if(r.kind==='monetization_config'){
       await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['monetization-publish:'+r.country]);

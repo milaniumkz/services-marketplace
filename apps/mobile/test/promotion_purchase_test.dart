@@ -53,6 +53,32 @@ Json reservation(DateTime now) => {
 Widget host(Widget child) =>
     MaterialApp(theme: jobaTheme(), home: Scaffold(body: child));
 void main() {
+  for (final configured in [false, true]) {
+    testWidgets(configured ? 'published profile with draft can reserve 24 hours for 100 KZT' : 'missing promotion config shows refresh instead of disabled checkout', (t) async {
+      Json? sent;
+      final api = JobaApi('https://isolated.example', transport: MockClient((r) async {
+        if(r.method=='POST'){sent=Json.from(jsonDecode(r.body));return ok({'id':'daily-reservation'});}
+        if(r.url.path.endsWith('/boost-offers')) return ok({'items':configured?[{'id':'daily','period':'days','duration_days':1,'currency':'KZT','amount_minor':10000}]:[], 'placements':configured?[{'payload':{'placement_id':'search.services.promoted'}}]:[]});
+        if(r.url.path.endsWith('/me/contractor-profile')) return ok({'profile':{'id':'public-profile','status':'draft','public_status':'published','title':'Опубликованные услуги'}});
+        return ok({'items':[]});
+      }))..session={'access_token':'isolated'};
+      addTearDown(api.dispose);
+      await t.pumpWidget(host(PromotionPurchase(api:api,mode:'promotion',onGo:(r,id){})));
+      await t.pumpAndSettle();
+      if(configured){
+        expect(find.text('24 часа'),findsOneWidget);
+        await t.scrollUntilVisible(find.text('Проверить размещение'),150,scrollable:find.byType(Scrollable).first);
+        await t.tap(find.text('Проверить размещение'));await t.pumpAndSettle();
+        expect(sent,{'target_id':'public-profile','price_id':'daily','placement_id':'search.services.promoted'});
+      } else {
+        expect(find.text('Продвижение пока недоступно'),findsOneWidget);
+        expect(find.text('Обновить'),findsOneWidget);
+        expect(find.text('Проверить размещение'),findsNothing);
+        expect(sent,isNull);
+      }
+      await t.pumpWidget(const SizedBox());
+    });
+  }
   for (final phase in ['provider', 'verification']) {
     testWidgets(
         'promotion ignores late $phase result after account replacement',
