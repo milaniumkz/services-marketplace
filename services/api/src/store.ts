@@ -1,3 +1,5 @@
+import {randomUUID} from 'node:crypto';
+import {editableContent} from './content-revisions';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {adminOrderConditions} from './admin-order-filters';
 import {enabledCountries} from './country-access';
@@ -65,7 +67,7 @@ export class Store {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country==='ALL'?null:country ?? null]);
     return r.rows.map(x => x.data);
   }
-  async select(kind:string,country:string,options:{adminOrder?:any;member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean;newestFirst?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
+  async select(kind:string,country:string,options:{adminOrder?:any;member?:string;subjectUser?:string;owner?:string;recipient?:string;boostBucket?:string;inviteState?:string;caseActor?:string;caseBucket?:string;participant?:string;executor?:string;statuses?:string[];after?:string;limit?:number;city?:string;category?:string;search?:string;sourceId?:string;near?:{latitude:number;longitude:number;radius:number};publicActor?:string;endUserOnly?:boolean;excludeDeleted?:boolean;newestFirst?:boolean;workMode?:string;priceMin?:number;priceMax?:number;ratingMin?:number;verifiedOnly?:boolean;ranking?:{windowDays:number;dislikeWeight:number;ageDays:number;sort:'popular'|'new'}}={}) {
     let nearbyLocation:string|undefined;
     const args:any[]=[kind,country],where=['kind=$1',"($2='ALL' OR country=$2)"];
     const bind=(value:any)=>{args.push(value);return '$'+args.length;};
@@ -110,11 +112,12 @@ export class Store {
       nearbyLocation=location;
       where.push(`EXISTS(SELECT 1 FROM (SELECT ${location} AS point) geo WHERE jsonb_typeof(geo.point->'latitude')='number' AND jsonb_typeof(geo.point->'longitude')='number' AND 6371*ACOS(LEAST(1,GREATEST(-1,SIN(RADIANS(${lat}::numeric))*SIN(RADIANS((geo.point->>'latitude')::numeric))+COS(RADIANS(${lat}::numeric))*COS(RADIANS((geo.point->>'latitude')::numeric))*COS(RADIANS((geo.point->>'longitude')::numeric-${lon}::numeric)))))<=${radius}::numeric)`);
     }
+    if(options.verifiedOnly)where.push("EXISTS(SELECT 1 FROM records account WHERE account.kind='user' AND account.id::text=r.owner AND account.country=r.country AND account.data->>'verification'='passed')");
     if(options.publicActor){
       const viewer=bind(options.publicActor);
       where.push("COALESCE(data->>'moderation_status','') NOT IN ('quarantined','hidden','rejected')");
       where.push(`NOT EXISTS(SELECT 1 FROM records block WHERE block.kind='pair_block' AND block.country=r.country AND block.data->>'status'='active' AND ((block.owner=${viewer} AND block.data->>'target_id'=r.owner) OR (block.owner=r.owner AND block.data->>'target_id'=${viewer})))`);
-      where.push(`EXISTS(SELECT 1 FROM records account WHERE account.kind='user' AND account.id::text=r.owner AND account.country=r.country AND account.data->>'status'='active' ${kind==='contractor'?"AND account.data->>'verification'='passed'":''})`);
+      where.push(`EXISTS(SELECT 1 FROM records account WHERE account.kind='user' AND account.id::text=r.owner AND account.country=r.country AND account.data->>'status'='active')`);
       if(kind==='order')where.push("(data->>'expires_at')::timestamptz > CURRENT_TIMESTAMP");
     }
     if(options.search){const parameter=bind('%'+options.search+'%');
@@ -147,6 +150,14 @@ export class Store {
   }
   async put(data: RecordData,options:{skipContentCheck?:boolean}={}) {
     const before=this.transitionHook&&this.transitionKinds?.has(data.kind)?await this.read(data.id):undefined;
+    if(data.kind==='contractor'){
+      const previous=await this.read(data.id);
+      if(previous&&previous.version!==data.version){
+        const snapshot={id:randomUUID(),kind:'contractor_edit_snapshot',owner:previous.owner,country:previous.country,version:1,created_at:new Date().toISOString(),source_id:previous.id,source_version:previous.version,content:editableContent(previous)};
+        await this.db.query('INSERT INTO records(id,kind,owner,country,version,data) VALUES($1,$2,$3,$4,1,$5)',[snapshot.id,snapshot.kind,snapshot.owner,snapshot.country,JSON.stringify(snapshot)]);
+        await this.db.query("DELETE FROM records WHERE kind='contractor_edit_snapshot' AND country=$1 AND owner=$2 AND data->>'source_id'=$3 AND (data->>'source_version')::integer<$4",[previous.country,previous.owner,previous.id,previous.version-20]);
+      }
+    }
     if(this.contentHook&&!options.skipContentCheck)await this.contentHook(data);
     await this.db.query('INSERT INTO records(id,kind,owner,country,version,data) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data', [data.id,data.kind,data.owner,data.country,data.version,JSON.stringify(data)]);
     if(this.transitionHook&&this.transitionKinds?.has(data.kind))await this.transitionHook(before,data);

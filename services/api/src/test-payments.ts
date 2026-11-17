@@ -31,7 +31,6 @@ export async function simulateSubscription(store:Store,user:RecordData,b:any,off
  if(!settings.enabled||settings.version!==offer.test_settings_version||(catalog?.version??0)!==offer.catalog_version)fail('OFFER_CHANGED','Условия тестовой оплаты изменились',409);
  if(offer.amount_minor!==b.amount_minor||offer.currency!==b.currency)fail('OFFER_CHANGED','Цена изменилась. Обновите условия оплаты',409);
  const role=subscriptionRole(user);if(!(user.roles??['customer']).includes(role))fail('ROLE_REQUIRED','Настройте выбранную роль',403);if(offer.role!==role)fail('ROLE_REQUIRED','Выберите подписку текущей роли',403);
- if(user.verification!=='passed')fail('VERIFICATION_REQUIRED','Сначала подтвердите личность',403);
  await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['test-payment:'+user.country+':'+user.id+':'+role]);
  const now=new Date(),until=new Date(now.getTime()+30*86400000).toISOString();
  const subscriptions=(await store.select('subscription',user.country,{owner:user.id,limit:1000})).filter(s=>s.valid_until>now.toISOString()&&['active','grace','canceled_at_period_end'].includes(s.status)&&((s.price_snapshot?.plan==='customer')=== (role==='customer')));

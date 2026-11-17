@@ -141,6 +141,7 @@ class ContractorProfile extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text('${profile['title']} · ${profile['city'] ?? ''}',
                             style: const TextStyle(fontSize: 12, color: muted)),
+                        if (!verified) const Padding(padding:EdgeInsets.only(top:12),child:UiText('Документы не проверены',style:TextStyle(fontSize:12,color:muted))),
                         if (verified)
                           Padding(
                               padding: const EdgeInsets.only(top: 12),
@@ -158,7 +159,7 @@ class ContractorProfile extends StatelessWidget {
                                               size: 14,
                                               color: Color(0xFF147657)),
                                           SizedBox(width: 4),
-                                          UiText('Документ проверен',
+                                          UiText('Верифицирован',
                                               style: TextStyle(
                                                   fontSize: 10,
                                                   height: 1.6,
@@ -321,19 +322,7 @@ class ContractorProfile extends StatelessWidget {
               ])
             ]))
       ])),
-      SafeArea(
-          top: false,
-          child: Container(
-              decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: line))),
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                      onPressed:
-                          profile['availability'] == 'paused' ? null : onInvite,
-                      child: const UiText('Предложить заказ')))))
+      const SizedBox(height:8),
     ]);
   }
 }

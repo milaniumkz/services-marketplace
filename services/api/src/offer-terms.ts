@@ -53,7 +53,7 @@ export async function offerPeople(store:import('./store').Store,country:string,o
      AND review.data->>'status'='published' AND COALESCE(review.data->>'moderation_status','') NOT IN('quarantined','hidden','rejected')
    WHERE u.kind='user' AND u.country=$1 AND u.id=ANY($2::uuid[]) GROUP BY u.id,u.data,u.country`,[country,owners]);
  const people=new Map(rows.rows.map(r=>[r.id,r]));
- return offers.map(offer=>{const u=people.get(offer.owner);return {...offer,executor:u?{id:u.id,display_name:u.display_name,avatar_id:u.avatar_id,verified:u.verification==='passed',available:u.status==='active'&&u.verification==='passed',profile_id:u.profile_id,rating:{count:Number(u.rating_count),average:u.rating_average==null?null:Number(u.rating_average)}}:null};});
+ return offers.map(offer=>{const u=people.get(offer.owner);return {...offer,executor:u?{id:u.id,display_name:u.display_name,avatar_id:u.avatar_id,verified:u.verification==='passed',available:u.status==='active',profile_id:u.profile_id,rating:{count:Number(u.rating_count),average:u.rating_average==null?null:Number(u.rating_average)}}:null};});
 }
 
 export function offerOrderSnapshot(order:RecordData){return {revision:order.revision,title:order.title,description:order.description,budget_amount:order.budget_amount,currency:order.currency,time_window:order.time_window};}

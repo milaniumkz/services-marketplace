@@ -220,7 +220,7 @@ class JobaNavigation extends StatelessWidget {
               child: Row(children: [
                 for (final item in [
                   ('home', 'Главная', 'home'),
-                  (executor ? 'jobs' : 'catalog', 'Поиск', 'search'),
+                  (executor ? 'jobs' : 'orders', executor ? 'Заказы' : 'Мои заказы', executor ? 'search' : 'brief'),
                   ('messages', 'Сообщения', 'chat'),
                   ('notifications', 'События', 'bell'),
                   ('account', 'Профиль', 'user')

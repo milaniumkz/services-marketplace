@@ -939,7 +939,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
   }
 
   int navigationEpoch=0;
-  String get navigationRoute=>['home','jobs','catalog','messages','notifications','account'].contains(route)?route:['chat','support-chat','support','messages-search'].contains(route)?'messages':orderNavigationRoutes.contains(route)||['review','complete','rework','cancel','cancel-pending','amendment','change-requests'].contains(route)?(executor?'jobs':'home'):'account';
+  String get navigationRoute=>['home','jobs','catalog','messages','notifications','account'].contains(route)?route:['chat','support-chat','support','messages-search'].contains(route)?'messages':orderNavigationRoutes.contains(route)||['review','complete','rework','cancel','cancel-pending','amendment','change-requests'].contains(route)?(executor?'jobs':'orders'):'account';
   void selectShellTab(String next){if(authNavigationBlocked||actionBusy||orderFormSubmitting)return;Navigator.of(context).popUntil((r)=>r.isFirst);selectMainTab(next);}
   void publishNavigation(){if(widget.onNavigationChanged==null)return;final epoch=++navigationEpoch;final value=!starting&&_api?.authenticated==true&&!locked&&!onboardingNavigationBlocked?NavigationState(route:navigationRoute,banner:navigationBanner,bannerPlacement:bannerPlacement,executor:executor,enabled:!actionBusy&&!orderFormSubmitting&&!authNavigationBlocked,messages:messageUnreadCount,notifications:notificationUnreadCount??0,onSelect:selectShellTab):null;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&epoch==navigationEpoch)widget.onNavigationChanged?.call(value);});}
   void finishFaceSetup(bool signup) {setState(() {route = signup ? faceSetupReturnRoute : 'security'; if (signup) history.clear();});}
@@ -948,7 +948,6 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       return page('JOBA', const Notice('Мобильное приложение бесплатно. Подписки и платное продвижение в этой версии не предлагаются.'));
     }
     if(['create','edit-order'].contains(route))ensureOrderFormsScope();
-    if(executor&& !['passed','pending_review'].contains(me?['verification'])&&['services','portfolio','portfolio-edit','portfolio-photos'].contains(route)){return verificationScreen();}
     if (!executor && !executorSetupRequested && ['services', 'portfolio', 'portfolio-edit', 'portfolio-photos', 'service-area'].contains(route)) {
       return page('Режим заказчика', listBody([
         const UiHeading('Вы вошли как заказчик', 'Размещайте заказы и выбирайте исполнителей. Услуги заполняются в роли исполнителя.'),
@@ -2098,13 +2097,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               await switchRole('customer');
                               go('home');
                             }),
-                        subtitle: 'Найти мастера и опубликовать задачу'),
+                        subtitle: 'Опубликовать заказ и выбрать исполнителя из откликов'),
                     JobaMenuEntry(
                         'Исполнитель',
                         'brief',
                         () => act(() async {
                               await switchRole('executor');
-                              if (executor) go(['passed','pending_review'].contains(me?['verification'])?'home':'verification');
+                              if (executor) go('home');
                             }),
                         subtitle: 'Находить заказы и предлагать услуги')
                   ]),
@@ -2134,7 +2133,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     const SizedBox(width: 8),
                     UiText(me?['verification'] == 'passed'
                         ? 'Документ проверен'
-                        : 'Требуется проверка документа')
+                        : 'Проверка документа — по желанию')
                   ])
                 ])),
                 SafeArea(
@@ -2156,9 +2155,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               () => act(() async {
                                     await switchRole('executor');
                                     if (executor)
-                                      go(me?['verification'] == 'passed'
-                                          ? 'jobs'
-                                          : 'verification');
+                                      go('jobs');
                                   }))
                         ])))
               ])));
@@ -2598,10 +2595,13 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   'новых приглашений',
                                   () => go('invitations')))
                         ])),
-              JobaSection(executor ? 'Подходящие заказы' : 'Рядом с вами',
-                  () => executor ? go('jobs') : act(nearbyCatalog),
-                  action: executor ? 'Фильтры' : 'Все'),
-              HomeMarketplaceGate(key:ValueKey('home-market-access:${api.session?['user']?['id']}:$revision:$executor'),api:api,executor:executor,onAccess:()=>go('my-access'),onVerification:()=>go('verification'),content:()=>Column(children:[if(!executor)PromotedListings(api:api,placement:'home.promoted.services',filters:{'city':me?['city']??''},onOpen:(type,id)=>go('contractor',id)),homeListings()])),
+              if (executor) ...[
+                JobaSection('Подходящие заказы', () => go('jobs'), action:'Фильтры'),
+                HomeMarketplaceGate(key:ValueKey('home-market-access:${api.session?['user']?['id']}:$revision:$executor'),api:api,executor:executor,onAccess:()=>go('my-access'),onVerification:()=>go('verification'),content:homeListings),
+              ] else ...[
+                JobaSection('Мои активные заказы', () => go('orders'), action:'Все'),
+                ApiView(load:()=>api.request('/me/orders',query:{'bucket':'active','limit':3}),builder:(context,data,retry)=>items(data).isEmpty?const Notice('Создайте заказ — исполнители откликнутся сами. Вы сможете посмотреть профиль, отзывы и портфолио и выбрать подходящего исполнителя.'):Column(children:items(data).map(orderCard).toList())),
+              ],
               if (executor)
                 JobaMenu([
                   JobaMenuEntry('Мои отклики', 'chat', () => go('my-offers')),
@@ -2760,7 +2760,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       if(executor)JobaMenuEntry('Подключить Топ-100','crown',()=>go('my-access'),subtitle:'Отдельно к Стандарту · в Премиуме включён')
                     ]),
                     const SizedBox(height: 16),
-                    JobaMenu([JobaMenuEntry('Проверка личности', 'shield', () => go('verification'), subtitle: identityVerificationSubtitle)]),
+                    if (executor) JobaMenu([JobaMenuEntry('Добровольная проверка документов', 'shield', () => go('verification'), subtitle: me?['verification']=='passed'?'Верифицирован':'По желанию · отметка в профиле исполнителя')]),
                     const SizedBox(height: 16),
                     JobaMenu([
                       JobaMenuEntry('Мои заказы', 'brief', () => go('orders'),
@@ -2843,7 +2843,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           success('Профиль сохранён');
           if (route == 'onboarding') {
             registrationInProgress = false;
-            go(executor ? (['passed','pending_review'].contains(me?['verification'])?'services':'verification') : 'home');
+            go(executor ? 'services' : 'home');
           } else
             back();
         },
@@ -3502,6 +3502,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           if (owner && ['draft', 'open'].contains(o['status']))
             button('Отменить заказ', () => go('cancel', o['id']),
                 outline: true),
+          if (owner && ['draft','open','cancelled','expired','completed'].contains(o['status']))
+            button('Удалить заказ', () => act(() async {
+              await api.request('/orders/${o['id']}',method:'DELETE',body:{'expected_version':o['version']});
+              success('Заказ удалён');
+              go('orders');
+            }), outline:true),
           if ((owner || assigned) && o['status'] == 'completed')
             button('Оставить отзыв', () => go('review', o['id'])),
           if (owner || assigned)

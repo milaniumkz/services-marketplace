@@ -50,6 +50,7 @@ import {rankingParameters,rankingPayload} from './ranking';
 import {accountEvents,accountDecisions,securityEventSummary} from './staff-account';
 import {currentLegalDocuments,legalHashAccepted} from './legal-documents';
 import {freezeTarget,visibleCase,resolveEffects,contentHash,targetSnapshot} from './case-evidence';
+import {rebaseProfile} from './profile-concurrency';
 import {editableContent,publicContent,editContent,submitContent} from './content-revisions';
 import {accountOverview} from './account-overview';
 import {contractorPresentation} from './contractor-presentation';
@@ -176,6 +177,15 @@ export class Marketplace {
   }
   private async categories(country:string):Promise<RecordData[]>{return (await this.store.all('category',country)).filter(r=>r.status==='effective').map((r):RecordData=>({...r,record_id:r.id,id:categoryId(r)})).sort((a,b)=>(a.payload?.depth??(a.payload?.parent_id?2:1))-(b.payload?.depth??(b.payload?.parent_id?2:1))||(a.payload?.sort_order??Number(a.legacy_id??0))-(b.payload?.sort_order??Number(b.legacy_id??0)));}
   private categorySnapshot(category:RecordData,locale='ru'){return {id:category.id,version_id:category.record_id??category.id,title:category.payload.labels?.[locale]??category.payload.labels?.ru??category.title,labels:category.payload.labels,schema:category.payload.schema??{properties:{},required:[]}};}
+  private async closeOrderResponses(a:Actor,order:RecordData){
+    for(const offer of (await this.store.all('offer',a.country)).filter(r=>r.order_id===order.id&&r.status==='active')){
+      await this.store.put({...offer,status:'not_selected',version:offer.version+1});
+      const chat=offer.conversation_id?await this.store.get(offer.conversation_id):undefined;
+      if(chat)await this.store.put({...chat,status:'closed',version:chat.version+1});
+      await this.notify(offer.owner,a,'offer.not_selected',offer.id);
+    }
+    for(const invite of (await this.store.all('invite',a.country)).filter(r=>r.order_id===order.id&&r.status==='pending'))await this.store.put({...invite,status:'cancelled',version:invite.version+1});
+  }
   private async entitlement(a: Actor, capability: string, verified=false, consume=true, forReview=false) {
     if(['publish_order','select_offer','send_offer','publish_profile'].includes(capability)) {
       const control=(await this.store.all('country_control',a.country)).find(r=>r.status==='effective');
@@ -183,8 +193,6 @@ export class Marketplace {
     }
     if(a.user.status!=='active')fail(403,'FORBIDDEN','Новые действия ограничены. Поддержка доступна.');
     if((verified||forReview)&&!a.user.roles.includes('executor'))fail(403,'EXECUTOR_ROLE_REQUIRED','Настройте роль исполнителя');
-    if(forReview&&!['pending_review','passed'].includes(a.user.verification))fail(403,'VERIFICATION_SUBMISSION_REQUIRED','Сначала отправьте документ и селфи на проверку');
-    if(verified&&!forReview&&a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Требуется проверка документа исполнителя');
     if(['publish_order','select_offer','send_offer','publish_profile'].includes(capability)) {
       const current=currentLegalDocuments(await this.store.all('legal_document',a.country),a.country,a.user.locale??'ru').filter(d=>['privacy','privacy_policy','terms','terms_of_use'].includes(d.type));
       const checked=new Set<string>();
@@ -196,20 +204,17 @@ export class Marketplace {
     }
     if(forReview)return;
     if(capability==='send_offer'){const profile=(await this.store.all('contractor',a.country)).find(r=>r.owner===a.id);if(profile?.status==='paused'||profile?.availability==='paused')fail(403,'FORBIDDEN','Приём новых предложений приостановлен');}
-    // Viewing executor profiles and publishing new jobs require the customer plan.
-    // Existing orders, conversations and completion remain accessible after expiry.
-    if(capability==='select_offer')return;
+    // Respondent profiles, selection and existing work stay available after expiry.
+    // Document checks are voluntary; plans control only paid capabilities.
+    if(capability==='select_offer'||capability==='view_contractors')return;
     if(capability==='search_full'&&!verified&&subscriptionRole(a.user)!=='executor')return;
-    if(capability==='view_contractors'&&a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Подтвердите личность: документ с двух сторон и селфи');
     // The mobile edition offers core marketplace operations free to everyone.
     // This public channel is not trusted for identity, ownership or staff access.
     if(process.env.JOBA_MOBILE_FREE_ACCESS==='1'&&this.releaseChannel.getStore()==='mobile-free-v1'&&['search_full','view_contractors','publish_order','send_offer','publish_profile'].includes(capability)) {
-      if(capability==='publish_order'&&a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Подтвердите личность: документ с двух сторон и селфи');
       return;
     }
     await activatePeriods(this.store,a.user);
     if(capability==='publish_order'||capability==='view_contractors'&&subscriptionRole(a.user)!=='executor') {
-      if(a.user.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Подтвердите личность: документ с двух сторон и селфи');
       const required=capability==='view_contractors'?'view_contractors':'publish_order';
       const access=(await this.store.select('grant',a.country,{owner:a.id,limit:1000})).some(g=>g.valid_until>new Date().toISOString()&&g.capabilities?.includes(required)&&(g.role==='customer'||g.plan==='customer'||g.source==='admin_compensation')&&(g.balance===undefined||g.balance>0));
       if(!access)fail(403,'ENTITLEMENT_REQUIRED','Нужна подписка заказчика на 30 дней',{capability:required,role:'customer'});
@@ -459,6 +464,7 @@ export class Marketplace {
     assertStaffOperation(a.user,a.mfa,method,path,b,q);
     // The platform owner can work across regions without changing identity/session.
     // Other employees retain their existing regional role boundary.
+    if(isStaffOwner(a.user)&&method==='GET'&&/^\/admin\/(users|orders|dashboard|analytics|search|contractors|portfolio|verifications)$/.test(path)&&q.admin_country===undefined)q={...q,admin_country:'ALL'};
     if((path.startsWith('/admin/')||path.startsWith('/uploads/'))&&q.admin_country!==undefined){
       const scope=String(q.admin_country);
       if(!['ALL','KZ','KG','RU','BY'].includes(scope))fail(400,'VALIDATION_ERROR','Неизвестная страна фильтра');
@@ -622,7 +628,7 @@ export class Marketplace {
     }
     if(path==='/me/legal-holds'&&method==='GET'){const page=await this.page('legal_hold',a,q,{subjectUser:a.id});return {...page,items:page.items.map(r=>({id:r.id,status:r.status,fields:r.fields,basis:r.basis,review_at:r.review_at,created_at:r.created_at}))};}
     if(path==='/me/consents'&&method==='GET')return {items:(await this.store.all('consent',a.country)).filter(x=>x.owner===a.id).sort((x,y)=>(y.sequence??0)-(x.sequence??0))};
-    if(path==='/me/contractor-profile'&&method==='GET'){const profile=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='contractor' AND country=$1 AND owner=$2 LIMIT 1",[a.country,a.id])).rows[0]?.data;return {communication_languages:(await communicationLanguages(this.store,a.country)).items,profile:profile?{...editableContent(profile),public_visible:profile.status==='published'&&!['hidden','quarantined','rejected'].includes(profile.moderation_status)&&a.user.status==='active'&&a.user.verification==='passed'}:null};}
+    if(path==='/me/contractor-profile'&&method==='GET'){const profile=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='contractor' AND country=$1 AND owner=$2 LIMIT 1",[a.country,a.id])).rows[0]?.data;return {communication_languages:(await communicationLanguages(this.store,a.country)).items,profile:profile?{...editableContent(profile),public_visible:profile.status==='published'&&!['hidden','quarantined','rejected'].includes(profile.moderation_status)&&a.user.status==='active'}:null};}
     if(path==='/me/contractor-profile/public-location'&&method==='PATCH'){
       const p=(await this.store.select('contractor',a.country,{owner:a.id,limit:1}))[0];if(!p)fail(404,'NOT_FOUND','Профиль не найден');this.version(p,b);
       if(typeof b.enabled!=='boolean')fail(400,'VALIDATION_ERROR','Подтвердите видимость зоны');
@@ -632,7 +638,7 @@ export class Marketplace {
       const staged=editContent(p,{public_location:{latitude:Math.round(lat*100)/100,longitude:Math.round(lon*100)/100,approximate:true}});return this.store.put(staged);
     }
     if(path==='/me/contractor-profile'&&method==='PUT') {
-      const old=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(old)this.version(old,b);
+      const old=(await this.store.all('contractor',a.country)).find(x=>x.owner===a.id);if(old)b=await rebaseProfile(this.store,old,b);
       const title=text(b,'title',5,100),description=text(b,'description',20,3000),city=text(b,'city',2,100);
       const categories=(await this.categories(a.country));
       const category=categories.find(c=>c.id===b.category_id||c.legacy_id===b.category_id);if(!category)fail(400,'VALIDATION_ERROR','Выберите доступную категорию услуги.',{field:'category_id'});
@@ -675,7 +681,7 @@ export class Marketplace {
     }
     const portfolio=path.match(/^\/me\/portfolio-projects\/([^/]+)(?:\/(submit))?$/);
     if(portfolio) {
-      const stored=await this.object(portfolio[1],a,'portfolio',true),p=editableContent(stored);if(method==='GET'){const order=p.order_id?await this.store.get(p.order_id):undefined;const category=p.category_id?await this.store.get(p.category_id):undefined;const profile=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='contractor' AND country=$1 AND owner=$2 LIMIT 1",[a.country,a.id])).rows[0]?.data;const publicVisible=stored.status==='published'&&!['hidden','quarantined','rejected'].includes(stored.moderation_status)&&profile?.status==='published'&&!['hidden','quarantined','rejected'].includes(profile.moderation_status)&&a.user.status==='active'&&a.user.verification==='passed';return {...p,public_visible:publicVisible,category_name:category?.kind==='category'&&category.country===a.country?category.name:undefined,linked_completed_order:order?.kind==='order'&&order.country===a.country&&order.status==='completed'&&order.executor_id===a.id};}this.version(stored,b);
+      const stored=await this.object(portfolio[1],a,'portfolio',true),p=editableContent(stored);if(method==='GET'){const order=p.order_id?await this.store.get(p.order_id):undefined;const category=p.category_id?await this.store.get(p.category_id):undefined;const profile=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='contractor' AND country=$1 AND owner=$2 LIMIT 1",[a.country,a.id])).rows[0]?.data;const publicVisible=stored.status==='published'&&!['hidden','quarantined','rejected'].includes(stored.moderation_status)&&profile?.status==='published'&&!['hidden','quarantined','rejected'].includes(profile.moderation_status)&&a.user.status==='active';return {...p,public_visible:publicVisible,category_name:category?.kind==='category'&&category.country===a.country?category.name:undefined,linked_completed_order:order?.kind==='order'&&order.country===a.country&&order.status==='completed'&&order.executor_id===a.id};}this.version(stored,b);
       if(method==='DELETE')return this.store.put({...stored,draft:undefined,status:'archived',version:stored.version+1});
       if(method==='PATCH') {
         const photos=b.upload_ids?await this.safeUploads(a,b.upload_ids,'portfolio'):p.photos;
@@ -693,7 +699,7 @@ export class Marketplace {
     const contractor=path.match(/^\/contractors\/([^/]+)(?:\/(portfolio)(?:\/([^/]+))?)?$/);
     if(contractor&&method==='GET'){
       await this.entitlement(a,'view_contractors');const p=await this.object(contractor[1],a,'contractor'),owner=await this.store.get(p.owner);
-      if(owner?.country!==a.country||owner.status!=='active'||owner.verification!=='passed'||p.status!=='published'||['quarantined','hidden','rejected'].includes(p.moderation_status)||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');
+      if(owner?.country!==a.country||owner.status!=='active'||p.status!=='published'||['quarantined','hidden','rejected'].includes(p.moderation_status)||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');
       if(!contractor[2])return (await contractorPresentation(this.store,a.country,[p]))[0];
       const candidate=contractor[3]?await this.store.get(contractor[3]):undefined;
       if(contractor[3]&&(!candidate||candidate.kind!=='portfolio'||candidate.country!==a.country||candidate.owner!==p.owner||candidate.status!=='published'||['quarantined','hidden','rejected'].includes(candidate.moderation_status)))fail(404,'NOT_FOUND','Проект недоступен');
@@ -726,7 +732,7 @@ export class Marketplace {
     }
     if(path==='/me/orders'&&method==='GET'){
       const page=await this.page('order',a,q,{owner:a.id,statuses:orderBucket(q.bucket)});
-      const hasAny=(await this.store.db.query<{exists:boolean}>("SELECT EXISTS(SELECT 1 FROM records WHERE kind='order' AND country=$1 AND owner=$2) AS exists",[a.country,a.id])).rows[0].exists;
+      const hasAny=(await this.store.db.query<{exists:boolean}>("SELECT EXISTS(SELECT 1 FROM records WHERE kind='order' AND country=$1 AND owner=$2 AND data->>'status'<>'deleted') AS exists",[a.country,a.id])).rows[0].exists;
       return {...page,meta:{...page.meta,has_any:hasAny}};
     }
     if(path==='/me/completed-orders'&&method==='GET'){if(q.role&&!['customer','executor'].includes(q.role))fail(400,'VALIDATION_ERROR','Проверьте роль');return this.page('order',a,q,{...(q.role==='executor'?{executor:a.id}:q.role==='customer'?{owner:a.id}:{participant:a.id}),statuses:['completed']});}
@@ -738,6 +744,7 @@ export class Marketplace {
     if(om) {
       const o=await this.object(om[1],a,'order');if(o.status==='deleted')fail(404,'NOT_FOUND','Заказ удалён');const action=om[2];
       const participant=o.owner===a.id||o.executor_id===a.id;
+      if(method==='DELETE'&&o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');
       if(!participant&&(o.status!=='open'||['quarantined','hidden','rejected'].includes(o.moderation_status)||o.expires_at<=new Date().toISOString()||await this.blocked(a,o.owner)))fail(404,'NOT_FOUND','Заказ не найден');
       if(!participant)await this.entitlement(a,'search_full',true);
       if(method==='GET'&&!action){
@@ -765,7 +772,7 @@ export class Marketplace {
         if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');await this.entitlement(a,'publish_order',false,false);
         await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['invites:'+a.country+':'+a.id]);
         if(o.status!=='open'||o.expires_at<=new Date().toISOString()||['quarantined','hidden','rejected'].includes(o.moderation_status))fail(409,'STATE_CONFLICT','Заказ закрыт');
-        const p=await this.object(String(b.contractor_id),a,'contractor'),owner=await this.store.get(p.owner);if(owner?.status!=='active'||owner.verification!=='passed'||!owner.roles?.includes('executor')||await this.blocked(a,p.owner)||p.owner===a.id||p.status!=='published'||p.availability==='paused')fail(422,'POLICY_REJECTED','Исполнитель недоступен');
+        const p=await this.object(String(b.contractor_id),a,'contractor'),owner=await this.store.get(p.owner);if(owner?.status!=='active'||!owner.roles?.includes('executor')||await this.blocked(a,p.owner)||p.owner===a.id||p.status!=='published'||p.availability==='paused')fail(422,'POLICY_REJECTED','Исполнитель недоступен');
         // Receiving an invitation is free. Only the sender's own customer access
         // is required here; the executor's access is checked when accepting.
         const now=new Date();
@@ -789,6 +796,7 @@ export class Marketplace {
       if(action==='publish'&&method==='POST'){await this.entitlement(a,'publish_order');if(o.status!=='draft')fail(409,'STATE_CONFLICT','Заказ уже опубликован');const category=(await this.categories(a.country)).find(c=>c.id===o.category_id);if(!category)fail(422,'CATEGORY_UNAVAILABLE','Выберите доступную категорию');const snapshot=o.category_snapshot??this.categorySnapshot(category!,a.user.locale);attributes(snapshot.schema,o.attributes??{});return this.store.put({...o,category_snapshot:snapshot,status:'open',revision:o.revision+1,version:o.version+1,published_at:new Date().toISOString(),expires_at:new Date(Date.now()+settings.order_expiry_days*86400000).toISOString()});}
       if(action==='extend'&&method==='POST'){await this.entitlement(a,'publish_order');const expires=Date.parse(String(b.expires_at));if(o.status!=='open'||Date.parse(o.expires_at)<=Date.now()||!Number.isFinite(expires)||expires<=Date.now()||expires>Date.now()+settings.order_expiry_max_days*86400000)fail(409,'STATE_CONFLICT','Недопустимый срок продления');return this.store.put({...o,expires_at:new Date(expires).toISOString(),version:o.version+1});}
       if(action==='clone'&&method==='POST'){await this.entitlement(a,'publish_order');const category=(await this.categories(a.country)).find(c=>c.id===o.category_id);if(!category)fail(422,'CATEGORY_UNAVAILABLE','Выберите доступную категорию');return this.store.put(this.record('order',a,{title:o.title,description:o.description,category_id:o.category_id,category_snapshot:this.categorySnapshot(category!,a.user.locale),attributes:o.attributes??{},work_mode:o.work_mode??'onsite',time_window:o.time_window,city:o.city,budget_amount:o.budget_amount,currency:o.currency,status:'draft',revision:1,upload_ids:[]}));}
+      if(method==='DELETE'&&!action){if(!['draft','open','cancelled','expired','completed'].includes(o.status))fail(409,'STATE_CONFLICT','Сначала завершите или согласуйте отмену заказа в работе');await this.closeOrderResponses(a,o);return this.store.put({...o,status:'deleted',deleted_at:new Date().toISOString(),version:o.version+1});}
       if(method==='PATCH'&&!action) {
         if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Редактирование недоступно');
         const unchangedCategory=b.category_id===undefined||b.category_id===o.category_id,originalCategory=unchangedCategory?await this.store.get(o.category_id):undefined;const category=(await this.categories(a.country)).find(c=>c.id===(b.category_id??o.category_id))??(unchangedCategory&&originalCategory?.country===a.country&&originalCategory.kind==='category'?{...originalCategory,id:categoryId(originalCategory),record_id:originalCategory.id}:undefined);if(!category)fail(400,'VALIDATION_ERROR','Выберите доступную категорию услуги.',{field:'category_id'});const snapshot=unchangedCategory?(o.category_snapshot??{id:category!.id,version_id:originalCategory?.id??category!.record_id,title:originalCategory?.payload.labels?.ru??originalCategory?.title??category!.title,labels:originalCategory?.payload.labels??category!.payload.labels,schema:originalCategory?.payload.schema??category!.payload.schema??{properties:{},required:[]}}):{id:category!.id,version_id:category!.record_id,title:category!.payload.labels?.[a.user.locale??'ru']??category!.payload.labels?.ru??category!.title,labels:category!.payload.labels,schema:category!.payload.schema??{properties:{},required:[]}};
@@ -806,7 +814,7 @@ export class Marketplace {
         await this.entitlement(a,'select_offer');if(o.status!=='open')fail(409,'STATE_CONFLICT','Заказ уже назначен');
         const offer=await this.object(String(b.offer_id),a,'offer');if(offer.order_id!==o.id||offer.status!=='active'||offer.acknowledged_revision!==o.revision||b.offer_version!==offer.version)fail(409,'OFFER_CHANGED','Отклик или условия изменились');
         if(offerExpired(offer,settings.offer_expiry_hours))fail(409,'OFFER_EXPIRED','Срок отклика истёк. Попросите исполнителя отправить новый.');
-        const executor=await this.store.get(offer.owner);if(!executor||executor.verification!=='passed'||executor.status!=='active')fail(409,'STATE_CONFLICT','Исполнитель больше недоступен');
+        const executor=await this.store.get(offer.owner);if(!executor||executor.status!=='active')fail(409,'STATE_CONFLICT','Исполнитель больше недоступен');
         for(const x of (await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id&&x.status==='active')) {
           await this.store.put({...x,status:x.id===offer.id?'selected':offerExpired(x,settings.offer_expiry_hours)?'expired':'not_selected',version:x.version+1});
           const c=await this.store.get(x.conversation_id);if(c)await this.store.put({...c,status:x.id===offer.id?'working':'closed',version:c.version+1});
@@ -825,7 +833,7 @@ export class Marketplace {
       }
       if(action==='confirm-completion'&&method==='POST'){if(o.status!=='completion_requested')fail(409,'STATE_CONFLICT','Исполнитель не запросил завершение');const result=await this.store.put({...o,status:'completed',completed_at:new Date().toISOString(),version:o.version+1});await this.growth.qualify(o.owner,a.country,'completed_order',o.id);await this.growth.qualify(o.executor_id,a.country,'completed_order',o.id);return result;}
       if(action==='request-revision'&&method==='POST'){if(o.status!=='completion_requested')fail(409,'STATE_CONFLICT','Доработка недоступна');return this.store.put({...o,status:'in_progress',revision_reason:text(b,'reason',5,1000),revision_upload_ids:b.upload_ids?await this.safeUploads(a,b.upload_ids,'order'):[],revision_time_window:b.time_window===undefined?undefined:timeWindow(b.time_window),version:o.version+1});}
-      if(action==='cancel'&&method==='POST'){if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Активный заказ требует разрешения через поддержку');return this.store.put({...o,status:'cancelled',cancelled_at:new Date().toISOString(),reason:text(b,'reason',5,1000),version:o.version+1});}
+      if(action==='cancel'&&method==='POST'){if(!['draft','open'].includes(o.status))fail(409,'STATE_CONFLICT','Для заказа в работе согласуйте отмену с исполнителем');await this.closeOrderResponses(a,o);return this.store.put({...o,status:'cancelled',cancelled_at:new Date().toISOString(),reason:b.reason?text(b,'reason',1,1000):'Отменён заказчиком',version:o.version+1});}
     }
     const responseCommand=path.match(/^\/(cancel-requests|amendments)\/([^/]+)\/respond$/);
     if(responseCommand&&method==='POST') {
@@ -1031,7 +1039,7 @@ export class Marketplace {
     if(votes&&['PUT','DELETE'].includes(method)) {
       await this.entitlement(a,'search_full',votes[1]==='orders');const target=await this.object(votes[2],a,votes[1]==='orders'?'order':'contractor');
       const owner=await this.store.get(target.owner);
-      if(['quarantined','hidden','rejected'].includes(target.moderation_status)||owner?.kind!=='user'||owner.country!==a.country||owner.status!=='active'||target.kind==='contractor'&&owner.verification!=='passed'||target.kind==='order'&&!(target.expires_at>new Date().toISOString())||await this.blocked(a,target.owner))fail(404,'NOT_FOUND','Карточка недоступна');
+      if(['quarantined','hidden','rejected'].includes(target.moderation_status)||owner?.kind!=='user'||owner.country!==a.country||owner.status!=='active'||target.kind==='order'&&!(target.expires_at>new Date().toISOString())||await this.blocked(a,target.owner))fail(404,'NOT_FOUND','Карточка недоступна');
       if(target.owner===a.id)fail(403,'FORBIDDEN','Нельзя голосовать за свою карточку');
       if(!['open','published'].includes(target.status))fail(409,'STATE_CONFLICT','Карточка недоступна');
       if(method==='DELETE'){await db.query('DELETE FROM votes WHERE voter=$1 AND target=$2',[a.id,target.id]);return {removed:true};}
@@ -1088,7 +1096,7 @@ export class Marketplace {
       }
       if(type==='contractor'){
         const owner=await this.store.get(target.owner);
-        visible=visible||target.status==='published'&&owner?.status==='active'&&owner.verification==='passed'&&!['quarantined','hidden','rejected'].includes(target.moderation_status)&&!await this.blocked(a,target.owner);
+        visible=visible||target.status==='published'&&owner?.status==='active'&&!['quarantined','hidden','rejected'].includes(target.moderation_status)&&!await this.blocked(a,target.owner);
       }
       if(type==='message'){
         const conversation=await this.store.get(target.thread_id);
@@ -1310,7 +1318,7 @@ export class Marketplace {
             else if(target.version!==item.version)code='STATE_CONFLICT';
             else if(job.action==='pause_contractors'&&target.status!=='published'||job.action==='resume_contractors'&&target.status!=='paused')code='STATE_CONFLICT';
             else if(job.action==='resume_contractors'){
-              const owner=await this.store.get(target.owner);if(!owner||owner.status!=='active'||owner.verification!=='passed'||['hidden','quarantined','rejected'].includes(target.moderation_status))code='POLICY_REJECTED';
+              const owner=await this.store.get(target.owner);if(!owner||owner.status!=='active'||['hidden','quarantined','rejected'].includes(target.moderation_status))code='POLICY_REJECTED';
             }
             if(code){results.push({id:item.id,status:'skipped',code});continue;}
             await this.store.put({...target!,status:job.action==='pause_contractors'?'paused':'published',version:target!.version+1});results.push({id:item.id,status:'applied'});
@@ -1428,7 +1436,7 @@ export class Marketplace {
         const r=await this.object(contentDecision[2],a,contentDecision[1]==='portfolio'?'portfolio':'contractor');this.version(r,b);
         if(!['pending_review','pending_moderation'].includes(editableContent(r).status))fail(409,'STATE_CONFLICT','Материал не ожидает проверки');
         if(!['approve','reject'].includes(b.decision))fail(400,'VALIDATION_ERROR','Выберите approve или reject');
-        const owner=(await this.store.get(r.owner))!;if(b.decision==='approve'&&owner.status!=='active')fail(403,'FORBIDDEN','Новые действия исполнителя ограничены');if(b.decision==='approve'&&owner.verification!=='passed')fail(403,'VERIFICATION_REQUIRED','Проверка исполнителя не действует');
+        const owner=(await this.store.get(r.owner))!;if(b.decision==='approve'&&owner.status!=='active')fail(403,'FORBIDDEN','Новые действия исполнителя ограничены');
         const reason=text(b,'reason',10,1000);
         if(['published','paused'].includes(r.status)&&r.draft&&b.decision==='approve')await this.store.put(this.record('content_revision',{id:r.owner,country:r.country},{source_id:r.id,source_kind:r.kind,source_version:r.published_version??r.version,content:publicContent(r),status:'archived'}));
         const decided={...editableContent(r),status:b.decision==='approve'?(r.status==='paused'?'paused':'published'):'rejected',moderation_status:b.decision==='approve'?'approved':'rejected',reviewer_id:a.id,reason,version:r.version+1};
@@ -1859,7 +1867,7 @@ export class Marketplace {
       filters.priceMin=amount('price_min');filters.priceMax=amount('price_max');
       if(filters.priceMin!==undefined&&filters.priceMax!==undefined&&filters.priceMin>filters.priceMax)fail(400,'VALIDATION_ERROR','Проверьте диапазон цены');
       if(q.rating_min!==undefined){if(!/^\d(?:\.\d+)?$/.test(String(q.rating_min))||Number(q.rating_min)>5)fail(400,'VALIDATION_ERROR','Проверьте рейтинг');filters.ratingMin=Number(q.rating_min);}
-      filters.workMode=q.work_mode;
+      filters.workMode=q.work_mode;filters.verifiedOnly=q.verified_only==='true';
     }
     if(options.publicActor&&['order','contractor'].includes(kind)&&(q.near_lat!==undefined||q.near_lon!==undefined)){
       const near={latitude:Number(q.near_lat),longitude:Number(q.near_lon),radius:Number(q.radius_km??50)};
@@ -2010,7 +2018,7 @@ export class Marketplace {
         const project=(await this.store.all('portfolio',a.country)).find(p=>p.status==='published'&&!['quarantined','hidden','rejected'].includes(p.moderation_status)&&p.photos?.includes(u.id));
         const profile=(await this.store.all('contractor',a.country)).find(p=>p.owner===u.owner&&p.status==='published'&&!['quarantined','hidden','rejected'].includes(p.moderation_status)&&(project||p.gallery_ids?.includes(u.id)));
         const owner=profile?await this.store.get(profile.owner):undefined;
-        if(profile&&owner?.status==='active'&&owner.verification==='passed'&&!await this.blocked(a,profile.owner)){await this.entitlement(a,'view_contractors');return;}
+        if(profile&&owner?.status==='active'&&!await this.blocked(a,profile.owner)){await this.entitlement(a,'view_contractors');return;}
       }
       if(u.purpose==='order') {
         const order=(await this.store.all('order',a.country)).find(o=>o.upload_ids?.includes(u.id)||o.revision_upload_ids?.includes(u.id)||o.completion_upload_ids?.includes(u.id));
@@ -2123,6 +2131,7 @@ export class Marketplace {
       try {
         await this.store.db.query("DELETE FROM mobile_crash_reports WHERE received_at<$1",[new Date(now.getTime()-30*86400000).toISOString()]);
         await this.store.db.query('DELETE FROM refresh_receipts WHERE expires_at<=$1',[now.toISOString()]);
+        await this.store.db.query("DELETE FROM records WHERE kind='contractor_edit_snapshot' AND data->>'created_at'<$1",[new Date(now.getTime()-86400000).toISOString()]);
         for(const r of await this.store.all('offer'))if(r.status==='active'&&offerExpired(r,(await readSettings(this.store,r.country)).offer_expiry_hours,now)){
           await this.store.put({...r,status:'expired',version:r.version+1});
           const chat=r.conversation_id?await this.store.get(r.conversation_id):undefined;
@@ -2137,7 +2146,7 @@ export class Marketplace {
         for(const r of await this.store.all('boost')) {
           if(['reserved','payment_pending'].includes(r.status)&&r.reservation_expires_at<=now.toISOString()){await this.store.put({...r,status:'expired',version:r.version+1});continue;}
           if(['active','paused','scheduled'].includes(r.status)&&r.ends_at<=now.toISOString()){await this.store.put({...r,status:'expired',version:r.version+1});continue;}
-          if(r.status==='active'){const target=await this.store.get(r.target_id),owner=await this.store.get(r.owner);if(!target||!['open','published'].includes(target.status)||owner?.status!=='active'||target.kind==='contractor'&&owner.verification!=='passed')await this.store.put({...r,status:'paused',pause_reason:'target_ineligible',version:r.version+1});}
+          if(r.status==='active'){const target=await this.store.get(r.target_id),owner=await this.store.get(r.owner);if(!target||!['open','published'].includes(target.status)||owner?.status!=='active')await this.store.put({...r,status:'paused',pause_reason:'target_ineligible',version:r.version+1});}
         }
         for(const r of await this.store.all('review'))if(r.status==='sealed'&&r.publish_after<=now.toISOString()) {
           const disputes=(await this.store.all('case',r.country)).filter(c=>c.target_id===r.order_id&&!['resolved','closed'].includes(c.status));
@@ -2168,7 +2177,7 @@ export class Marketplace {
           await this.face.revoke(r.owner,r.country,'account_deleted');
           await this.store.db.query('DELETE FROM credentials WHERE user_id=$1',[r.owner]);await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[r.owner]);
           await this.store.db.query('DELETE FROM idempotency WHERE scope LIKE $1',[r.owner+':%']);
-          for(const kind of ['contractor','portfolio','content_revision'])for(const {data:x} of (await this.store.db.query<{data:RecordData}>('SELECT data FROM records WHERE kind=$1 AND country=$2 AND owner=$3',[kind,r.country,r.owner])).rows)await anonymizeProfile(this.store,x);
+          for(const kind of ['contractor','portfolio','content_revision','contractor_edit_snapshot'])for(const {data:x} of (await this.store.db.query<{data:RecordData}>('SELECT data FROM records WHERE kind=$1 AND country=$2 AND owner=$3',[kind,r.country,r.owner])).rows)await anonymizeProfile(this.store,x);
           await revokeOptionalProcessing(this.store,r.owner,r.country,now);
           const plan=await deletionPlan(this.store,r.owner,r.country,policy,now,'account_removed');
           await this.store.db.query("UPDATE records SET version=version+1,data=jsonb_set(jsonb_set(data,'{status}',$3::jsonb),'{version}',to_jsonb(version+1)) WHERE kind='download_ticket' AND country=$1 AND owner=$2 AND data->>'status'='active'",[r.country,r.owner,JSON.stringify('revoked')]);

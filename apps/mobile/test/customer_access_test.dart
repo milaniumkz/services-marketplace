@@ -24,7 +24,7 @@ void main(){
   }));
   await tester.pumpWidget(JobaApp(api:api));await tester.pumpAndSettle();
   final dynamic state=tester.state(find.byType(Marketplace));api.session={'access_token':'isolated-token','user':user};state.me=user;state.executor=false;
-  state.go('account');await tester.pumpAndSettle();expect(find.text('Мой доступ'),findsOneWidget);expect(find.text('Проверка личности'),findsOneWidget);expect(find.text('Мои услуги и портфолио'),findsNothing);
+  state.go('account');await tester.pumpAndSettle();expect(find.text('Мой доступ'),findsOneWidget);expect(find.text('Проверка личности'),findsNothing);expect(find.text('Мои услуги и портфолио'),findsNothing);
   state.go('services');await tester.pumpAndSettle();expect(find.text('Вы вошли как заказчик'),findsOneWidget);
   expect(requests.contains('/me/contractor-profile'),false);
   state.go('verification');await tester.pumpAndSettle();expect(find.text('К моим услугам'),findsNothing);

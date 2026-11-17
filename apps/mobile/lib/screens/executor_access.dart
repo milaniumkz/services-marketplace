@@ -229,7 +229,7 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         const SizedBox(height: 10),
         text(widget.customer ? 'Анкеты исполнителей и размещение заказов на 30 дней.' : 'Поиск заказов, публикация услуг и отклики.', color: muted),
         const SizedBox(height: 20),
-        if(config['verification_status']!=null&&config['verification_status']!='passed') ...[text('Перед использованием подписки подтвердите личность.'),const SizedBox(height:8),action('Подтвердить личность','verification'),const SizedBox(height:16)],
+
       if(subscription?['is_ad_supported']==true)const Notice('Подписка получена за рекламу. Деньги не списывались.'),
       ...extraPurchases(context,offers),
         for (final plan in (widget.customer ? const ['customer'] : const ['standard', 'premium']))

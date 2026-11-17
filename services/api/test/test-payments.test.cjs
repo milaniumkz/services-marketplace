@@ -17,8 +17,7 @@ test('explicit owner test mode simulates role-specific 30-day access, records ze
   const buy=offer=>call('POST','/billing/test-purchase',{offer_id:offer.id,accepted:true,amount_minor:offer.amount_minor,currency:offer.currency});
   assert.equal((await call('GET','/me/monetization-config')).test_payments_enabled,true);
   const offer=(await getOffer())[0];assert.equal(offer.plan,'customer');assert.equal(offer.amount_minor,50000);assert.equal(offer.is_test,true);
-  await assert.rejects(()=>buy(offer),e=>e.getResponse().error.code==='VERIFICATION_REQUIRED');
-  await api.store.put({...await api.store.get(buyer.user.id),verification:'passed'});
+  assert.equal((await call('GET','/me')).verification,'not_started');
   await assert.rejects(()=>call('POST','/billing/test-purchase',{offer_id:offer.id,accepted:false}),e=>e.getResponse().error.code==='CONSENT_REQUIRED');
   await assert.rejects(()=>buy({...offer,amount_minor:1}),e=>e.getResponse().error.code==='OFFER_CHANGED');
   const paid=await buy(offer);assert.equal(paid.is_test,true);assert.equal((await call('GET','/me/subscriptions/'+paid.subscription.id)).is_test,true);assert.equal(paid.subscription.auto_renew,false);assert.equal(paid.subscription.price_snapshot.plan,'customer');

@@ -430,11 +430,6 @@ class _WebRewardScreenState extends State<WebRewardScreen> {
       _privacyLinks(widget.onPrivacy),
       if (o?['reason'] != null)
         Text(o!['reason'], style: const TextStyle(color: Colors.red)),
-      if (config?['verification_status'] != 'passed' &&
-          widget.onNavigate != null)
-        TextButton(
-            onPressed: () => widget.onNavigate!('verification'),
-            child: const Text('Подтвердить личность')),
       FilledButton(
           onPressed: busy ||
                   o == null ||

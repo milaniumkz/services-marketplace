@@ -18,7 +18,7 @@ test('indefinite identity migration restores only a previously approved automati
  assert.deepEqual(await migrateIdentityValidity(s,'KZ'),{changed:0,restored:0});assert.equal((await s.all('audit','KZ')).filter(x=>x.action==='verification.validity_migrated').length,2);
  }finally{await s.close();}
 });
-test('only documents need review; content publishes immediately and becomes visible after indefinite identity approval',async()=>{
+test('only documents need review; content publishes and is visible without identity approval; optional badges remain indefinite',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'joba-independent-')),a=new Marketplace(new Store('memory://'),new Providers(),new PrivateFiles(dir));await a.initialize();try{
  await publishRoleAccess(a.store);await bootstrapStaff(a.store,a.files,{country:'KZ',identifier:'independent-owner',display_name:'Проверка',password:'Independent test password!',authentication:'password',permissions:['platform_owner'],reason:'Изолированный сценарий проверки'},async()=>{});
  const staff=await a.handle('POST','/auth/staff-login',{country:'KZ',phone:'independent-owner',password:'Independent test password!'});
@@ -26,12 +26,12 @@ test('only documents need review; content publishes immediately and becomes visi
  const call=(m,p,b={},u=user)=>a.handle(m,p,b,'Bearer '+u.access_token,randomUUID());
  const me=await call('GET','/me');await call('PATCH','/me',{expected_version:me.version,roles:['customer','executor'],active_role:'executor'});
  const profile=await call('PUT','/me/contractor-profile',{title:'Штукатурные работы',description:'Качественная штукатурка стен, опыт работы пять лет.',city:'Алматы',category_id:'1'});
- await assert.rejects(()=>call('POST','/me/contractor-profile/publish',{expected_version:profile.version}),e=>e.getResponse().error.code==='VERIFICATION_SUBMISSION_REQUIRED');
+ const queued=await call('POST','/me/contractor-profile/publish',{expected_version:profile.version});assert.equal(queued.status,'published');assert.equal((await call('GET','/me/contractor-profile')).profile.public_visible,true);
  const policy=(await call('GET','/me/verification')).policy,document=await a.store.get(policy.document_id);await call('POST','/me/consents',{document_id:document.id,document_hash:document.hash,accepted:true});
  const session=await call('POST','/me/verification-sessions',{document_type:'id_card'});const bytes=await require('sharp')({create:{width:24,height:32,channels:3,background:'green'}}).jpeg().toBuffer(),ids=[];
  for(let i=0;i<3;i++){const file=row('upload',user.user.id,{purpose:'identity',verification_id:session.id,status:'clean',mime:'image/jpeg',size:bytes.length});await a.files.write(file.id,bytes);await a.store.put(file);ids.push(file.id);}
  const sent=await call('POST','/me/verification-sessions/'+session.id+'/submit',{expected_version:session.version,upload_ids:ids});
- const queued=await call('POST','/me/contractor-profile/publish',{expected_version:profile.version});assert.equal(queued.status,'published');assert.equal((await call('GET','/me/contractor-profile')).profile.public_visible,false);
+ assert.equal((await call('GET','/me/contractor-profile')).profile.public_visible,true);
  const photo=row('upload',user.user.id,{purpose:'portfolio',status:'clean',mime:'image/jpeg',size:bytes.length});await a.store.put(photo);
  const portfolio=await call('POST','/me/portfolio-projects',{title:'Отделка квартиры',description:'Описание работ',category_id:'1',rights_confirmed:true});const edited=await call('PATCH','/me/portfolio-projects/'+portfolio.id,{expected_version:portfolio.version,upload_ids:[photo.id]});assert.equal((await call('POST','/me/portfolio-projects/'+portfolio.id+'/submit',{expected_version:edited.version})).status,'published');
  await assert.rejects(()=>call('POST','/admin/contractors/'+profile.id+'/decision',{expected_version:queued.version,decision:'approve',reason:'Материал уже опубликован автоматически'},staff),e=>e.getResponse().error.code==='STATE_CONFLICT');

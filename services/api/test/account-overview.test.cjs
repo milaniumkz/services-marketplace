@@ -41,7 +41,7 @@ test('account overview counts before pagination without exposing other accounts 
   await put('order',{status:'completed',executor_id:owner},'KG',other);
   await put('portfolio',{status:'published',moderation_status:'hidden'});
   const checkedAt=new Date().toISOString();await put('verification',{status:'passed',decided_at:checkedAt,expires_at:until});
-  assert.equal((await get('/me/contractor-profile')).profile.public_visible,false);
+  assert.equal((await get('/me/contractor-profile')).profile.public_visible,true);
   const account=await api.store.get(owner);await api.store.put({...account,verification:'passed'});
   assert.equal((await get('/me/contractor-profile')).profile.public_visible,true);
   const ownPortfolio=(await api.store.all('portfolio','KZ')).find(p=>p.owner===owner&&p.status==='published'&&p.moderation_status!=='hidden');

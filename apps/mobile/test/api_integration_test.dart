@@ -77,7 +77,7 @@ void main() {
         true);
     await expectLater(api.request('/orders/${draft['id']}/publish',
         method: 'POST', body: {'expected_version': draft['version']}),
-        throwsA(isA<ApiException>().having((error)=>error.code,'code','VERIFICATION_REQUIRED')));
+        throwsA(isA<ApiException>().having((error)=>error.code,'code','ENTITLEMENT_REQUIRED')));
     expect(items(await api.request('/me/entitlements')), isEmpty);
     expect((await api.request('/me/monetization-config'))['subscription_enabled'], true);
     final updated = await api.request('/me', method: 'PATCH', body: {

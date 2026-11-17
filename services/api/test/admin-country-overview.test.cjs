@@ -15,7 +15,7 @@ test('owner sees all four countries with scoped pagination and filters and can o
  const detail=await call('GET','/admin/users/'+by.user.id);assert.equal(detail.country,'BY');
  const blocked=await call('POST','/admin/users/'+by.user.id+'/block',{expected_version:detail.version});assert.equal((await api.store.get(by.user.id)).status,'blocked');
  assert.equal((await api.store.get(boss.user.id)).country,'KZ');assert.equal((await call('GET','/admin/orders')).items.length,4);
- assert.equal((await call('GET','/admin/dashboard')).users,3);assert.equal((await call('GET','/admin/dashboard',{}, {admin_country:'BY'})).users,0);
+ assert.equal((await call('GET','/admin/dashboard')).users,4);assert.equal((await call('GET','/admin/dashboard',{},{})).users,4);assert.equal((await call('GET','/admin/orders',{},{})).items.length,4);assert.equal((await call('GET','/admin/dashboard',{}, {admin_country:'BY'})).users,1);
  assert.ok((await call('GET','/admin/search',{}, {admin_country:'ALL',q:by.user.id})).items.some(x=>x.id===by.user.id));
  const local=users[0];await api.store.put({...await api.store.get(local.user.id),staff_permissions:['administrator']});const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:local.user.phone,password});
  await assert.rejects(()=>call('GET','/admin/users',{}, {admin_country:'ALL'},staff.access_token),e=>e.getStatus()===403);

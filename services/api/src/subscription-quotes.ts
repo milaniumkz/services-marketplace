@@ -85,7 +85,6 @@ export async function buyTestQuote(store:Store,commerce:Commerce,user:RecordData
  if(quote.offer?.calculation_version!==2||quote.status!=='available'||quote.expires_at<=now.toISOString()||quote.context!==context)fail('OFFER_CHANGED','Цена или подписка изменилась. Обновите условия оплаты');
  if(b.amount_minor!==offer.amount_minor||b.currency!==offer.currency)fail('OFFER_CHANGED','Итоговая цена изменилась. Обновите условия оплаты');
  if(subscriptionRole(user)!==offer.role||!(user.roles??['customer']).includes(offer.role))fail('ROLE_REQUIRED','Выберите тариф текущей роли',403);
- if(user.verification!=='passed')fail('VERIFICATION_REQUIRED','Сначала подтвердите личность',403);
  if(offer.plan==='premium'&&offer.offer_kind!=='upgrade'&&state.standard&&!state.premium)fail('OFFER_CHANGED','Для перехода со Стандарта выберите немедленное повышение до Премиума с доплатой');
  if(offer.plan==='top100'&&(!state.standard||state.premium))fail('ENTITLEMENT_REQUIRED','Для отдельного Топ-100 нужен активный Стандарт',403);
  if(offer.offer_kind==='upgrade'&&(!state.standard||state.premium))fail('OFFER_CHANGED','Текущий тариф изменился');
@@ -116,7 +115,7 @@ export async function fulfillQuotedSubscription(store:Store,user:RecordData,quot
 }
 
 export async function validateHostedQuote(store:Store,commerce:Commerce,user:RecordData,b:any,now=new Date()) {
- if(user.status!=='active'||user.verification!=='passed')fail('VERIFICATION_REQUIRED','Сначала подтвердите личность',403);
+ if(user.status!=='active')fail('FORBIDDEN','Аккаунт ограничен',403);
  if(b.accepted!==true)fail('CONSENT_REQUIRED','Подтвердите условия оплаты',403);
  await store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-periods:'+user.country+':'+user.id]);
  const quote=await store.get(String(b.offer_id));

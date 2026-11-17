@@ -312,7 +312,7 @@ void main() {
           choice == 'logout'
               ? 'login'
               : choice == 'executor'
-                  ? 'verification'
+                  ? 'services'
                   : 'home');
       expect(state.profilePending, 0);
       expect(calls.any((r) => r.url.path.contains('/billing/')), false);

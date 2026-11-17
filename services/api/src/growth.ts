@@ -142,7 +142,7 @@ export class Growth {
     if(!target||target.country!==country||!['order','contractor'].includes(target.kind)||target.status!==(target.kind==='order'?'open':'published')||['quarantined','hidden','rejected'].includes(target.moderation_status))fail('TARGET_INELIGIBLE','Карточка недоступна',422);
     const user=await this.store.get(target.owner),now=new Date().toISOString();
     const access=(await this.store.db.query<{allowed:boolean}>("SELECT EXISTS(SELECT 1 FROM records WHERE kind='grant' AND country=$1 AND owner=$2 AND data->>'valid_until'>$3 AND COALESCE(data->'capabilities','[]'::jsonb) ? 'search_full' AND (data->>'balance' IS NULL OR (data->>'balance')::numeric>0)) AS allowed",[country,target.owner,now])).rows[0].allowed;
-    if(user?.kind!=='user'||user.country!==country||user.status!=='active'||target.kind==='contractor'&&user.verification!=='passed'||target.kind==='contractor'&&!access)fail('TARGET_INELIGIBLE','Не выполнены условия допуска',422);
+    if(user?.kind!=='user'||user.country!==country||user.status!=='active'||target.kind==='contractor'&&!access)fail('TARGET_INELIGIBLE','Не выполнены условия допуска',422);
     const policy=(await this.store.all('placement_policy',country)).find(x=>x.status==='effective'&&x.payload.placement_id===b.placement_id);
     if(!policy)fail('PLACEMENT_UNAVAILABLE','Место не опубликовано',422);
     if(!promotedPlacements.includes(b.placement_id)||(b.placement_id.includes('.orders.')?'order':'contractor')!==target.kind)fail('PLACEMENT_UNAVAILABLE','Площадка не подходит для карточки',422);
@@ -160,7 +160,7 @@ export class Growth {
     }
     if(occupied>=policy.payload.capacity)fail('PLACEMENT_FULL','Нет свободной ёмкости');
     if(b.expected_target_version!==undefined&&b.expected_target_version!==target.version||b.expected_policy_version!==undefined&&b.expected_policy_version!==policy.version)fail('STATE_CONFLICT','Карточка или политика изменились. Повторите предпросмотр');
-    return {target,policy,preview:{target_id:target.id,target_type:target.kind,title:target.title,country,city:target.city??'',category_id:target.category_id??'',owner_id:target.owner,placement_id:b.placement_id,expected_target_version:target.version,expected_policy_version:policy.version,starts_at:now,ends_at:new Date(end).toISOString(),available_slots:policy.payload.capacity-occupied,amount_minor:0,provenance:'admin_grant',checks:{owner_active:true,verification:target.kind==='contractor'?'passed':'not_required',access_active:true,target_public:true,within_target_expiry:true,no_overlap:true},organic_rank_changed:false}};
+    return {target,policy,preview:{target_id:target.id,target_type:target.kind,title:target.title,country,city:target.city??'',category_id:target.category_id??'',owner_id:target.owner,placement_id:b.placement_id,expected_target_version:target.version,expected_policy_version:policy.version,starts_at:now,ends_at:new Date(end).toISOString(),available_slots:policy.payload.capacity-occupied,amount_minor:0,provenance:'admin_grant',checks:{owner_active:true,verification:'optional',access_active:true,target_public:true,within_target_expiry:true,no_overlap:true},organic_rank_changed:false}};
   }
   async adminBoost(actor:string,country:string,b:any) {
     if(!Number.isInteger(b.expected_target_version)||!Number.isInteger(b.expected_policy_version))fail('VALIDATION_ERROR','Сначала выполните предпросмотр выдачи',400);

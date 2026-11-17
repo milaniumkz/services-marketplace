@@ -13,7 +13,7 @@ export async function promotedListings(store:Store,country:string,actor:string,p
  WHERE b.kind='boost' AND b.country=$1 AND b.data->>'placement_id'=$2
  AND b.data->>'status' IN ('active','scheduled') AND b.data->>'starts_at'<=$3 AND b.data->>'ends_at'>$3
  AND (b.data->>'provenance'='admin_grant' OR b.data->>'provenance'='paid' AND b.data->>'confirmed_at' IS NOT NULL)
- AND (t.kind='contractor' AND t.data->>'status'='published' AND u.data->>'verification'='passed' OR t.kind='order' AND t.data->>'status'='open' AND t.data->>'expires_at'>$3)
+ AND (t.kind='contractor' AND t.data->>'status'='published' OR t.kind='order' AND t.data->>'status'='open' AND t.data->>'expires_at'>$3)
  AND COALESCE(t.data->>'moderation_status','') NOT IN ('hidden','quarantined','rejected')
  AND ($5::text='' OR t.data->>'city'=$5) AND ($6::text='' OR t.data->>'category_id'=$6 OR t.data->'category_ids' ? $6)
  AND NOT EXISTS(SELECT 1 FROM records p WHERE p.kind='pair_block' AND p.country=b.country AND p.data->>'status'='active' AND (p.owner=$7 AND p.data->>'target_id'=t.owner OR p.owner=t.owner AND p.data->>'target_id'=$7))

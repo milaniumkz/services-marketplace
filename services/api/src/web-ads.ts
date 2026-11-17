@@ -56,7 +56,6 @@ async function eligibility(store:Store,user:RecordData,target:string){
  const role=subscriptionRole(user);
  if(user.status!=='active')return 'Аккаунт ограничен.';
  if(!targets.includes(target)||(target==='customer')!==(role==='customer'))return 'Выберите услугу своей текущей роли.';
- if(user.verification!=='passed')return 'Сначала подтвердите личность: документ с двух сторон и селфи.';
  const control=(await store.all('country_control',user.country)).find(r=>r.status==='effective');if(control?.payload.stop_new_business)return 'Новые покупки в этой стране временно приостановлены.';
  if(target==='top100'){
   const grants=await store.select('grant',user.country,{owner:user.id,limit:1000}),live=grants.filter(g=>g.valid_until>new Date().toISOString());

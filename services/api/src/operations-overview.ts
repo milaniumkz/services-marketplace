@@ -5,8 +5,8 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
   const from=new Date(today-(days-1)*86400000).toISOString();
   const counts=(await store.db.query<any>(`
     SELECT
-      count(*) FILTER (WHERE kind='user' AND data->>'status'='active' AND COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0) AS users,
-      count(*) FILTER (WHERE kind='order') AS orders,
+      count(*) FILTER (WHERE kind='user' AND COALESCE(data->>'status','')<>'deleted' AND COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0) AS users,
+      count(*) FILTER (WHERE kind='order' AND COALESCE(data->>'status','')<>'deleted') AS orders,
       count(*) FILTER (WHERE kind='order' AND data->>'published_at'>=$2 AND data->>'published_at'<=$3) AS published,
       count(*) FILTER (WHERE kind='order' AND data->>'completed_at'>=$2 AND data->>'completed_at'<=$3 AND data->>'status'='completed') AS completed,
       count(*) FILTER (WHERE kind='subscription' AND data->>'status' IN ('active','grace','canceled_at_period_end') AND data->>'valid_until'>$3) AS subscriptions,
@@ -42,7 +42,7 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
     active_users:Number(active.total),published_orders:Number(counts.published),completed_orders:Number(counts.completed),active_subscriptions:Number(counts.subscriptions),
     attention:{support:Number(counts.support),unassigned_support:Number(counts.unassigned_support),verifications:Number(counts.verifications),cases:Number(counts.cases),outbox:Number(counts.outbox)},
     series,checkout_enabled:false,
-    definitions:{active_users:'Активные аккаунты с созданием заказа, отклика, сообщения, отзыва, проекта или изменением статуса рабочего заказа за период.',
+    definitions:{users:'Все неудалённые пользовательские аккаунты в выбранных странах, включая заблокированные; сотрудники не учитываются.',active_users:'Активные аккаунты с созданием заказа, отклика, сообщения, отзыва, проекта или изменением статуса рабочего заказа за период.',
       published_orders:'Заказы, опубликованные за период в текущей стране.',completed_orders:'Заказы, подтверждённые завершёнными за период.',
       active_subscriptions:'Подтверждённые подписки с действующим сроком и статусом доступа. Валюты разных стран не суммируются.'}};
 }

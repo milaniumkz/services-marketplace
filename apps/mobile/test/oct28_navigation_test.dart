@@ -103,7 +103,7 @@ void main() {
         t.widget<JobaNavigation>(find.byType(JobaNavigation)).messageCount, 0);
   });
   testWidgets(
-      'new executor is routed to identity before categories and can fill services while documents wait',
+      'new executor fills services without document onboarding; voluntary review never blocks categories',
       (t) async {
     var profile = <String, dynamic>{
       'id': 'new-worker',
@@ -159,8 +159,8 @@ void main() {
     await state.switchRole('executor');
     state.go('services');
     await t.pumpAndSettle();
-    expect(find.byType(VerificationEditor), findsOneWidget);
-    expect(find.text('Категории услуг'), findsNothing);
+    expect(find.byType(VerificationEditor), findsNothing);
+    expect(find.text('Категории услуг'), findsOneWidget);
     profile = {...profile, 'verification': 'pending_review'};
     state.me = profile;
     state.go('services');

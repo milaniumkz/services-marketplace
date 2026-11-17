@@ -12,8 +12,6 @@ class HomeMarketplaceGate extends StatelessWidget {
  final VoidCallback onAccess,onVerification;
  const HomeMarketplaceGate({required this.api,required this.executor,required this.content,required this.onAccess,required this.onVerification,super.key});
  Future<Json> load()async{
-  final user=await api.request('/me');
-  if(user['verification']!='passed')return {'verification_required':true};
   if(freeMobileRelease)return {'access_required':false};
   final grants=items(await api.request('/me/entitlements')),now=api.clock.now.toUtc();
   final allowed=grants.any((g){

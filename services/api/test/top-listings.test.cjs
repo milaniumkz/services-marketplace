@@ -34,7 +34,7 @@ test('Top ranks eligible records before limiting, applies configured votes and s
   const profile={...base,id:randomUUID(),kind:'contractor',status:'published',display_name:undefined};await api.store.put(profile,{skipContentCheck:true});
   assert.equal((await call(reader,'/top-listings')).items[0].id,profile.id);
   await api.store.put({...await api.store.get(owner),verification:'expired'});
-  assert.deepEqual((await call(reader,'/top-listings')).items,[]);
+  assert.equal((await call(reader,'/top-listings')).items[0].id,profile.id);
   await api.store.put({...await api.store.get(owner),verification:'passed'});
   const config={id:randomUUID(),kind:'ranking_config',owner:reader.user.id,country:'KZ',version:3,created_at:now,status:'effective',payload:{window_days:7,dislike_weight:2,age_days:14}};await api.store.put(config);
   const configured=await call(reader,'/top-listings',{target_type:'orders',sort:'new'});assert.equal(configured.meta.algorithm_id,config.id);assert.equal(configured.meta.algorithm_version,3);assert.equal(configured.meta.parameters.dislikeWeight,2);assert.ok(!configured.items.some(row=>row.id===winner.id),'new sorting uses publication time and ID rather than vote score');

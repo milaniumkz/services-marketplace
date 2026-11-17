@@ -5,7 +5,7 @@ export function validateRetentionCategories(payload:any){
  for(const [key,rule] of Object.entries(retentionFields))if(payload[key]!==undefined&&(!Number.isSafeInteger(payload[key])||payload[key]<1||payload[key]>rule.max))throw new HttpException({error:{code:'VALIDATION_ERROR',message:'Проверьте срок: '+rule.label,details:{field:key},retryable:false}},422);
 }
 const groups=[
- {id:'profile',label:'Аккаунт и публичные материалы',kinds:['user','contractor','portfolio','content_revision'],action:'anonymize_now',anchor:'deletion_execution'},
+ {id:'profile',label:'Аккаунт и публичные материалы',kinds:['user','contractor','portfolio','content_revision','contractor_edit_snapshot'],action:'anonymize_now',anchor:'deletion_execution'},
  {id:'sessions',label:'Сессии, устройства и ссылки загрузки',kinds:['push_token','download_ticket','face_template','face_login_counter','face_recovery_challenge'],action:'revoke_now',anchor:'deletion_execution'},
  {id:'documents',label:'Проверка личности',kinds:['verification'],action:'minimize_after_document_purge',policy:'audit_days',anchor:'verification_final_decision'},
  {id:'work',label:'Заказы, отклики и переписки',kinds:['order','offer','invite','assignment','conversation','message','message_revision','review','review_revision'],action:'minimize_after_closure',policy:'chat_days',anchor:'linked_order_closure'},

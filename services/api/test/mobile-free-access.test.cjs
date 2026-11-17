@@ -11,15 +11,15 @@ test('free mobile pricing preserves identity, account restrictions, web pricing 
  try {
   const session=await api.handle('POST','/auth/register',{country:'KZ',phone:'+77000000990',password:'Isolated mobile channel test!'});
   const call=(path,channel='web')=>api.handle('GET',path,{},'Bearer '+session.access_token,undefined,{},'local',channel);
-  await assert.rejects(()=>call('/contractors','mobile-free-v1'),e=>e.getResponse().error.code==='VERIFICATION_REQUIRED');
-  const user=await api.store.get(session.user.id);await api.store.put({...user,verification:'passed'});
-  const results=await Promise.allSettled([call('/contractors','mobile-free-v1'),call('/contractors')]);
+  assert.deepEqual((await call('/contractors','mobile-free-v1')).items,[]);
+  const user=await api.store.get(session.user.id);await api.store.put({...user,roles:['customer','executor'],active_role:'executor'});
+  const results=await Promise.allSettled([call('/orders','mobile-free-v1'),call('/orders')]);
   assert.equal(results[0].status,'fulfilled');assert.equal(results[1].status,'rejected');
   assert.equal(results[1].reason.getResponse().error.code,'ENTITLEMENT_REQUIRED');
   assert.equal((await api.store.all('grant','KZ')).filter(g=>g.owner===user.id).length,0);
   await assert.rejects(()=>call('/admin/users','mobile-free-v1'),e=>e.getStatus()===403);
   process.env.JOBA_MOBILE_FREE_ACCESS='0';
-  await assert.rejects(()=>call('/contractors','mobile-free-v1'),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
+  await assert.rejects(()=>call('/orders','mobile-free-v1'),e=>e.getResponse().error.code==='ENTITLEMENT_REQUIRED');
   process.env.JOBA_MOBILE_FREE_ACCESS='1';
   await api.store.put({...await api.store.get(user.id),status:'restricted'});
   await assert.rejects(()=>call('/contractors','mobile-free-v1'),e=>e.getStatus()===403);

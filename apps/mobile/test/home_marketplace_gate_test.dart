@@ -11,8 +11,8 @@ void main(){
   final grant={'role':mode=='executor'?'executor':'customer','plan':mode=='executor'?'standard':'customer','capabilities':mode=='executor'?['search_full']:['view_contractors'],'valid_until':DateTime.now().toUtc().add(Duration(days:mode=='expired'?-1:1)).toIso8601String()};
   final api=JobaApi('https://isolated.example',transport:MockClient((r)async{final path=r.url.path.replaceFirst('/api/v1','');calls.add(path);return http.Response(jsonEncode({'data':path=='/me'?{'verification':mode=='unverified'?'not_started':'passed'}:{'items':mode=='unsubscribed'?[]:[grant]}}),200,headers:{'content-type':'application/json; charset=utf-8'});}))..session={'access_token':'isolated','user':{'id':'user'}};
   await t.pumpWidget(MaterialApp(home:Scaffold(body:HomeMarketplaceGate(api:api,executor:mode=='executor'||mode=='wrong-role',onAccess:(){},onVerification:(){},content:(){mountedPrivate=true;return const Text('Закрытый список');}))));await t.pumpAndSettle();
-  expect(mountedPrivate,mode=='customer'||mode=='executor');expect(calls,mode=='unverified'?['/me']:['/me','/me/entitlements']);
-  if(mode=='unverified')expect(find.text('Подтвердить личность'),findsOneWidget);
+  expect(mountedPrivate,mode=='unverified'||mode=='customer'||mode=='executor');expect(calls,['/me/entitlements']);
+  expect(find.text('Подтвердить личность'),findsNothing);
   if(['unsubscribed','wrong-role','expired'].contains(mode))expect(find.text('Мой доступ'),findsOneWidget);
   await t.pumpWidget(const SizedBox());api.dispose();
  });

@@ -17,7 +17,7 @@ test('marketplace lifecycle, access boundaries, command retry and refresh replay
     const stranger = await register('+77000000003');
     const otherRegion = await register('+375291234567','BY');
     const unpaidDraft=await call(customer,'POST','/orders',{title:'Неоплаченный черновик',description:'Описание достаточно длинное для создания черновика заказа.',category_id:'1',city:'Алматы',budget_amount:null});
-    await rejects(()=>call(customer,'POST',`/orders/${unpaidDraft.id}/publish`,{expected_version:unpaidDraft.version}),'VERIFICATION_REQUIRED');
+    await rejects(()=>call(customer,'POST',`/orders/${unpaidDraft.id}/publish`,{expected_version:unpaidDraft.version}),'ENTITLEMENT_REQUIRED');
     // Synthetic fixture grants only: never expose a client-side self-grant endpoint.
     for (const user of [customer,executor,stranger,otherRegion]) {
       await paidCustomer(api,user);

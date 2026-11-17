@@ -27,7 +27,7 @@ export class VtbPayments {
    boost=await this.store.get(source);
    if(!boost||boost.kind!=='boost'||boost.owner!==user.id||boost.country!==user.country||boost.status!=='reserved'||boost.reservation_expires_at<=new Date().toISOString()||boost.price_snapshot?.provider!==this.gateway.name)fail('RESERVATION_EXPIRED','Резерв продвижения истёк. Выберите размещение заново');
    offer=boost.price_snapshot;
-   if(user.verification!=='passed'||offer.amount_minor!==b.amount_minor||offer.currency!==b.currency)fail('OFFER_CHANGED','Проверьте итоговую цену и подтверждение личности');
+   if(offer.amount_minor!==b.amount_minor||offer.currency!==b.currency)fail('OFFER_CHANGED','Проверьте итоговую цену');
   }else{const checked=await validateHostedQuote(this.store,this.commerce,user,b);offer=checked.offer;quote=checked.quote;state=checked.state;}
   if(offer.provider!==this.gateway.name)fail('OFFER_CHANGED','Выбран другой банк. Обновите предложение оплаты.');
   if(!(this.gateway.currencies??['KZT']).includes(offer.currency)||!Number.isSafeInteger(offer.amount_minor)||offer.amount_minor<0||offer.amount_minor>999999999999)fail('PRICE_MISMATCH','Банк пока не поддерживает валюту выбранного предложения');
@@ -91,7 +91,7 @@ export class VtbPayments {
    const user=await this.store.get(payment.owner),now=new Date();
    const proof={provider:this.gateway.name,environment:payment.environment as 'sandbox'|'production',transaction_id:payment.bank_order_id??'free-'+payment.id,payment_id:payment.id,created_at:payment.created_at};
    let subscription:RecordData|undefined,boost:RecordData|undefined,resolution:string|undefined;
-   if(!user||user.status!=='active'||user.verification!=='passed')resolution='ACCOUNT_REQUIRES_REVIEW';
+   if(!user||user.status!=='active')resolution='ACCOUNT_REQUIRES_REVIEW';
    if(!resolution&&payment.benefit==='subscription'){
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-periods:'+payment.country+':'+payment.owner]);
     const roleUser:RecordData={...user!,active_role:payment.offer.role};
