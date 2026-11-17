@@ -7,6 +7,11 @@ import 'package:services_marketplace/core/api.dart';
 import 'package:services_marketplace/core/verified_badge.dart';
 import 'package:services_marketplace/screens/online_counter.dart';
 void main(){
+ for(final verified in [false,true]){testWidgets('name keeps verification adjacent, verified=$verified',(t)async{
+ await t.pumpWidget(MaterialApp(home:Scaffold(body:SizedBox(width:180,child:VerifiedName('Очень длинное имя исполнителя',verified:verified)))));
+ expect(find.byIcon(Icons.verified),verified?findsOneWidget:findsNothing);expect(t.takeException(),isNull);
+ });}
+
  testWidgets('online uses server count, refreshes and clears stale number on failure',(t)async{
   var count=7,failed=false;final api=JobaApi('https://isolated.example',transport:MockClient((r)async=>failed?http.Response('unavailable',503):http.Response(jsonEncode({'data':{'count':count}}),200,headers:{'content-type':'application/json'})));
   await t.pumpWidget(MaterialApp(home:Scaffold(body:OnlineCounter(api:api))));await t.pumpAndSettle();expect(find.text('Сейчас онлайн: 7'),findsOneWidget);count=3;await t.pump(const Duration(seconds:15));await t.pumpAndSettle();expect(find.text('Сейчас онлайн: 3'),findsOneWidget);failed=true;await t.pump(const Duration(seconds:15));await t.pumpAndSettle();expect(find.text('Онлайн: уточняем…'),findsOneWidget);expect(find.text('Сейчас онлайн: 3'),findsNothing);await t.pumpWidget(const SizedBox());api.dispose();

@@ -134,7 +134,8 @@ class ContractorProfile extends StatelessWidget {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(profile['display_name'] ?? '',
+                        VerifiedName(profile['display_name'] ?? '',
+                            verified: verified,
                             style: const TextStyle(
                                 fontSize: 24,
                                 height: 1.3,

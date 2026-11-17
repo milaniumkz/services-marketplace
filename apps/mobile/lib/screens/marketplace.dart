@@ -2715,7 +2715,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Row(children:[Expanded(child:Text(data['display_name'] ?? '',style:const TextStyle(fontSize:20,height:1.35,letterSpacing:-.4,fontWeight:FontWeight.w700))),if(data['verification']=='passed')const VerifiedBadge()]),
+                            VerifiedName(data['display_name'] ?? '',verified:data['verification']=='passed',style:const TextStyle(fontSize:20,height:1.35,letterSpacing:-.4,fontWeight:FontWeight.w700)),
                             const SizedBox(height: 4),
                             Text(
                                 '${data['city'] ?? ''}${(data['city'] ?? '').isEmpty ? '' : ' · '}${countryName(country)}',

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:services_marketplace/core/api.dart';
 import 'package:services_marketplace/core/theme.dart';
+import 'package:services_marketplace/core/verified_badge.dart';
 import 'package:services_marketplace/screens/contractor_profile.dart';
 
 void main() {
@@ -68,6 +69,10 @@ void main() {
                   onBlock: () => events.add('block'),
                   onOverview: () => events.add('overview')))));
       await t.pumpAndSettle();
+      final name=t.widget<VerifiedName>(find.byType(VerifiedName));
+      expect(name.name,'Мастер');
+      expect(name.verified,isTrue);
+      expect(find.descendant(of:find.byType(VerifiedName),matching:find.byIcon(Icons.verified)),findsOneWidget);
       await t.tap(find.byTooltip('Пожаловаться'));
       expect(events, ['report']);
       await t.tap(find.text('Обзор'));
