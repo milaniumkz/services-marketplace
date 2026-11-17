@@ -1,3 +1,4 @@
+import 'presence_status.dart';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/design_icons.dart';
@@ -159,6 +160,7 @@ class _TopListingsState extends State<TopListings> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w700)),
+                      if(type=='services'&&row['owner']!=null)Padding(padding:const EdgeInsets.symmetric(vertical:4),child:PresenceStatus(api:widget.api,userId:row['owner'])),
                       Text(
                           type == 'services'
                               ? '${row['title'] ?? ''}'

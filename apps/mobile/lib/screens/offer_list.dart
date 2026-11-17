@@ -1,3 +1,4 @@
+import 'presence_status.dart';
 import '../core/verified_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -101,6 +102,7 @@ class _OfferListState extends State<OfferList> {
                           localize(context, 'Исполнитель'),
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w700)),
+                  if(offer['executor']?['id']!=null)Padding(padding:const EdgeInsets.symmetric(vertical:4),child:PresenceStatus(api:widget.api,userId:offer['executor']['id'])),
                   if ((offer['executor']?['rating']?['count'] as num? ?? 0) > 0)
                     Row(children: [
                       const JobaIcon('star',

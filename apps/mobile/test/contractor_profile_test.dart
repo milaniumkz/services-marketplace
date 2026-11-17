@@ -15,6 +15,7 @@ void main() {
       final events = <String>[];
       final api =
           JobaApi('https://isolated.example', transport: MockClient((r) async {
+        if(r.url.path=='/api/v1/users/executor/presence')return http.Response(jsonEncode({'data':{'online':true}}),200,headers:{'content-type':'application/json'});
         if (r.url.path.endsWith('/download'))
           return http.Response.bytes(
               base64Decode(
@@ -72,6 +73,7 @@ void main() {
       final name=t.widget<VerifiedName>(find.byType(VerifiedName));
       expect(name.name,'Мастер');
       expect(name.verified,isTrue);
+      expect(find.text('Онлайн'),findsOneWidget);
       expect(find.descendant(of:find.byType(VerifiedName),matching:find.byIcon(Icons.verified)),findsOneWidget);
       await t.tap(find.byTooltip('Пожаловаться'));
       expect(events, ['report']);

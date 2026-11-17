@@ -1,3 +1,4 @@
+import 'presence_status.dart';
 import '../core/verified_badge.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
@@ -140,6 +141,7 @@ class ContractorProfile extends StatelessWidget {
                                 fontSize: 24,
                                 height: 1.3,
                                 fontWeight: FontWeight.w700)),
+                        if(profile['owner']!=null)Padding(padding:const EdgeInsets.only(top:6,bottom:4),child:PresenceStatus(api:api,userId:profile['owner'])),
                         const SizedBox(height: 4),
                         Text('${profile['title']} · ${profile['city'] ?? ''}',
                             style: const TextStyle(fontSize: 12, color: muted)),

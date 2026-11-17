@@ -2236,6 +2236,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   const JobaIcon('shield',
                                       size: 18, color: primary)
                                 ]),
+                                if(record['owner']!=null)Padding(padding:const EdgeInsets.only(top:4),child:PresenceStatus(api:api,userId:record['owner'])),
                                 if (record['display_name'] != null)
                                   Padding(
                                       padding: const EdgeInsets.only(top: 4),
@@ -3225,10 +3226,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     name: offer['executor']?['display_name'] ?? '',
                     id: offer['executor']?['avatar_id']),
                 const SizedBox(width: 10),
-                Expanded(
-                    child: Text(offer['executor']?['display_name'] ?? '',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700)))
+                Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text(offer['executor']?['display_name'] ?? '',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w700)),
+                  if(offer['executor']?['id']!=null)Padding(padding:const EdgeInsets.only(top:4),child:PresenceStatus(api:api,userId:offer['executor']['id'])),
+                ]))
               ]),
               const Divider(height: 28, thickness: 1, color: line),
               Text(order['title'],

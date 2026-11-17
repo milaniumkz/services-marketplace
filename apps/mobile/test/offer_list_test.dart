@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:services_marketplace/core/api.dart';
@@ -8,7 +11,7 @@ void main() {
       'offer sorting changes actual cards and selection uses the exact offer id',
       (t) async {
     String? route, id;
-    final api = JobaApi('https://isolated.example');
+    final api = JobaApi('https://isolated.example',transport:MockClient((r)async=>http.Response(jsonEncode({'data':{'online':r.url.path.contains('first')}}),200,headers:{'content-type':'application/json'})))..session={'access_token':'isolated'};
     final offers = <Json>[
       {
         'id': 'expensive',
@@ -18,6 +21,7 @@ void main() {
         'text': 'Дороже',
         'conversation_id': 'chat-expensive',
         'executor': {
+          'id':'first',
           'display_name': 'Первый мастер',
           'available': true,
           'rating': {'average': 4.9, 'count': 10}
@@ -31,6 +35,7 @@ void main() {
         'text': 'Дешевле',
         'conversation_id': 'chat-cheap',
         'executor': {
+          'id':'second',
           'display_name': 'Второй мастер',
           'available': true,
           'rating': {'average': 4.5, 'count': 12}
@@ -53,6 +58,8 @@ void main() {
                   id = i;
                 }))));
     await t.pumpAndSettle();
+    expect(find.text('Онлайн'),findsOneWidget);
+    expect(find.text('Не в сети'),findsOneWidget);
     await t.tap(find.text('По цене'));
     await t.pumpAndSettle();
     expect(t.getTopLeft(find.text('Второй мастер')).dy,
