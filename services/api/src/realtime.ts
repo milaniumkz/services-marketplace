@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import { Marketplace } from './marketplace';
 import { Server } from 'node:http';
@@ -15,8 +16,9 @@ export function startRealtime(server:Server,marketplace:Marketplace) {
     try {
       const user=await marketplace.handle('GET','/me',{},token);
       wss.handleUpgrade(req,socket,head,ws=>{
+        const presenceId=randomUUID();marketplace.online.connect(presenceId,user);
         let cursor=0,running=false,alive=true,dirty=false;
-        ws.on('pong',()=>alive=true);
+        ws.on('pong',()=>{alive=true;marketplace.online.heartbeat(presenceId);});
         ws.on('message',async raw=>{
           try{const q=JSON.parse(raw.toString());if(q.type==='resume'&&Number.isSafeInteger(q.after_sequence)&&q.after_sequence>=0)cursor=q.after_sequence;}catch{ws.close(1008,'Invalid event cursor');}
         });
@@ -30,7 +32,7 @@ export function startRealtime(server:Server,marketplace:Marketplace) {
         marketplace.events.on(user.id,pump);void pump();
         const timer=setInterval(pump,1000);timers.add(timer);
         const heartbeat=setInterval(()=>{if(!alive){ws.terminate();return;}alive=false;ws.ping();},30000);timers.add(heartbeat);
-        ws.on('close',()=>{marketplace.events.off(user.id,pump);clearInterval(timer);clearInterval(heartbeat);timers.delete(timer);timers.delete(heartbeat);});
+        ws.on('close',()=>{marketplace.online.disconnect(presenceId);marketplace.events.off(user.id,pump);clearInterval(timer);clearInterval(heartbeat);timers.delete(timer);timers.delete(heartbeat);});
       });
     }catch{socket.destroy();}
   });

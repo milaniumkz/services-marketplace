@@ -20,7 +20,7 @@ export async function contractorPresentation(store:Store, country:string, profil
     const rating=ratings.find(rating=>rating.target_id===profile.owner);
     return {...publicContent(profile),display_name:account?.display_name??'',owner_avatar_id:account?.avatar_id??null,
       rating:{count:Number(rating?.count??0),average:rating?Number(rating.average):null},
-      completed_orders:Number(completed.find(r=>r.actor_id===profile.owner)?.count??0),portfolio_count:Number(portfolios.find(r=>r.actor_id===profile.owner)?.count??0),
+      completed_orders:Number(completed.find(r=>r.actor_id===profile.owner)?.count??0),portfolio_count:Number(portfolios.find(r=>r.actor_id===profile.owner)?.count??0)+(profile.gallery_ids?.length?1:0),
       verification:{status:account?.verification??'not_started',checked_at:verifications.find(r=>r.actor_id===profile.owner)?.checked_at??null}};
   });
 }

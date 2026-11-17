@@ -7,6 +7,8 @@ import '../core/release_channel.dart';
 import '../core/external_activity.dart';
 import '../core/order_draft_store.dart';
 import 'home_marketplace_gate.dart';
+import 'online_counter.dart';
+import '../core/verified_badge.dart';
 import '../advertising/web_ads.dart';
 import 'nearby_contractors.dart';
 import '../core/field_validation.dart';
@@ -563,7 +565,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         connectEvents();
       }
     }
-    if (state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       saveDraftQuietly();
       eventsSuspended=true;
       pausedAt = DateTime.now();
@@ -1862,7 +1864,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       titleOffset: -12,
     );
   }
-  bool legalHashMatches(Json document,Json consent) => consent['document_hash']==document['hash'] || document['operator_contacts_only']==true && (document['operator_contact_previous_hashes'] as List? ?? []).contains(consent['document_hash']);
+  String policyFamily(dynamic type)=>['privacy','privacy_policy'].contains(type)?'privacy':['terms','terms_of_use'].contains(type)?'terms':'$type';
+  bool policyConsentMatches(Json document,Json consent)=>consent['document_id']==document['id'] || document['reacceptance_required']==false && policyFamily(consent['document_type'])==policyFamily(document['type']);
+  bool legalHashMatches(Json document,Json consent) => document['reacceptance_required']==false && ['privacy','terms'].contains(policyFamily(document['type'])) || consent['document_hash']==document['hash'] || document['operator_contacts_only']==true && (document['operator_contact_previous_hashes'] as List? ?? []).contains(consent['document_hash']);
 
   bool needsProfile(Json profile) => profile['display_name'] is String &&
       (profile['display_name'] as String).trim().length < 2;
@@ -1879,7 +1883,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       final documents=items(values[0]).where((d)=>['terms','terms_of_use','privacy','privacy_policy'].contains(d['type'])).toList();
       final consents=items(values[1]);
       if(documents.any((d)=>['terms','terms_of_use'].contains(d['type'])) && documents.any((d)=>['privacy','privacy_policy'].contains(d['type'])) && documents.every((d){
-        final records=consents.where((c)=>c['document_id']==d['id']).toList()
+        final records=consents.where((c)=>policyConsentMatches(d,c)).toList()
           ..sort((a,b)=>(b['sequence'] as num).compareTo(a['sequence'] as num));
         return records.isNotEmpty && records.first['accepted']==true && legalHashMatches(d,records.first) && (d['minimum_age']!=18 || records.first['age_confirmed']==true);
       })) target=needsProfile(me??{})?'onboarding':'home';
@@ -2595,6 +2599,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   'новых приглашений',
                                   () => go('invitations')))
                         ])),
+              OnlineCounter(key:ValueKey('online:${api.base}'),api:api),
               if (executor) ...[
                 JobaSection('Подходящие заказы', () => go('jobs'), action:'Фильтры'),
                 HomeMarketplaceGate(key:ValueKey('home-market-access:${api.session?['user']?['id']}:$revision:$executor'),api:api,executor:executor,onAccess:()=>go('my-access'),onVerification:()=>go('verification'),content:homeListings),
@@ -2710,12 +2715,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Text(data['display_name'] ?? '',
-                                style: const TextStyle(
-                                    fontSize: 20,
-                                    height: 1.35,
-                                    letterSpacing: -.4,
-                                    fontWeight: FontWeight.w700)),
+                            Row(children:[Expanded(child:Text(data['display_name'] ?? '',style:const TextStyle(fontSize:20,height:1.35,letterSpacing:-.4,fontWeight:FontWeight.w700))),if(data['verification']=='passed')const VerifiedBadge()]),
                             const SizedBox(height: 4),
                             Text(
                                 '${data['city'] ?? ''}${(data['city'] ?? '').isEmpty ? '' : ' · '}${countryName(country)}',
@@ -3723,7 +3723,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         actions: [
           IconButton(
               tooltip: localize(context, 'Пожаловаться'),
-              onPressed: () => reportObject(ids[1], 'portfolio'),
+              onPressed: () => act(()async{final project=await api.request('/contractors/${ids[0]}/portfolio/${ids[1]}');reportObject(ids[1],project['source_kind']=='contractor'?'contractor':'portfolio');}),
               icon: const JobaIcon('shield'))
         ]);
   }
@@ -5596,7 +5596,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             final documents = items(result[0]), consents = items(result[1]);
             bool accepted(Json document) {
               final relevant = consents
-                  .where((consent) => consent['document_id'] == document['id'])
+                  .where((consent) => policyConsentMatches(document,consent))
                   .toList()
                 ..sort((a, b) =>
                     (b['sequence'] as num).compareTo(a['sequence'] as num));
@@ -5608,7 +5608,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
             final needsAge = documents.any((d) {
               if (d['minimum_age'] != 18) return false;
               final relevant = consents
-                  .where((c) => c['document_id'] == d['id'])
+                  .where((c) => policyConsentMatches(d,c))
                   .toList()
                 ..sort((a, b) =>
                     (b['sequence'] as num).compareTo(a['sequence'] as num));

@@ -1,3 +1,4 @@
+import '../core/verified_badge.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
@@ -150,21 +151,19 @@ class ContractorProfile extends StatelessWidget {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 7, vertical: 3),
                                     decoration: BoxDecoration(
-                                        color: const Color(0xFFE8F5EF),
+                                        color: const Color(0xFFE8F3FF),
                                         borderRadius: BorderRadius.circular(7)),
                                     child: const Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          JobaIcon('shield',
-                                              size: 14,
-                                              color: Color(0xFF147657)),
+                                          VerifiedBadge(),
                                           SizedBox(width: 4),
                                           UiText('Верифицирован',
                                               style: TextStyle(
                                                   fontSize: 10,
                                                   height: 1.6,
                                                   fontWeight: FontWeight.w700,
-                                                  color: Color(0xFF147657))),
+                                                  color: Color(0xFF1D9BF0))),
                                         ])),
                                 if (profile['verification']?['checked_at'] !=
                                     null) ...[

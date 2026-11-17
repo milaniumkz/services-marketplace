@@ -1,3 +1,4 @@
+import '../core/verified_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/api.dart';
@@ -111,7 +112,7 @@ class _OfferListState extends State<OfferList> {
                     ]),
                 ])),
             if (offer['executor']?['verified'] == true)
-              const JobaIcon('shield', color: primary),
+              const VerifiedBadge(),
           ]),
           const SizedBox(height: 16),
           Text(formatMoney(offer['amount'], '${offer['currency']}', locale),
