@@ -335,7 +335,7 @@ export class Marketplace {
       return {public_html:(this.bcc!.gateway as BccGateway).form(payment)};
     }
     if(path==='/public/billing/bcc/callback'&&['GET','POST'].includes(method)){
-      if(!this.bcc)fail(503,'PROVIDER_UNAVAILABLE','БЦК пока не подключён');return this.bcc!.callback(String(q.payment_id??b.payment_id??''),String(q.token??b.token??''));
+      if(!this.bcc)fail(503,'PROVIDER_UNAVAILABLE','БЦК пока не подключён');return this.bcc!.bankNotification(authorization,{...q,...b});
     }
     if(['/public/billing/vtb/return','/public/billing/bcc/return'].includes(path)&&['GET','POST'].includes(method)){
       const id=String(q.payment_id??'');if(!/^[0-9a-f-]{36}$/i.test(id))fail(400,'VALIDATION_ERROR','Некорректный платёж');

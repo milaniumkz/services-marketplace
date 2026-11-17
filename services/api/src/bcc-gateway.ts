@@ -1,17 +1,21 @@
 import {existsSync,readFileSync,mkdirSync,writeFileSync,renameSync} from 'node:fs';
 import {join} from 'node:path';
-import {createHmac,randomBytes,createHash} from 'node:crypto';
+import {parseBccResponse} from './bcc-response';
+import {createHmac,randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
 import type {HostedBank} from './hosted-bank';
 import type {VerifiedPurchase,VerifiedRefund} from './providers';
 export const BCC_ENDPOINTS={sandbox:'https://test3ds.bcc.kz:5445/cgi-bin/cgi_link',production:'https://3dsecure.bcc.kz/webview'};
-export type BccConfig={enabled?:boolean;environment:'sandbox'|'production';terminal:string;merchant:string;mac_key:string;public_origin:string;countries?:string[];currencies?:string[];refund_journal_dir?:string};
+export type BccConfig={enabled?:boolean;environment:'sandbox'|'production';terminal:string;merchant:string;mac_key:string;public_origin:string;countries?:string[];currencies?:string[];refund_journal_dir?:string;notify_user?:string;notify_password?:string;callback_registered?:boolean};
 const fail=(code:string,message='Не удалось подтвердить статус оплаты в БЦК. Не оплачивайте повторно.'):never=>{throw new HttpException({error:{code,message,retryable:true}},503);};
 const currencyCodes:Record<string,string>={KZT:'398',KGS:'417',RUB:'643',BYN:'933'};
 export function validateBccConfig(c:any):BccConfig{
  if(!['sandbox','production'].includes(c.environment)||!/^\d{8}$/.test(c.terminal)||!/^\d{1,15}$/.test(c.merchant)||!/^[a-f\d]{32,64}$/i.test(c.mac_key)||c.mac_key.length%2)throw Error('Invalid private BCC terminal configuration');
- const origin=new URL(c.public_origin);if(origin.protocol!=='https:'||origin.username||origin.password||origin.search||origin.hash||origin.pathname!=='/')throw Error('Invalid BCC public origin');
+ const origin=new URL(c.public_origin);if(origin.protocol!=='https:'||origin.hostname!=='joba.com.kz'||origin.port&&origin.port!=='443'||origin.username||origin.password||origin.search||origin.hash||origin.pathname!=='/')throw Error('Invalid BCC public origin');
+ if(c.environment==='production'&&(['88888881','88888888'].includes(c.terminal)||c.mac_key.toUpperCase()==='6BB0AC02E47BDF73D98FEB777F3B5294'))throw Error('Sandbox credentials forbidden in production');
+ if(c.environment==='production'&&(!c.notify_user||!c.notify_password||c.callback_registered!==true))throw Error('Registered authenticated callback required');
+ if((c.notify_user||c.notify_password)&&(!/^[A-Za-z0-9_.-]{3,80}$/.test(c.notify_user??'')||typeof c.notify_password!=='string'||c.notify_password.length<16||/[\r\n]/.test(c.notify_password)))throw Error('Invalid callback credentials');
  const countries=c.countries??['KZ'],currencies=c.currencies??['KZT'];
  if(!Array.isArray(countries)||!countries.length||countries.some((v:any)=>!['KZ','KG'].includes(v))||!Array.isArray(currencies)||!currencies.length||currencies.some((v:any)=>!['KZT','KGS'].includes(v)))throw Error('Invalid BCC country/currency agreement');
  return {...c,public_origin:origin.origin,countries,currencies};
@@ -27,16 +31,20 @@ export class BccGateway implements HostedBank {
  private signed(fields:Record<string,string>,keys:string[]){return {...fields,P_SIGN:bccMac(fields,keys,this.config.mac_key)};}
  async api(fields:Record<string,string>){
   try{const response=await this.transport(this.endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(fields),redirect:'error',signal:AbortSignal.timeout(20000)});if(!response.ok)fail('BCC_UNAVAILABLE');const raw=await response.text();if(Buffer.byteLength(raw)>262144)fail('BCC_INVALID_RESPONSE');
-   if(raw.trim().startsWith('{'))return JSON.parse(raw);
-   const result:Record<string,string>={};for(const input of raw.matchAll(/<input\b[^>]*>/gi)){const name=input[0].match(/\bname\s*=\s*["']([A-Z_]+)["']/i)?.[1]?.toUpperCase(),value=input[0].match(/\bvalue\s*=\s*["']([^"']*)["']/i)?.[1];if(name&&value!==undefined&&['ORDER','TERMINAL','TRTYPE','TRAN_TRTYPE','AMOUNT','CURRENCY','ACTION','RC','RRN','INT_REF','AUTH_CODE','TIMESTAMP','NONCE'].includes(name))result[name]=value;}
-   if(!Object.keys(result).length)fail('BCC_INVALID_RESPONSE');return result;
+   const result=parseBccResponse(raw);if(!result.ACTION||result.RC===undefined)fail('BCC_INVALID_RESPONSE');return result;
   }catch(e){if(e instanceof HttpException)throw e;return fail('BCC_UNAVAILABLE');}
+ }
+ authorizeCallback(header:unknown){
+  const denied=()=>{throw new HttpException({error:{code:'BCC_CALLBACK_UNAUTHORIZED',message:'Unauthorized callback',retryable:false}},401);};
+  if(!this.config.notify_user||!this.config.notify_password||typeof header!=='string'||!/^Basic [A-Za-z0-9+/]+={0,2}$/i.test(header))return denied();
+  const actual=Buffer.from(header.slice(6),'base64'),expected=Buffer.from(this.config.notify_user+':'+this.config.notify_password);
+  if(actual.length!==expected.length||!timingSafeEqual(actual,expected))return denied();
  }
  async ping(){const r=await this.api({TERMINAL:this.config.terminal,TRTYPE:'800',LANG:'ru'});return r.ACTION==='0'&&r.RC==='00'&&r.TERMINAL===this.config.terminal;}
  async register(payment:RecordData,callback:string){const token=new URL(callback).searchParams.get('token')!;return {order_id:bccOrder(payment.id),form_url:this.config.public_origin+'/api/v1/public/billing/bcc/form?payment_id='+payment.id+'&token='+encodeURIComponent(token)};}
  form(payment:RecordData){
   if(!this.currencies.includes(payment.currency)||!Number.isSafeInteger(payment.amount_minor)||payment.amount_minor<1)fail('BCC_CURRENCY_UNAVAILABLE','Для выбранной валюты банк ещё не выдал параметры приёма платежей.');
-  const fields=this.signed({AMOUNT:(payment.amount_minor/100).toFixed(2),CURRENCY:currencyCodes[payment.currency],ORDER:bccOrder(payment.id),MERCHANT:this.config.merchant,TERMINAL:this.config.terminal,MERCH_GMT:'0',...this.fresh(),TRTYPE:'1',LANG:'ru',DESC:'JOBA '+(payment.benefit==='boost'?'продвижение':'подписка'),MERCH_NAME:'JOBA',BACKREF:this.config.public_origin+'/api/v1/public/billing/bcc/return?payment_id='+payment.id},['AMOUNT','CURRENCY','ORDER','MERCHANT','TERMINAL','MERCH_GMT','TIMESTAMP','TRTYPE','NONCE']);
+  const fields=this.signed({AMOUNT:(payment.amount_minor/100).toFixed(2),CURRENCY:currencyCodes[payment.currency],ORDER:bccOrder(payment.id),MERCHANT:this.config.merchant,TERMINAL:this.config.terminal,MERCH_GMT:'0',...this.fresh(),TRTYPE:'1',LANG:'ru',DESC:'JOBA '+(payment.benefit==='boost'?'продвижение':'подписка'),MERCH_NAME:'JOBA',BACKREF:this.config.public_origin+'/api/v1/public/billing/bcc/return?payment_id='+payment.id,...(this.config.notify_user?{NOTIFY_URL:'https://joba.com.kz:443/api/v1/public/billing/bcc/callback'}:{})},['AMOUNT','CURRENCY','ORDER','MERCHANT','TERMINAL','MERCH_GMT','TIMESTAMP','TRTYPE','NONCE']);
   return '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Оплата JOBA через БЦК</title><body><h1>Переход к защищённой оплате БЦК</h1><p>Данные карты вводятся только на странице банка.</p><form id="bank" method="POST" action="'+esc(this.endpoint)+'">'+Object.entries(fields).map(([k,v])=>'<input type="hidden" name="'+esc(k)+'" value="'+esc(v)+'">').join('')+'<button>Перейти к оплате</button></form><script>document.getElementById("bank").submit()</script></body></html>';
  }
  async status(values:{orderId?:string;orderNumber?:string}){const order=values.orderId??(values.orderNumber?bccOrder(values.orderNumber):'');return this.api(this.signed({ORDER:order,TERMINAL:this.config.terminal,TRTYPE:'90',TRAN_TRTYPE:'1',MERCH_GMT:'0',...this.fresh()},['ORDER','TERMINAL','TIMESTAMP','TRTYPE','NONCE']));}

@@ -1,3 +1,4 @@
+import {BccGateway,bccOrder} from './bcc-gateway';
 import {randomUUID,timingSafeEqual} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
@@ -51,6 +52,16 @@ export class VtbPayments {
   const p=await this.store.get(id);if(!p||p.kind!=='bank_checkout')fail('NOT_FOUND','Платёж не найден',404);
   return {_vtb_provider:this.gateway.name,_vtb_action:'callback',id};
  }
+ async bankNotification(authorization:unknown,fields:any){
+  if(!(this.gateway instanceof BccGateway))fail('NOT_FOUND','Unknown callback',404);
+  this.gateway.authorizeCallback(authorization);
+  const rows=await this.store.all('bank_checkout');
+  const p=rows.find(p=>p.provider==='bcc'&&(fields.payment_id?p.id===fields.payment_id:p.bank_order_id===String(fields.ORDER??'')));
+  if(!p)fail('NOT_FOUND','Payment not found',404);
+  if(p.environment!==this.gateway.environment)fail('PAYMENT_ENVIRONMENT_CHANGED','Payment environment changed');
+  if(fields.ORDER!==undefined&&String(fields.ORDER)!==bccOrder(p.id)||fields.TERMINAL!==undefined&&String(fields.TERMINAL)!==this.gateway.config.terminal)fail('BCC_EVIDENCE_MISMATCH','Callback identifiers do not match');
+  return {_vtb_provider:'bcc',_vtb_action:'callback',id:p.id};
+ }
  private async get(id:string){return this.transaction(async()=>{const p=await this.store.get(id);if(!p||p.kind!=='bank_checkout')fail('NOT_FOUND','Платёж не найден',404);return p;});}
  private async save(id:string,data:any){return this.transaction(async()=>{const p=await this.store.get(id);if(!p)fail('NOT_FOUND','Платёж не найден',404);if(!pending(p))return p;return this.store.put({...p,...data,version:p.version+1});});}
  async perform(action:string,id:string){
@@ -89,6 +100,7 @@ export class VtbPayments {
    await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['vtb-payment:'+p.id]);
    const payment=(await this.store.get(p.id))!;if(!pending(payment))return this.present(payment);
    const user=await this.store.get(payment.owner),now=new Date();
+   if(this.gateway.name==='bcc'&&payment.environment==='sandbox'){const quote=await this.store.get(payment.source_id);if(quote?.kind==='checkout_quote')await this.store.put({...quote,status:'test_complete',version:quote.version+1});return this.present(await this.store.put({...payment,status:'sandbox_confirmed',bank_status:status,sandbox_confirmed_at:now.toISOString(),last_checked_at:now.toISOString(),last_error:null,version:payment.version+1}));}
    const proof={provider:this.gateway.name,environment:payment.environment as 'sandbox'|'production',transaction_id:payment.bank_order_id??'free-'+payment.id,payment_id:payment.id,created_at:payment.created_at};
    let subscription:RecordData|undefined,boost:RecordData|undefined,resolution:string|undefined;
    if(!user||user.status!=='active')resolution='ACCOUNT_REQUIRES_REVIEW';
@@ -118,11 +130,11 @@ export class VtbPayments {
    }
    const transactions=await this.store.select('payment_transaction',payment.country,{owner:payment.owner,limit:1000});
    if(resolution&&!transactions.some(t=>t.provider===this.gateway.name&&t.transaction_id===proof.transaction_id))await this.store.put({id:randomUUID(),kind:'payment_transaction',owner:payment.owner,country:payment.country,version:1,created_at:now.toISOString(),provider:this.gateway.name,is_test:payment.environment==='sandbox',environment:payment.environment,transaction_id:proof.transaction_id,original_transaction_id:payment.id,bank_checkout_id:payment.id,benefit:payment.benefit,operation:'purchase',state:'active',amount_minor:payment.amount_minor,cash_amount_minor:payment.environment==='production'?payment.amount_minor:0,currency:payment.currency,resolution_required:true});
-   const completed=await this.store.put({...payment,status:resolution?'resolution_required':'completed',bank_status:status,zero_charge:free,subscription_id:subscription?.id,boost_id:boost?.id,resolution_code:resolution,last_error:null,confirmed_at:now.toISOString(),version:payment.version+1});
+   const completed=await this.store.put({...payment,status:resolution?'resolution_required':'completed',bank_status:status,zero_charge:free,subscription_id:subscription?.id,boost_id:boost?.id,resolution_code:resolution,last_error:null,confirmed_at:now.toISOString(),paid_at:payment.paid_at??now.toISOString(),version:payment.version+1});
    return this.present(completed);
   });
  }
- present(p:RecordData){return {id:p.id,provider:this.gateway.name,status:p.status,environment:p.environment,bank_test:p.environment==='sandbox',payment_url:pending(p)&&!p.cancel_requested&&p.expires_at>new Date().toISOString()?p.form_url??null:null,amount_minor:p.amount_minor,currency:p.currency,plan:p.offer.plan??null,title:p.offer.title??'Продвижение',benefit:p.benefit,expires_at:p.expires_at,subscription_id:p.subscription_id??null,boost_id:p.boost_id??null,can_cancel:pending(p),can_refund:p.status==='resolution_required'&&!!p.confirmed_at,message:p.resolution_code==='PAYMENT_STATUS_UNCERTAIN'?'Банк не подтвердил результат в доступный срок. Не оплачивайте повторно; обратитесь в поддержку для сверки.':pending(p)&&p.cancel_requested?'Отмена запрошена. Ожидаем итоговый статус банка; повторно оплачивать не нужно.':p.status==='resolution_required'?'Банк подтвердил оплату, но условия аккаунта изменились. Обратитесь в поддержку для восстановления услуги или возврата.':p.last_error?'Статус оплаты уточняется. Повторная оплата не нужна.':null};}
+ present(p:RecordData){return {id:p.id,provider:this.gateway.name,status:p.status,environment:p.environment,bank_test:p.environment==='sandbox',payment_url:pending(p)&&!p.cancel_requested&&p.expires_at>new Date().toISOString()?p.form_url??null:null,amount_minor:p.amount_minor,currency:p.currency,plan:p.offer.plan??null,title:p.offer.title??'Продвижение',benefit:p.benefit,expires_at:p.expires_at,subscription_id:p.subscription_id??null,boost_id:p.boost_id??null,can_cancel:pending(p),can_refund:p.status==='resolution_required'&&!!p.confirmed_at,paid_at:p.paid_at??null,message:p.status==='sandbox_confirmed'?'Тестовый платёж проверен. Реальные услуги и подписки не активированы.':p.resolution_code==='PAYMENT_STATUS_UNCERTAIN'?'Банк не подтвердил результат в доступный срок. Не оплачивайте повторно; обратитесь в поддержку для сверки.':pending(p)&&p.cancel_requested?'Отмена запрошена. Ожидаем итоговый статус банка; повторно оплачивать не нужно.':p.status==='resolution_required'?'Банк подтвердил оплату, но условия аккаунта изменились. Обратитесь в поддержку для восстановления услуги или возврата.':p.last_error?'Статус оплаты уточняется. Повторная оплата не нужна.':null};}
  async list(user:RecordData){const rows=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>pending(p)||p.status==='resolution_required').sort((a,b)=>b.created_at.localeCompare(a.created_at));return {enabled:this.gateway.countries.includes(user.country),items:rows.filter(p=>p.provider===this.gateway.name).map(p=>this.present(p))};}
  async pendingIds(){return this.transaction(async()=>{const rows=(await this.store.all('bank_checkout')).filter(p=>p.provider===this.gateway.name&&pending(p)&&p.environment===this.gateway.environment&&(!p.last_checked_at||Date.parse(p.last_checked_at)<Date.now()-45000));return rows.sort((a,b)=>String(a.last_checked_at??'').localeCompare(String(b.last_checked_at??''))).slice(0,10).map(p=>p.id);});}
 }
