@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/api.dart';
+import 'presence_status.dart';
 import '../core/design_icons.dart';
 import '../core/design_widgets.dart';
 import '../core/l10n.dart';
@@ -125,6 +126,7 @@ class OrderOverview extends StatelessWidget {
                 Text(customer['display_name'] ?? '',
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w700)),
+                if(customer['id']!=null)PresenceStatus(api:api,userId:customer['id'],initial:customer['presence']?['online']),
                 const UiText('Заказчик',
                     style: TextStyle(fontSize: 10, color: Color(0xFF627187))),
               ])),

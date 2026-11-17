@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/api.dart';
+import 'presence_status.dart';
 import '../core/design_icons.dart';
 import '../core/design_widgets.dart';
 import '../core/l10n.dart';
@@ -106,6 +107,7 @@ class _ConversationInboxState extends State<ConversationInbox> {
                                       style: const TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w700))),
+                              if(!help&&peer?['id']!=null)Padding(padding:const EdgeInsets.only(left:6),child:PresenceStatus(api:widget.api,userId:peer!['id'],initial:peer['presence']?['online'],compact:true)),
                               if (!help)
                                 Text(time(message?['created_at']),
                                     style: const TextStyle(

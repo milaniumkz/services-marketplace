@@ -8,6 +8,7 @@ import '../core/external_activity.dart';
 import '../core/order_draft_store.dart';
 import 'home_marketplace_gate.dart';
 import 'online_counter.dart';
+import 'presence_status.dart';
 import '../core/verified_badge.dart';
 import '../advertising/web_ads.dart';
 import 'nearby_contractors.dart';
@@ -796,6 +797,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           style: const TextStyle(fontSize: 10, color: muted))
                     ]),
                     const SizedBox(height: 11),
+                    if(order['owner']!=null&&order['owner']!=me?['id'])Padding(padding:const EdgeInsets.only(bottom:8),child:Row(children:[const Text('Заказчик · ',style:TextStyle(fontSize:11,color:muted)),PresenceStatus(api:api,userId:order['owner'])])),
                     Text(order['title'] ?? '',
                         style: const TextStyle(
                             fontSize: 16,
@@ -4174,7 +4176,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   UiText(name, maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                  const UiText('Участник заказа', style: TextStyle(fontSize: 10, color: muted, fontWeight: FontWeight.w400)),
+                  if(peer?['id']!=null)PresenceStatus(api:api,userId:peer!['id'],initial:peer['presence']?['online']),
                 ])),
               ]),
               actions: [PopupMenuButton<String>(

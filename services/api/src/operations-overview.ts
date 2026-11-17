@@ -5,7 +5,8 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
   const from=new Date(today-(days-1)*86400000).toISOString();
   const counts=(await store.db.query<any>(`
     SELECT
-      count(*) FILTER (WHERE kind='user' AND COALESCE(data->>'status','')<>'deleted' AND COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0) AS users,
+      count(*) FILTER (WHERE kind='user' AND COALESCE(data->>'status','')<>'deleted' AND COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0 AND COALESCE(data->>'staff_access_mode','')<>'managed') AS users,
+      count(*) FILTER (WHERE kind='user' AND COALESCE(data->>'status','')<>'deleted' AND COALESCE(jsonb_array_length(data->'staff_permissions'),0)=0 AND COALESCE(data->>'staff_access_mode','')<>'managed' AND data->>'created_at'>=$2 AND data->>'created_at'<=$3) AS new_users,
       count(*) FILTER (WHERE kind='order' AND COALESCE(data->>'status','')<>'deleted') AS orders,
       count(*) FILTER (WHERE kind='order' AND data->>'published_at'>=$2 AND data->>'published_at'<=$3) AS published,
       count(*) FILTER (WHERE kind='order' AND data->>'completed_at'>=$2 AND data->>'completed_at'<=$3 AND data->>'status'='completed') AS completed,
@@ -18,11 +19,11 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
     FROM records WHERE ($1='ALL' OR country=$1)`,[country,from,now.toISOString()])).rows[0];
   const active=(await store.db.query<any>(`
     SELECT count(*) AS total FROM records u WHERE ($1='ALL' OR u.country=$1) AND u.kind='user'
-    AND u.data->>'status'='active' AND COALESCE(jsonb_array_length(u.data->'staff_permissions'),0)=0
-    AND EXISTS(SELECT 1 FROM records action WHERE action.country=u.country
+    AND u.data->>'status'='active' AND COALESCE(jsonb_array_length(u.data->'staff_permissions'),0)=0 AND COALESCE(u.data->>'staff_access_mode','')<>'managed'
+    AND ((u.data->>'last_seen_at'>=$2 AND u.data->>'last_seen_at'<=$3) OR EXISTS(SELECT 1 FROM records action WHERE action.country=u.country
       AND action.kind IN ('order','offer','message','support_message','review','portfolio')
       AND (action.owner=u.id::text OR action.kind='order' AND action.data->>'executor_id'=u.id::text)
-      AND greatest(action.data->>'created_at',action.data->>'published_at',action.data->>'started_at',action.data->>'completed_at')>=$2 AND greatest(action.data->>'created_at',action.data->>'published_at',action.data->>'started_at',action.data->>'completed_at')<=$3)`,[country,from,now.toISOString()])).rows[0];
+      AND greatest(action.data->>'created_at',action.data->>'published_at',action.data->>'started_at',action.data->>'completed_at')>=$2 AND greatest(action.data->>'created_at',action.data->>'published_at',action.data->>'started_at',action.data->>'completed_at')<=$3))`,[country,from,now.toISOString()])).rows[0];
   const rows=(await store.db.query<any>(`
     SELECT substring(value,1,10) AS day, type, count(*) AS total FROM (
       SELECT data->>'published_at' AS value,'published' AS type FROM records
@@ -39,10 +40,10 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
   }
   return {country,days,from,server_time:now.toISOString(),time_zone:'UTC',
     users:Number(counts.users),orders:Number(counts.orders),support:Number(counts.support),
-    active_users:Number(active.total),published_orders:Number(counts.published),completed_orders:Number(counts.completed),active_subscriptions:Number(counts.subscriptions),
+    new_users:Number(counts.new_users),active_users:Number(active.total),published_orders:Number(counts.published),completed_orders:Number(counts.completed),active_subscriptions:Number(counts.subscriptions),
     attention:{support:Number(counts.support),unassigned_support:Number(counts.unassigned_support),verifications:Number(counts.verifications),cases:Number(counts.cases),outbox:Number(counts.outbox)},
     series,checkout_enabled:false,
-    definitions:{users:'Все неудалённые пользовательские аккаунты в выбранных странах, включая заблокированные; сотрудники не учитываются.',active_users:'Активные аккаунты с созданием заказа, отклика, сообщения, отзыва, проекта или изменением статуса рабочего заказа за период.',
+    definitions:{users:'Все неудалённые пользовательские аккаунты в выбранных странах, включая заблокированные; сотрудники не учитываются.',active_users:'Уникальные активные аккаунты, заходившие в приложение за период. Для старых данных также учитываются заказы, отклики, сообщения, отзывы и портфолио.',new_users:'Неудалённые пользовательские аккаунты, зарегистрированные за выбранный период; сотрудники не учитываются.',online_users:'Уникальные пользователи с активным соединением приложения сейчас; несколько устройств считаются одним человеком. При потере связи статус устаревает максимум за65секунд.',
       published_orders:'Заказы, опубликованные за период в текущей стране.',completed_orders:'Заказы, подтверждённые завершёнными за период.',
       active_subscriptions:'Подтверждённые подписки с действующим сроком и статусом доступа. Валюты разных стран не суммируются.'}};
 }

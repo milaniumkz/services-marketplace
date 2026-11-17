@@ -53,6 +53,8 @@ import {freezeTarget,visibleCase,resolveEffects,contentHash,targetSnapshot} from
 import {existingPolicyAcceptance} from './policy-acceptance';
 import {publishSavedGalleries} from './gallery-publication';
 import {OnlinePresence} from './online-presence';
+import {UserActivity} from './user-activity';
+import {bankRuntime} from './bank-runtime';
 import {rebaseProfile} from './profile-concurrency';
 import {editableContent,publicContent,editContent,submitContent} from './content-revisions';
 import {accountOverview} from './account-overview';
@@ -115,6 +117,7 @@ export class Marketplace {
   store: Store;
   readonly providers: Providers;
   readonly online=new OnlinePresence();
+  private activity?:UserActivity;
   readonly vtb?:VtbPayments;
   readonly bcc?:VtbPayments;
   readonly commerce: Commerce;
@@ -467,6 +470,7 @@ export class Marketplace {
       if(method==='POST'){const m=this.record('recovery_message',{id:'anonymous',country:t!.country},{thread_id:t!.id,text:text(b,'text',1,3000),sequence:messages.length+1});return this.store.put(m);}
     }
     const a=await this.actor(authorization);
+    this.activity??=new UserActivity(this.store);await this.activity.touch(a.user);
     assertStaffOperation(a.user,a.mfa,method,path,b,q);
     // The platform owner can work across regions without changing identity/session.
     // Other employees retain their existing regional role boundary.
@@ -725,11 +729,13 @@ export class Marketplace {
         return {...publicContent(project),order_id:undefined,linked_completed_order:linked,source:project.source==='profile_gallery'?'profile_gallery':linked?'joba_completed':'self_reported'};
       }));if(contractor[3]){const category=visible[0].category_id?await this.store.get(visible[0].category_id):undefined;return {...visible[0],category_name:category?.kind==='category'&&category.country===a.country?category.name:undefined,contractor_id:p.id,contractor_name:owner!.display_name,contractor_avatar_id:owner!.avatar_id};}return {...page!,items:visible};
     }
+    const presence=path.match(/^\/users\/([^/]+)\/presence$/);
+    if(presence&&method==='GET'){if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(presence[1]))fail(404,'NOT_FOUND','Пользователь недоступен');const target=await this.object(presence[1],a,'user');if(target.status!=='active'||target.staff_access_mode==='managed'||target.staff_permissions?.length||await this.blocked(a,target.id))fail(404,'NOT_FOUND','Пользователь недоступен');return this.online.status(target.id);}
     const publicCustomer=path.match(/^\/customers\/([^/]+)$/);
     if(publicCustomer&&method==='GET') {
       await this.entitlement(a,'search_full');const u=await this.object(publicCustomer[1],a,'user');if(u.status!=='active'||u.staff_permissions?.length||await this.blocked(a,u.id))fail(404,'NOT_FOUND','Профиль недоступен');
       const reviews=(await this.store.all('review',a.country)).filter(r=>r.target_id===u.id&&r.status==='published'&&r.moderation_status!=='quarantined');
-      return {...safeUser(u),city_source:'self_reported',completed_orders:(await this.store.all('order',a.country)).filter(o=>o.owner===u.id&&o.status==='completed').length,rating:{count:reviews.length,average:reviews.length?reviews.reduce((sum,r)=>sum+r.rating,0)/reviews.length:null}};
+      return {...safeUser(u),presence:this.online.status(u.id),city_source:'self_reported',completed_orders:(await this.store.all('order',a.country)).filter(o=>o.owner===u.id&&o.status==='completed').length,rating:{count:reviews.length,average:reviews.length?reviews.reduce((sum,r)=>sum+r.rating,0)/reviews.length:null}};
     }
     const publicReviews=path.match(/^\/users\/([^/]+)\/reviews$/);
     if(publicReviews&&method==='GET'){const target=await this.object(publicReviews[1],a,'user');if(target.id!==a.id){if(target.roles?.includes('executor'))await this.entitlement(a,'view_contractors');else await this.entitlement(a,'search_full');if(target.status!=='active'||target.staff_permissions?.length||await this.blocked(a,target.id))fail(404,'NOT_FOUND','Профиль недоступен');}return this.list((await this.store.all('review',a.country)).filter(r=>r.target_id===publicReviews[1]&&r.status==='published'&&!['quarantined','hidden','rejected'].includes(r.moderation_status)),q);}
@@ -764,7 +770,7 @@ export class Marketplace {
         const customer=await this.store.get(o.owner),executor=o.executor_id?await this.store.get(o.executor_id):undefined;
         const assignment=participant&&o.assignment_id?await this.store.get(o.assignment_id):undefined;
         const review=participant?(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='review' AND country=$1 AND owner=$2 AND data->>'order_id'=$3 LIMIT 1",[a.country,a.id,o.id])).rows[0]?.data:undefined;
-        const person=(user:RecordData|undefined)=>user?{id:user.id,display_name:user.display_name,avatar_id:user.avatar_id,city:user.city}:null;
+        const person=(user:RecordData|undefined)=>user?{id:user.id,display_name:user.display_name,avatar_id:user.avatar_id,city:user.city,presence:this.online.status(user.id)}:null;
         return {...(participant?o:publicContent(o)),exact_address:participant?o.exact_address:undefined,exact_location:participant?o.exact_location:undefined,customer:person(customer),executor:participant?person(executor):undefined,conversation_id:assignment?.conversation_id,my_review:review,offer_policy:offerPolicy(o,settings.offer_expiry_hours)};
       }
       if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:await offerPeople(this.store,a.country,(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id).map(x=>presentOffer(x,settings.offer_expiry_hours,new Date(),o)))};}
@@ -918,7 +924,7 @@ export class Marketplace {
         const canDecide=!blocked&&order?.owner===a.id&&order.status==='open'&&offer?.status==='active'&&!offerExpired(offer,settings.offer_expiry_hours)&&offer.acknowledged_revision===order.revision;
         return {id:r.id,status:r.status,order_id:r.order_id,order_title:order?.title??'',can_decide:canDecide,order_version:order?.version,offer_id:offer?.id,offer_version:offer?.version,
           order_status:order?.status,order_amount:order?.agreed_amount??order?.budget_amount,currency:order?.currency,
-          peer:visiblePeer?{id:peer.id,display_name:peer.display_name,avatar_id:peer.avatar_id}:null,blocked,blocked_reason};
+          peer:visiblePeer?{id:peer.id,display_name:peer.display_name,avatar_id:peer.avatar_id,presence:this.online.status(peer.id)}:null,blocked,blocked_reason};
       }
       return r;
     }
@@ -940,7 +946,7 @@ export class Marketplace {
         WHERE c.id=ANY($1::uuid[]) AND c.country=$2 AND c.kind='conversation' AND COALESCE(c.data->'members','[]'::jsonb) ? $3`,[page.items.map(c=>c.id),a.country,a.id]);
       return {...page,items:page.items.map(c=>{const summary=summaries.rows.find(r=>r.id===c.id)!,m=summary.last_message;
         const hidden=m&&(['hidden','rejected'].includes(m.moderation_status)||m.moderation_status==='quarantined'&&m.owner!==a.id);
-        return {id:c.id,status:c.status,order_id:c.order_id,order_title:summary.order_title,order_status:summary.order_status,peer:summary.peer?.id?summary.peer:null,
+        return {id:c.id,status:c.status,order_id:c.order_id,order_title:summary.order_title,order_status:summary.order_status,peer:summary.peer?.id?{...summary.peer,presence:this.online.status(summary.peer.id)}:null,
           unread_count:Number(summary.unread_count),last_message:m?{text:m.tombstone||hidden?'':String(m.text??'').slice(0,200),created_at:m.created_at,tombstone:m.tombstone===true,hidden,has_attachments:!hidden&&!m.tombstone&&!!m.upload_ids?.length}:null};})};
     }
     const readConversation=path.match(/^\/conversations\/([^/]+)\/(read|delivered)$/);
@@ -1350,13 +1356,14 @@ export class Marketplace {
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy','country-controls':'country_control',verifications:'verification'};
       if(path==='/admin/analytics'&&method==='GET'){const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');return productAnalytics(this.store,a.country,days);}
       if(path==='/admin/test-payments'&&['GET','PUT'].includes(method)){if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Режим тестовой оплаты доступен только владельцу');return method==='GET'?testPaymentSettings(this.store,a.country,this.providers.billingFor(a.country)):updateTestPayments(this.store,a.country,a.id,b,this.providers.billingFor(a.country));}
+      if(path==='/admin/billing-runtime'&&method==='GET'){if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Настройки банков доступны только владельцу');return bankRuntime(this.providers,this.store,'ALL');}
       if(path==='/admin/server-metrics'&&method==='GET') {
         if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Показатели сервера доступны только владельцу');
         return serverMetrics();
       }
       if(path==='/admin/dashboard'&&method==='GET') {
         const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');
-        return {...await operationsOverview(this.store,a.country,days),review:await adminReviewQueues(this.store,a.country,a.user.staff_access_mode==='managed'?a.user.staff_grants:undefined)};
+        return {...await operationsOverview(this.store,a.country,days),online_users:this.online.count(a.country),review:await adminReviewQueues(this.store,a.country,a.user.staff_access_mode==='managed'?a.user.staff_grants:undefined)};
       }
       if(path==='/admin/security-events'&&method==='GET') {
         const page=await this.page('security_event',a,q);
