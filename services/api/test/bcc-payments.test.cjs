@@ -73,7 +73,7 @@ test('a CGI status error is unresolved rather than a fictitious card decline; th
  c.gateway.transport=async(_url,options)=>{const fields=Object.fromEntries(new URLSearchParams(options.body));return Response.json({ORDER:fields.ORDER,TERMINAL:config.terminal,ACTION:'3',RC:'-2'});};
  const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(p=>p.plan==='customer');
  const current=await c.call('POST','/billing/bcc/checkout',{offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true});
- assert.equal(current.status,'pending');assert.ok(current.payment_url);assert.equal((await c.store.get(current.id)).last_error,'BCC_BANK_ERROR_2');
+ assert.equal(current.status,'pending');assert.ok(current.payment_url);assert.equal(c.requests.length,0);await c.call('GET','/billing/bcc/payments/'+current.id);assert.equal((await c.store.get(current.id)).last_error,'BCC_BANK_ERROR_2');
  assert.equal((await c.store.all('subscription')).length,0);assert.equal((await c.store.all('grant')).length,0);
  }finally{await c.store.close();c.cleanup();}
 });
@@ -140,4 +140,14 @@ test('owner removes a stuck checkout from customer flow while preserving bank re
  const next=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer'),again=await c.call('POST','/billing/bcc/checkout',{offer_id:next.id,amount_minor:next.amount_minor,currency:next.currency,accepted:true});assert.notEqual(again.id,p.id);
  c.capture=true;const late=await c.call('GET','/billing/bcc/payments/'+p.id);assert.equal(late.status,'resolution_required');assert.equal((await c.store.get(p.id)).resolution_code,'ABANDONED_CHECKOUT_CAPTURED');assert.equal((await c.store.all('subscription','KZ')).length,0);assert.equal((await c.store.all('payment_transaction','KZ')).length,1);assert.equal((await c.store.all('audit','KZ')).filter(x=>x.action==='billing.checkout_abandoned').length,1);
  }finally{await c.store.close();c.cleanup();}
+});
+
+test('a fresh checkout archives an expired or cancellation-requested BCC attempt and opens a new local bank form without a status round trip',async()=>{
+ for(const cancelled of [false,true]){const c=await setup();try{
+ const first=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer'),old=await c.call('POST','/billing/bcc/checkout',{offer_id:first.id,amount_minor:first.amount_minor,currency:first.currency,accepted:true});assert.equal(c.requests.length,0);
+ await c.store.put({...await c.store.get(old.id),cancel_requested:cancelled,expires_at:cancelled?new Date(Date.now()+600000).toISOString():new Date(Date.now()-1000).toISOString()});
+ const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer'),body={offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true},payment=await c.call('POST','/billing/bcc/checkout',body);
+ assert.notEqual(payment.id,old.id);assert.ok(payment.payment_url);assert.equal(c.requests.length,0);assert.ok((await c.store.get(old.id)).checkout_abandoned_at);assert.equal((await c.store.get(old.id)).status,'pending');assert.equal((await c.call('GET','/billing/bcc/pending')).items.some(p=>p.id===old.id),false);
+ assert.equal((await c.call('POST','/billing/bcc/checkout',body)).id,payment.id);assert.equal((await c.store.all('bank_checkout','KZ')).length,2);assert.equal((await c.store.all('subscription','KZ')).length,0);
+ }finally{await c.store.close();c.cleanup();}}
 });

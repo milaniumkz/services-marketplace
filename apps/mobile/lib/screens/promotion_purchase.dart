@@ -1,3 +1,4 @@
+import 'bank_payment.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
@@ -275,7 +276,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
                   }
                   final api = widget.api;
                   final reservationId = widget.id;
-                  if(['bcc','vtb'].contains(p?['provider'])){final payment=await api.request('/billing/${p?['provider']}/checkout',method:'POST',body:{'reservation_id':reservationId,'amount_minor':p!['amount_minor'],'currency':p['currency'],'accepted':true});if(ownsScreen())widget.onGo('bank-payment-open',payment['id']);return;}
+                  if(['bcc','vtb'].contains(p?['provider'])){final payment=await api.request('/billing/${p?['provider']}/checkout',method:'POST',body:{'reservation_id':reservationId,'amount_minor':p!['amount_minor'],'currency':p['currency'],'accepted':true});if(!ownsScreen())return;await openHostedBankCheckout(context,api,Json.from(payment));if(ownsScreen())widget.onGo('promotion-pending',reservationId);return;}
                   setState(() => busy = true);
                   try {
                     if (receipt == null) {

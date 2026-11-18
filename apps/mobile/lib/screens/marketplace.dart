@@ -1304,7 +1304,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
         return accessScreen();
       case 'bank-payment':
       case 'bank-payment-open':
-        return page('Оплата',BankPaymentScreen(key:ValueKey('bank:$route:$objectId'),api:api,id:objectId!,autoOpen:route=='bank-payment-open',onGo:(r,id)=>go(r,id)),titleOffset:-12);
+        return page('Оплата',BankPaymentScreen(key:ValueKey('bank:$route:$objectId'),api:api,id:objectId!,autoOpen:true,onGo:(r,id)=>go(r,id)),titleOffset:-12);
       case 'test-payment-success':
       case 'checkout':
       case 'manage-subscription':

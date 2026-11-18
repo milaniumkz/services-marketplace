@@ -91,7 +91,9 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
         final Json result;
         if(offer['hosted_checkout']==true){
           final payment=await api.request('/billing/${offer['provider']=='bcc'?'bcc':'vtb'}/checkout',method:'POST',body:{'offer_id':offer['id'],'amount_minor':offer['amount_minor'],'currency':offer['currency'],'accepted':true});
-          if(current())widget.onGo('bank-payment-open',payment['id']);return;
+          if(!current())return;
+          await openHostedBankCheckout(context,api,Json.from(payment));
+          if(current())widget.onGo('my-access',null);return;
         }
         if (offer['is_test'] == true) {
           result = await api

@@ -8,6 +8,15 @@ import '../core/widgets.dart';
 import '../core/theme.dart';
 import '../core/l10n.dart';
 
+Future<void> openHostedBankCheckout(BuildContext context,JobaApi api,Json payment) async {
+  if(['completed','sandbox_confirmed'].contains(payment['status']))return;
+  final entry=Uri.tryParse('${payment['payment_url']??''}');
+  if(entry==null||!trustedBankEntry(entry))throw ApiException('PAYMENT_URL_INVALID','Не удалось открыть банковскую страницу. Обновите условия оплаты.');
+  final generation=api.sessionGeneration,owner=api.session?['user']?['id'];
+  await withExternalActivity(()=>Navigator.of(context).push<bool>(MaterialPageRoute(builder:(_)=>BankForm(entry:entry,paymentId:payment['id'],testMode:payment['bank_test']==true))));
+  if(!api.disposed&&api.authenticated&&api.sessionGeneration==generation&&api.session?['user']?['id']==owner)await api.request('/billing/${payment['provider']=='bcc'?'bcc':'vtb'}/payments/${payment['id']}');
+}
+
 class BankPaymentScreen extends StatefulWidget {
   final JobaApi api;
   final String id;
@@ -73,6 +82,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
         payment = Json.from(result);
         error = null;
       });
+      if(widget.autoOpen&&!autoOpened&&payment!['payment_url'] is! String){WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&api==widget.api&&generation==api.sessionGeneration)widget.onGo(payment!['status']=='completed'?'my-access':'checkout',null);});}
       if (!cancelAfterLoad && !cancel && widget.autoOpen && !autoOpened && payment!['payment_url'] is String) {
         autoOpened = true;
         bankUrl = payment!['payment_url'] as String;
@@ -105,7 +115,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
       final api = widget.api,
           generation = api.sessionGeneration,
           id = widget.id;
-      if (widget.autoOpen) widget.onGo('bank-payment', id);
+
       await withExternalActivity(() async {
         await navigator.push<bool>(MaterialPageRoute(
             builder: (_) => BankForm(
@@ -116,6 +126,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
       if (mounted && api == widget.api && generation == api.sessionGeneration) {
         // A frame return only requests verification; the bank proves the payment.
         await load();
+        if(widget.autoOpen&&mounted&&generation==api.sessionGeneration)widget.onGo(payment?['benefit']=='boost'?'promotion-history':'my-access',null);
       }
     } catch (e) {
       if (mounted) setState(() => error = e);
@@ -126,6 +137,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
 
   @override
   Widget build(BuildContext context) {
+    if(widget.autoOpen)return Center(child:error==null?const CircularProgressIndicator():Column(mainAxisSize:MainAxisSize.min,children:[Notice(errorText(context,error!),error:true),TextButton(onPressed:()=>widget.onGo('checkout',null),child:const Text('Вернуться к оплате'))]));
     final p = payment, status = p?['status'];
     final title = status == 'completed'
         ? 'Оплата подтверждена'

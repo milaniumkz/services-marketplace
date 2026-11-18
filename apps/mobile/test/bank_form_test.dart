@@ -291,11 +291,11 @@ void main() {
                     id: 'own',
                     autoOpen: automatic,
                     onGo: (route, id) {
-                      expect(route, 'bank-payment');
+                      expect(route, 'my-access');
                       update(() => automatic = false);
                     })))));
     await t.pumpAndSettle();
-    expect(automatic, false);
+    expect(automatic, true);
     expect(find.text('Bank-owned web content'), findsOneWidget);
     await t.tap(find.byTooltip('Тестовая карта'));
     await t.pumpAndSettle();
