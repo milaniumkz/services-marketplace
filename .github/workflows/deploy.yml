@@ -13,9 +13,14 @@ on:
         type: boolean
         default: false
       bcc_setup:
-        description: Install the owner-authorized BCC sandbox configuration through the single-job encrypted channel
+        description: Install the owner-authorized BCC configuration through the single-job encrypted channel
         type: boolean
         default: false
+      bcc_setup_mode:
+        description: BCC environment; production-pending stores credentials without enabling payments
+        type: choice
+        options: [sandbox, production-pending, production]
+        default: sandbox
       firebase_setup:
         description: Receive the owner supplied Firebase credential over a single-job encrypted channel
         type: boolean
@@ -68,6 +73,12 @@ jobs:
       - name: Verify host resource collector
         run: python3 scripts/test-server-metrics.py
       - run: npm run verify
+      - name: Verify BCC protocol using isolated bank mocks
+        run: BCC_AUDIT_OUTPUT="$RUNNER_TEMP/bcc-protocol.json" BCC_AUDIT_BASE_SHA="$GITHUB_SHA" node services/api/test/bcc-audit-runner.cjs
+      - name: Verify BCC hosted payment form without contacting the bank
+        run: node scripts/verify-bcc-form.cjs
+        env:
+          JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
       - name: Verify mobile admin layouts and navigation
         run: node scripts/verify-admin-mobile.cjs
         env:
@@ -130,9 +141,10 @@ jobs:
           JOBA_VTB_HANDOFF: ${{ inputs.vtb_setup && '1' || '0' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-vtb-configuration.py
-      - name: Acquire protected BCC sandbox configuration
+      - name: Acquire protected BCC configuration
         env:
           JOBA_BCC_HANDOFF: ${{ inputs.bcc_setup && '1' || '0' }}
+          JOBA_BCC_SETUP_MODE: ${{ inputs.bcc_setup_mode || 'sandbox' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-bcc-configuration.py
       - name: Acquire protected Firebase configuration
@@ -201,7 +213,14 @@ jobs:
           if test -f "$joba_bcc_stage/bcc.json"; then
             joba_bcc_remote="/tmp/joba-bcc-$GITHUB_SHA.json"
             "${joba_scp[@]}" "$joba_bcc_stage/bcc.json" "root@$JOBA_SSH_HOST:$joba_bcc_remote"
-            "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "install -d -m 0750 -o 1000 -g 1000 /etc/joba/payments; install -m 0600 -o 1000 -g 1000 '$joba_bcc_remote' /etc/joba/payments/bcc.json; rm -f '$joba_bcc_remote'"
+            if test "${JOBA_BCC_STAGE_ONLY:-0}" = 1; then
+              "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "install -d -m 0750 -o 1000 -g 1000 /etc/joba/payments; install -m 0600 -o 1000 -g 1000 '$joba_bcc_remote' /etc/joba/payments/bcc.pending.json; rm -f '$joba_bcc_remote'"
+            else
+              joba_bcc_helper="/tmp/joba-bcc-installer-$GITHUB_SHA"
+              "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "umask 077; mkdir '$joba_bcc_helper'"
+              "${joba_scp[@]}" scripts/install-bcc-config.py scripts/prepare-bcc-deployment.py "root@$JOBA_SSH_HOST:$joba_bcc_helper/"
+              "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "trap 'rm -rf \"$joba_bcc_helper\"; rm -f \"$joba_bcc_remote\"' EXIT; python3 '$joba_bcc_helper/install-bcc-config.py' apply '$joba_bcc_remote'"
+            fi
             rm -rf "$joba_bcc_stage"
           fi
           joba_remote_archive="/tmp/joba-release-$GITHUB_SHA.tgz"
@@ -216,4 +235,7 @@ jobs:
           "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "bash '$joba_remote_script' '$GITHUB_SHA' '$joba_remote_archive' '$JOBA_DOMAIN' '$JOBA_SSH_HOST'"
           "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "test \"\$(readlink -f /opt/joba/current)\" = '/opt/joba/releases/$GITHUB_SHA/source'"
           curl --fail --silent --show-error "https://$JOBA_DOMAIN/health"
+          if test '${{ inputs.bcc_setup && inputs.bcc_setup_mode == 'production' }}' = true; then
+            "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "cd /opt/joba/current && docker compose --env-file /etc/joba/production.env -f infra/production/compose.yaml cp scripts/probe-bcc-readonly.cjs api:/tmp/joba-bcc-readonly.cjs && docker compose --env-file /etc/joba/production.env -f infra/production/compose.yaml exec -T -u root api chmod 0644 /tmp/joba-bcc-readonly.cjs && docker compose --env-file /etc/joba/production.env -f infra/production/compose.yaml exec -T -e JOBA_BCC_READONLY_PROBE=owner-authorized-production-setup api node /tmp/joba-bcc-readonly.cjs"
+          fi
           printf '### Verified URL\nhttps://%s/\n' "$JOBA_DOMAIN" >> "$GITHUB_STEP_SUMMARY"

@@ -33,11 +33,13 @@ def decrypt(private, request, envelope):
     return json.loads(result.stdout)
 
 
-def validate(payload):
-    if payload.get('environment') != 'sandbox':
-        raise ValueError('Only the owner-requested sandbox can be installed through this handoff')
+def validate(payload, mode='sandbox'):
+    if mode not in ('sandbox','production-pending','production') or payload.get('environment') != ('sandbox' if mode=='sandbox' else 'production'):
+        raise ValueError('Bank environment differs from the explicitly selected handoff mode')
+    if mode=='production-pending' and payload.get('callback_registered') is not False:
+        raise ValueError('Pending configuration must not claim registered callbacks')
     with tempfile.TemporaryDirectory(prefix='joba-bcc-validation-') as directory:
-        path = module('prepare-bcc-deployment').prepare(json.dumps(payload), directory)
+        path = module('prepare-bcc-deployment').prepare(json.dumps(payload), directory, allow_pending_registration=mode=='production-pending')
         return json.loads(path.read_text())
 
 
@@ -64,12 +66,14 @@ def acquire():
                 with urllib.request.urlopen(urllib.request.Request(endpoint, headers=headers), timeout=20) as response:
                     record = json.load(response)
                 payload = decrypt(private, request, json.loads(base64.b64decode(record['content'])))
-                payload = validate(payload)
+                mode=os.environ.get('JOBA_BCC_SETUP_MODE','sandbox')
+                payload = validate(payload,mode)
                 destination = Path(os.environ['RUNNER_TEMP']) / ('joba-bcc-' + os.environ['GITHUB_SHA'] + '.json')
                 destination.write_text(json.dumps(payload))
                 destination.chmod(0o600)
                 with open(os.environ['GITHUB_ENV'], 'a') as stream:
                     stream.write('JOBA_BCC_PREPARED_FILE=' + str(destination) + '\n')
+                    stream.write('JOBA_BCC_STAGE_ONLY=' + ('1' if mode=='production-pending' else '0') + '\n')
                 print('BCC configuration received securely for this job', flush=True)
                 return
             except urllib.error.HTTPError as error:

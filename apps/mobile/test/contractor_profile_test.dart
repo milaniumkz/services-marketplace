@@ -81,7 +81,10 @@ void main() {
       await t.tap(find.text('Портфолио · 1'));
       await t.tap(find.text('Отзывы'));
       expect(events, ['report', 'overview', 'portfolio', 'reviews']);
-      expect(find.text('Предложить заказ'),findsNothing);
+      expect(find.text('Предложить заказ'),findsOneWidget);
+      final inviteButton=t.widget<FilledButton>(find.widgetWithText(FilledButton,'Предложить заказ'));
+      expect(inviteButton.onPressed,paused?isNull:isNotNull);
+      if(!paused){await t.tap(find.text('Предложить заказ'));expect(events.last,'invite');}
       await t.scrollUntilVisible(find.text('Моя работа'), 200,
           scrollable: find.byType(Scrollable).first);
       await t.pumpAndSettle();

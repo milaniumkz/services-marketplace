@@ -14,6 +14,7 @@ class ContractorProfile extends StatelessWidget {
   final JobaApi api;
   final Json profile;
   final String locale;
+  final bool allowInvite;
   final ValueChanged<Json> onProject;
   final VoidCallback onInvite,
       onPortfolio,
@@ -27,6 +28,7 @@ class ContractorProfile extends StatelessWidget {
       required this.onProject,
       required this.locale,
       required this.onInvite,
+      this.allowInvite = true,
       required this.onOverview,
       required this.onPortfolio,
       required this.onReviews,
@@ -324,7 +326,12 @@ class ContractorProfile extends StatelessWidget {
               ])
             ]))
       ])),
-      const SizedBox(height:8),
+      if (allowInvite) SafeArea(top: false, child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (profile['availability'] == 'paused') const Padding(padding: EdgeInsets.only(bottom: 8), child: UiText('Специалист сейчас не принимает приглашения',style:TextStyle(fontSize:12,color:muted))),
+            FilledButton(onPressed: profile['availability'] == 'paused' ? null : onInvite, child: const UiText('Предложить заказ')),
+          ]))),
     ]);
   }
 }

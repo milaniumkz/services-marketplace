@@ -2094,18 +2094,18 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 Expanded(
                     child: listBody([
                   const UiHeading('Сегодня вы…',
-                      'Заказчик: доступ к анкетам и размещению заказов на 30 дней. Исполнитель: Стандарт или Премиум.'),
+                      'Ищу специалиста — размещайте заказы и предлагайте их исполнителям. Предлагаю услугу — находите заказы и откликайтесь.'),
                   JobaMenu([
                     JobaMenuEntry(
-                        'Заказчик',
+                        'Ищу специалиста',
                         'search',
                         () => act(() async {
                               await switchRole('customer');
                               go('home');
                             }),
-                        subtitle: 'Опубликовать заказ и выбрать исполнителя из откликов'),
+                        subtitle: 'Найти специалиста рядом или выбрать из откликов'),
                     JobaMenuEntry(
-                        'Исполнитель',
+                        'Предлагаю услугу',
                         'brief',
                         () => act(() async {
                               await switchRole('executor');
@@ -2150,7 +2150,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                         child:
                             Column(mainAxisSize: MainAxisSize.min, children: [
                           button(
-                              'Остаться заказчиком',
+                              'Искать специалиста',
                               () => act(() async {
                                     await switchRole('customer');
                                     go('home');
@@ -2186,7 +2186,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               border: Border.all(color: line),
                               borderRadius: BorderRadius.circular(10)),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            UiText(executor ? 'Исполнитель' : 'Заказчик',
+                            UiText(executor ? 'Предлагаю услугу' : 'Ищу специалиста',
                                 style: const TextStyle(
                                     fontSize: 11, fontWeight: FontWeight.w400)),
                             const SizedBox(width: 4),
@@ -2607,6 +2607,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 JobaSection('Подходящие заказы', () => go('jobs'), action:'Фильтры'),
                 HomeMarketplaceGate(key:ValueKey('home-market-access:${api.session?['user']?['id']}:$revision:$executor'),api:api,executor:executor,onAccess:()=>go('my-access'),onVerification:()=>go('verification'),content:homeListings),
               ] else ...[
+                JobaSection('Специалисты рядом', () => act(nearbyCatalog), action:'Все'),
+                homeListings(),
+                const SizedBox(height: 20),
                 JobaSection('Мои активные заказы', () => go('orders'), action:'Все'),
                 ApiView(load:()=>api.request('/me/orders',query:{'bucket':'active','limit':3}),builder:(context,data,retry)=>items(data).isEmpty?const Notice('Создайте заказ — исполнители откликнутся сами. Вы сможете посмотреть профиль, отзывы и портфолио и выбрать подходящего исполнителя.'):Column(children:items(data).map(orderCard).toList())),
               ],
@@ -2735,7 +2738,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     child: Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                         child: Row(children: [
-                                          UiText(executor ? 'Исполнитель' : 'Заказчик',
+                                          UiText(executor ? 'Предлагаю услугу' : 'Ищу специалиста',
                                               style: const TextStyle(fontSize: 10, height: 1.6, fontWeight: FontWeight.w700, color: primary)),
                                           const SizedBox(width: 4),
                                           const JobaIcon('down', size: 14),
@@ -3696,6 +3699,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               onProject: (project) =>
                   go('public-project', '${record['id']}/${project['id']}'),
               onInvite: () => go('invite', record['id']),
+              allowInvite: !executor && record['owner'] != me?['id'],
               onPortfolio: () => go('public-portfolio', record['id']),
               onReviews: () => go('reviews', record['owner']),
               onReport: () => reportObject(record['id'], 'contractor'),

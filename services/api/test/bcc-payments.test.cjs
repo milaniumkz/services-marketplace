@@ -30,7 +30,7 @@ test('BCC refuses unapproved currency/countries and malformed captured evidence 
  assert.throws(()=>validateBccConfig({...config,countries:['RU']}));assert.throws(()=>validateBccConfig({...config,public_origin:'http://joba.com.kz'}));
  const c=await setup();try{await c.store.put({id:randomUUID(),kind:'price_version',country:'KG',owner:c.user.id,version:1,created_at:new Date().toISOString(),status:'effective',payload:{provider:'bcc',product_type:'subscription',product_id:'unsupported-kg-sku',plan:'customer',currency:'KGS',amount_minor:50000,period:'days',duration_days:30}});await assert.rejects(()=>c.gateway.validateProduct('unsupported-kg-sku','KG'));const kg=(await c.api.commerce.offers('KG','customer')).items;assert.equal(kg.some(x=>x.provider==='bcc'),false);
  const p={id:randomUUID(),amount_minor:50000,currency:'KZT'};const evidence={ORDER:bccOrder(p.id),TERMINAL:config.terminal,TRTYPE:'90',TRAN_TRTYPE:'1',ACTION:'0',RC:'00',AMOUNT:'500.00',CURRENCY:'398',RRN:'123',INT_REF:'ref'};
- assert.equal(c.gateway.validateStatus(p,evidence),2);for(const patch of [{AMOUNT:'1.00'},{CURRENCY:'417'},{ORDER:'another'},{RRN:''},{TRAN_TRTYPE:'0'},{TERMINAL:'99999999'}])assert.throws(()=>c.gateway.validateStatus(p,{...evidence,...patch}));
+ assert.equal(c.gateway.validateStatus(p,evidence),2);assert.throws(()=>c.gateway.validateStatus(p,{...evidence,ACTION:'3',RC:'-2'}),e=>e.getResponse().error.code==='BCC_BANK_ERROR_2');for(const patch of [{AMOUNT:'1.00'},{CURRENCY:'417'},{ORDER:'another'},{RRN:''},{TRAN_TRTYPE:'0'},{TERMINAL:'99999999'}])assert.throws(()=>c.gateway.validateStatus(p,{...evidence,...patch}));
  }finally{await c.store.close();c.cleanup();}
 });
 
@@ -55,5 +55,25 @@ test('unconfirmed BCC payment is sent to reconciliation after the bank status wi
  const c=await setup();try{
  const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items[0];const p=await c.call('POST','/billing/bcc/checkout',{offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true});
  await c.store.put({...await c.store.get(p.id),created_at:new Date(Date.now()-25*3600000).toISOString()});const status=await c.call('GET','/billing/bcc/payments/'+p.id);assert.equal(status.status,'resolution_required');assert.equal(status.can_refund,false);assert.equal(status.payment_url,null);assert.equal((await c.store.all('payment_transaction','KZ')).length,0);assert.equal((await c.store.all('subscription','KZ')).length,0);
+ }finally{await c.store.close();c.cleanup();}
+});
+
+test('switching BCC to live does not let a previous sandbox checkout block or reappear in live payment choices',async()=>{
+ const c=await setup();try{
+ const id=randomUUID(),now=new Date().toISOString();await c.store.put({id,kind:'bank_checkout',owner:c.user.id,country:'KZ',version:1,created_at:now,status:'pending',provider:'bcc',environment:'sandbox',role:'customer',source_id:'previous-sandbox-only',offer:{plan:'customer',title:'Previous sandbox fixture'},amount_minor:50000,currency:'KZT',expires_at:new Date(Date.now()+600000).toISOString()});
+ const offers=await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'}),offer=offers.items.find(p=>p.plan==='customer');
+ const current=await c.call('POST','/billing/bcc/checkout',{offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true});
+ assert.notEqual(current.id,id);assert.equal(current.environment,'production');assert.equal(current.status,'pending');
+ assert.ok(!(await c.call('GET','/billing/bcc/pending')).items.some(p=>p.id===id));
+ assert.equal((await c.store.get(id)).environment,'sandbox');assert.equal((await c.store.get(id)).status,'pending');
+ }finally{await c.store.close();c.cleanup();}
+});
+test('a CGI status error is unresolved rather than a fictitious card decline; the hosted form remains available',async()=>{
+ const c=await setup();try{
+ c.gateway.transport=async(_url,options)=>{const fields=Object.fromEntries(new URLSearchParams(options.body));return Response.json({ORDER:fields.ORDER,TERMINAL:config.terminal,ACTION:'3',RC:'-2'});};
+ const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(p=>p.plan==='customer');
+ const current=await c.call('POST','/billing/bcc/checkout',{offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true});
+ assert.equal(current.status,'pending');assert.ok(current.payment_url);assert.equal((await c.store.get(current.id)).last_error,'BCC_BANK_ERROR_2');
+ assert.equal((await c.store.all('subscription')).length,0);assert.equal((await c.store.all('grant')).length,0);
  }finally{await c.store.close();c.cleanup();}
 });

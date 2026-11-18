@@ -33,3 +33,22 @@ def rollback(receipt,target):
   if digest(before)!=r['before_sha']:raise ValueError('Backup integrity mismatch')
   atomic(target,before)
  else:target.unlink()
+
+if __name__=='__main__':
+ import sys
+ try:
+  if len(sys.argv)!=3 or sys.argv[1] not in ('apply','rollback'):raise ValueError('Invalid bank installation command')
+  target=pathlib.Path('/etc/joba/payments/bcc.json')
+  if sys.argv[1]=='apply':
+   source=pathlib.Path(sys.argv[2]);raw=source.read_text();candidate=json.loads(raw)
+   if target.exists() and json.loads(target.read_text()).get('environment')=='production' and candidate.get('environment')!='production':raise ValueError('Automatic production downgrade forbidden')
+   receipt=apply(raw,target,'/var/backups/joba/bcc');os.chown(target,1000,1000)
+   print('BCC configuration installed atomically; private backup receipt: '+str(receipt))
+  else:
+   receipt=pathlib.Path(sys.argv[2]).resolve()
+   if receipt.parent!=pathlib.Path('/var/backups/joba/bcc').resolve():raise ValueError('Unexpected backup location')
+   rollback(receipt,target)
+   if target.exists():os.chown(target,1000,1000)
+   print('BCC configuration restored from protected backup')
+ except Exception:
+  print('BCC installation failed; private configuration values were not logged');raise SystemExit(1)

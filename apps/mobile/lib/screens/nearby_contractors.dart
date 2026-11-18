@@ -45,7 +45,7 @@ class _NearbyContractorsState extends State<NearbyContractors> {
     try {
       return Map<String, dynamic>.from(await widget.api.request('/contractors',
           query: {
-            'limit': 3,
+            'limit': 10,
             'near_lat': lat,
             'near_lon': lon,
             'radius_km': 20
