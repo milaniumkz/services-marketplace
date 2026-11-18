@@ -1,3 +1,4 @@
+import {requirePayment} from './payment-controls';
 import {createHash,randomUUID} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
@@ -71,6 +72,7 @@ export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordDa
  return {...raw,items:offers,subscription_state:{paid_until:new Date(state.paid_until).toISOString(),premium:state.premium,standard:state.standard},addons:(await commerce.plans(user.country)).addons};
 }
 export async function buyTestQuote(store:Store,commerce:Commerce,user:RecordData,b:any,now=new Date()){
+ await requirePayment(store,'test');
  if(user.status!=='active')fail('FORBIDDEN','Аккаунт ограничен',403);
  if(b.accepted!==true)fail('CONSENT_REQUIRED','Подтвердите условия оплаты',403);
  const quote=await store.get(String(b.offer_id));

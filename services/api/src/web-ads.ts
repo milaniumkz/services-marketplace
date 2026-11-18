@@ -1,3 +1,4 @@
+import {paymentControls} from './payment-controls';
 import adPlacements from './ad-placements.json';
 import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
@@ -93,13 +94,14 @@ export async function userWebAds(store:Store,a:{id:string;country:string},method
  if(path==='/me/web-ads'&&method==='GET'){
   const available=subscriptionRole(user!)==='customer'?['customer']:['standard','top100'],offers=[];
   for(const target of available){const p=await activeProgress(store,a,target),reason=await eligibility(store,user!,target);offers.push({target,title:title(target),required_views:p?.required_views??requiredCount(config,target),completed_views:p?.completed_views??0,duration_days:30,ready:p?.status==='ready',eligible:!reason,reason});}
-  return {notice:webAdNotice,enabled:config.enabled,adsense_enabled:config.adsense_enabled,adsense_client:config.adsense_client,adsense_slot:config.adsense_slot,admob_android_rewarded_id:config.admob_android_rewarded_id,admob_enabled:config.admob_enabled,admob_android_banner_id:config.admob_android_banner_id,rewarded_enabled:config.rewarded_enabled,banner_id:config.banner_id,mobile_rewarded_id:config.mobile_rewarded_id,desktop_rewarded_id:config.desktop_rewarded_id,android_banner_id:config.android_banner_id,android_rewarded_id:config.android_rewarded_id,ios_banner_id:config.ios_banner_id,ios_rewarded_id:config.ios_rewarded_id,reward_kind:'subscription',reward_days:30,offers,verification_status:user!.verification,role:subscriptionRole(user!),consent:consent?.accepted===true,consent_recorded:!!consent,server_time:now.toISOString()};
+  return {notice:webAdNotice,enabled:config.enabled,adsense_enabled:config.adsense_enabled,adsense_client:config.adsense_client,adsense_slot:config.adsense_slot,admob_android_rewarded_id:config.admob_android_rewarded_id,admob_enabled:config.admob_enabled,admob_android_banner_id:config.admob_android_banner_id,rewarded_enabled:config.rewarded_enabled&&(await paymentControls(store)).rewarded_enabled,banner_id:config.banner_id,mobile_rewarded_id:config.mobile_rewarded_id,desktop_rewarded_id:config.desktop_rewarded_id,android_banner_id:config.android_banner_id,android_rewarded_id:config.android_rewarded_id,ios_banner_id:config.ios_banner_id,ios_rewarded_id:config.ios_rewarded_id,reward_kind:'subscription',reward_days:30,offers,verification_status:user!.verification,role:subscriptionRole(user!),consent:consent?.accepted===true,consent_recorded:!!consent,server_time:now.toISOString()};
  }
  if(path==='/me/web-ads/consent'&&method==='POST'){if(typeof b.accepted!=='boolean')fail('Укажите согласие на рекламные показы.');await recordWebAdConsent(store,a,b.accepted,now);return {accepted:b.accepted};}
  if(path==='/me/web-ads/redeem'&&method==='POST'){
   const p=await activeProgress(store,a,String(b.target));if(!p)fail('Нет завершённого набора просмотров.',409);return redeemProgress(store,user!,p!,now);
  }
  if(path==='/me/web-ads/reward-sessions'&&method==='POST'){
+  if(!(await paymentControls(store)).rewarded_enabled)fail('Получение подписки за рекламу временно отключено.',403);
   if(!config.rewarded_enabled||consent?.accepted!==true)fail('Реклама недоступна или согласие на показы отключено.',403);
   if(!['desktop','touch','android','ios'].includes(b.platform))fail('Не удалось определить платформу.');
   const provider=b.provider??'yandex';

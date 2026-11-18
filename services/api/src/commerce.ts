@@ -1,3 +1,4 @@
+import {paymentControls,paymentAllowed} from './payment-controls';
 import {subscriptionPlans,subscriptionCapabilities,subscriptionPlan,top100Addon} from './subscription-plans';
 import { randomUUID } from 'node:crypto';
 import { RecordData, Store } from './store';
@@ -23,7 +24,8 @@ export class Commerce {
     const simulated=test.enabled?plans.filter(p=>Number.isSafeInteger(p.amount_minor)&&p.amount_minor!>=0).map(p=>({...p,plan:p.code,test_settings_version:test.version,catalog_version:catalog.version,id:'test-'+p.code+'-v'+catalog.version+'-s'+test.version,provider:'test',product_id:'test.joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',is_test:true,auto_renew:false})):[];
     const candidate=bankName?this.providers.billing.get(bankName):this.providers.hostedFor(country);const hosted=candidate?.hostedCheckout&&(!candidate.countries||candidate.countries.includes(country))?candidate:undefined;
     const bankOffers=hosted?plans.filter(p=>!hosted.currencies||hosted.currencies.includes(p.currency)).map(p=>({...p,plan:p.code,id:hosted.name+'-'+p.code+'-v'+catalog.version,provider:hosted.name,product_id:'joba.'+country+'.'+p.code+'.30d',product_type:'subscription',period:'days',hosted_checkout:true,is_test:false,environment:hosted.environment,bank_test:hosted.environment==='sandbox',auto_renew:false})):[];
-    return {plans,items:[...realOffers.filter(o=>o.provider!==hosted?.name),...bankOffers,...simulated],test_payments_enabled:test.enabled,hosted_checkout_enabled:bankOffers.length>0};
+    const controls=await paymentControls(this.store),allowed=(provider:string)=>paymentAllowed(controls,provider);
+    return {plans,items:[...realOffers.filter(o=>o.provider!==hosted?.name),...bankOffers,...simulated].filter(o=>allowed(o.provider)),paid_checkout_enabled:hosted?allowed(hosted.name):controls.bcc_enabled||controls.vtb_enabled,payment_controls:controls,test_payments_enabled:test.enabled&&allowed('test'),hosted_checkout_enabled:bankOffers.some(o=>allowed(o.provider))};
   }
   async verify(owner:string,country:string,providerName:string,reference:string) {
     const provider=this.providers.billing.get(providerName);if(!provider)fail('PROVIDER_UNAVAILABLE','Платёжный провайдер ещё не подключён');
@@ -86,6 +88,7 @@ export class Commerce {
     return {subscription,duplicate:false};
   }
   async rewardSession(owner:string,country:string,b:any) {
+    if(!(await paymentControls(this.store)).rewarded_enabled)fail('REWARDED_SUBSCRIPTIONS_DISABLED','Получение подписки за рекламу временно отключено.',403);
     const settings=await readSettings(this.store,country);
     const config=(await this.store.all('monetization_config',country)).find(x=>x.status==='effective');
     if(!config?.payload?.rewarded_access_enabled)fail('REWARDED_DISABLED','Рекламный доступ выключен',403);

@@ -86,3 +86,17 @@ test('BCC refuses an under-minimum positive KZT quote without changing the price
  assert.equal(c.requests.length,0);assert.equal((await c.store.all('bank_checkout')).length,0);assert.equal((await c.store.all('subscription')).length,0);
  }finally{await c.store.close();c.cleanup();}
 });
+
+test('disabling BCC hides new checkout and saved payment URLs while independently settling an already captured payment',async()=>{
+ const c=await setup();try{
+ const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(p=>p.plan==='customer');
+ const body={offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true},pending=await c.call('POST','/billing/bcc/checkout',body);
+ await c.store.put({id:randomUUID(),kind:'payment_controls',country:'KZ',owner:c.user.id,version:1,created_at:new Date().toISOString(),bcc_enabled:false,vtb_enabled:true,rewarded_enabled:true});
+ assert.equal((await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.length,0);
+ assert.equal((await c.call('GET','/me/monetization-config',{}, {bank_capability:'bcc-v1'})).paid_checkout_enabled,false);
+ await assert.rejects(()=>c.call('POST','/billing/bcc/checkout',body),e=>e.getResponse().error.code==='PAYMENT_METHOD_DISABLED');
+ assert.equal((await c.call('GET','/billing/bcc/payments/'+pending.id)).payment_url,null);
+ const url=new URL(pending.payment_url),paused=await c.api.handle('GET',url.pathname.replace('/api/v1',''),{},undefined,undefined,Object.fromEntries(url.searchParams),'198.51.100.25');assert.ok(paused.public_html.includes('Оплата через банк временно недоступна'));assert.ok(paused.public_html.includes('Вернуться в JOBA'));assert.ok(!paused.public_html.includes('P_SIGN'));
+ c.capture=true;assert.equal((await c.call('GET','/billing/bcc/payments/'+pending.id)).status,'completed');assert.equal((await c.store.all('subscription')).length,1);
+ }finally{await c.store.close();c.cleanup();}
+});

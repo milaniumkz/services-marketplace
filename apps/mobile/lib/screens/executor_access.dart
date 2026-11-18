@@ -215,6 +215,12 @@ class _ExecutorAccessState extends State<ExecutorAccess> {
         .where((r) => r['product_type'] != 'boost')
         .toList();
     final price = subscription?['price'] as Json?;
+    if (choosing && config['paid_checkout_enabled'] == false) return ListView(padding: const EdgeInsets.all(20), children: [
+      const UiHeading('Доступ к JOBA', 'Оплата через банк временно недоступна.'),
+      if(widget.api!=null)WebRewardEntry(api:widget.api!,onSelect:(target)=>onGo('reward',target)),
+      const Notice('Получите подписку за просмотр рекламы, если этот способ доступен.'),
+      if(widget.api!=null)PendingBankPayments(api:widget.api!,onGo:onGo),
+    ]);
     if (choosing)
       return ListView(padding: const EdgeInsets.all(20), children: [
         if(widget.api!=null)PendingBankPayments(api:widget.api!,onGo:onGo),

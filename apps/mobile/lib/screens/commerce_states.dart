@@ -565,6 +565,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
           final offer = requested == null
               ? (offers.isEmpty ? null : offers.first)
               : (chosen.isEmpty ? null : chosen.first);
+          if(data['paid_checkout_enabled']==false)return ListView(padding:const EdgeInsets.all(20),children:[const UiHeading('Доступ к JOBA','Оплата через банк временно недоступна.'),WebRewardEntry(api:widget.api,onSelect:(target)=>widget.onGo('reward',target)),const Notice('Получите подписку за просмотр рекламы, если этот способ доступен.'),PendingBankPayments(api:widget.api,onGo:widget.onGo)]);
           final offerSnapshot = offer == null ? null : jsonEncode(offer);
           final accepted =
               offerSnapshot != null && acceptedOffer == offerSnapshot;

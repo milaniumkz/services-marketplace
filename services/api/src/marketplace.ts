@@ -1,3 +1,4 @@
+import {adminPaymentControls,paymentControls,paymentAllowed,requirePayment} from './payment-controls';
 import {bankReturnPage} from './bank-return';
 import {BccGateway,loadBccConfig} from './bcc-gateway';
 import {refreshPublicServiceInformation} from './public-service-information';
@@ -332,6 +333,7 @@ export class Marketplace {
       await this.bcc!.callback(String(q.payment_id??''),String(q.token??''));
       const payment=(await this.store.get(String(q.payment_id)))!;
       if(payment.provider!=='bcc'||!['registering','pending'].includes(payment.status)||payment.cancel_requested||payment.expires_at<=new Date().toISOString())fail(409,'PAYMENT_EXPIRED','Срок оплаты истёк. Вернитесь в JOBA и проверьте статус.');
+      if(!paymentAllowed(await paymentControls(this.store),'bcc'))return {public_html:'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата JOBA</title><h1>Оплата через банк временно недоступна</h1><p>Вернитесь в раздел доступа. Получить подписку можно за просмотр рекламы, если этот способ включён.</p><a href="https://joba.com.kz/api/v1/public/billing/bcc/return?payment_id='+encodeURIComponent(payment.id)+'">Вернуться в JOBA</a></html>'};
       const owner=await this.store.get(payment.owner),phone=String(owner?.phone??'').replace(/\D/g,''),cc=owner?.country==='KG'?'996':'7';
       return {public_html:(this.bcc!.gateway as BccGateway).form(payment,{clientIp:ip,...(phone.startsWith(cc)?{mobilePhone:{cc,subscriber:phone.slice(cc.length)}}:{}),...(typeof owner?.billing_address==='string'?{billingAddress:owner.billing_address}:{})})};
     }
@@ -349,11 +351,12 @@ export class Marketplace {
     }
     if(path==='/public/push-config'&&method==='GET')return firebasePublicConfig();
     if(path==='/public/config'&&method==='GET') {
+      const billingControls=await paymentControls(this.store);
       const controls=await this.store.all('country_control');
       return {countries:await Promise.all(Object.entries(countries).map(async ([code,c])=>{
         const control=controls.find(r=>r.country===code&&r.status==='effective');
         const cityData=await cityCatalog(this.store,code);
-        return {code,name:({KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,cities:cityData.items.map(city=>city.name),cities_count:cityData.meta.total,launch_status:'unverified',checkout_enabled:!!this.providers.hostedFor(code),
+        return {code,name:({KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'} as Record<string,string>)[code],...c,cities:cityData.items.map(city=>city.name),cities_count:cityData.meta.total,launch_status:'unverified',checkout_enabled:!!this.providers.hostedFor(code)&&paymentAllowed(billingControls,this.providers.hostedFor(code)!.name),
           active:countryEnabled(code)&&(control?.payload.registration_enabled??true)&&!(control?.payload.stop_new_business??false),registration_enabled:countryEnabled(code)&&(control?.payload.registration_enabled??true),stop_new_business:!countryEnabled(code)||(control?.payload.stop_new_business??false)};
       })),subscription_enabled:true,subscription_scope:'customer_and_executor',subscription_plans:subscriptionPlans,customer_access:'subscription',banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
     }
@@ -493,6 +496,7 @@ export class Marketplace {
     if(path==='/me/face-recovery')return this.face.account(a.user,method,b);
     if(path==='/admin/web-ads')return adminWebAds(this.store,a,method,b);
     if(path.startsWith('/me/web-ads'))return userWebAds(this.store,a,method,path,b);
+    if(path==='/admin/payment-controls')return adminPaymentControls(this.store,a,method,b);
     if(path==='/admin/operator-profile')return adminOperatorProfile(this.store,a,method,b);
     if(path.startsWith('/admin/access/'))return staffAccess(this.store,a,method,path,b);
     if(a.user.staff_permissions?.length&&(path.startsWith('/orders')||path.startsWith('/me/contractor-profile')||path.startsWith('/me/portfolio-projects')||path==='/reviews'))fail(403,'FORBIDDEN','Для действий на бирже используйте отдельный пользовательский аккаунт');
@@ -579,10 +583,11 @@ export class Marketplace {
       const config=(await this.store.all('monetization_config',a.country)).find(x=>x.status==='effective');
       const usage=(await db.query<{used:string;last:string|null}>("SELECT count(*) AS used,max(data->>'created_at') AS last FROM records WHERE kind='ad_session' AND country=$1 AND owner=$2 AND left(data->>'created_at',10)=$3",[a.country,a.id,new Date().toISOString().slice(0,10)])).rows[0];
       const testMode=await testPaymentSettings(this.store,a.country,this.providers.billingFor(a.country));
+      const controls=await paymentControls(this.store),hostedProvider=this.providers.hostedFor(a.country);
       const usedToday=Number(usage.used),dailyCap=config?.payload.daily_cap??5;
       const last=usage.last?Date.parse(usage.last):0;
       const cooldownUntil=last?new Date(last+(config?.payload.cooldown_seconds??300)*1000).toISOString():null;
-      return {banner_ads_enabled:false,rewarded_access_enabled:false,...config?.payload,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),checkout_enabled:testMode.enabled||!!this.providers.hostedFor(a.country),test_payments_enabled:testMode.enabled,verification_status:a.user.verification,subscription_enabled:config?.payload.subscription_enabled!==false,subscription_scope:'customer_and_executor',plans:(await this.commerce.plans(a.country)).items.filter(p=>p.role===(subscriptionRole(a.user))),country_gate:'unverified',offers:config?.payload.subscription_enabled!==false?(await checkoutOffers(this.store,this.commerce,a.user,new Date(),q.bank_capability==='bcc-v1'?undefined:this.vtb?'vtb':undefined)).items:[],addons:(await this.commerce.plans(a.country)).addons};
+      return {banner_ads_enabled:false,...config?.payload,rewarded_access_enabled:config?.payload.rewarded_access_enabled===true&&controls.rewarded_enabled,reward_provider_ready:this.providers.rewards.has(config?.payload.provider),reward_usage:{used_today:usedToday,daily_cap:dailyCap,remaining_today:Math.max(0,dailyCap-usedToday),cooldown_until:cooldownUntil},version:config?.version??1,effective_at:config?.published_at??null,expires_at:new Date(Date.now()+settings.config_ttl_seconds*1000).toISOString(),server_time:new Date().toISOString(),paid_checkout_enabled:hostedProvider?paymentAllowed(controls,hostedProvider.name):controls.bcc_enabled||controls.vtb_enabled,checkout_enabled:(testMode.enabled||!!hostedProvider)&&(hostedProvider?paymentAllowed(controls,hostedProvider.name):paymentAllowed(controls,'test')),test_payments_enabled:testMode.enabled,verification_status:a.user.verification,subscription_enabled:config?.payload.subscription_enabled!==false,subscription_scope:'customer_and_executor',plans:(await this.commerce.plans(a.country)).items.filter(p=>p.role===(subscriptionRole(a.user))),country_gate:'unverified',offers:config?.payload.subscription_enabled!==false?(await checkoutOffers(this.store,this.commerce,a.user,new Date(),q.bank_capability==='bcc-v1'?undefined:this.vtb?'vtb':undefined)).items:[],addons:(await this.commerce.plans(a.country)).addons};
     }
     if(path==='/me/entitlements'&&method==='GET'){await activatePeriods(this.store,a.user);await this.promotionGrant(a);return {items:(await this.store.all('grant',a.country)).filter(x=>x.owner===a.id)};}
     if(path==='/me/verification'&&method==='GET') {
@@ -1202,8 +1207,8 @@ export class Marketplace {
     if(path==='/referrals/attribute'&&method==='POST')return this.growth.attribute(a.id,a.country,text(b,'code',1,50));
     const redeem=path.match(/^\/me\/referral-rewards\/([^/]+)\/redeem$/);if(redeem&&method==='POST')return this.growth.redeem(a.id,a.country,redeem[1]);
     if(path==='/promoted-listings'&&method==='GET'){const placement=String(q.placement_id??'');if(!promotedPlacements.includes(placement))fail(400,'VALIDATION_ERROR','Неизвестное размещение');await this.entitlement(a,placement.includes('.orders.')?'search_full':'view_contractors',placement.includes('.orders.'));return promotedListings(this.store,a.country,a.id,placement,q);}
-    if(path==='/boost-offers'&&method==='GET'){await this.entitlement(a,'search_full');return {items:(await this.store.all('price_version',a.country)).filter(x=>x.status==='effective'&&x.payload.product_type==='boost').map(x=>({id:x.id,...x.payload})),placements:(await this.store.all('placement_policy',a.country)).filter(x=>x.status==='effective')};}
-    if(path==='/boost-reservations'&&method==='POST'){const target=await this.object(String(b.target_id),a,undefined,true);await this.entitlement(a,'search_full',target.kind==='contractor');return this.growth.reserveBoost(a.id,a.country,b);}
+    if(path==='/boost-offers'&&method==='GET'){await this.entitlement(a,'search_full');const controls=await paymentControls(this.store),all=(await this.store.all('price_version',a.country)).filter(x=>x.status==='effective'&&x.payload.product_type==='boost'),offers=all.filter(x=>paymentAllowed(controls,x.payload.provider));return {paid_checkout_enabled:all.length?offers.length>0:controls.bcc_enabled||controls.vtb_enabled,items:offers.map(x=>({id:x.id,...x.payload})),placements:(await this.store.all('placement_policy',a.country)).filter(x=>x.status==='effective')};}
+    if(path==='/boost-reservations'&&method==='POST'){const selectedPrice=await this.store.get(String(b.price_id));if(selectedPrice?.payload?.provider)await requirePayment(this.store,selectedPrice.payload.provider);const target=await this.object(String(b.target_id),a,undefined,true);await this.entitlement(a,'search_full',target.kind==='contractor');return this.growth.reserveBoost(a.id,a.country,b);}
     if(path==='/boost-purchases/verify'&&method==='POST'&&['vtb','bcc'].includes(b.provider)){const bank=b.provider==='bcc'?this.bcc:this.vtb;if(bank)return bank.byReference(a.user,String(b.transaction_reference));}
     if(path==='/boost-purchases/verify'&&method==='POST')return this.growth.verifyBoost(a.id,a.country,b);
     if(path==='/me/boosts'&&method==='GET'){

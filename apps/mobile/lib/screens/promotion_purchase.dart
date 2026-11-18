@@ -307,6 +307,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
             ]),
         builder: (context, data, reload) {
           final options = data[0], profile = data[1]['profile'];
+          if(options['paid_checkout_enabled']==false)return const SingleChildScrollView(child:JobaStatePanel(title:'Продвижение пока недоступно',message:'Разовая оплата временно отключена. Попробуйте позже.',icon:'spark'));
           final targets = <Json>[
             if (profile?['status'] == 'published'||profile?['public_status']=='published') profile,
             ...items(data[2])

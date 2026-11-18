@@ -1,3 +1,4 @@
+import {requirePayment} from './payment-controls';
 import {randomUUID} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
@@ -21,6 +22,7 @@ export async function updateTestPayments(store:Store,country:string,actor:string
  return testPaymentSettings(store,country,providerReady);
 }
 export async function simulateSubscription(store:Store,user:RecordData,b:any,offers:any[]){
+ await requirePayment(store,'test');
  if(user.status!=='active')fail('FORBIDDEN','Аккаунт ограничен',403);
  if(b.accepted!==true)fail('CONSENT_REQUIRED','Подтвердите условия тестовой оплаты',403);
  const offer=offers.find(o=>o.id===b.offer_id&&o.is_test===true);
