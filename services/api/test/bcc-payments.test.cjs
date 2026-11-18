@@ -77,3 +77,12 @@ test('a CGI status error is unresolved rather than a fictitious card decline; th
  assert.equal((await c.store.all('subscription')).length,0);assert.equal((await c.store.all('grant')).length,0);
  }finally{await c.store.close();c.cleanup();}
 });
+
+test('BCC refuses an under-minimum positive KZT quote without changing the price or creating a bank payment',async()=>{
+ const c=await setup();try{
+ await c.store.put({id:randomUUID(),kind:'subscription_catalog',country:'KZ',owner:c.user.id,version:1,created_at:new Date().toISOString(),prices:{customer:2000,standard:70000,premium:150000,top100:50000}});
+ const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(p=>p.plan==='customer');assert.equal(offer.amount_minor,2000);
+ await assert.rejects(()=>c.call('POST','/billing/bcc/checkout',{offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true}),e=>e.getResponse().error.code==='BCC_AMOUNT_BELOW_MINIMUM');
+ assert.equal(c.requests.length,0);assert.equal((await c.store.all('bank_checkout')).length,0);assert.equal((await c.store.all('subscription')).length,0);
+ }finally{await c.store.close();c.cleanup();}
+});

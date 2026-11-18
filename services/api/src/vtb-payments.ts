@@ -32,6 +32,7 @@ export class VtbPayments {
   }else{const checked=await validateHostedQuote(this.store,this.commerce,user,b);offer=checked.offer;quote=checked.quote;state=checked.state;}
   if(offer.provider!==this.gateway.name)fail('OFFER_CHANGED','Выбран другой банк. Обновите предложение оплаты.');
   if(!(this.gateway.currencies??['KZT']).includes(offer.currency)||!Number.isSafeInteger(offer.amount_minor)||offer.amount_minor<0||offer.amount_minor>999999999999)fail('PRICE_MISMATCH','Банк пока не поддерживает валюту выбранного предложения');
+  if(this.gateway.name==='bcc'&&offer.currency==='KZT'&&offer.amount_minor>0&&offer.amount_minor<3000)fail('BCC_AMOUNT_BELOW_MINIMUM','Минимальная сумма оплаты БЦК — 30 ₸ для карт Казахстана и 400 ₸ для зарубежных карт. Итоговая цена не изменена.',422);
   const now=new Date(),id=randomUUID();
   const payment:RecordData={id,kind:'bank_checkout',owner:user.id,country:user.country,version:1,created_at:now.toISOString(),status:'registering',provider:this.gateway.name,environment:this.gateway.environment,...(this.gateway.name==='bcc'?{bcc_merchant_reference:bccMerchantReference(id)}:{}),benefit:boost?'boost':'subscription',source_id:source,role:boost?'boost':offer.role,offer,amount_minor:offer.amount_minor,currency:offer.currency,expires_at:new Date(Math.min(now.getTime()+20*60000,boost?Date.parse(boost.reservation_expires_at):Infinity)).toISOString(),boost_ends_at:boost?.ends_at,baseline_periods:state?.periods.map((p:RecordData)=>p.id)??[],attempts:0};
   await this.store.put(payment);
