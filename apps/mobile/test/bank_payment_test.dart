@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
@@ -20,19 +21,33 @@ void main() {
     addTearDown(api.dispose);api.session={'access_token':'isolated','user':{'id':'customer','active_role':'customer'}};
     String? route,id;
     await t.pumpWidget(MaterialApp(home:Scaffold(body:CommerceStateScreen(api:api,mode:'checkout',onGo:(r,v){route=r;id=v;}))));await t.pumpAndSettle();
-    expect(purchase,isNull);if(provider=='bcc'){await t.scrollUntilVisible(find.byType(TextField),200,scrollable:find.byType(Scrollable).first);await t.enterText(find.byType(TextField),'Алматы, Тестовая, 12');await t.pumpAndSettle();}await t.scrollUntilVisible(find.byType(CheckboxListTile),200,scrollable:find.byType(Scrollable).first);await t.tap(find.byType(CheckboxListTile));await t.pumpAndSettle();await t.ensureVisible(find.text('Продолжить оплату'));await t.tap(find.text('Продолжить оплату'));await t.pumpAndSettle();
-    expect(purchase,{'offer_id':'server-quote','amount_minor':50000,'currency':'KZT','accepted':true,if(provider=='bcc')'billing_address':'Алматы, Тестовая, 12'});expect(route,'bank-payment-open');expect(id,'own-payment');
+    expect(purchase,isNull);await t.scrollUntilVisible(find.byType(CheckboxListTile),200,scrollable:find.byType(Scrollable).first);await t.tap(find.byType(CheckboxListTile));await t.pumpAndSettle();await t.ensureVisible(find.text('Продолжить оплату'));await t.tap(find.text('Продолжить оплату'));await t.pumpAndSettle();
+    expect(purchase,{'offer_id':'server-quote','amount_minor':50000,'currency':'KZT','accepted':true});expect(route,'bank-payment-open');expect(id,'own-payment');
   });
   testWidgets('bank return polls authenticated proof and cancellation never grants a subscription', (t) async {
-    var status='pending',canceled=false;
+    var status='pending',canceled=false;String? next;
     final api=JobaApi('https://isolated.example',vault:MemoryVault(),transport:MockClient((r) async {
       expect(r.headers['Authorization'],'Bearer isolated');
       if(r.url.path.endsWith('/cancel')){expect(r.method,'POST');canceled=true;status='canceled';}
-      return ok({'id':'own-payment','status':status,'title':'Стандарт','amount_minor':50000,'currency':'KZT','bank_test':true,'can_cancel':status=='pending','benefit':'subscription'});
+      return ok({'id':'own-payment','status':status,'title':'Стандарт','amount_minor':50000,'currency':'KZT','bank_test':true,'can_cancel':status=='pending','can_retry':status=='canceled','benefit':'subscription'});
     }));
     addTearDown(api.dispose);api.session={'access_token':'isolated','user':{'id':'customer'}};
-    await t.pumpWidget(MaterialApp(home:Scaffold(body:BankPaymentScreen(api:api,id:'own-payment',onGo:(_,__){}))));await t.pumpAndSettle();
+    await t.pumpWidget(MaterialApp(home:Scaffold(body:BankPaymentScreen(api:api,id:'own-payment',onGo:(r,_)=>next=r))));await t.pumpAndSettle();
     expect(find.text('Оплата подтверждена'),findsNothing);await t.ensureVisible(find.text('Отменить неоплаченный заказ'));await t.tap(find.text('Отменить неоплаченный заказ'));await t.pumpAndSettle();expect(canceled,true);expect(find.text('Оплата отменена'),findsOneWidget);expect(find.text('Оплата подтверждена'),findsNothing);
+    await t.ensureVisible(find.text('Повторить оплату'));await t.tap(find.text('Повторить оплату'));expect(next,'checkout');
     await t.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets('a cancellation requested during a background poll is serialized and not lost', (t) async {
+    final waiting=Completer<Json>();var reads=0,cancels=0;
+    Json result()=>{'id':'own-payment','provider':'bcc','status':cancels>0?'canceled':'pending','amount_minor':50000,'currency':'KZT','can_cancel':cancels==0,'can_retry':cancels>0};
+    final api=JobaApi('https://isolated.example',vault:MemoryVault(),transport:MockClient((r)async{
+      if(r.method=='POST'){cancels++;return ok(result());}
+      reads++;if(reads==2)return ok(await waiting.future);return ok(result());
+    }));addTearDown(api.dispose);api.session={'access_token':'isolated','user':{'id':'customer'}};
+    await t.pumpWidget(MaterialApp(home:Scaffold(body:BankPaymentScreen(api:api,id:'own-payment',onGo:(_,__){}))));await t.pumpAndSettle();
+    final cancel=t.widget<TextButton>(find.widgetWithText(TextButton,'Отменить неоплаченный заказ')).onPressed!;
+    await t.pump(const Duration(seconds:5));expect(reads,2);cancel();expect(cancels,0);
+    waiting.complete(result());await t.pumpAndSettle();expect(cancels,1);expect(find.text('Оплата отменена'),findsOneWidget);expect(find.text('Повторить оплату'),findsOneWidget);
+  });
+
 }

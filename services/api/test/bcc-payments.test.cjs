@@ -109,3 +109,20 @@ test('BCC validates checkout address without creating payments and updates only 
  const p=await c.call('POST','/billing/bcc/checkout',body);const resumed=await c.call('POST','/billing/bcc/checkout',{...body,billing_address:'  Алматы, Тестовая, 12  '});assert.equal(resumed.id,p.id);assert.equal((await c.store.get(p.id)).billing_address,'Алматы, Тестовая, 12');assert.equal((await c.store.all('bank_checkout','KZ')).length,1);
  }finally{await c.store.close();c.cleanup();}
 });
+
+test('unopened BCC checkout cancels immediately and its issued URL cannot be opened; a fresh quote can be paid again',async()=>{
+ const c=await setup();try{
+ const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer');const p=await c.call('POST','/billing/bcc/checkout',{offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true});const url=new URL(p.payment_url);
+ const canceled=await c.call('POST','/billing/bcc/payments/'+p.id+'/cancel');assert.equal(canceled.status,'canceled');assert.equal(canceled.can_cancel,false);assert.equal(canceled.can_retry,true);assert.equal(canceled.payment_url,null);
+ await assert.rejects(()=>c.api.handle('GET',url.pathname.replace('/api/v1',''),{},undefined,undefined,Object.fromEntries(url.searchParams),'198.51.100.25'),e=>e.getResponse().error.code==='PAYMENT_EXPIRED');
+ const next=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer');const again=await c.call('POST','/billing/bcc/checkout',{offer_id:next.id,amount_minor:next.amount_minor,currency:next.currency,accepted:true});assert.notEqual(again.id,p.id);assert.ok(again.payment_url);assert.equal((await c.store.all('subscription','KZ')).length,0);
+ }finally{await c.store.close();c.cleanup();}
+});
+test('opened BCC checkout never pretends cancellation succeeded while the bank status is pending; capture still wins',async()=>{
+ const c=await setup();try{
+ const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer');const p=await c.call('POST','/billing/bcc/checkout',{offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true});const url=new URL(p.payment_url);
+ await c.api.handle('GET',url.pathname.replace('/api/v1',''),{},undefined,undefined,Object.fromEntries(url.searchParams),'198.51.100.25');assert.ok((await c.store.get(p.id)).form_opened_at);
+ const result=await c.call('POST','/billing/bcc/payments/'+p.id+'/cancel');assert.equal(result.status,'pending');assert.equal(result.cancel_requested,true);assert.equal(result.can_cancel,false);assert.equal(result.can_retry,false);assert.equal(result.payment_url,null);assert.match(result.message,/Отмена запрошена/);
+ c.capture=true;assert.equal((await c.call('GET','/billing/bcc/payments/'+p.id)).status,'completed');assert.equal((await c.store.all('subscription','KZ')).length,1);
+ }finally{await c.store.close();c.cleanup();}
+});

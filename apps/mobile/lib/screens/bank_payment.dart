@@ -29,6 +29,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
   Object? error;
   bool loading = false, opening = false, autoOpened = false;
   Timer? timer;
+  bool cancelAfterLoad=false;
   bool get pending =>
       payment == null ||
       ['registering', 'pending'].contains(payment!['status']);
@@ -58,8 +59,8 @@ class _BankPaymentState extends State<BankPaymentScreen>
   }
 
   Future<void> load({bool cancel = false}) async {
-    if (loading) return;
-    loading = true;
+    if (loading) { if(cancel)cancelAfterLoad=true; return; }
+    setState(()=>loading=true);
     final api = widget.api, generation = api.sessionGeneration;
     String? bankUrl;
     try {
@@ -72,7 +73,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
         payment = Json.from(result);
         error = null;
       });
-      if (widget.autoOpen && !autoOpened && payment!['payment_url'] is String) {
+      if (!cancelAfterLoad && !cancel && widget.autoOpen && !autoOpened && payment!['payment_url'] is String) {
         autoOpened = true;
         bankUrl = payment!['payment_url'] as String;
       }
@@ -80,8 +81,9 @@ class _BankPaymentState extends State<BankPaymentScreen>
       if (mounted && api == widget.api && generation == api.sessionGeneration)
         setState(() => error = e);
     } finally {
-      loading = false;
+      if(mounted)setState(()=>loading=false);else loading=false;
     }
+    if(cancelAfterLoad&&mounted&&api==widget.api&&generation==api.sessionGeneration){cancelAfterLoad=false;await load(cancel:true);return;}
     if (bankUrl != null &&
         mounted &&
         api == widget.api &&
@@ -92,7 +94,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
 
   Future<void> openBank(String value) async {
     if (opening) return;
-    opening = true;
+    setState(()=>opening = true);
     try {
       final uri = Uri.parse(value);
       if (!trustedBankEntry(uri))
@@ -118,7 +120,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
     } catch (e) {
       if (mounted) setState(() => error = e);
     } finally {
-      opening = false;
+      if(mounted)setState(()=>opening = false);else opening=false;
     }
   }
 
@@ -161,7 +163,7 @@ class _BankPaymentState extends State<BankPaymentScreen>
         if (p['payment_url'] is String)
           FilledButton(
               onPressed: opening ? null : () => openBank(p['payment_url']),
-              child: const Text('Перейти к оплате в банке')),
+              child: Text(autoOpened?'Продолжить оплату в банке':'Перейти к оплате в банке')),
         if (pending)
           OutlinedButton(
               onPressed: loading ? null : () => load(),
@@ -170,6 +172,8 @@ class _BankPaymentState extends State<BankPaymentScreen>
           TextButton(
               onPressed: loading ? null : () => load(cancel: true),
               child: const Text('Отменить неоплаченный заказ')),
+        if(p['can_retry']==true)
+          FilledButton(onPressed:loading?null:()=>widget.onGo(p['benefit']=='boost'?'promotion':'checkout',null),child:const Text('Повторить оплату')),
         if (status == 'completed' && p['benefit'] == 'boost')
           FilledButton(
               onPressed: () => widget.onGo('promotion-pending', p['boost_id']),

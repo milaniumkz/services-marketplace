@@ -331,9 +331,11 @@ export class Marketplace {
     if(path==='/public/billing/bcc/form'&&method==='GET'){
       if(!this.bcc)fail(503,'PROVIDER_UNAVAILABLE','БЦК пока не подключён');
       await this.bcc!.callback(String(q.payment_id??''),String(q.token??''));
-      const payment=(await this.store.get(String(q.payment_id)))!;
+      await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['bcc-form:'+String(q.payment_id)]);
+      let payment=(await this.store.get(String(q.payment_id)))!;
       if(payment.provider!=='bcc'||!['registering','pending'].includes(payment.status)||payment.cancel_requested||payment.expires_at<=new Date().toISOString())fail(409,'PAYMENT_EXPIRED','Срок оплаты истёк. Вернитесь в JOBA и проверьте статус.');
       if(!paymentAllowed(await paymentControls(this.store),'bcc'))return {public_html:'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата JOBA</title><h1>Оплата через банк временно недоступна</h1><p>Вернитесь в раздел доступа. Получить подписку можно за просмотр рекламы, если этот способ включён.</p><a href="https://joba.com.kz/api/v1/public/billing/bcc/return?payment_id='+encodeURIComponent(payment.id)+'">Вернуться в JOBA</a></html>'};
+      if(!payment.form_opened_at)payment=await this.store.put({...payment,form_opened_at:new Date().toISOString(),version:payment.version+1});
       const owner=await this.store.get(payment.owner),phone=String(owner?.phone??'').replace(/\D/g,''),cc=owner?.country==='KG'?'996':'7';
       return {public_html:(this.bcc!.gateway as BccGateway).form(payment,{clientIp:ip,...(phone.startsWith(cc)?{mobilePhone:{cc,subscriber:phone.slice(cc.length)}}:{}),...(typeof (payment.billing_address??owner?.billing_address)==='string'?{billingAddress:payment.billing_address??owner?.billing_address}:{})})};
     }
