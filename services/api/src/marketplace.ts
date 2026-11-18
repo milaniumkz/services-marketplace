@@ -1368,7 +1368,7 @@ export class Marketplace {
       const abandonCheckout=path.match(/^\/admin\/bank-checkouts\/([0-9a-f-]{36})\/abandon$/i);
       if(abandonCheckout&&['GET','POST'].includes(method)){
         if(!isStaffOwner(a.user)||!a.mfa)fail(403,'FORBIDDEN','Действие доступно владельцу');
-        const payment=await this.store.get(abandonCheckout[1]);if(!payment||payment.kind!=='bank_checkout'||a.country!=='ALL'&&payment.country!==a.country)fail(404,'NOT_FOUND','Платёж не найден');
+        const payment=(await this.store.get(abandonCheckout[1]))!;if(!payment||payment.kind!=='bank_checkout'||a.country!=='ALL'&&payment.country!==a.country)fail(404,'NOT_FOUND','Платёж не найден');
         if(method==='GET')return {id:payment.id,owner_id:payment.owner,version:payment.version,status:payment.status,amount_minor:payment.amount_minor,currency:payment.currency,created_at:payment.created_at,removed:!!payment.checkout_abandoned_at};
         if(typeof b.reason!=='string'||b.reason.trim().length<10||b.reason.length>1000||typeof b.owner_id!=='string'||!Number.isSafeInteger(b.expected_version))fail(422,'VALIDATION_ERROR','Укажите аккаунт, версию и причину.');
         const bank=payment.provider==='bcc'?this.bcc:payment.provider==='vtb'?this.vtb:undefined;if(!bank)fail(503,'PROVIDER_UNAVAILABLE','Банк недоступен');
