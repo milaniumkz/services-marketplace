@@ -13,10 +13,10 @@ async function setup({legacy=false}={}){const store=new Store('memory://'),provi
 test('BCC signed hosted form binds exact payment; no browser return grants access; server capture is idempotent and private',async()=>{
  const c=await setup();try{
  const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer');assert.equal(offer.provider,'bcc');assert.equal(offer.currency,'KZT');
- const body={offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true};const p=await c.call('POST','/billing/bcc/checkout',body);assert.equal(p.provider,'bcc');assert.equal(p.status,'pending');assert.equal((await c.call('POST','/billing/bcc/checkout',body)).id,p.id);
+ const body={offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true,billing_address:'Алматы, улица Тестовая, 12'};const p=await c.call('POST','/billing/bcc/checkout',body);assert.equal((await c.store.get(p.id)).billing_address,body.billing_address);assert.equal(p.billing_address,undefined);assert.equal(p.provider,'bcc');assert.equal(p.status,'pending');assert.equal((await c.call('POST','/billing/bcc/checkout',body)).id,p.id);
  const url=new URL(p.payment_url);assert.equal(url.origin,'https://joba.com.kz');assert.equal(url.pathname,'/api/v1/public/billing/bcc/form');
  await assert.rejects(()=>c.api.handle('GET',url.pathname.replace('/api/v1',''),{},undefined,undefined,{payment_id:p.id,token:'fake'}),e=>e.getStatus()===403);
- const form=await c.api.handle('GET',url.pathname.replace('/api/v1',''),{},undefined,undefined,Object.fromEntries(url.searchParams),'198.51.100.25');assert.ok(form.public_html.includes('action="https://3dsecure.bcc.kz/webview"'));assert.ok(form.public_html.includes('name="AMOUNT" value="500.00"'));assert.ok(form.public_html.includes('name="ORDER" value="'+bccOrder(p.id)+'"'));assert.equal(form.public_html.includes(config.mac_key),false);
+ const form=await c.api.handle('GET',url.pathname.replace('/api/v1',''),{},undefined,undefined,Object.fromEntries(url.searchParams),'198.51.100.25');assert.ok(form.public_html.includes('action="https://3dsecure.bcc.kz/webview"'));assert.ok(form.public_html.includes('name="AMOUNT" value="500.00"'));assert.ok(form.public_html.includes('name="ORDER" value="'+bccOrder(p.id)+'"'));assert.equal(form.public_html.includes(config.mac_key),false);assert.equal(form.public_html.includes('id="bcc-billing-address"'),false);
  assert.equal((await c.store.select('grant','KZ',{owner:c.user.id,limit:100})).length,0);
  await c.api.handle('GET','/public/billing/bcc/return',{},undefined,undefined,{payment_id:p.id,ACTION:'0',RC:'00'});assert.equal((await c.store.all('subscription','KZ')).length,0);
  c.capture=true;c.tamper=true;assert.equal((await c.call('GET','/billing/bcc/payments/'+p.id)).status,'pending');assert.equal((await c.store.all('subscription','KZ')).length,0);
@@ -98,5 +98,14 @@ test('disabling BCC hides new checkout and saved payment URLs while independentl
  assert.equal((await c.call('GET','/billing/bcc/payments/'+pending.id)).payment_url,null);
  const url=new URL(pending.payment_url),paused=await c.api.handle('GET',url.pathname.replace('/api/v1',''),{},undefined,undefined,Object.fromEntries(url.searchParams),'198.51.100.25');assert.ok(paused.public_html.includes('Оплата через банк временно недоступна'));assert.ok(paused.public_html.includes('Вернуться в JOBA'));assert.ok(!paused.public_html.includes('P_SIGN'));
  c.capture=true;assert.equal((await c.call('GET','/billing/bcc/payments/'+pending.id)).status,'completed');assert.equal((await c.store.all('subscription')).length,1);
+ }finally{await c.store.close();c.cleanup();}
+});
+
+test('BCC validates checkout address without creating payments and updates only the existing pending attempt on retry',async()=>{
+ const c=await setup();try{
+ const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer');const body={offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true};
+ for(const billing_address of ['   ','x'.repeat(51),23])await assert.rejects(()=>c.call('POST','/billing/bcc/checkout',{...body,billing_address}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
+ assert.equal((await c.store.all('bank_checkout','KZ')).length,0);
+ const p=await c.call('POST','/billing/bcc/checkout',body);const resumed=await c.call('POST','/billing/bcc/checkout',{...body,billing_address:'  Алматы, Тестовая, 12  '});assert.equal(resumed.id,p.id);assert.equal((await c.store.get(p.id)).billing_address,'Алматы, Тестовая, 12');assert.equal((await c.store.all('bank_checkout','KZ')).length,1);
  }finally{await c.store.close();c.cleanup();}
 });

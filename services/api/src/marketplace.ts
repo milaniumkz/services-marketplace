@@ -335,7 +335,7 @@ export class Marketplace {
       if(payment.provider!=='bcc'||!['registering','pending'].includes(payment.status)||payment.cancel_requested||payment.expires_at<=new Date().toISOString())fail(409,'PAYMENT_EXPIRED','Срок оплаты истёк. Вернитесь в JOBA и проверьте статус.');
       if(!paymentAllowed(await paymentControls(this.store),'bcc'))return {public_html:'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата JOBA</title><h1>Оплата через банк временно недоступна</h1><p>Вернитесь в раздел доступа. Получить подписку можно за просмотр рекламы, если этот способ включён.</p><a href="https://joba.com.kz/api/v1/public/billing/bcc/return?payment_id='+encodeURIComponent(payment.id)+'">Вернуться в JOBA</a></html>'};
       const owner=await this.store.get(payment.owner),phone=String(owner?.phone??'').replace(/\D/g,''),cc=owner?.country==='KG'?'996':'7';
-      return {public_html:(this.bcc!.gateway as BccGateway).form(payment,{clientIp:ip,...(phone.startsWith(cc)?{mobilePhone:{cc,subscriber:phone.slice(cc.length)}}:{}),...(typeof owner?.billing_address==='string'?{billingAddress:owner.billing_address}:{})})};
+      return {public_html:(this.bcc!.gateway as BccGateway).form(payment,{clientIp:ip,...(phone.startsWith(cc)?{mobilePhone:{cc,subscriber:phone.slice(cc.length)}}:{}),...(typeof (payment.billing_address??owner?.billing_address)==='string'?{billingAddress:payment.billing_address??owner?.billing_address}:{})})};
     }
     if(path==='/public/billing/bcc/callback'&&['GET','POST'].includes(method)){
       if(!this.bcc)fail(503,'PROVIDER_UNAVAILABLE','БЦК пока не подключён');return this.bcc!.bankNotification(authorization,{...q,...b});

@@ -20,11 +20,15 @@ export class VtbPayments {
   if(!this.gateway.countries.includes(user.country)||user.status!=='active'||user.staff_permissions?.length)fail('VTB_COUNTRY_UNAVAILABLE','Этот банк пока не подключён для страны аккаунта',403);
   await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['vtb-owner:'+user.country+':'+user.id]);
   if(b.accepted!==true)fail('CONSENT_REQUIRED','Подтвердите условия оплаты',403);
+  const address=b.billing_address;
+  if(this.gateway.name==='bcc'&&address!==undefined&&(typeof address!=='string'||!address.trim()||address.trim().length>50))fail('VALIDATION_ERROR','Укажите адрес держателя карты, не более 50 символов.',422);
+  const billingAddress=this.gateway.name==='bcc'&&typeof address==='string'?address.trim():undefined;
+  const attachAddress=async(p:RecordData)=>{if(billingAddress&&p.provider==='bcc'&&pending(p)&&p.billing_address!==billingAddress)await this.store.put({...p,billing_address:billingAddress,version:p.version+1});};
   const source=String(b.reservation_id??b.offer_id??'');
   const previous=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>p.provider===this.gateway.name&&p.source_id===source&&p.environment===this.gateway.environment).sort((a,b)=>b.created_at.localeCompare(a.created_at))[0];
-  if(previous)return {_vtb_provider:this.gateway.name,_vtb_action:pending(previous)?'register':'present',id:previous.id};
+  if(previous){await attachAddress(previous);return {_vtb_provider:this.gateway.name,_vtb_action:pending(previous)?'register':'present',id:previous.id};}
   const active=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).find(p=>p.environment===this.gateway.environment&&pending(p)&&p.role===(b.reservation_id?'boost':user.active_role??'customer'));
-  if(active)return {_vtb_provider:active.provider,_vtb_action:'register',id:active.id};
+  if(active){await attachAddress(active);return {_vtb_provider:active.provider,_vtb_action:'register',id:active.id};}
   let offer:any,quote:RecordData|undefined,boost:RecordData|undefined,state:any;
   if(b.reservation_id){
    boost=await this.store.get(source);
@@ -36,7 +40,7 @@ export class VtbPayments {
   if(!(this.gateway.currencies??['KZT']).includes(offer.currency)||!Number.isSafeInteger(offer.amount_minor)||offer.amount_minor<0||offer.amount_minor>999999999999)fail('PRICE_MISMATCH','Банк пока не поддерживает валюту выбранного предложения');
   if(this.gateway.name==='bcc'&&offer.currency==='KZT'&&offer.amount_minor>0&&offer.amount_minor<3000)fail('BCC_AMOUNT_BELOW_MINIMUM','Минимальная сумма оплаты БЦК — 30 ₸ для карт Казахстана и 400 ₸ для зарубежных карт. Итоговая цена не изменена.',422);
   const now=new Date(),id=randomUUID();
-  const payment:RecordData={id,kind:'bank_checkout',owner:user.id,country:user.country,version:1,created_at:now.toISOString(),status:'registering',provider:this.gateway.name,environment:this.gateway.environment,...(this.gateway.name==='bcc'?{bcc_merchant_reference:bccMerchantReference(id)}:{}),benefit:boost?'boost':'subscription',source_id:source,role:boost?'boost':offer.role,offer,amount_minor:offer.amount_minor,currency:offer.currency,expires_at:new Date(Math.min(now.getTime()+20*60000,boost?Date.parse(boost.reservation_expires_at):Infinity)).toISOString(),boost_ends_at:boost?.ends_at,baseline_periods:state?.periods.map((p:RecordData)=>p.id)??[],attempts:0};
+  const payment:RecordData={id,kind:'bank_checkout',owner:user.id,country:user.country,version:1,created_at:now.toISOString(),status:'registering',provider:this.gateway.name,environment:this.gateway.environment,...(this.gateway.name==='bcc'?{bcc_merchant_reference:bccMerchantReference(id),...(billingAddress?{billing_address:billingAddress}:{})}:{}),benefit:boost?'boost':'subscription',source_id:source,role:boost?'boost':offer.role,offer,amount_minor:offer.amount_minor,currency:offer.currency,expires_at:new Date(Math.min(now.getTime()+20*60000,boost?Date.parse(boost.reservation_expires_at):Infinity)).toISOString(),boost_ends_at:boost?.ends_at,baseline_periods:state?.periods.map((p:RecordData)=>p.id)??[],attempts:0};
   await this.store.put(payment);
   if(quote)await this.store.put({...quote,status:'payment_pending',payment_id:id,version:quote.version+1});
   return {_vtb_provider:this.gateway.name,_vtb_action:'register',id};

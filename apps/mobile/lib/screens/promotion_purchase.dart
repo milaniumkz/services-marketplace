@@ -30,6 +30,7 @@ class PromotionPurchase extends StatefulWidget {
 }
 
 class _PromotionPurchaseState extends State<PromotionPurchase> {
+  final billingAddress=TextEditingController();
   bool accepted = false, busy = false;
   Object? error;
   String? target, price, placement;
@@ -58,6 +59,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
   @override
   void dispose() {
     timer?.cancel();
+    billingAddress.dispose();
     super.dispose();
   }
 
@@ -187,17 +189,22 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
             final end = DateTime.tryParse('${r['reservation_expires_at']}');
             final active =
                 r['status'] == 'reserved' && end?.isAfter(widget.now()) == true;
-            final connected = p?['provider']=='vtb'||widget.gateway is! DisconnectedCommerceGateway;
+            final connected = ['bcc','vtb'].contains(p?['provider'])||widget.gateway is! DisconnectedCommerceGateway;
             return ActionForm(
                 stickySubmit: true,
                 externalBusy: busy,
-                submitEnabled: accepted &&
+                submitEnabled: accepted && (p?['provider']!='bcc'||billingAddress.text.trim().isNotEmpty) &&
                     p != null &&
                     (receipt != null || active && connected),
                 fields: const [],
                 button:
                     receipt == null ? 'Продолжить оплату' : 'Проверить оплату',
                 before: [
+                  if(p?['provider']=='bcc') ...[
+                    TextField(controller:billingAddress,maxLength:50,enabled:!busy,autofillHints:const [AutofillHints.streetAddressLine1],decoration:InputDecoration(labelText:localize(context,'Адрес держателя карты')),onChanged:(_)=>setState((){})),
+                    if(p?['currency']=='KZT'&&(p?['amount_minor']??40000)<40000)const UiText('Для этой суммы нужна карта банка Казахстана.',style:TextStyle(fontSize:12,color:muted)),
+                    const SizedBox(height:12),
+                  ],
                   JobaBadge(
                       active
                           ? '${localize(context, 'Место зарезервировано')} · ${remaining(end)}'
@@ -275,7 +282,7 @@ class _PromotionPurchaseState extends State<PromotionPurchase> {
                   }
                   final api = widget.api;
                   final reservationId = widget.id;
-                  if(p?['provider']=='vtb'){final payment=await api.request('/billing/vtb/checkout',method:'POST',body:{'reservation_id':reservationId,'amount_minor':p!['amount_minor'],'currency':p['currency'],'accepted':true});if(ownsScreen())widget.onGo('bank-payment-open',payment['id']);return;}
+                  if(['bcc','vtb'].contains(p?['provider'])){final payment=await api.request('/billing/${p?['provider']}/checkout',method:'POST',body:{'reservation_id':reservationId,'amount_minor':p!['amount_minor'],'currency':p['currency'],'accepted':true,if(p['provider']=='bcc')'billing_address':billingAddress.text.trim()});if(ownsScreen())widget.onGo('bank-payment-open',payment['id']);return;}
                   setState(() => busy = true);
                   try {
                     if (receipt == null) {

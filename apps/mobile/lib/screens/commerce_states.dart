@@ -32,6 +32,7 @@ class CommerceStateScreen extends StatefulWidget {
 }
 
 class _CommerceStateScreenState extends State<CommerceStateScreen> {
+  final billingAddress = TextEditingController();
   bool busy = false;
   String? acceptedOffer;
   Object? error;
@@ -51,6 +52,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
+    billingAddress.dispose();
     super.dispose();
   }
 
@@ -90,7 +92,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
         if (!current()) return;
         final Json result;
         if(offer['hosted_checkout']==true){
-          final payment=await api.request('/billing/${offer['provider']=='bcc'?'bcc':'vtb'}/checkout',method:'POST',body:{'offer_id':offer['id'],'amount_minor':offer['amount_minor'],'currency':offer['currency'],'accepted':true});
+          final payment=await api.request('/billing/${offer['provider']=='bcc'?'bcc':'vtb'}/checkout',method:'POST',body:{'offer_id':offer['id'],'amount_minor':offer['amount_minor'],'currency':offer['currency'],'accepted':true,if(offer['provider']=='bcc')'billing_address':billingAddress.text.trim()});
           if(current())widget.onGo('bank-payment-open',payment['id']);return;
         }
         if (offer['is_test'] == true) {
@@ -660,6 +662,11 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                     style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
                 const SizedBox(height: 20),
               ],
+              if(offer?['provider']=='bcc') ...[
+                TextField(controller:billingAddress,maxLength:50,enabled:!busy,autofillHints:const [AutofillHints.streetAddressLine1],decoration:InputDecoration(labelText:localize(context,'Адрес держателя карты')),onChanged:(_)=>setState((){})),
+                if(offer?['currency']=='KZT'&&(offer?['amount_minor']??40000)<40000)const UiText('Для этой суммы нужна карта банка Казахстана.',style:TextStyle(fontSize:12,color:muted)),
+                const SizedBox(height:12),
+              ],
               if(offer?['bank_test']==true)const Notice('Тестовая оплата на странице банка. Реальные деньги не списываются; используйте тестовые карты банка.'),
               if (offer?['is_test'] == true)
                 const Notice(
@@ -703,7 +710,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                     child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
                         child: FilledButton(
-                            onPressed: busy || !accepted || offer == null
+                            onPressed: busy || !accepted || offer == null || (offer['provider']=='bcc'&&billingAddress.text.trim().isEmpty)
                                 ? null
                                 : () => purchase(offer),
                             child: const UiText('Продолжить оплату')))))
