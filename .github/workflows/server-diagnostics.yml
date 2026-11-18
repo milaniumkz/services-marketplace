@@ -24,6 +24,10 @@ on:
         description: Read recent mobile crash reports and stack traces
         type: boolean
         default: false
+      bcc_status:
+        description: Read BCC pending payment metadata and independent bank statuses without financial commands
+        type: boolean
+        default: false
       vtb_status:
         description: Verify deployed VTB environment and private mount without exposing credentials
         type: boolean
@@ -38,7 +42,7 @@ permissions:
   checks: write
 jobs:
   diagnose:
-    if: ${{ !inputs.stalled_source_commit && !inputs.deployment_status && !inputs.account_phone && !inputs.advertising_stats && !inputs.mobile_crashes && !inputs.vtb_status }}
+    if: ${{ !inputs.stalled_source_commit && !inputs.deployment_status && !inputs.account_phone && !inputs.advertising_stats && !inputs.mobile_crashes && !inputs.vtb_status && !inputs.bcc_status }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -49,7 +53,7 @@ jobs:
           JOBA_DIAGNOSTIC_JOB: '116494604449'
 
   account:
-    if: ${{ inputs.stalled_source_commit != '' || inputs.deployment_status || inputs.account_phone != '' || inputs.advertising_stats || inputs.mobile_crashes || inputs.vtb_status }}
+    if: ${{ inputs.stalled_source_commit != '' || inputs.deployment_status || inputs.account_phone != '' || inputs.advertising_stats || inputs.mobile_crashes || inputs.vtb_status || inputs.bcc_status }}
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -66,6 +70,7 @@ jobs:
           JOBA_STALLED_SOURCE_COMMIT: ${{ inputs.stalled_source_commit }}
           JOBA_DEPLOYMENT_STATUS: ${{ inputs.deployment_status && '1' || '0' }}
           JOBA_LOOKUP_PHONE: ${{ inputs.account_phone }}
+          JOBA_BCC_STATUS: ${{ inputs.bcc_status && '1' || '0' }}
           JOBA_VTB_STATUS: ${{ inputs.vtb_status && '1' || '0' }}
           JOBA_AD_STATS: ${{ inputs.advertising_stats && '1' || '0' }}
           JOBA_MOBILE_CRASHES: ${{ inputs.mobile_crashes && '1' || '0' }}
@@ -95,6 +100,8 @@ jobs:
             "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-deployment-runtime.py > account-diagnosis.json
           elif test "$JOBA_MOBILE_CRASHES" = '1'; then
             "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-mobile-crashes.py > account-diagnosis.json
+          elif test "$JOBA_BCC_STATUS" = '1'; then
+            "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-bcc.py > account-diagnosis.json
           elif test "$JOBA_VTB_STATUS" = '1'; then
             "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-vtb.py > account-diagnosis.json
           elif test "$JOBA_AD_STATS" = '1'; then
