@@ -337,11 +337,11 @@ void main() {
     expect(requests.lastWhere((r)=>r.url.path.endsWith('/contractors')).url.queryParameters['city'], 'Алматы');
     state.go('home');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Заказчик'));
+    await tester.tap(find.text('Ищу специалиста'));
     await tester.pumpAndSettle();
     expect(find.text('Моя роль'), findsOneWidget);
     await capture('S11-roles');
-    await tester.tap(find.text('Исполнитель'));
+    await tester.tap(find.text('Предлагаю услугу'));
     await tester.pumpAndSettle();
     expect(user['active_role'], 'executor');
     expect(find.text('Найдём ваш\nследующий заказ'), findsOneWidget);
