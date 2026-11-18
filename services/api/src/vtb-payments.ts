@@ -25,9 +25,9 @@ export class VtbPayments {
   const billingAddress=this.gateway.name==='bcc'&&typeof address==='string'?address.trim():undefined;
   const attachAddress=async(p:RecordData)=>{if(billingAddress&&p.provider==='bcc'&&pending(p)&&p.billing_address!==billingAddress)await this.store.put({...p,billing_address:billingAddress,version:p.version+1});};
   const source=String(b.reservation_id??b.offer_id??'');
-  const previous=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>p.provider===this.gateway.name&&p.source_id===source&&p.environment===this.gateway.environment).sort((a,b)=>b.created_at.localeCompare(a.created_at))[0];
+  const previous=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>p.provider===this.gateway.name&&p.source_id===source&&!p.checkout_abandoned_at&&p.environment===this.gateway.environment).sort((a,b)=>b.created_at.localeCompare(a.created_at))[0];
   if(previous){await attachAddress(previous);return {_vtb_provider:this.gateway.name,_vtb_action:pending(previous)?'register':'present',id:previous.id};}
-  const active=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).find(p=>p.environment===this.gateway.environment&&pending(p)&&p.role===(b.reservation_id?'boost':user.active_role??'customer'));
+  const active=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).find(p=>p.environment===this.gateway.environment&&!p.checkout_abandoned_at&&pending(p)&&p.role===(b.reservation_id?'boost':user.active_role??'customer'));
   if(active){await attachAddress(active);return {_vtb_provider:active.provider,_vtb_action:'register',id:active.id};}
   let offer:any,quote:RecordData|undefined,boost:RecordData|undefined,state:any;
   if(b.reservation_id){
@@ -57,6 +57,18 @@ export class VtbPayments {
    }else if(pending(current))await this.store.put({...current,cancel_requested:true,version:current.version+1});
   }
   return {_vtb_provider:this.gateway.name,_vtb_action:action,id};
+ }
+ async abandonCheckout(id:string,owner:string,actor:string,reason:string,expectedVersion:number){
+  await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['vtb-payment:'+id]);
+  await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['bcc-form:'+id]);
+  const p=await this.store.get(id);if(!p||p.kind!=='bank_checkout'||p.owner!==owner||p.provider!==this.gateway.name||p.environment!==this.gateway.environment)fail('NOT_FOUND','Попытка оплаты не найдена',404);
+  if(p.checkout_abandoned_at)return {id:p.id,removed:true};
+  if(p.version!==expectedVersion)fail('STATE_CONFLICT','Платёж изменился. Обновите данные.');
+  if(!pending(p)||p.confirmed_at||p.paid_at||p.bank_evidence?.rrn)fail('PAYMENT_NOT_PENDING','Подтверждённую оплату нельзя удалить как неоплаченную.');
+  const now=new Date().toISOString();await this.store.put({...p,checkout_abandoned_at:now,checkout_abandoned_by:actor,version:p.version+1});
+  const quote=await this.store.get(p.source_id);if(quote?.kind==='checkout_quote'&&quote.status==='payment_pending')await this.store.put({...quote,status:'payment_failed',version:quote.version+1});
+  await this.store.put({id:randomUUID(),kind:'audit',owner:actor,country:p.country,version:1,created_at:now,actor_id:actor,action:'billing.checkout_abandoned',target_id:p.id,reason});
+  return {id:p.id,removed:true,bank_cancellation_confirmed:false};
  }
  async byReference(user:RecordData,reference:string){const p=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).find(p=>p.id===reference||p.bank_order_id===reference);if(!p)fail('NOT_FOUND','Платёж не найден',404);return this.owned(user,p.id);}
  async callback(id:string,token:string){
@@ -116,7 +128,7 @@ export class VtbPayments {
    const user=await this.store.get(payment.owner),now=new Date();
    if(this.gateway.name==='bcc'&&payment.environment==='sandbox'){const quote=await this.store.get(payment.source_id);if(quote?.kind==='checkout_quote')await this.store.put({...quote,status:'test_complete',version:quote.version+1});return this.present(await this.store.put({...payment,status:'sandbox_confirmed',bank_status:status,sandbox_confirmed_at:now.toISOString(),last_checked_at:now.toISOString(),last_error:null,version:payment.version+1}));}
    const proof={provider:this.gateway.name,environment:payment.environment as 'sandbox'|'production',transaction_id:payment.bank_order_id??'free-'+payment.id,payment_id:payment.id,created_at:payment.created_at};
-   let subscription:RecordData|undefined,boost:RecordData|undefined,resolution:string|undefined;
+   let subscription:RecordData|undefined,boost:RecordData|undefined,resolution:string|undefined=payment.checkout_abandoned_at?'ABANDONED_CHECKOUT_CAPTURED':undefined;
    if(!user||user.status!=='active')resolution='ACCOUNT_REQUIRES_REVIEW';
    if(!resolution&&payment.benefit==='subscription'){
     await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-periods:'+payment.country+':'+payment.owner]);
@@ -148,7 +160,7 @@ export class VtbPayments {
    return this.present(completed);
   });
  }
- async present(p:RecordData){const allowed=paymentAllowed(await paymentControls(this.store),this.gateway.name);return {id:p.id,provider:this.gateway.name,status:p.status,environment:p.environment,bank_test:p.environment==='sandbox',payment_url:allowed&&pending(p)&&!p.cancel_requested&&p.expires_at>new Date().toISOString()?p.form_url??null:null,amount_minor:p.amount_minor,currency:p.currency,plan:p.offer.plan??null,title:p.offer.title??'Продвижение',benefit:p.benefit,expires_at:p.expires_at,subscription_id:p.subscription_id??null,boost_id:p.boost_id??null,can_cancel:pending(p)&&!p.cancel_requested,cancel_requested:p.cancel_requested===true,can_retry:allowed&&['canceled','expired','declined'].includes(p.status),can_refund:p.status==='resolution_required'&&!!p.confirmed_at,paid_at:p.paid_at??null,message:p.status==='sandbox_confirmed'?'Тестовый платёж проверен. Реальные услуги и подписки не активированы.':p.resolution_code==='PAYMENT_STATUS_UNCERTAIN'?'Банк не подтвердил результат в доступный срок. Не оплачивайте повторно; обратитесь в поддержку для сверки.':pending(p)&&p.cancel_requested?'Отмена запрошена. Ожидаем итоговый статус банка; повторно оплачивать не нужно.':p.status==='resolution_required'?'Банк подтвердил оплату, но условия аккаунта изменились. Обратитесь в поддержку для восстановления услуги или возврата.':p.last_error?'Статус оплаты уточняется. Повторная оплата не нужна.':null};}
- async list(user:RecordData){const rows=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>pending(p)||p.status==='resolution_required').sort((a,b)=>b.created_at.localeCompare(a.created_at));return {enabled:this.gateway.countries.includes(user.country),items:await Promise.all(rows.filter(p=>p.provider===this.gateway.name&&p.environment===this.gateway.environment).map(p=>this.present(p)))};}
+ async present(p:RecordData){const allowed=paymentAllowed(await paymentControls(this.store),this.gateway.name);return {id:p.id,provider:this.gateway.name,status:p.status,environment:p.environment,bank_test:p.environment==='sandbox',payment_url:allowed&&!p.checkout_abandoned_at&&pending(p)&&!p.cancel_requested&&p.expires_at>new Date().toISOString()?p.form_url??null:null,amount_minor:p.amount_minor,currency:p.currency,plan:p.offer.plan??null,title:p.offer.title??'Продвижение',benefit:p.benefit,expires_at:p.expires_at,subscription_id:p.subscription_id??null,boost_id:p.boost_id??null,can_cancel:!p.checkout_abandoned_at&&pending(p)&&!p.cancel_requested,cancel_requested:p.cancel_requested===true,can_retry:allowed&&['canceled','expired','declined'].includes(p.status),can_refund:p.status==='resolution_required'&&!!p.confirmed_at,paid_at:p.paid_at??null,message:p.checkout_abandoned_at?'Эта попытка оплаты убрана. Результат прежней операции сохраняется для банковской сверки.':p.status==='sandbox_confirmed'?'Тестовый платёж проверен. Реальные услуги и подписки не активированы.':p.resolution_code==='PAYMENT_STATUS_UNCERTAIN'?'Банк не подтвердил результат в доступный срок. Не оплачивайте повторно; обратитесь в поддержку для сверки.':pending(p)&&p.cancel_requested?'Отмена запрошена. Ожидаем итоговый статус банка; повторно оплачивать не нужно.':p.status==='resolution_required'?'Банк подтвердил оплату, но условия аккаунта изменились. Обратитесь в поддержку для восстановления услуги или возврата.':p.last_error?'Статус оплаты уточняется. Повторная оплата не нужна.':null};}
+ async list(user:RecordData){const rows=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>!p.checkout_abandoned_at&&(pending(p)||p.status==='resolution_required')).sort((a,b)=>b.created_at.localeCompare(a.created_at));return {enabled:this.gateway.countries.includes(user.country),items:await Promise.all(rows.filter(p=>p.provider===this.gateway.name&&p.environment===this.gateway.environment).map(p=>this.present(p)))};}
  async pendingIds(){return this.transaction(async()=>{const rows=(await this.store.all('bank_checkout')).filter(p=>p.provider===this.gateway.name&&pending(p)&&p.environment===this.gateway.environment&&(!p.last_checked_at||Date.parse(p.last_checked_at)<Date.now()-45000));return rows.sort((a,b)=>String(a.last_checked_at??'').localeCompare(String(b.last_checked_at??''))).slice(0,10).map(p=>p.id);});}
 }

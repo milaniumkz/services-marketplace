@@ -17,6 +17,9 @@ void main() {
       other.remove();
     });
     expect(frame.referrerPolicy, 'no-referrer');
+    expect(frame.getAttribute('allow'),contains('https://3dsecure.bcc.kz:5443'));
+    expect(frame.getAttribute('allow'),contains('https://test3ds.bcc.kz:5445'));
+    expect(frame.getAttribute('allow'),isNot(contains('*')));
     expect(frame.getAttribute('sandbox'),
         'allow-forms allow-scripts allow-same-origin');
     expect(

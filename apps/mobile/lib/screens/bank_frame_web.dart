@@ -8,7 +8,7 @@ web.HTMLIFrameElement createBankFrame(Uri entry) {
     ..title = 'Защищённая форма оплаты банка'
     ..setAttribute('data-joba-bank-frame', 'true')
     ..setAttribute('sandbox', 'allow-forms allow-scripts allow-same-origin')
-    ..setAttribute('allow', 'payment')
+    ..setAttribute('allow', 'payment https://joba.com.kz https://3dsecure.bcc.kz https://3dsecure.bcc.kz:5443 https://test3ds.bcc.kz:5445 https://vtbkz.rbsuat.com https://payment.vtb.kz')
     ..referrerPolicy = 'no-referrer'
     ..style.border = '0'
     ..style.width = '100%'

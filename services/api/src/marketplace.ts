@@ -333,7 +333,7 @@ export class Marketplace {
       await this.bcc!.callback(String(q.payment_id??''),String(q.token??''));
       await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['bcc-form:'+String(q.payment_id)]);
       let payment=(await this.store.get(String(q.payment_id)))!;
-      if(payment.provider!=='bcc'||!['registering','pending'].includes(payment.status)||payment.cancel_requested||payment.expires_at<=new Date().toISOString())fail(409,'PAYMENT_EXPIRED','Срок оплаты истёк. Вернитесь в JOBA и проверьте статус.');
+      if(payment.checkout_abandoned_at||payment.provider!=='bcc'||!['registering','pending'].includes(payment.status)||payment.cancel_requested||payment.expires_at<=new Date().toISOString())fail(409,'PAYMENT_EXPIRED','Срок оплаты истёк. Вернитесь в JOBA и проверьте статус.');
       if(!paymentAllowed(await paymentControls(this.store),'bcc'))return {public_html:'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплата JOBA</title><h1>Оплата через банк временно недоступна</h1><p>Вернитесь в раздел доступа. Получить подписку можно за просмотр рекламы, если этот способ включён.</p><a href="https://joba.com.kz/api/v1/public/billing/bcc/return?payment_id='+encodeURIComponent(payment.id)+'">Вернуться в JOBA</a></html>'};
       if(!payment.form_opened_at)payment=await this.store.put({...payment,form_opened_at:new Date().toISOString(),version:payment.version+1});
       const owner=await this.store.get(payment.owner),phone=String(owner?.phone??'').replace(/\D/g,''),cc=owner?.country==='KG'?'996':'7';
@@ -1365,6 +1365,15 @@ export class Marketplace {
       const kinds:Record<string,string>={users:'user',orders:'order','support-threads':'support',cases:'case',audit:'audit',blacklist:'blacklist',portfolio:'portfolio',contractors:'contractor','privacy-requests':'privacy','monetization-configs':'monetization_config','price-versions':'price_version','categories':'category','push-campaigns':'push_campaign','referral-campaigns':'referral_campaign','moderation-dictionaries':'dictionary','ranking-configs':'ranking_config','promotions':'promotion','placement-policies':'placement_policy','verification-policies':'verification_policy','retention-policies':'retention_policy','country-controls':'country_control',verifications:'verification'};
       if(path==='/admin/analytics'&&method==='GET'){const days=q.days===undefined?7:Number(q.days);if(![7,30,90].includes(days))fail(400,'VALIDATION_ERROR','Выберите период 7, 30 или 90 дней');return productAnalytics(this.store,a.country,days);}
       if(path==='/admin/test-payments'&&['GET','PUT'].includes(method)){if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Режим тестовой оплаты доступен только владельцу');return method==='GET'?testPaymentSettings(this.store,a.country,this.providers.billingFor(a.country)):updateTestPayments(this.store,a.country,a.id,b,this.providers.billingFor(a.country));}
+      const abandonCheckout=path.match(/^\/admin\/bank-checkouts\/([0-9a-f-]{36})\/abandon$/i);
+      if(abandonCheckout&&['GET','POST'].includes(method)){
+        if(!isStaffOwner(a.user)||!a.mfa)fail(403,'FORBIDDEN','Действие доступно владельцу');
+        const payment=await this.store.get(abandonCheckout[1]);if(!payment||payment.kind!=='bank_checkout'||a.country!=='ALL'&&payment.country!==a.country)fail(404,'NOT_FOUND','Платёж не найден');
+        if(method==='GET')return {id:payment.id,owner_id:payment.owner,version:payment.version,status:payment.status,amount_minor:payment.amount_minor,currency:payment.currency,created_at:payment.created_at,removed:!!payment.checkout_abandoned_at};
+        if(typeof b.reason!=='string'||b.reason.trim().length<10||b.reason.length>1000||typeof b.owner_id!=='string'||!Number.isSafeInteger(b.expected_version))fail(422,'VALIDATION_ERROR','Укажите аккаунт, версию и причину.');
+        const bank=payment.provider==='bcc'?this.bcc:payment.provider==='vtb'?this.vtb:undefined;if(!bank)fail(503,'PROVIDER_UNAVAILABLE','Банк недоступен');
+        return bank!.abandonCheckout(payment.id,b.owner_id,a.id,b.reason,b.expected_version);
+      }
       if(path==='/admin/billing-runtime'&&method==='GET'){if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Настройки банков доступны только владельцу');return bankRuntime(this.providers,this.store,'ALL');}
       if(path==='/admin/server-metrics'&&method==='GET') {
         if(!isStaffOwner(a.user))fail(403,'FORBIDDEN','Показатели сервера доступны только владельцу');

@@ -126,3 +126,18 @@ test('opened BCC checkout never pretends cancellation succeeded while the bank s
  c.capture=true;assert.equal((await c.call('GET','/billing/bcc/payments/'+p.id)).status,'completed');assert.equal((await c.store.all('subscription','KZ')).length,1);
  }finally{await c.store.close();c.cleanup();}
 });
+
+test('owner removes a stuck checkout from customer flow while preserving bank reconciliation and rejecting the old URL',async()=>{
+ const c=await setup();try{
+ const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer'),p=await c.call('POST','/billing/bcc/checkout',{offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true});const url=new URL(p.payment_url),path='/admin/bank-checkouts/'+p.id+'/abandon';
+ await assert.rejects(()=>c.call('GET',path),e=>e.getStatus()===403);
+ const password='Isolated checkout administrator password!',boss=await c.api.handle('POST','/auth/register',{country:'KZ',phone:'+77000002809',password});await c.store.put({...await c.store.get(boss.user.id),staff_permissions:['platform_owner']});const owner=await c.api.handle('POST','/auth/staff-login',{country:'KZ',phone:boss.user.phone,password});
+ const admin=(m,b={})=>c.api.handle(m,path,b,'Bearer '+owner.access_token,randomUUID());
+ let state=await admin('GET');await assert.rejects(()=>admin('POST',{owner_id:randomUUID(),expected_version:state.version,reason:'Explicit owner request to remove stuck checkout'}),e=>e.getStatus()===404);
+ await admin('POST',{owner_id:c.user.id,expected_version:state.version,reason:'Explicit owner request to remove stuck checkout'});
+ assert.equal((await c.call('GET','/billing/bcc/pending')).items.length,0);assert.ok((await c.store.get(p.id)).checkout_abandoned_at);await c.store.put({...await c.store.get(p.id),last_checked_at:new Date(Date.now()-60000).toISOString()});assert.ok((await c.api.bcc.pendingIds()).includes(p.id));
+ await assert.rejects(()=>c.api.handle('GET',url.pathname.replace('/api/v1',''),{},undefined,undefined,Object.fromEntries(url.searchParams),'198.51.100.25'),e=>e.getResponse().error.code==='PAYMENT_EXPIRED');
+ const next=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer'),again=await c.call('POST','/billing/bcc/checkout',{offer_id:next.id,amount_minor:next.amount_minor,currency:next.currency,accepted:true});assert.notEqual(again.id,p.id);
+ c.capture=true;const late=await c.call('GET','/billing/bcc/payments/'+p.id);assert.equal(late.status,'resolution_required');assert.equal((await c.store.get(p.id)).resolution_code,'ABANDONED_CHECKOUT_CAPTURED');assert.equal((await c.store.all('subscription','KZ')).length,0);assert.equal((await c.store.all('payment_transaction','KZ')).length,1);assert.equal((await c.store.all('audit','KZ')).filter(x=>x.action==='billing.checkout_abandoned').length,1);
+ }finally{await c.store.close();c.cleanup();}
+});
