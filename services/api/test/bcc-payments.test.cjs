@@ -142,10 +142,10 @@ test('owner removes a stuck checkout from customer flow while preserving bank re
  }finally{await c.store.close();c.cleanup();}
 });
 
-test('a fresh checkout archives an expired or cancellation-requested BCC attempt and opens a new local bank form without a status round trip',async()=>{
- for(const cancelled of [false,true]){const c=await setup();try{
+test('a fresh checkout archives a superseded, expired or cancellation-requested BCC attempt and opens a new local bank form without a status round trip',async()=>{
+ for(const mode of ['expired','cancelled','new-intent']){const cancelled=mode==='cancelled',c=await setup();try{
  const first=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer'),old=await c.call('POST','/billing/bcc/checkout',{offer_id:first.id,amount_minor:first.amount_minor,currency:first.currency,accepted:true});assert.equal(c.requests.length,0);
- await c.store.put({...await c.store.get(old.id),cancel_requested:cancelled,expires_at:cancelled?new Date(Date.now()+600000).toISOString():new Date(Date.now()-1000).toISOString()});
+ await c.store.put({...await c.store.get(old.id),cancel_requested:cancelled,expires_at:mode!=='expired'?new Date(Date.now()+600000).toISOString():new Date(Date.now()-1000).toISOString()});
  const offer=(await c.call('GET','/billing/offers',{}, {bank_capability:'bcc-v1'})).items.find(x=>x.plan==='customer'),body={offer_id:offer.id,amount_minor:offer.amount_minor,currency:offer.currency,accepted:true},payment=await c.call('POST','/billing/bcc/checkout',body);
  assert.notEqual(payment.id,old.id);assert.ok(payment.payment_url);assert.equal(c.requests.length,0);assert.ok((await c.store.get(old.id)).checkout_abandoned_at);assert.equal((await c.store.get(old.id)).status,'pending');assert.equal((await c.call('GET','/billing/bcc/pending')).items.some(p=>p.id===old.id),false);
  assert.equal((await c.call('POST','/billing/bcc/checkout',body)).id,payment.id);assert.equal((await c.store.all('bank_checkout','KZ')).length,2);assert.equal((await c.store.all('subscription','KZ')).length,0);

@@ -26,8 +26,8 @@ export class VtbPayments {
   const attachAddress=async(p:RecordData)=>{if(billingAddress&&p.provider==='bcc'&&pending(p)&&p.billing_address!==billingAddress)await this.store.put({...p,billing_address:billingAddress,version:p.version+1});};
   const source=String(b.reservation_id??b.offer_id??'');
   if(this.gateway.name==='bcc'){
-   const stale=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>p.provider==='bcc'&&p.environment===this.gateway.environment&&!p.checkout_abandoned_at&&pending(p)&&p.role===(b.reservation_id?'boost':user.active_role??'customer')&&(p.cancel_requested||p.expires_at<=new Date().toISOString())&&!p.confirmed_at&&!p.paid_at&&!p.bank_evidence?.rrn);
-   for(const p of stale)await this.abandonCheckout(p.id,user.id,user.id,'Пользователь подтвердил новую оплату после отменённой или просроченной попытки.',p.version);
+   const stale=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>p.provider==='bcc'&&p.environment===this.gateway.environment&&!p.checkout_abandoned_at&&pending(p)&&p.role===(b.reservation_id?'boost':user.active_role??'customer')&&(p.cancel_requested||p.expires_at<=new Date().toISOString()||p.source_id!==source)&&!p.confirmed_at&&!p.paid_at&&!p.bank_evidence?.rrn);
+   for(const p of stale)await this.abandonCheckout(p.id,user.id,user.id,'Пользователь подтвердил новое оформление оплаты; предыдущая попытка закрыта для продолжения.',p.version);
   }
   const previous=(await this.store.select('bank_checkout',user.country,{owner:user.id,limit:1000})).filter(p=>p.provider===this.gateway.name&&p.source_id===source&&!p.checkout_abandoned_at&&p.environment===this.gateway.environment).sort((a,b)=>b.created_at.localeCompare(a.created_at))[0];
   if(previous){await attachAddress(previous);return {_vtb_provider:this.gateway.name,_vtb_action:pending(previous)?'register':'present',id:previous.id};}
