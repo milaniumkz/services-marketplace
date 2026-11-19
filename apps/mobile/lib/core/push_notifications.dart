@@ -1,0 +1,200 @@
+import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
+import 'api.dart';
+import 'push_permission_controller.dart';
+import 'push_display.dart' if (dart.library.js_interop) 'push_display_web.dart';
+
+@pragma('vm:entry-point')
+Future<void> jobaBackgroundPush(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  // FCM displays notification payloads. Account data is fetched only after login.
+}
+
+/// Permission is requested by an explicit tap in the entry offer or settings.
+class JobaPush extends PushPermissionController {
+  static final instance = JobaPush();
+  FirebaseMessaging? _messaging;
+  JobaApi? _api;
+  String? _scope, _registeredToken;
+  Future<void>? _initializing;
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
+  String _vapid = '';
+  AuthorizationStatus? permissionStatus;
+  @override
+  bool get needsPermission =>
+      configured &&
+      _api?.authenticated == true &&
+      permissionStatus == AuthorizationStatus.notDetermined;
+  String status = 'Push-уведомления ещё не подключены';
+  VoidCallback? onEvent, onOpen;
+  bool get configured => _messaging != null;
+
+  String scope(JobaApi api) =>
+      '${api.base}:${api.sessionGeneration}:${api.session?['user']?['id']}';
+  Future<void> attach(JobaApi api) async {
+    _api = api;
+    if (!api.authenticated) return;
+    final expected = scope(api);
+    if (_scope != expected) {
+      _scope = expected;
+      _registeredToken = null;
+    }
+    try {
+      if (_messaging == null) {
+        _initializing ??=
+            _initialize(api).whenComplete(() => _initializing = null);
+        await _initializing;
+      }
+      if (_api != api ||
+          !api.authenticated ||
+          scope(api) != expected ||
+          _messaging == null) return;
+      final permission = await _messaging!.getNotificationSettings();
+      if (_api != api || !api.authenticated || scope(api) != expected) return;
+      permissionStatus = permission.authorizationStatus;
+      if (permission.authorizationStatus == AuthorizationStatus.authorized ||
+          permission.authorizationStatus == AuthorizationStatus.provisional)
+        await _register();
+    } catch (_) {
+      status =
+          'Не удалось подключить push. Попробуйте ещё раз в настройках уведомлений.';
+    } finally {
+      if (_api == api && api.authenticated && scope(api) == expected)
+        notifyListeners();
+    }
+  }
+
+  Future<void> _initialize(JobaApi api) async {
+    final config = await api.request('/public/push-config');
+    final platform = kIsWeb
+        ? 'web'
+        : defaultTargetPlatform == TargetPlatform.android
+            ? 'android'
+            : defaultTargetPlatform == TargetPlatform.iOS
+                ? 'ios'
+                : '';
+    final options = config['platforms']?[platform];
+    if (config['enabled'] != true || options == null) return;
+    _vapid = config['vapid_key'] ?? '';
+    if (kIsWeb && _vapid.isEmpty) return;
+    if (Firebase.apps.isEmpty)
+      await Firebase.initializeApp(
+          options: FirebaseOptions(
+              apiKey: options['apiKey'],
+              appId: options['appId'],
+              messagingSenderId: options['messagingSenderId'],
+              projectId: options['projectId'],
+              authDomain: options['authDomain'],
+              storageBucket: options['storageBucket'],
+              iosBundleId: options['iosBundleId']));
+    if (!await FirebaseMessaging.instance.isSupported()) {
+      status = 'Этот браузер не поддерживает push-уведомления';
+      return;
+    }
+    _messaging = FirebaseMessaging.instance;
+    if (!kIsWeb) FirebaseMessaging.onBackgroundMessage(jobaBackgroundPush);
+    _subscriptions.add(_messaging!.onTokenRefresh.listen((_) {
+      _registeredToken = null;
+      unawaited(_register().catchError((Object _) {}));
+    }));
+    _subscriptions.add(FirebaseMessaging.onMessage.listen((message) {
+      if (_api?.authenticated != true) return;
+      onEvent?.call();
+      if (kIsWeb)
+        unawaited(displayForegroundPush(
+            message.notification?.title ?? 'JOBA',
+            message.notification?.body ?? 'Новое событие в JOBA',
+            message.data['event_id'] ?? message.messageId ?? 'joba-event'));
+    }));
+    _subscriptions.add(FirebaseMessaging.onMessageOpenedApp.listen((_) {
+      if (_api?.authenticated == true) onOpen?.call();
+    }));
+    final initial = await _messaging!.getInitialMessage();
+    if (initial != null && _api?.authenticated == true) onOpen?.call();
+    status = 'Push-уведомления готовы к включению';
+  }
+
+  @override
+  Future<void> enable() async {
+    final api = _api;
+    if (api == null || !api.authenticated)
+      throw ApiException('PUSH_LOGIN_REQUIRED', 'Войдите в аккаунт');
+    if (_messaging == null) await attach(api);
+    if (_api != api || !api.authenticated)
+      throw ApiException('PUSH_LOGIN_REQUIRED', 'Войдите в аккаунт');
+    final expected = scope(api);
+    final messaging = _messaging;
+    if (messaging == null) throw ApiException('PUSH_NOT_CONFIGURED', status);
+    final result = await messaging.requestPermission(
+        alert: true, badge: true, sound: true);
+    permissionStatus = result.authorizationStatus;
+    if (_api != api || !api.authenticated || expected != scope(api)) return;
+    if (result.authorizationStatus == AuthorizationStatus.denied) {
+      status =
+          'Уведомления запрещены. Разрешите их в настройках браузера или телефона.';
+      notifyListeners();
+      return;
+    }
+    if (result.authorizationStatus != AuthorizationStatus.authorized &&
+        result.authorizationStatus != AuthorizationStatus.provisional) {
+      notifyListeners();
+      return;
+    }
+    await _register();
+    notifyListeners();
+  }
+
+  Future<void> testDelivery() async {
+    final api = _api;
+    if (api == null || !api.authenticated)
+      throw ApiException('PUSH_LOGIN_REQUIRED', 'Войдите в аккаунт');
+    final expected = scope(api);
+    await enable();
+    if (_api != api || !api.authenticated || expected != scope(api)) return;
+    if (permissionStatus != AuthorizationStatus.authorized &&
+        permissionStatus != AuthorizationStatus.provisional)
+      throw ApiException('PUSH_PERMISSION_REQUIRED',
+          'Разрешите уведомления в настройках браузера');
+    await api.request('/me/push-test', method: 'POST', body: {});
+    status =
+        'Проверочное уведомление поставлено в очередь. Ожидайте уведомление браузера.';
+    notifyListeners();
+  }
+
+  Future<void> _register() async {
+    final api = _api, messaging = _messaging;
+    if (api == null || messaging == null || !api.authenticated) return;
+    final expected = scope(api);
+    final token = await messaging.getToken(vapidKey: kIsWeb ? _vapid : null);
+    if (_api != api ||
+        !api.authenticated ||
+        expected != scope(api) ||
+        token == _registeredToken && token != null) return;
+    if (token == null || token.isEmpty)
+      throw ApiException('PUSH_TOKEN_UNAVAILABLE',
+          'Не удалось зарегистрировать уведомления. Попробуйте ещё раз.');
+    await api.request('/me/push-tokens', method: 'POST', body: {
+      'token': token,
+      'platform': kIsWeb
+          ? 'web'
+          : defaultTargetPlatform == TargetPlatform.iOS
+              ? 'ios'
+              : 'android',
+      'environment': 'production'
+    });
+    if (_api == api && expected == scope(api)) {
+      _registeredToken = token;
+      status = 'Push-уведомления включены';
+    }
+  }
+
+  void detach() {
+    _api = null;
+    _scope = null;
+    _registeredToken = null;
+    onEvent = null;
+    onOpen = null;
+  }
+}

@@ -1,0 +1,57 @@
+name: JOBA free mobile API and store review account
+on:
+  workflow_dispatch:
+    inputs:
+      provision_store_review:
+        description: Explicitly provision the owner-authorized store review account
+        type: boolean
+        default: false
+  push:
+    branches: [Project/store-publication]
+    paths:
+      - 'services/api/**'
+      - 'infra/production/**'
+      - 'scripts/deploy-mobile-free-server.sh'
+      - 'scripts/provision-store-review.cjs'
+      - '.github/workflows/store-mobile-release.yml'
+permissions:
+  contents: read
+concurrency:
+  group: joba-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @marketplace/api
+      - run: node --test services/api/test/mobile-free-access.test.cjs services/api/test/customer-subscription-access.test.cjs services/api/test/mobile-crashes.test.cjs services/api/test/vtb-payments.test.cjs services/api/test/order-invites.test.cjs services/api/test/public-service-information.test.cjs services/api/test/public-operator.test.cjs
+      - name: Deploy free mobile core with identity and authorization checks intact
+        env:
+          SSHPASS: ${{ secrets.JOBA_SSH_PASSWORD }}
+          JOBA_PROVISION_REVIEW: ${{ inputs.provision_store_review }}
+        run: |
+          set -euo pipefail
+          umask 077
+          sudo apt-get update -q
+          sudo apt-get install -y sshpass
+          mkdir -p "$HOME/.ssh"
+          ssh-keyscan -T 10 -t ed25519 188.241.217.228 > "$HOME/.ssh/known_hosts"
+          test "$(ssh-keygen -lf "$HOME/.ssh/known_hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Bt3HkaktjLmWe4tB1pOK9b8gOnHuxp+tvp1hhEDtxp8'
+          joba_ssh=(sshpass -e ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=8)
+          joba_scp=(sshpass -e scp -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+          "${joba_scp[@]}" scripts/deploy-mobile-free-server.sh root@188.241.217.228:/tmp/joba-deploy-mobile-free.sh
+          "${joba_ssh[@]}" -n root@188.241.217.228 "bash /tmp/joba-deploy-mobile-free.sh '$GITHUB_SHA' $([[ "$JOBA_PROVISION_REVIEW" == true ]] && echo --provision-store-review || true)"
+          if [[ "$JOBA_PROVISION_REVIEW" == true ]]; then "${joba_scp[@]}" root@188.241.217.228:/tmp/joba-store-review-envelope.b64 store-review-envelope.b64; fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: encrypted-store-review-credentials
+          path: store-review-envelope.b64
+          retention-days: 1
+          if-no-files-found: ignore

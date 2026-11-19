@@ -1,0 +1,758 @@
+[
+  {
+    "route": "face-enroll",
+    "title": "Первое сохранение лица",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "face-settings",
+    "title": "Настройка проверки лица",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "face-recovery",
+    "title": "Восстановление по лицу",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "pin-setup",
+    "title": "Создание PIN-кода",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "lock-setup",
+    "title": "Настройка защиты входа",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "biometric",
+    "title": "Настройка биометрии",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "pin-limit",
+    "title": "Вход после ошибок PIN",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "unlock",
+    "title": "Разблокировка приложения",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "banned",
+    "title": "Ограничения аккаунта",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "legal",
+    "title": "Документы JOBA",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "support-new",
+    "title": "Новое обращение",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "logout-confirm",
+    "title": "Выход из аккаунта",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "session-expired",
+    "title": "Сессия завершена",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "welcome",
+    "title": "Выбор страны при входе",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "guest-catalog",
+    "title": "Гостевой каталог App Store",
+    "network": null,
+    "excluded_reason": "Гостевой просмотр до входа в режиме App Store"
+  },
+  {
+    "route": "login",
+    "title": "Вход",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "register",
+    "title": "Регистрация",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "recovery",
+    "title": "Восстановление пароля",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "recovery-chat",
+    "title": "Поддержка при восстановлении",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "home",
+    "title": "Главная заказчика",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "executor-home",
+    "title": "Главная исполнителя",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "account",
+    "title": "Мой профиль",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "onboarding",
+    "title": "Заполнение анкеты",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "profile-edit",
+    "title": "Редактирование профиля",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "orders",
+    "title": "Мои заказы",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "jobs",
+    "title": "Поиск заказов",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "create",
+    "title": "Создание заказа",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "edit-order",
+    "title": "Редактирование заказа",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "change-requests",
+    "title": "Запросы изменений заказа",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "order",
+    "title": "Карточка заказа",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "work",
+    "title": "Выполнение заказа",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "profile-pending",
+    "title": "Статус профиля",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "portfolio-pending",
+    "title": "Статус портфолио",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "published",
+    "title": "Заказ опубликован",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "offer-sent",
+    "title": "Отклик отправлен",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "review-sent",
+    "title": "Отзыв отправлен",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "publish",
+    "title": "Публикация заказа",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "select-contractor",
+    "title": "Выбор исполнителя",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "complete",
+    "title": "Приёмка работы",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "cancel",
+    "title": "Отмена заказа",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "offer",
+    "title": "Отправка отклика",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "offers",
+    "title": "Отклики на заказ",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "invited",
+    "title": "Полученное приглашение",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "offer-revision",
+    "title": "Изменение отклика",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "amendment",
+    "title": "Изменение условий заказа",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "frozen-chat",
+    "title": "Закрытая переписка",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "rework",
+    "title": "Доработка работы",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "cancel-pending",
+    "title": "Статус отмены",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "my-offers",
+    "title": "Мои отклики",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "roles",
+    "title": "Выбор роли",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "service-area",
+    "title": "Район оказания услуг",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "country-unavailable",
+    "title": "Страна недоступна",
+    "network": null,
+    "excluded_reason": "Вход, защита аккаунта или полноэкранная камера"
+  },
+  {
+    "route": "gps-denied",
+    "title": "Разрешение геолокации",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "map",
+    "title": "Карта исполнителей",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "location",
+    "title": "Выбор адреса",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "filters",
+    "title": "Фильтры поиска",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "catalog",
+    "title": "Каталог исполнителей",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "contractor",
+    "title": "Профиль исполнителя",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "public-project",
+    "title": "Работа исполнителя",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "public-portfolio",
+    "title": "Портфолио исполнителя",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "services",
+    "title": "Мои услуги",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "invitations",
+    "title": "Приглашения",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "invite",
+    "title": "Предложить заказ",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "messages",
+    "title": "Сообщения",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "chat",
+    "title": "Переписка по заказу",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "support-chat",
+    "title": "Переписка с поддержкой",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "support",
+    "title": "Обращения в поддержку",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "review",
+    "title": "Написать отзыв",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "reviews",
+    "title": "Отзывы",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "report",
+    "title": "Подать жалобу",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "cases",
+    "title": "Мои жалобы",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "case",
+    "title": "Карточка жалобы",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "notifications",
+    "title": "События",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "access",
+    "title": "Тарифы доступа",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "refunds",
+    "title": "Платежи и возвраты",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "my-access",
+    "title": "Моя подписка",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "bank-payment",
+    "title": "Оплата банковской картой",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "bank-payment-open",
+    "title": "Переход к оплате",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "test-payment-success",
+    "title": "Результат тестовой оплаты",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "checkout",
+    "title": "Оформление подписки",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "manage-subscription",
+    "title": "Управление подпиской",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "subscription-canceled",
+    "title": "Продление отключено",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "payment-pending",
+    "title": "Проверка платежа",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "restore",
+    "title": "Восстановление покупки",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "reward-granted",
+    "title": "Награда за рекламу получена",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "reward-nofill",
+    "title": "Реклама за вознаграждение недоступна",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "reward-pending",
+    "title": "Подтверждение просмотра рекламы",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "reward",
+    "title": "Подписка за рекламу",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "export",
+    "title": "Экспорт моих данных",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "export-pending",
+    "title": "Статус экспорта",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "consents",
+    "title": "Мои согласия",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "delete-account",
+    "title": "Удаление аккаунта",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "delete-confirm",
+    "title": "Подтверждение удаления",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "delete-scheduled",
+    "title": "Статус удаления",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "legal-holds",
+    "title": "Хранение данных",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "privacy",
+    "title": "Приватность",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "security",
+    "title": "Безопасность",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "password",
+    "title": "Смена пароля",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "blocks",
+    "title": "Заблокированные контакты",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "revoke-session",
+    "title": "Завершение сеанса",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "logout-others",
+    "title": "Выход на других устройствах",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "logout-all",
+    "title": "Завершение всех сеансов",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "phone",
+    "title": "Подтверждение телефона",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "settings",
+    "title": "Настройки",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "languages",
+    "title": "Язык приложения",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "country",
+    "title": "Страна",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "about",
+    "title": "О приложении",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "sessions",
+    "title": "Мои устройства",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "notification-settings",
+    "title": "Настройки уведомлений",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "referral-rules",
+    "title": "Правила приглашений",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "referrals",
+    "title": "Приглашения и бонусы",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "portfolio",
+    "title": "Моё портфолио",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "portfolio-edit",
+    "title": "Редактирование проекта",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "portfolio-photos",
+    "title": "Фотографии проекта",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "portfolio-project",
+    "title": "Карточка моего проекта",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "verification",
+    "title": "Проверка документов",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "content-history",
+    "title": "История опубликованных версий",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "terms",
+    "title": "Условия использования",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "top",
+    "title": "Топ-100",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "promotion-history",
+    "title": "Мои продвижения",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "promotion-pending",
+    "title": "Проверка оплаты продвижения",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "promotion-resolution",
+    "title": "Решение по платежу продвижения",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "promotion-checkout",
+    "title": "Оплата продвижения",
+    "network": null,
+    "excluded_reason": "Оплата или проверка платежа"
+  },
+  {
+    "route": "promotion-no-slots",
+    "title": "Доступность продвижения",
+    "network": "google",
+    "excluded_reason": null
+  },
+  {
+    "route": "promotion-terms",
+    "title": "Условия продвижения",
+    "network": "yandex",
+    "excluded_reason": null
+  },
+  {
+    "route": "promotion",
+    "title": "Продвижение объявления",
+    "network": "google",
+    "excluded_reason": null
+  }
+]
