@@ -141,13 +141,13 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-deployment-credential.py
       - name: Acquire protected VTB sandbox configuration
-        if: ${{ inputs.preserve_bank_config == false }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.preserve_bank_config == false }}
         env:
           JOBA_VTB_HANDOFF: ${{ inputs.vtb_setup && '1' || '0' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/acquire-vtb-configuration.py
       - name: Acquire protected BCC configuration
-        if: ${{ inputs.preserve_bank_config == false }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.preserve_bank_config == false }}
         env:
           JOBA_BCC_HANDOFF: ${{ inputs.bcc_setup && '1' || '0' }}
           JOBA_BCC_SETUP_MODE: ${{ inputs.bcc_setup_mode || 'sandbox' }}
@@ -160,8 +160,8 @@ jobs:
         run: python3 scripts/acquire-firebase-configuration.py
       - name: Deploy exact Git revision and verify HTTPS
         env:
-          JOBA_PRESERVE_BANK_CONFIG: ${{ inputs.preserve_bank_config != false && '1' || '0' }}
-          JOBA_BCC_CONFIG_JSON: ${{ inputs.preserve_bank_config == false && secrets.JOBA_BCC_CONFIG_JSON || '' }}
+          JOBA_PRESERVE_BANK_CONFIG: ${{ (github.event_name != 'workflow_dispatch' || inputs.preserve_bank_config != false) && '1' || '0' }}
+          JOBA_BCC_CONFIG_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.preserve_bank_config == false && secrets.JOBA_BCC_CONFIG_JSON || '' }}
           JOBA_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.JOBA_FIREBASE_SERVICE_ACCOUNT_JSON }}
           JOBA_FIREBASE_WEB_CONFIG: ${{ secrets.JOBA_FIREBASE_WEB_CONFIG }}
           JOBA_FIREBASE_VAPID_KEY: ${{ secrets.JOBA_FIREBASE_VAPID_KEY }}
@@ -244,7 +244,7 @@ jobs:
           "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "bash '$joba_remote_script' '$GITHUB_SHA' '$joba_remote_archive' '$JOBA_DOMAIN' '$JOBA_SSH_HOST'"
           "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "test \"\$(readlink -f /opt/joba/current)\" = '/opt/joba/releases/$GITHUB_SHA/source'"
           curl --fail --silent --show-error "https://$JOBA_DOMAIN/health"
-          if test '${{ inputs.preserve_bank_config == false && inputs.bcc_setup && inputs.bcc_setup_mode == 'production' }}' = true; then
+          if test '${{ github.event_name == 'workflow_dispatch' && inputs.preserve_bank_config == false && inputs.bcc_setup && inputs.bcc_setup_mode == 'production' }}' = true; then
             "${joba_ssh[@]}" -n "root@$JOBA_SSH_HOST" "cd /opt/joba/current && docker compose --env-file /etc/joba/production.env -f infra/production/compose.yaml cp scripts/probe-bcc-readonly.cjs api:/tmp/joba-bcc-readonly.cjs && docker compose --env-file /etc/joba/production.env -f infra/production/compose.yaml exec -T -u root api chmod 0644 /tmp/joba-bcc-readonly.cjs && docker compose --env-file /etc/joba/production.env -f infra/production/compose.yaml exec -T -e JOBA_BCC_READONLY_PROBE=owner-authorized-production-setup api node /tmp/joba-bcc-readonly.cjs"
           fi
           printf '### Verified URL\nhttps://%s/\n' "$JOBA_DOMAIN" >> "$GITHUB_STEP_SUMMARY"
