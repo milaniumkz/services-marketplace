@@ -8,7 +8,7 @@ const initial={privacy,terms,payments,refunds,public_offer,contacts};
 export function mountLegal(request,feedback){
  const paper=document.querySelector('.legal-paper');if(!paper)return;
  const country=document.querySelector('[aria-label="Страна"]'),locale=document.querySelector('[aria-label="Язык"]');
- const countries={'Казахстан':'KZ','Россия':'RU','Беларусь':'BY','Кыргызстан':'KG'},locales={'Русский':'ru','Қазақша':'kk','Беларуская':'be','Српски':'sr'};
+ const countries={'Казахстан':'KZ','Россия':'RU','Беларусь':'BY','Кыргызстан':'KG'},locales={'Русский':'ru','Қазақша':'kk','Беларуская':'be','Кыргызча':'ky'};
  const names={privacy:'Политика конфиденциальности',terms:'Условия использования',payments:'Условия оплаты',refunds:'Возврат и отмена',public_offer:'Публичная оферта',contacts:'Реквизиты и контакты',community:'Правила сообщества'};
  const aliases={privacy:['privacy','privacy_policy'],terms:['terms','terms_of_use'],payments:['payments','subscriptions','subscription'],refunds:['refunds'],public_offer:['public_offer'],contacts:['contacts'],community:['community','community_rules']};
  let generation=0;

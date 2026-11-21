@@ -169,7 +169,7 @@ class _NotificationSettingsContentState
                   Text(JobaPush.instance.status),
                   TextButton.icon(
                       icon: const Icon(Icons.notifications_active_outlined),
-                      label: const Text('Включить push на этом устройстве'),
+                      label: const UiText('Включить push на этом устройстве'),
                       onPressed: saving
                           ? null
                           : () async {
@@ -205,7 +205,7 @@ class _NotificationSettingsContentState
                 TextStyle(fontSize: 12, height: 1.5, color: Color(0xFF627187))),
         TextButton.icon(
             icon: const Icon(Icons.send_outlined),
-            label: const Text('Отправить проверочное уведомление'),
+            label: const UiText('Отправить проверочное уведомление'),
             onPressed: saving
                 ? null
                 : () async {

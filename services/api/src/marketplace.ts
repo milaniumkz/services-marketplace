@@ -1,3 +1,4 @@
+import {supportReadStates,markSupportRead} from './support-read';
 import {adminPaymentControls,paymentControls,paymentAllowed,requirePayment} from './payment-controls';
 import {bankReturnPage} from './bank-return';
 import {BccGateway,loadBccConfig} from './bcc-gateway';
@@ -88,7 +89,7 @@ import { EventEmitter } from 'node:events';
 const digest = (s: string) => createHash('sha256').update(s).digest('hex');
 const countries: Record<string, {currency: string; locales: string[]; cities: string[]}> = {
   KZ: {currency:'KZT',locales:['ru','kk'],cities:['Алматы','Астана','Шымкент']},
-  KG: {currency:'KGS',locales:['ru'],cities:['Бишкек','Ош']},
+  KG: {currency:'KGS',locales:['ru','ky'],cities:['Бишкек','Ош']},
   RU: {currency:'RUB',locales:['ru'],cities:['Москва','Санкт-Петербург']},
   BY: {currency:'BYN',locales:['ru','be'],cities:['Минск','Гомель']}
 };
@@ -363,7 +364,7 @@ export class Marketplace {
       })),subscription_enabled:true,subscription_scope:'customer_and_executor',subscription_plans:subscriptionPlans,customer_access:'subscription',banner_ads_enabled:false,rewarded_access_enabled:false,minimum_supported_version:'0.1.0',mode:'development',server_time:new Date().toISOString()};
     }
     if(path==='/legal/documents'&&method==='GET') {
-      if(!countries[q.country??'KZ']||q.locale&&!['ru','kk','sr','be'].includes(q.locale))fail(400,'VALIDATION_ERROR','Проверьте страну и язык');
+      if(!countries[q.country??'KZ']||q.locale&&!['ru','kk','ky','be'].includes(q.locale))fail(400,'VALIDATION_ERROR','Проверьте страну и язык');
       const versions=(await this.store.all('legal_document',q.country??'KZ')).filter(x=>x.status==='published'&&(!q.locale||x.locale===q.locale)).sort((a,b)=>String(b.published_at??b.created_at).localeCompare(String(a.published_at??a.created_at))||b.id.localeCompare(a.id));
       const seen=new Set<string>(),visible=q.required==='true'?currentLegalDocuments(await this.store.all('legal_document',q.country??'KZ'),q.country??'KZ',q.locale??'ru'):q.all_versions==='true'?versions:q.locale?currentLegalDocuments(await this.store.all('legal_document',q.country??'KZ'),q.country??'KZ',q.locale):versions.filter(d=>{const key=d.type+':'+d.locale;if(seen.has(key))return false;seen.add(key);return true;});
       return {items:visible.map(({id,country,type,locale,content,hash,version,created_at,published_at,minimum_age,operator_contacts_only,operator_contact_previous_hashes})=>({id,country,type,locale,content,hash,version,created_at,published_at,minimum_age,operator_contacts_only,operator_contact_previous_hashes,reacceptance_required:!['privacy','privacy_policy','terms','terms_of_use'].includes(type)}))};
@@ -409,7 +410,7 @@ export class Marketplace {
         await this.store.put({...old!,phone:null,phone_released_at:new Date().toISOString(),version:old!.version+1});
         await this.store.put(this.record('audit',{id:previous.user_id,country},{actor_id:'system',action:'user.deleted_number_released',target_id:previous.user_id,reason:'Повторная регистрация удалённого номера без переноса прежних данных'}));
       }
-      const locale=b.locale??countries[country].locales[0];if(!['ru','kk','sr','be'].includes(locale))fail(400,'VALIDATION_ERROR','Язык не поддерживается');
+      const locale=b.locale??countries[country].locales[0];if(!['ru','kk','ky','be'].includes(locale))fail(400,'VALIDATION_ERROR','Язык не поддерживается');
       const u=this.record('user',{id:'',country},{phone,phone_status:'unverified',display_name:b.display_name===undefined?'':text(b,'display_name',2,60),locale,city:'',roles:['customer'],verification:'not_started',status:'active'});u.owner=u.id;
       await this.store.put(u);await db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',[country,phone,u.id,await hash(secret,{memoryCost:19456,timeCost:2,parallelism:1})]);
       if(this.face.engine.enabled)await this.face.clearLogin(u.id);
@@ -534,7 +535,7 @@ export class Marketplace {
     if(path==='/me'&&method==='PATCH') {
       this.version(a.user,b);const changes:any={};
       for(const [f,min,max] of [['display_name',2,60],['city',0,100],['locale',2,5]] as const)if(b[f]!==undefined)changes[f]=text(b,f,min,max);
-      if(changes.locale&&!['ru','kk','sr','be'].includes(changes.locale))fail(400,'VALIDATION_ERROR','Язык не поддерживается');
+      if(changes.locale&&!['ru','kk','ky','be'].includes(changes.locale))fail(400,'VALIDATION_ERROR','Язык не поддерживается');
       if(b.roles!==undefined){if(!Array.isArray(b.roles)||!b.roles.length||b.roles.some((r:string)=>!['customer','executor'].includes(r)))fail(400,'VALIDATION_ERROR','Недопустимая доменная роль');changes.roles=[...new Set(b.roles)];}
       if(b.languages!==undefined){if(!Array.isArray(b.languages)||!b.languages.length||b.languages.length>5||b.languages.some((v:string)=>!['ru','kk','ky','sr','be','en'].includes(v)))fail(400,'VALIDATION_ERROR','Проверьте языки общения');changes.languages=[...new Set(b.languages)];}
       if(b.active_role!==undefined){if(!['customer','executor'].includes(b.active_role)||!(changes.roles??a.user.roles).includes(b.active_role))fail(400,'VALIDATION_ERROR','Эта роль ещё не настроена');changes.active_role=b.active_role;}
@@ -1019,7 +1020,8 @@ export class Marketplace {
       const readBefore=new Date().toISOString(),category=q.category??'all';
       if(!['all','orders','account'].includes(category))fail(400,'VALIDATION_ERROR','Проверьте категорию уведомлений');
       const notifications:RecordData[]=(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='notification' AND country=$1 AND owner=$2",[a.country,a.id])).rows.map(x=>({...x.data,category:notificationCategory(x.data)}));
-      const sorted=notifications.filter(x=>(category==='all'||x.category===category)&&(!q.q||[x.title,x.body,x.type].join(' ').toLowerCase().includes(String(q.q).toLowerCase())))
+      if(q.read!==undefined&&!['all','read','unread'].includes(q.read))fail(400,'VALIDATION_ERROR','Проверьте фильтр прочтения');
+      const sorted=notifications.filter(x=>(!q.read||q.read==='all'||(q.read==='read'?x.read:!x.read))&&(category==='all'||x.category===category)&&(!q.q||[x.title,x.body,x.type].join(' ').toLowerCase().includes(String(q.q).toLowerCase())))
         .sort((x,y)=>Date.parse(y.created_at)-Date.parse(x.created_at)||x.id.localeCompare(y.id));
       const scoped={...q,category,_notification_order:'created_desc_v1',_notification_owner:a.id,_notification_country:a.country},after=await this.cursor(scoped),limit=this.pageLimit(q);
       const position=after?sorted.findIndex(x=>x.id===after):-1;
@@ -1639,9 +1641,10 @@ export class Marketplace {
         if(method==='GET')return this.list((await this.store.all('support_note',a.country)).filter(n=>n.thread_id===t.id),q);
         if(method==='POST'){if(t.retention_minimized_at)fail(409,'STATE_CONFLICT','Данные обращения очищены. Создайте новое обращение');const r=this.record('support_note',a,{thread_id:t.id,text:text(b,'text',1,3000)});await this.store.put(r);await this.audit(a,'support.internal_note',t.id,'Добавлена внутренняя заметка');return r;}
       }
-      const supportCommand=path.match(/^\/admin\/support-threads\/([^/]+)\/(messages|commands)$/);
+      const supportCommand=path.match(/^\/admin\/support-threads\/([^/]+)\/(messages|commands|read)$/);
       if(supportCommand) {
         const t=await this.object(supportCommand[1],a,'support');
+        if(supportCommand[2]==='read'&&method==='POST'){await this.staff(a,'support');return markSupportRead(this.store,a,t,b.sequence);}
         if(supportCommand[2]==='messages') {
           if(!a.user.staff_permissions.includes('support'))fail(403,'FORBIDDEN','Требуется право поддержки');
           if(method!=='GET'&&t.assignee_id!==a.id&&!isStaffOwner(a.user))fail(403,'FORBIDDEN','Обращение не назначено вам');
@@ -1924,7 +1927,7 @@ export class Marketplace {
     const after=await this.cursor(scoped),start=after?sorted.findIndex(r=>r.id===after)+1:0,limit=this.pageLimit(q),batch=sorted.slice(start,start+limit);
     return {items:batch,meta:{next_cursor:start+batch.length<sorted.length?await this.nextCursor(batch.at(-1)!.id,scoped):null}};
   }
-  private async supportPage(a:Actor,q:any,owner?:string){const limit=this.pageLimit(q),after=await this.cursor(q,true),records=(await this.store.all('support',a.country)).filter(r=>!owner||r.owner===owner),rows=supportRecords(records,q,after),page=rows.slice(0,limit),last=page.at(-1);return {items:page,meta:{next_cursor:rows.length>limit&&last?await this.nextCursor(supportActivity(last)+'|'+last.id,q):null,total:rows.length}};}
+  private async supportPage(a:Actor,q:any,owner?:string){if(q.read!==undefined&&!['all','read','unread'].includes(q.read))fail(400,'VALIDATION_ERROR','Проверьте фильтр прочтения');const limit=this.pageLimit(q),after=await this.cursor(q,true),base=(await this.store.all('support',a.country)).filter(r=>!owner||r.owner===owner),records=owner?base:await supportReadStates(this.store,a.id,a.country,base),rows=supportRecords(records.filter(r=>owner||!q.read||q.read==='all'||(q.read==='read'?r.is_read:!r.is_read)),q,after),page=rows.slice(0,limit),last=page.at(-1);return {items:page,meta:{next_cursor:rows.length>limit&&last?await this.nextCursor(supportActivity(last)+'|'+last.id,q):null,total:rows.length}};}
   private async list(items:any[],q:any) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const filtered=items.filter(x=>(!q.owner||x.owner===q.owner)&&(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.product_type||x.payload?.product_type===q.product_type)&&(!q.order_id||x.order_id===q.order_id)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason,x.type,x.event,x.payload?.product_id,x.payload?.provider].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));
@@ -1962,11 +1965,11 @@ export class Marketplace {
     if(duplicate){if(duplicate.text!==message||duplicate.thread_id!==c.id||JSON.stringify(duplicate.upload_ids??[])!==JSON.stringify(uploadIds))fail(409,'IDEMPOTENCY_CONFLICT','ID сообщения использован для другого содержания или чата');return duplicate;}
     const m=this.record(kind,a,{thread_id:c.id,sequence:all.length+1,client_message_id:clientId,text:message,delivery_state:'sent',upload_ids:uploadIds});await this.store.put(m);
     if(c.kind==='support')await this.store.put({...c,status:c.status==='new'?'new':a.id===c.owner?'waiting_support':'waiting_user',last_activity:new Date().toISOString(),version:c.version+1});
-    if(m.moderation_status!=='quarantined')for(const recipient of new Set([...(c.members??[c.owner]),...(c.kind==='support'&&c.assignee_id?[c.assignee_id]:[])]))if(recipient!==a.id)await this.notify(recipient,a,kind==='message'?'message.created':'support.message.created',c.id);
+    if(m.moderation_status!=='quarantined')for(const recipient of new Set([...(c.members??[c.owner]),...(c.kind==='support'&&c.assignee_id?[c.assignee_id]:[])]))if(recipient!==a.id)await this.notify(recipient,a,kind==='message'?'message.created':'support.message.created',c.id,m.sequence);
     return m;
   }
-  private async notify(owner:string,a:Pick<Actor,'id'|'country'>,type:string,target:string) {
-    const notification=this.record('notification',{id:owner,country:a.country},{type,target_id:target,read:false,title:notificationTitle(type)});await this.store.put(notification);
+  private async notify(owner:string,a:Pick<Actor,'id'|'country'>,type:string,target:string,sourceSequence?:number) {
+    const notification=this.record('notification',{id:owner,country:a.country},{type,target_id:target,read:false,...(sourceSequence!==undefined?{source_sequence:sourceSequence}:{}),title:notificationTitle(type)});await this.store.put(notification);
     await this.store.db.query('INSERT INTO events(event_id,recipient_id,country,data) VALUES($1,$2,$3,$4)',[notification.id,owner,a.country,JSON.stringify({event_id:notification.id,type,aggregate_id:target,occurred_at:notification.created_at})]);
     await this.store.put(this.record('outbox',a,{type,target_id:target,recipient_id:owner,event_id:notification.id,status:'pending',attempts:0}));
     // Subscribers queue their authorized read behind this transaction; nothing is sent before commit.

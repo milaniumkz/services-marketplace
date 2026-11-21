@@ -250,7 +250,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
   static const languageNames = {
     'ru': 'Русский',
     'kk': 'Қазақша',
-    'sr': 'Српски',
+    'ky': 'Кыргызча',
     'be': 'Беларуская',
     'en': 'English'
   };
@@ -342,7 +342,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
                           .map((s) => s.trim())
                           .where((s) => s.isNotEmpty)
                           .any((s) =>
-                              !['ru', 'kk', 'sr', 'be', 'en'].contains(s)))
+                              !['ru', 'kk', 'ky', 'be', 'en'].contains(s)))
                     return localize(context, 'Проверьте языки общения');
                   return null;
                 })

@@ -22,7 +22,7 @@ void main() {
     });
     final parsed = DevicePreferences(vault);
     expect(await parsed.read(), {'country': 'KZ', 'locale': 'ru'});
-    await Future.wait([parsed.save('KG', 'sr'), parsed.save('BY', 'be')]);
+    await Future.wait([parsed.save('KG', 'ky'), parsed.save('BY', 'be')]);
     expect(await parsed.read(), {'country': 'BY', 'locale': 'be'});
     expect(jsonDecode(vault.value!).keys.toSet(), {'country', 'locale'});
   });

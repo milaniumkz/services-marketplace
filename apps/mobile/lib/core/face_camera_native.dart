@@ -1,3 +1,4 @@
+import 'l10n.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -223,7 +224,7 @@ class _NativeFaceCameraState extends State<NativeFaceCamera>
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: const Color(0xff0e213c),
-        appBar: AppBar(title: const Text('Проверка лица')),
+        appBar: AppBar(title: const UiText('Проверка лица')),
         body: SafeArea(
             child: LayoutBuilder(
                 builder: (context, constraints) => SingleChildScrollView(
@@ -280,7 +281,7 @@ class _NativeFaceCameraState extends State<NativeFaceCamera>
                           if (error != null)
                             TextButton(
                                 onPressed: restart,
-                                child: const Text('Повторить съёмку')),
+                                child: const UiText('Повторить съёмку')),
                           TextButton(
                               onPressed: () {
                                 setState(() => voice = !voice);
@@ -296,7 +297,7 @@ class _NativeFaceCameraState extends State<NativeFaceCamera>
                                   : 'Озвучка отключена')),
                           TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('Отмена')),
+                              child: const UiText('Отмена')),
                         ]))))),
       );
 }

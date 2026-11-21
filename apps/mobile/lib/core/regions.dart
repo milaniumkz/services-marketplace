@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'api.dart';
 
 const regionCodes = ['KZ', 'KG', 'RU', 'BY'];
-const interfaceLocales = ['ru', 'kk', 'sr', 'be'];
+const interfaceLocales = ['ru', 'kk', 'ky', 'be'];
 
 /// Endpoints are build configuration, never values supplied by an API response.
 class RegionGateway {
@@ -64,7 +64,7 @@ class DevicePreferences {
         'country':
             regionCodes.contains(value['country']) ? value['country'] : 'KZ',
         'locale':
-            interfaceLocales.contains(value['locale']) ? value['locale'] : 'ru',
+            value['locale']=='sr'?'ky':interfaceLocales.contains(value['locale']) ? value['locale'] : 'ru',
       };
     } on FormatException {
       return {'country': 'KZ', 'locale': 'ru'};

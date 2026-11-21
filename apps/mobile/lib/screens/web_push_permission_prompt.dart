@@ -1,3 +1,4 @@
+import '../core/l10n.dart';
 import 'package:flutter/material.dart';
 import '../core/push_permission_controller.dart';
 import '../core/push_prompt_preferences.dart';
@@ -84,7 +85,7 @@ class _WebPushPermissionPromptState extends State<WebPushPermissionPrompt> {
                                               .notifications_active_outlined),
                                           SizedBox(width: 12),
                                           Expanded(
-                                              child: Text(
+                                              child: UiText(
                                                   'Включить уведомления?',
                                                   style: TextStyle(
                                                       fontSize: 18,
@@ -92,7 +93,7 @@ class _WebPushPermissionPromptState extends State<WebPushPermissionPrompt> {
                                                           FontWeight.w700)))
                                         ]),
                                         const SizedBox(height: 10),
-                                        const Text(
+                                        const UiText(
                                             'Сообщим о новых сообщениях, откликах и результатах проверки, даже когда JOBA закрыта.'),
                                         if (error != null) ...[
                                           const SizedBox(height: 10),
@@ -109,7 +110,7 @@ class _WebPushPermissionPromptState extends State<WebPushPermissionPrompt> {
                                               TextButton(
                                                   onPressed:
                                                       busy ? null : later,
-                                                  child: const Text('Позже')),
+                                                  child: const UiText('Позже')),
                                               FilledButton(
                                                   onPressed:
                                                       busy ? null : enable,

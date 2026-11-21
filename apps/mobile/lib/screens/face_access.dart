@@ -1,3 +1,4 @@
+import '../core/l10n.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
@@ -180,7 +181,7 @@ class _FaceAccessState extends State<FaceAccess> {
               if (resetToken == null)
                 const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
+                    child: UiText(
                         'Базовое сравнение без проверки живого присутствия. Фотография или видео могут пройти такую проверку.')),
               if (error != null)
                 Semantics(
@@ -195,17 +196,17 @@ class _FaceAccessState extends State<FaceAccess> {
                 field(repeat, 'Повторите новый пароль'),
                 FilledButton(
                     onPressed: busy ? null : reset,
-                    child: const Text('Сменить пароль')),
+                    child: const UiText('Сменить пароль')),
               ] else if (recovering)
                 FilledButton(
                     onPressed: busy ? null : capture,
-                    child: const Text('Открыть фронтальную камеру'))
+                    child: const UiText('Открыть фронтальную камеру'))
               else if (settings != null) ...[
                 if (settings!['update_required'] == true)
-                  const Text(
+                  const UiText(
                       'Обновите прежний шаблон: теперь процедура состоит из пяти кадров.'),
                 if (settings!['enrolled'] == true)
-                  const Text(
+                  const UiText(
                       'Шаблоны лица сохранены. Можно пройти процедуру заново или удалить их.'),
                 if (settings!['can_enroll_without_password'] != true)
                   field(password, 'Текущий пароль'),
@@ -219,7 +220,7 @@ class _FaceAccessState extends State<FaceAccess> {
                     controlAffinity: ListTileControlAffinity.leading),
                 FilledButton(
                     onPressed: busy || !consent ? null : capture,
-                    child: const Text('Сохранить лицо через камеру')),
+                    child: const UiText('Сохранить лицо через камеру')),
                 if (settings!['enrolled'] == true)
                   OutlinedButton(
                       onPressed: busy
@@ -230,10 +231,10 @@ class _FaceAccessState extends State<FaceAccess> {
                                     body: {'current_password': password.text});
                                 if (mounted) widget.onDone();
                               }),
-                      child: const Text('Отключить и удалить шаблон')),
+                      child: const UiText('Отключить и удалить шаблон')),
               ] else if (!busy)
                 TextButton(
-                    onPressed: load, child: const Text('Повторить загрузку')),
+                    onPressed: load, child: const UiText('Повторить загрузку')),
             ])),
         if (widget.onSkip != null)
           SafeArea(

@@ -55,7 +55,7 @@ export function staffApi({getSession,saveSession,getCountryScope=()=>undefined})
     const original=getSession();
     const guard=()=>{let latest=original;while(latest&&rotations.has(latest))latest=rotations.get(latest);if(!latest||getSession()!==latest)throw error('Сессия изменилась. Повторите запрос.','SESSION_CHANGED',401);};
     guard();
-    if(!['brand','banner'].includes(purpose)||!(purpose==='banner'?['image/png','image/jpeg']:['image/png']).includes(file.type)||file.size>5*1024*1024)throw error(purpose==='banner'?'Нужен PNG или JPEG до 5 MB':'Нужен PNG до 5 MB','POLICY_REJECTED',422);
+    if(!['brand','banner','chat'].includes(purpose)||!(purpose==='chat'?['image/png','image/jpeg','application/pdf']:purpose==='banner'?['image/png','image/jpeg']:['image/png']).includes(file.type)||file.size>5*1024*1024)throw error(purpose==='chat'?'Нужны PNG, JPEG или PDF до 5 MB':purpose==='banner'?'Нужен PNG или JPEG до 5 MB':'Нужен PNG до 5 MB','POLICY_REJECTED',422);
     const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',await file.arrayBuffer()))].map(b=>b.toString(16).padStart(2,'0')).join('');guard();
     const scope=original.user.id+':'+original.user.country+':'+purpose+':'+digest;
     let upload=pendingUploads.get(scope);

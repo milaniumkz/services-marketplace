@@ -38,6 +38,7 @@ export function assertStaffOperation(u:RecordData,mfa:boolean,method:string,path
   if(!mfa||u.status!=='active')deny();
   if(path==='/admin/access/me'&&method==='GET')return;
   if(path==='/admin/country-capabilities'&&method==='GET'&&grants.length)return;
+  if(method==='POST'&&/^\/admin\/support-threads\/[^/]+\/read$/.test(path)&&grants.includes('GET /admin/support-threads/{id}/messages'))return;
   const match=staffOperations.filter(op=>op.method===method&&new RegExp('^'+op.path.replace(/\{[^}]+\}/g,'[^/]+')+'$').test(path)).sort((a,b)=>(a.path.match(/\{/g)?.length??0)-(b.path.match(/\{/g)?.length??0))[0];
   if(!match||!grants.includes(match.id))deny();
   if(match.id==='POST /admin/support-threads/{id}/commands'&&!grants.includes('support.command.'+b.command))deny();

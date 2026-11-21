@@ -1,3 +1,4 @@
+import '../core/l10n.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
@@ -212,7 +213,7 @@ class _EntryState extends State<WebRewardEntry> {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Подписка за рекламу',
+                  const UiText('Подписка за рекламу',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   for (final o in (c!['offers'] as List? ?? []))
                     if (widget.target == null || widget.target == o['target'])
@@ -384,7 +385,7 @@ class _RewardState extends State<WebRewardScreen> {
   Widget build(BuildContext context) {
     final o = offer;
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('Подписка за рекламу',
+      const UiText('Подписка за рекламу',
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
       if (o != null) ...[
         DropdownButtonFormField<String>(
@@ -398,7 +399,7 @@ class _RewardState extends State<WebRewardScreen> {
                 : (v) => setState(() => selected = v)),
         Text(
             'Завершено ${o['completed_views']} из ${o['required_views']} просмотров'),
-        const Text(
+        const UiText(
             'Подписка и Топ-100 выдаются отдельно после всех завершённых просмотров. Неполный ролик не засчитывается.'),
         if (o['reason'] != null) Text(o['reason'])
       ],
@@ -422,11 +423,11 @@ class _RewardState extends State<WebRewardScreen> {
       if (message != null) Text(message!),
       if (widget.onPrivacy != null)
         TextButton(
-            onPressed: widget.onPrivacy, child: const Text('Документы JOBA')),
+            onPressed: widget.onPrivacy, child: const UiText('Документы JOBA')),
       if (widget.onNavigate != null)
         TextButton(
             onPressed: busy ? null : () => widget.onNavigate!('my-access'),
-            child: const Text('Моя подписка')),
+            child: const UiText('Моя подписка')),
     ]);
   }
 }

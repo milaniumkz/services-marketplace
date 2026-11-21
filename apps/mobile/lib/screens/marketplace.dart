@@ -472,7 +472,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
     closeEvents();
     if (!api.authenticated || !mounted || locked || eventsSuspended) return;
     final connectionEpoch=eventsEpoch;
-    JobaPush.instance.onEvent=(){if(mounted&&!locked){refreshUnread();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:const Text('Новое уведомление JOBA'),action:SnackBarAction(label:'Открыть',onPressed:(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');})));}};
+    JobaPush.instance.onEvent=(){if(mounted&&!locked){refreshUnread();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:const UiText('Новое уведомление JOBA'),action:SnackBarAction(label:'Открыть',onPressed:(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');})));}};
     JobaPush.instance.onOpen=(){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');};
     unawaited(JobaPush.instance.attach(api));
     if(!pushLinkHandled&&Uri.base.queryParameters['joba_push']=='notifications'){pushLinkHandled=true;WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&!locked&&!authNavigationBlocked)go('notifications');});}
@@ -797,7 +797,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           style: const TextStyle(fontSize: 10, color: muted))
                     ]),
                     const SizedBox(height: 11),
-                    if(order['owner']!=null&&order['owner']!=me?['id'])Padding(padding:const EdgeInsets.only(bottom:8),child:Row(children:[const Text('Заказчик · ',style:TextStyle(fontSize:11,color:muted)),PresenceStatus(api:api,userId:order['owner'])])),
+                    if(order['owner']!=null&&order['owner']!=me?['id'])Padding(padding:const EdgeInsets.only(bottom:8),child:Row(children:[const UiText('Заказчик · ',style:TextStyle(fontSize:11,color:muted)),PresenceStatus(api:api,userId:order['owner'])])),
                     Text(order['title'] ?? '',
                         style: const TextStyle(
                             fontSize: 16,
@@ -1021,7 +1021,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 localeLabel: {
                       'ru': 'Русский',
                       'kk': 'Қазақша',
-                      'sr': 'Srpski',
+                      'ky': 'Кыргызча',
                       'be': 'Беларуская'
                     }[locale] ??
                     locale),
@@ -1033,6 +1033,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 api: api,
                 executor: executor,
                 pickUpload: () => pickUpload('chat'),
+                pickPhoto: pickChatPhoto,
                 onCreated: (id) => go('support-chat', id)),
             titleOffset: -12);
       case 'logout-confirm':
@@ -1611,7 +1612,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               items: const [
                 DropdownMenuItem(value: 'ru', child: UiText('Русский')),
                 DropdownMenuItem(value: 'kk', child: UiText('Қазақша')),
-                DropdownMenuItem(value: 'sr', child: Text('Srpski')),
+                DropdownMenuItem(value: 'ky', child: Text('Кыргызча')),
                 DropdownMenuItem(value: 'be', child: UiText('Беларуская'))
               ],
               onChanged:
@@ -1851,7 +1852,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   Padding(
                     padding: const EdgeInsets.only(top: 24),
                     child: Text(
-                      '${localize(context, {'KZ': 'Казахстан', 'RU': 'Россия', 'BY': 'Беларусь', 'KG': 'Кыргызстан'}[country]!)} · ${{'ru': 'Русский', 'kk': 'Қазақша', 'sr': 'Српски', 'be': 'Беларуская'}[locale]}',
+                      '${localize(context, {'KZ': 'Казахстан', 'RU': 'Россия', 'BY': 'Беларусь', 'KG': 'Кыргызстан'}[country]!)} · ${{'ru': 'Русский', 'kk': 'Қазақша', 'ky': 'Кыргызча', 'be': 'Беларуская'}[locale]}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 12,
@@ -2000,7 +2001,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       setState(() {
         me = profile;
         country = profile['country'];
-        locale = profile['locale'] ?? 'ru';
+        locale = profile['locale']=='sr'?'ky':profile['locale'] ?? 'ru';
         serviceCategories = null;
         final resume=resumeAfterUnlock;
         objectId = resume?.$2;
@@ -2285,7 +2286,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   const TextStyle(fontSize: 11, color: muted)))
                     ]),
                     if (record['location_approximate'] == true)
-                      const Padding(padding: EdgeInsets.only(top: 8), child: Text('Местоположение по городу; расстояние приблизительное', style: TextStyle(fontSize: 11, color: muted))),
+                      const Padding(padding: EdgeInsets.only(top: 8), child: UiText('Местоположение по городу; расстояние приблизительное', style: TextStyle(fontSize: 11, color: muted))),
                   ]))));
   Widget homeCategory(Json? category, int index) {
     final icons = ['tool', 'spark', 'truck', 'brush', 'book', 'grid'];
@@ -2843,7 +2844,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
           profileDraft = null;
           profileDraftScope = null;
           me = saved;
-          locale = saved['locale'] ?? locale;
+          locale = saved['locale']=='sr'?'ky':saved['locale'] ?? locale;
           executor = saved['active_role'] == 'executor';
           widget.onLocaleChanged?.call(locale);
           success('Профиль сохранён');
@@ -4595,6 +4596,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   api: api,
                   incident: data,
                   pickUpload: () => pickUpload('chat'),
+
                   onCases: () {
                     Navigator.pop(c);
                     go('cases');
@@ -4923,7 +4925,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       translateSubtitle: false)
                 ]),
                 SwitchListTile.adaptive(
-                  title: const Text('Вход по биометрии'),
+                  title: const UiText('Вход по биометрии'),
                   subtitle: Text(kIsWeb ? 'Доступно в установленном приложении' :
                     result[2] == true ? 'Включён: Face ID или отпечаток запрашивается автоматически при входе' : 'Отключён: включите для быстрого входа'),
                   value: result[2] == true,
@@ -5035,7 +5037,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               subtitle: const {
                 'ru': 'Русский',
                 'kk': 'Қазақша',
-                'sr': 'Српски',
+                'ky': 'Кыргызча',
                 'be': 'Беларуская'
               }[locale]),
           JobaMenuEntry('Страна услуг', 'pin', () => go('country'),
@@ -5087,7 +5089,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                     for (final language in const {
                       'ru': 'Русский',
                       'kk': 'Қазақша',
-                      'sr': 'Српски',
+                      'ky': 'Кыргызча',
                       'be': 'Беларуская'
                     }.entries)
                       Padding(
@@ -5520,6 +5522,12 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       PortfolioEditor(key: ValueKey('project:$objectId:$revision'), api: api,
           id: objectId, pickPhoto: () => pickUpload('portfolio'),
           onGo: (route, id) => go(route, id)), titleOffset: -12);
+  Future<Json?> pickChatPhoto() async {
+    final client=api,generation=api.sessionGeneration;
+    final photo=await withExternalActivity(()=>choosePhoto(context));
+    if(photo==null||!mounted||api!=client||client.sessionGeneration!=generation||!client.authenticated)return null;
+    return client.upload(photo.bytes,photo.mime,'chat');
+  }
   Future<Json?> pickUpload(String purpose, {String? verificationId}) async {
     if (purpose != 'chat') {
       final client = api, generation = api.sessionGeneration;
@@ -5576,6 +5584,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
               body: SupportNew(api: api, executor: executor, initialTopic: 'account',
                 initialText: 'Прошу пересмотреть решение по проверке документа № ${session['id']}.\nПричина отказа: ${session['reason'] ?? ''}\n',
                 pickUpload: () => pickUpload('chat'),
+                pickPhoto: pickChatPhoto,
                 onCreated: (id) {Navigator.pop(c); go('support-chat', id);})))),
           onProfile: () => act(()async{await refreshIdentity();if(mounted)go(executor?'services':'orders');}),
           onCreateOrder: () => go('create'),
@@ -5633,7 +5642,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   localeLabel: {
                         'ru': 'Русский',
                         'kk': 'Қазақша',
-                        'sr': 'Srpski',
+                        'ky': 'Кыргызча',
                         'be': 'Беларуская'
                       }[locale] ??
                       locale,
@@ -5953,15 +5962,18 @@ class _MessageThreadState extends State<MessageThread> {
     }
   }
 
-  Future<void> attach() async {
-    if (uploading || sending) return;
+  Future<void> attach({bool photo=false}) async {
+    if (uploading || sending || attachments.length>=10) return;
+    final client=widget.api,generation=widget.api.sessionGeneration,owner=widget.owner;
+    bool current()=>mounted&&identical(client,widget.api)&&generation==client.sessionGeneration&&owner==widget.owner&&client.authenticated;
     setState(() => uploading = true);
     try {
-      final selection = await FilePicker.platform.pickFiles(
+      if(photo){final selected=await withExternalActivity(()=>choosePhoto(context));if(selected==null||!current())return;final uploaded=await client.upload(selected.bytes,selected.mime,'chat');if(uploaded['status']!='clean')throw ApiException('UNSAFE_UPLOAD','Файл не прошёл проверку');if(current())setState((){if(!attachments.any((f)=>f['id']==uploaded['id']))attachments.add(uploaded);pendingId=null;error=null;});return;}
+      final selection = await withExternalActivity(()=>FilePicker.platform.pickFiles(
           type: FileType.custom,
           allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-          withData: true);
-      if (selection == null) return;
+          withData: true));
+      if (selection == null||!current()) return;
       final file = selection.files.single;
       if (file.bytes == null)
         throw ApiException('FILE_UNAVAILABLE', 'Не удалось прочитать файл');
@@ -5970,19 +5982,19 @@ class _MessageThreadState extends State<MessageThread> {
           : file.extension?.toLowerCase() == 'png'
               ? 'image/png'
               : 'image/jpeg';
-      final uploaded = await widget.api.upload(file.bytes!, mime, 'chat');
+      final uploaded = await client.upload(file.bytes!, mime, 'chat');
       if (uploaded['status'] != 'clean')
         throw ApiException('UNSAFE_UPLOAD', 'Файл не прошёл проверку');
-      if (mounted)
+      if (current())
         setState(() {
-          attachments.add(uploaded);
+          if(!attachments.any((f)=>f['id']==uploaded['id']))attachments.add(uploaded);
           pendingId = null;
           error = null;
         });
     } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (current()) setState(() => error = e);
     } finally {
-      if (mounted) setState(() => uploading = false);
+      if (current()) setState(() => uploading = false);
     }
   }
 
@@ -6081,10 +6093,11 @@ class _MessageThreadState extends State<MessageThread> {
                 decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: line))),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                 child: Row(children: [
+                  if (widget.capability == null) IconButton(tooltip:localize(context,'Добавить фотографию'),onPressed:sending||uploading||attachments.length>=10?null:()=>attach(photo:true),icon:const Icon(Icons.photo_library_outlined)),
                   if (widget.capability == null)
                     IconButton(
                         tooltip: localize(context, 'Добавить файл'),
-                        onPressed: sending || uploading ? null : attach,
+                        onPressed: sending || uploading || attachments.length>=10 ? null : ()=>attach(),
                         icon: uploading
                             ? const SizedBox(
                                 width: 20,

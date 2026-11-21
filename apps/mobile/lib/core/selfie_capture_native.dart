@@ -1,3 +1,4 @@
+import 'l10n.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:camera/camera.dart';
@@ -156,7 +157,7 @@ class _NativeSelfieState extends State<NativeSelfieCamera>
       },
       child: Scaffold(
         appBar: AppBar(
-            title: const Text('Селфи'),
+            title: const UiText('Селфи'),
             leading: IconButton(
                 tooltip: 'Отмена',
                 icon: const Icon(Icons.close),
@@ -165,7 +166,7 @@ class _NativeSelfieState extends State<NativeSelfieCamera>
             child: Column(children: [
           const Padding(
               padding: EdgeInsets.all(16),
-              child: Text(
+              child: UiText(
                   'Посмотрите во фронтальную камеру. Лицо должно быть хорошо освещено.')),
           Expanded(
               child: loading
@@ -183,7 +184,7 @@ class _NativeSelfieState extends State<NativeSelfieCamera>
           if (controller == null && !loading)
             TextButton(
                 onPressed: start,
-                child: const Text('Повторить открытие камеры')),
+                child: const UiText('Повторить открытие камеры')),
           Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(

@@ -64,7 +64,7 @@ async function main(){
   await page.locator('#staff-search-results').filter({hasText:'Заявитель проверки'}).waitFor();
   await page.getByRole('button',{name:'Закрыть',exact:true}).click();
   await page.getByRole('button',{name:'Уведомления',exact:true}).click();
-  await page.locator('#staff-dialog-body').filter({hasText:'Новых уведомлений нет'}).waitFor();
+  await page.locator('#staff-dialog-body').filter({hasText:'Уведомлений по выбранному фильтру нет'}).waitFor();
   await page.getByRole('button',{name:'Закрыть',exact:true}).click();
 
   // Administrative audit fields are populated automatically and hidden. The
@@ -385,6 +385,27 @@ async function main(){
   await marketplace.handle('POST','/support/threads/'+supportThread.id+'/messages',{text:'Ответ из пользовательского приложения',client_message_id:randomUUID()},'Bearer '+applicant.access_token,randomUUID());
   await page.locator('#support-content').filter({hasText:'Ответ из пользовательского приложения'}).waitFor({timeout:15000});
   assert.equal(await page.getByLabel('Ответ пользователю').inputValue(),'Черновик ответа не теряется при обновлении');
+
+  // Actual gallery upload, attachment-only reply and persisted read/unread state.
+  await page.getByLabel('Ответ пользователю').fill('');
+  await page.locator('#support-reply-files').setInputFiles({name:'support-photo.png',mimeType:'image/png',buffer:bytes});
+  await page.locator('#support-feedback').filter({hasText:'Вложения готовы к отправке'}).waitFor();
+  await page.getByRole('button',{name:'Отправить ответ',exact:true}).click();
+  await page.locator('[data-support-upload]').waitFor();
+  const photoMessage=(await marketplace.store.all('support_message','KZ')).find(m=>m.thread_id===supportThread.id&&m.upload_ids?.length);
+  assert.equal(photoMessage.upload_ids.length,1);
+  const customerMessages=await marketplace.handle('GET','/support/threads/'+supportThread.id+'/messages',{},'Bearer '+applicant.access_token);
+  assert.ok(customerMessages.items.some(m=>m.upload_ids?.includes(photoMessage.upload_ids[0])));
+  await page.locator('#support-read-state').filter({hasText:'Прочитано'}).waitFor();
+  await page.goto(frontend+'/#support');
+  const supportRow=page.locator('tr').filter({has:page.locator('a[href="#support-live/'+supportThread.id+'"]')});
+  await supportRow.filter({hasText:'✓ Прочитано'}).waitFor();
+  await marketplace.handle('POST','/support/threads/'+supportThread.id+'/messages',{text:'Новое непрочитанное после выхода',client_message_id:randomUUID()},'Bearer '+applicant.access_token,randomUUID());
+  await supportRow.filter({hasText:'Непрочитано: 1'}).waitFor({timeout:15000});
+  await page.getByLabel('Прочтение сообщений').selectOption('unread');
+  await page.locator('#support-filter button').click();
+  await page.locator('a[href="#support-live/'+supportThread.id+'"]').click();
+  await page.locator('#support-read-state').filter({hasText:'Прочитано'}).waitFor();
 
   await page.goto(frontend+'/#verification');
   await page.getByRole('link',{name:'Открыть →',exact:true}).click();

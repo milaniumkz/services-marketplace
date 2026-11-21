@@ -1,3 +1,4 @@
+import '../core/l10n.dart';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/widgets.dart';
@@ -80,7 +81,7 @@ class _GuestCatalogState extends State<GuestCatalog> {
               return ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  if (records.isEmpty) const Text('Подходящих услуг пока нет.'),
+                  if (records.isEmpty) const UiText('Подходящих услуг пока нет.'),
                   for (final item in records)
                     Card(
                       child: ExpansionTile(
@@ -93,12 +94,12 @@ class _GuestCatalogState extends State<GuestCatalog> {
                   if (cursors.length > 1)
                     TextButton(
                       onPressed: () => setState(cursors.removeLast),
-                      child: const Text('Предыдущая страница'),
+                      child: const UiText('Предыдущая страница'),
                     ),
                   if (next != null)
                     TextButton(
                       onPressed: () => setState(() => cursors.add(next)),
-                      child: const Text('Следующая страница'),
+                      child: const UiText('Следующая страница'),
                     ),
                 ],
               );
@@ -111,7 +112,7 @@ class _GuestCatalogState extends State<GuestCatalog> {
             padding: const EdgeInsets.all(12),
             child: FilledButton(
               onPressed: widget.onSignIn,
-              child: const Text('Войти или создать аккаунт'),
+              child: const UiText('Войти или создать аккаунт'),
             ),
           ),
         ),

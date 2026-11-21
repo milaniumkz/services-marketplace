@@ -10,6 +10,7 @@ class SupportNew extends StatefulWidget {
   final bool executor;
   final String initialTopic, initialText;
   final Future<Json?> Function() pickUpload;
+  final Future<Json?> Function()? pickPhoto;
   final ValueChanged<String> onCreated;
   const SupportNew(
       {required this.api,
@@ -17,6 +18,7 @@ class SupportNew extends StatefulWidget {
       this.initialText = '',
       required this.executor,
       required this.pickUpload,
+      this.pickPhoto,
       required this.onCreated,
       super.key});
   @override
@@ -35,14 +37,14 @@ class _SupportNewState extends State<SupportNew> {
   bool uploading = false, submitting = false;
   bool get busy => uploading || submitting;
   Object? uploadError;
-  Future<void> attach() async {
+  Future<void> attach({bool photo=false}) async {
     if (busy || attachments.length >= 10) return;
     setState(() {
       uploading = true;
       uploadError = null;
     });
     try {
-      final file = await widget.pickUpload();
+      final file = await (photo?(widget.pickPhoto??widget.pickUpload):widget.pickUpload)();
       if (mounted && file != null) setState(() => attachments.add(file));
     } catch (e) {
       if (mounted) setState(() => uploadError = e);
@@ -95,8 +97,9 @@ class _SupportNewState extends State<SupportNew> {
                       ? null
                       : () => setState(() => attachments.remove(file)),
                   icon: const Icon(Icons.close))),
+        JobaUploadButton('Добавить фотографию',onPressed:busy||attachments.length>=10?null:()=>attach(photo:true)),
         JobaUploadButton(uploading ? 'Загрузка…' : 'Фото или файл',
-            onPressed: busy || attachments.length >= 10 ? null : attach),
+            onPressed: busy || attachments.length >= 10 ? null : ()=>attach()),
         const Notice(
             'Не прикладывайте пароли, PIN и документы личности. Для документа есть защищённая проверка.',
             icon: 'info',

@@ -13,7 +13,7 @@ function base32(bytes:Buffer){
 /** Offline operator command only. Owner bootstrap is offline. Managed roles are assigned by the owner through the audited API. */
 export async function bootstrapStaff(store:Store,files:PrivateFiles,input:any,saveEnrollment:(value:any)=>Promise<void>){
  if(!countryEnabled(input.country))throw Error('Select the matching regional country');
- if(input.locale!==undefined&&!['ru','kk','sr','be'].includes(input.locale))throw Error('Unsupported staff locale');
+ if(input.locale!==undefined&&!['ru','kk','ky','be'].includes(input.locale))throw Error('Unsupported staff locale');
  if(typeof input.identifier!=='string'||!/^[a-zA-Z][a-zA-Z0-9._-]{2,65}$/.test(input.identifier))throw Error('Use a separate staff identifier');
  if(typeof input.display_name!=='string'||input.display_name.trim().length<2||input.display_name.length>60)throw Error('Invalid staff display name');
  if(typeof input.password!=='string'||input.password.length<6||input.password.length>128)throw Error('Staff password requires 6–128 characters');

@@ -11,7 +11,7 @@ export function validatePushCampaign(r:RecordData){
  const p=r.payload??{};
  if(!['service','marketing'].includes(p.type))fail('Выберите категорию сообщения');
  if(p.type==='service'&&!['account','order','safety','support'].includes(p.service_purpose))fail('Укажите назначение сервисного сообщения');
- if(!Array.isArray(p.locales)||!p.locales.length||p.locales.length>4||new Set(p.locales).size!==p.locales.length||p.locales.some((l:string)=>!['ru','kk','sr','be'].includes(l)))fail('Выберите языки сообщения');
+ if(!Array.isArray(p.locales)||!p.locales.length||p.locales.length>4||new Set(p.locales).size!==p.locales.length||p.locales.some((l:string)=>!['ru','kk','ky','be'].includes(l)))fail('Выберите языки сообщения');
  if(!Array.isArray(p.roles)||!p.roles.length||p.roles.some((role:string)=>!['customer','executor'].includes(role)))fail('Выберите роли получателей');
  if(!Array.isArray(p.countries)||p.countries.length!==1||p.countries[0]!==r.country)fail('Кампания ограничена текущей страной сотрудника');
  for(const locale of p.locales)if(typeof p.title?.[locale]!=='string'||p.title[locale].trim().length<1||p.title[locale].length>100||typeof p.body?.[locale]!=='string'||p.body[locale].trim().length<1||p.body[locale].length>500)fail('Заполните заголовок и сообщение для каждого языка');

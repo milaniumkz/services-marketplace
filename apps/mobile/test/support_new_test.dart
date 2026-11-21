@@ -51,7 +51,8 @@ void main() {
             body: SupportNew(
                 api: api,
                 executor: false,
-                pickUpload: () async =>
+                pickUpload: () async => throw StateError('Gallery must use photo picker'),
+                pickPhoto: () async =>
                     {'id': 'isolated-upload', 'status': 'clean'},
                 onCreated: (id) => opened = id))));
     await tester.tap(find.text('Начать чат'));
@@ -64,9 +65,9 @@ void main() {
     final question = find.byType(TextFormField);
     await tester.ensureVisible(question);
     await tester.enterText(question, 'Как запросить доработку результата?');
-    await tester.scrollUntilVisible(find.text('Фото или файл'), 150,
+    await tester.scrollUntilVisible(find.text('Добавить фотографию'), 150,
         scrollable: find.byType(Scrollable).first);
-    await tester.tap(find.text('Фото или файл'));
+    await tester.tap(find.text('Добавить фотографию'));
     await tester.pumpAndSettle();
     expect(find.text('Файл проверен'), findsOneWidget);
     await tester.tap(find.text('Начать чат'));

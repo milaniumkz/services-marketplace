@@ -39,9 +39,11 @@ export function wireLiveShell({api,esc,card,onRefresh}){
   notifications.removeAttribute('data-action');notifications.onclick=async()=>{
    const dialog=createDialog('Уведомления сотрудника'),body=dialog.querySelector('#staff-dialog-body');body.textContent='Загрузка…';
    try{
-    const data=await api('/me/notifications?limit=20');if(!dialog.isConnected)return;
-    body.innerHTML=data.items.length?data.items.map(item=>`<div class="event"><b>${esc(item.type)}</b><p>${esc(item.created_at)}</p>${item.read?'Прочитано':`<button data-notification="${item.id}">Отметить прочитанным</button>`}</div>`).join(''):'Новых уведомлений нет';
-    body.querySelectorAll('[data-notification]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{await api('/me/notifications/'+button.dataset.notification+'/read','POST');button.replaceWith(document.createTextNode('Прочитано'));}catch(error){button.disabled=false;const alert=document.createElement('p');alert.role='alert';alert.textContent=error.message;body.append(alert);}});
+    body.innerHTML='<label>Показать <select id="staff-notification-filter"><option value="all">Все</option><option value="unread">Непрочитанные</option><option value="read">Прочитанные</option></select></label><div id="staff-notification-items"></div>';
+    const filter=body.querySelector('#staff-notification-filter'),target=body.querySelector('#staff-notification-items');
+    const render=async()=>{const data=await api('/me/notifications?limit=20&read='+filter.value);if(!dialog.isConnected)return;target.innerHTML=data.items.length?data.items.map(item=>`<div class="event"><b>${esc(item.type==='support.message.created'?'Сообщение по обращению':item.title||item.type)}</b><p>${esc(item.created_at)}</p><strong>${item.read?'✓ Прочитано':'● Не прочитано'}</strong>${item.read?'':` <button data-notification="${esc(item.id)}">Отметить прочитанным</button>`}${item.type.startsWith('support.')&&item.target_id?` <a href="#support-live/${esc(item.target_id)}" data-open-notification="${esc(item.id)}">Открыть обращение</a>`:''}</div>`).join(''):'Уведомлений по выбранному фильтру нет';
+    target.querySelectorAll('[data-notification],[data-open-notification]').forEach(button=>button.onclick=async event=>{event.preventDefault();button.disabled=true;try{await api('/me/notifications/'+(button.dataset.notification||button.dataset.openNotification)+'/read','POST');if(button.dataset.openNotification){const href=button.getAttribute('href');dialog.close();dialog.remove();location.hash=href.slice(1);}else await render();}catch(error){button.disabled=false;const alert=document.createElement('p');alert.role='alert';alert.textContent=error.message;body.append(alert);}});};
+    filter.onchange=()=>void render().catch(error=>target.textContent=error.message);await render();
    }catch(error){if(dialog.isConnected)body.textContent=error.message;}
   };
  }

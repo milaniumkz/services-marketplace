@@ -427,7 +427,7 @@ void main() {
     await tester.tap(find.text('Язык интерфейса'));
     await tester.pumpAndSettle();
     await capture('S35-languages');
-    await tester.tap(find.text('Српски'));
+    await tester.tap(find.text('Кыргызча'));
     await tester.pump();
     await tester.tap(find.text('Сохранить выбор'));
     await tester.pumpAndSettle();
@@ -437,7 +437,7 @@ void main() {
     rejectLanguage = false;
     await tester.tap(find.text('Сохранить выбор'));
     await tester.pumpAndSettle();
-    expect(user['locale'], 'sr');
+    expect(user['locale'], 'ky');
     (state.widget as Marketplace).onLocaleChanged?.call('ru');
     state.locale = 'ru';
     state.go('country');

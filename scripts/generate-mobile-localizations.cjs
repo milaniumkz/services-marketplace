@@ -2,8 +2,13 @@ const {readFileSync,writeFileSync}=require('node:fs');
 const {resolve}=require('node:path');
 const root=resolve(__dirname,'../apps/mobile');
 const messages=JSON.parse(readFileSync(resolve(root,'l10n/ui.json'),'utf8'));
-for(const [source,translations] of Object.entries(messages))for(const locale of ['kk','sr','be']){
+for(const [source,translations] of Object.entries(messages))for(const locale of ['kk','ky','be']){
  if(typeof translations[locale]!=='string'||!translations[locale].trim())throw Error('Missing '+locale+' translation: '+source);
+}
+for(const [source,row] of Object.entries(messages)){
+ if('sr' in row)throw Error('Retired Serbian locale: '+source);
+ const tokens=text=>JSON.stringify((text.match(/\{[^{}]+\}/g)||[]).sort());
+ for(const locale of ['kk','ky','be'])if(tokens(source)!==tokens(row[locale]))throw Error('Translation placeholders differ: '+locale+' '+source);
 }
 const literal=value=>JSON.stringify(value).replaceAll('$','\\$');
 const lines=Object.entries(messages).map(([source,row])=>'  '+literal(source)+': {'+Object.entries(row).map(([locale,text])=>literal(locale)+': '+literal(text)).join(', ')+'},');

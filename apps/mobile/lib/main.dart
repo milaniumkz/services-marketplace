@@ -55,7 +55,7 @@ class _JobaAppState extends State<JobaApp> {
       supportedLocales: const [
         Locale('ru'),
         Locale('kk'),
-        Locale('sr'),
+        Locale('ky'),
         Locale('be')
       ],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,

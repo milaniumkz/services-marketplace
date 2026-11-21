@@ -22,7 +22,7 @@ void main() {
     expect(find.text('Дела становятся проще'), findsOneWidget);
     for (final entry in {
       'Қазақша': 'Істер оңайырақ болады',
-      'Srpski': 'Послови постају једноставнији',
+      'Кыргызча': 'Иштер жеңилдейт',
       'Беларуская': 'Справы становяцца прасцей',
       'Русский': 'Дела становятся проще',
     }.entries) {
@@ -44,12 +44,12 @@ void main() {
     await tester.pumpWidget(StatefulBuilder(
         builder: (context, change) => MaterialApp(
               locale: Locale(language),
-              supportedLocales: const [Locale('ru'), Locale('sr')],
+              supportedLocales: const [Locale('ru'), Locale('ky')],
               localizationsDelegates: GlobalMaterialLocalizations.delegates,
               home: Scaffold(
                   body: Column(children: [
                 TextButton(
-                    onPressed: () => change(() => language = 'sr'),
+                    onPressed: () => change(() => language = 'ky'),
                     child: const UiText('Настройки')),
                 const DataCard('Профиль',
                     subtitle: 'Настройки', status: 'Активен'),
@@ -63,9 +63,9 @@ void main() {
     await tester.enterText(find.byType(TextFormField), 'Мой профиль');
     await tester.tap(find.widgetWithText(TextButton, 'Настройки'));
     await tester.pumpAndSettle();
-    expect(find.text('Подешавања'), findsOneWidget);
-    expect(find.text('Име'), findsOneWidget);
-    expect(find.text('Активно'), findsOneWidget);
+    expect(find.text('Жөндөөлөр'), findsOneWidget);
+    expect(find.text('Аты'), findsOneWidget);
+    expect(find.text('Активдүү'), findsOneWidget);
     expect(find.text('Профиль'), findsOneWidget);
     expect(find.text('Настройки'), findsOneWidget);
     expect(find.text('Мой профиль'), findsOneWidget);

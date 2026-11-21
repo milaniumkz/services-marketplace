@@ -1,3 +1,4 @@
+import '../core/l10n.dart';
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:flutter/material.dart';
@@ -18,12 +19,12 @@ external JSPromise<JSString> _platform();
 external JSPromise<JSBoolean> _rewarded(JSString block, JSString platform);
 Widget _privacyLinks(VoidCallback? onPrivacy) => Wrap(children: [
       if (onPrivacy != null)
-        TextButton(onPressed: onPrivacy, child: const Text('Документы JOBA')),
+        TextButton(onPressed: onPrivacy, child: const UiText('Документы JOBA')),
       TextButton(
           onPressed: () => launchUrl(
               Uri.parse('https://yandex.ru/legal/confidential/'),
               mode: LaunchMode.externalApplication),
-          child: const Text('Политика Яндекса'))
+          child: const UiText('Политика Яндекса'))
     ]);
 String _message(Object e) => e is ApiException
     ? e.message
@@ -100,7 +101,7 @@ class _WebAdsPanelState extends State<WebAdsPanel> {
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Реклама',
+            const UiText('Реклама',
                 style: TextStyle(fontSize: 11, color: Colors.grey)),
             IconButton(
                 visualDensity: VisualDensity.compact,
@@ -197,7 +198,7 @@ class _WebAdsPanelState extends State<WebAdsPanel> {
                     attempt++;
                   });
                 },
-                child: const Text('Повторить загрузку рекламы'))
+                child: const UiText('Повторить загрузку рекламы'))
           ],
         ]));
   }
@@ -241,10 +242,10 @@ class _WebRewardEntryState extends State<WebRewardEntry> {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Подписка за рекламу',
+                  const UiText('Подписка за рекламу',
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  const Text(
+                  const UiText(
                       'Деньги не списываются. Доступ выдаётся после всех завершённых просмотров.'),
                   for (final o in offers)
                     Padding(
@@ -402,7 +403,7 @@ class _WebRewardScreenState extends State<WebRewardScreen> {
         count = (o?['completed_views'] as num? ?? 0).toInt(),
         required = (o?['required_views'] as num? ?? 1).toInt();
     return ListView(padding: const EdgeInsets.all(20), children: [
-      const Text('Подписка за рекламу',
+      const UiText('Подписка за рекламу',
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
       if (o != null)
         DropdownButtonFormField<String>(
@@ -448,16 +449,16 @@ class _WebRewardScreenState extends State<WebRewardScreen> {
       if (config == null && message == null)
         const Center(child: CircularProgressIndicator()),
       if (config != null && config!['rewarded_enabled'] != true)
-        const Text('Оплата рекламой сейчас выключена.'),
+        const UiText('Оплата рекламой сейчас выключена.'),
       if (message != null)
         Padding(padding: const EdgeInsets.only(top: 16), child: Text(message!)),
       if (widget.onNavigate != null)
         TextButton(
             onPressed: busy ? null : () => widget.onNavigate!('my-access'),
-            child: const Text('Моя подписка')),
+            child: const UiText('Моя подписка')),
       if (config == null)
         TextButton(
-            onPressed: busy ? null : load, child: const Text('Повторить')),
+            onPressed: busy ? null : load, child: const UiText('Повторить')),
     ]);
   }
 }
