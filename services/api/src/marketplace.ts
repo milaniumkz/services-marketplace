@@ -490,7 +490,7 @@ export class Marketplace {
       if(!isStaffOwner(a.user)&&scope!==a.country)fail(403,'FORBIDDEN','Все страны доступны только владельцу платформы');
       if(isStaffOwner(a.user)&&!path.startsWith('/admin/access/')){
         const targetId=path.match(/\/([0-9a-f]{8}-[0-9a-f-]{27})(?:\/|$)/i)?.[1]??(method!=='GET'?b.user_id:undefined);
-        const target=targetId&&/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(String(targetId))?await this.store.get(targetId):undefined;
+        const target=targetId&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(targetId))?await this.store.get(targetId):undefined;
         if(target)a.country=target.country;
         else if(scope!=='ALL')a.country=scope;
         else if(method==='GET'&&/^\/admin\/(users|orders|verifications|portfolio|contractors|cases|support-threads|recovery-threads|privacy-requests|blacklist|audit|security-events|jobs|refund-requests|payment-transactions|boost-reports|dashboard|analytics|search)$/.test(path))a.country='ALL';
@@ -1558,7 +1558,7 @@ export class Marketplace {
         return this.list(rows.rows.map(({data,display_name,subject_role})=>({...data,document_refs:undefined,display_name,subject_role})),q);
       }
       if(path==='/admin/support-threads'&&method==='POST'){
-        const userId=text(b,'user_id',36,36);if(!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(userId))fail(400,'VALIDATION_ERROR','Выберите пользователя');
+        const userId=text(b,'user_id',36,36);if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId))fail(400,'VALIDATION_ERROR','Выберите пользователя');
         const user=await this.object(userId,a,'user');
         if(user.status==='deleted'||user.staff_permissions?.length)fail(404,'NOT_FOUND','Выберите пользовательский аккаунт');
         const subject=text(b,'subject',5,120),regional={...a,country:user.country};
@@ -1990,6 +1990,9 @@ export class Marketplace {
     return m;
   }
   private async notify(owner:string,a:Pick<Actor,'id'|'country'>,type:string,target:string,sourceSequence?:number) {
+    // A platform administrator may handle a thread outside their own region.
+    // Deliver support alerts in the recipient's region, where their inbox/push tokens live.
+    if(type.startsWith('support.')){const recipient=await this.store.get(owner);if(recipient?.kind==='user'&&(recipient.staff_permissions?.length||recipient.staff_access_mode==='managed')&&recipient.country!==a.country)a={...a,country:recipient.country};}
     const notification=this.record('notification',{id:owner,country:a.country},{type,target_id:target,read:false,...(sourceSequence!==undefined?{source_sequence:sourceSequence}:{}),title:notificationTitle(type)});await this.store.put(notification);
     await this.store.db.query('INSERT INTO events(event_id,recipient_id,country,data) VALUES($1,$2,$3,$4)',[notification.id,owner,a.country,JSON.stringify({event_id:notification.id,type,aggregate_id:target,occurred_at:notification.created_at})]);
     await this.store.put(this.record('outbox',a,{type,target_id:target,recipient_id:owner,event_id:notification.id,status:'pending',attempts:0}));

@@ -14,6 +14,6 @@ export async function markSupportRead(store:Store,actor:{id:string;country:strin
  const old=(await store.select('support_read',thread.country,{owner:actor.id,limit:10000})).find(r=>r.thread_id===thread.id),now=new Date().toISOString(),seen=Math.max(old?.sequence??0,sequence);
  if(!old||seen!==old.sequence)await store.put({id:old?.id??randomUUID(),kind:'support_read',owner:actor.id,country:thread.country,thread_id:thread.id,sequence:seen,read_at:now,created_at:old?.created_at??now,version:(old?.version??0)+1});
  const unseen=messages.some(m=>m.owner===thread.owner&&!m.tombstone&&m.sequence>seen);
- for(const n of await store.select('notification',thread.country,{owner:actor.id,limit:10000}))if(!n.read&&n.target_id===thread.id&&String(n.type).startsWith('support.')&&(typeof n.source_sequence==='number'?n.source_sequence<=seen:!unseen))await store.put({...n,read:true,version:n.version+1});
+ for(const n of await store.select('notification','ALL',{owner:actor.id,limit:10000}))if(!n.read&&n.target_id===thread.id&&String(n.type).startsWith('support.')&&(typeof n.source_sequence==='number'?n.source_sequence<=seen:!unseen))await store.put({...n,read:true,version:n.version+1});
  return (await supportReadStates(store,actor.id,thread.country,[thread]))[0];
 }
