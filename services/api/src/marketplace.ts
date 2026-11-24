@@ -662,7 +662,7 @@ export class Marketplace {
       const title=text(b,'title',5,100),description=text(b,'description',20,3000),city=text(b,'city',2,100);
       const categories=(await this.categories(a.country));
       const category=categories.find(c=>c.id===b.category_id||c.legacy_id===b.category_id);if(!category)fail(400,'VALIDATION_ERROR','Выберите доступную категорию услуги.',{field:'category_id'});
-      let fields:any;try{fields=profileFields({...b,category_id:category!.id},old?editableContent(old):old,countries[a.country].currency,new Set(categories.map(c=>c.id)));}catch(e:any){fail(400,'VALIDATION_ERROR','Проверьте поле '+e.message,{field:e.message});}
+      let fields:any;try{fields=profileFields({...b,category_id:category!.id},old?editableContent(old):old,countries[a.country].currency,new Set(categories.map(c=>c.id)),new Map(categories.filter(c=>c.legacy_id!==undefined&&c.legacy_id!==null).map(c=>[c.legacy_id,c.id])));}catch(e:any){fail(400,'VALIDATION_ERROR',e.message==='category_ids'?'Выберите категории услуг из доступного списка. Сохранённый профиль не изменён.':'Проверьте поле '+e.message,{field:e.message});}
       const uploads=b.gallery_ids===undefined?(old?editableContent(old).gallery_ids??[]:[]):await this.safeUploads(a,b.gallery_ids,'portfolio',20);
       if(uploads.length>20)fail(400,'VALIDATION_ERROR','Не более 20 фотографий');
       if(!a.user.roles.includes('executor'))await this.store.put({...a.user,roles:[...a.user.roles,'executor'],version:a.user.version+1});

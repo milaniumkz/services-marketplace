@@ -1,12 +1,16 @@
-export function profileFields(body:any, previous:any, currency:string, categoryIds:Set<string>) {
+export function profileFields(body:any, previous:any, currency:string, categoryIds:Set<string>, categoryAliases:Map<string,string>=new Map()) {
   const value=(key:string,fallback:any)=>body[key]===undefined?(previous?.[key]??fallback):body[key];
   const invalid=(key:string):never=>{throw new Error(key);};
-  const list=(key:string,fallback:string[],allowed?:Set<string>,max=10)=>{
-    const values=value(key,fallback);
+  const list=(key:string,fallback:string[],allowed?:Set<string>,max=10,normalizeCategories=false)=>{
+    const raw=value(key,fallback);
+    if(normalizeCategories&&Array.isArray(raw)&&raw.length>Math.max(100,max*2))invalid(key);
+    const values=normalizeCategories&&Array.isArray(raw)?[...new Set(raw.map(id=>categoryAliases.get(id)??id))]:raw;
     if(!Array.isArray(values)||!values.length||values.length>max||new Set(values).size!==values.length||values.some(x=>typeof x!=='string'||!x.trim()||x.length>100||(allowed&&!allowed.has(x))))invalid(key);
     return values.map((x:string)=>x.trim());
   };
-  const categories=list('category_ids',[body.category_id??previous?.category_id],categoryIds);
+  // Installed apps allow every available service category; do not impose a hidden
+  // ten-item limit. Canonicalize aliases/duplicates without accepting unknown IDs.
+  const categories=list('category_ids',[body.category_id??previous?.category_id],categoryIds,categoryIds.size,true);
   if(body.category_id!==undefined&&body.category_ids===undefined&&body.category_id!==previous?.category_id){categories.splice(0,categories.length,body.category_id);}
   const modes=list('work_modes',['onsite'],new Set(['onsite','workshop','remote','hybrid']),4);
   const languages=list('languages',['ru'],new Set(['ru','kk','ky','sr','be','en']),5);
