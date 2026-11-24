@@ -18,9 +18,9 @@ void main(){
   addTearDown(api.dispose);
   final Widget child=screen=='access'?ExecutorAccess(api:api,choosing:true,customer:true,grants:const[],subscriptions:const[],config:const{'paid_checkout_enabled':false,'offers':[],'plans':[{'code':'customer','amount_minor':50000,'currency':'KZT'}]},onGo:(r,id){destination=r;target=id;}):CommerceStateScreen(api:api,mode:'checkout',onGo:(r,id){destination=r;target=id;});
   await t.pumpWidget(MaterialApp(home:Scaffold(body:child)));await t.pumpAndSettle();
-  expect(find.text('Подписка за рекламу'),findsOneWidget);expect(find.text('Доступ за рекламу · 2/5 просмотров · 30 дней'),findsOneWidget);
-  expect(find.text('Продолжить оплату'),findsNothing);expect(find.text('Посмотреть условия'),findsNothing);expect(find.byType(FilledButton),findsNothing);
-  await t.tap(find.text('Доступ за рекламу · 2/5 просмотров · 30 дней'));await t.pumpAndSettle();expect(destination,'reward');expect(target,'customer');expect(writes,0);expect(t.takeException(),isNull);
+  expect(find.text('Подписка за рекламу'),findsOneWidget);expect(find.text('Просмотрено: 2 из 5 · 30 дней'),findsOneWidget);
+  expect(find.text('Продолжить оплату'),findsNothing);expect(find.text('Посмотреть условия'),findsNothing);expect(find.byWidgetPredicate((w)=>w is FilledButton),findsOneWidget);
+  await t.tap(find.text('Продолжить просмотр'));await t.pumpAndSettle();expect(destination,'reward');expect(target,'customer');expect(writes,0);expect(t.takeException(),isNull);
   await t.pumpWidget(const SizedBox());
  });
 }

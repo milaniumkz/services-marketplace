@@ -37,7 +37,7 @@ async function main(){
   browser=await chromium.launch({executablePath:process.env.JOBA_CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
   page=await browser.newPage({viewport:{width:1440,height:1000}});
   // Redirect transport to an isolated real HTTP API; response data are never mocked.
-  let lostDraftResponse=false,lostReplyResponse=false,lostBannerResponse=false,bannerCreateRequests=0,releaseBannerResponse;
+  let lostThreadResponse=false,lostDraftResponse=false,lostReplyResponse=false,lostBannerResponse=false,bannerCreateRequests=0,releaseBannerResponse;
   const bannerResponseGate=new Promise(resolve=>{releaseBannerResponse=resolve;});
   let holdBannerPreview=false,releaseOldPreview,notifyOldPreviewHeld;
   const oldPreviewGate=new Promise(resolve=>{releaseOldPreview=resolve;}),oldPreviewHeld=new Promise(resolve=>{notifyOldPreviewHeld=resolve;});
@@ -45,6 +45,7 @@ async function main(){
    const request=route.request(),url=new URL(request.url());
    const response=await fetch(origin+url.pathname+url.search,{method:request.method(),headers:request.headers(),body:['GET','HEAD'].includes(request.method())?undefined:request.postDataBuffer()});
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/monetization-configs'&&response.ok&&!lostDraftResponse){lostDraftResponse=true;await response.text();await route.abort('failed');return;}
+   if(request.method()==='POST'&&url.pathname==='/api/v1/admin/support-threads'&&response.ok&&!lostThreadResponse){lostThreadResponse=true;await response.text();await route.abort('failed');return;}
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/support-threads/'+supportThread.id+'/messages'&&response.ok&&!lostReplyResponse){lostReplyResponse=true;await response.text();await route.abort('failed');return;}
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/banner-campaigns'){bannerCreateRequests++;if(response.ok&&!lostBannerResponse){lostBannerResponse=true;await response.text();await bannerResponseGate;await route.abort('failed');return;}}
    if(holdBannerPreview&&request.method()==='GET'&&url.pathname.startsWith('/api/v1/uploads/')&&url.searchParams.get('variant')==='preview'&&response.ok){holdBannerPreview=false;notifyOldPreviewHeld();await oldPreviewGate;}
@@ -407,6 +408,35 @@ async function main(){
   await page.locator('a[href="#support-live/'+supportThread.id+'"]').click();
   await page.locator('#support-read-state').filter({hasText:'Прочитано'}).waitFor();
 
+  // An administrator starts a new chat from the actual user card; losing the
+  // first response preserves the text/photo and cannot duplicate delivery.
+  await page.goto(frontend+'/#user-detail?user_id='+applicant.user.id);
+  await page.getByRole('link',{name:'Написать пользователю',exact:true}).click();
+  await page.locator('#support-create').waitFor();
+  await page.locator('#support-create [name=subject]').fill('Связь с пользователем из админки');
+  await page.locator('#support-create [name=text]').fill('Здравствуйте, вот рекомендация и скриншот.');
+  await page.locator('#support-create-files').setInputFiles({name:'recommendation.png',mimeType:'image/png',buffer:bytes});
+  await page.locator('#support-create-feedback').filter({hasText:'Вложения готовы'}).waitFor();
+  await page.getByRole('button',{name:'Отправить сообщение',exact:true}).click();
+  await page.locator('#support-create-feedback').filter({hasText:'Нет соединения'}).waitFor();
+  assert.equal(await page.locator('#support-create [name=text]').inputValue(),'Здравствуйте, вот рекомендация и скриншот.');
+  assert.equal(await page.locator('#support-create-attachments img').count(),1);
+  await page.getByRole('button',{name:'Отправить сообщение',exact:true}).click();
+  await page.waitForURL(/#support-live\//);
+  await page.locator('.support-person').filter({hasText:'Заявитель проверки'}).waitFor();
+  const initiated=(await marketplace.store.all('support','KZ')).filter(t=>t.subject==='Связь с пользователем из админки');assert.equal(initiated.length,1);assert.equal(initiated[0].origin,'support');assert.equal(initiated[0].owner,applicant.user.id);
+  assert.equal((await marketplace.store.all('notification','KZ')).filter(n=>n.target_id===initiated[0].id&&n.owner===applicant.user.id).length,1);
+  assert.ok((await marketplace.handle('GET','/me/support-threads',{},'Bearer '+applicant.access_token)).items.some(t=>t.id===initiated[0].id));
+  await page.getByRole('button',{name:'Показать номер',exact:true}).click();
+  await page.locator('#support-person-phone').filter({hasText:applicant.user.phone}).waitFor();
+  await page.setViewportSize({width:393,height:852});
+  await page.waitForFunction(()=>document.querySelector('.sidebar').getBoundingClientRect().right<=1);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  const time=page.locator('.support-message time').first();assert.match(await time.innerText(),/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/);
+  assert.ok(await time.evaluate(e=>e.getBoundingClientRect().right<=innerWidth+1));
+  await capture('A14-support-sender-and-time-mobile');
+  await page.setViewportSize({width:1440,height:1000});
+
   await page.goto(frontend+'/#verification');
   await page.getByRole('link',{name:'Открыть →',exact:true}).click();
   await automaticAudit(page.getByLabel('Основание решения'));
@@ -444,7 +474,9 @@ async function main(){
   await page.goto(frontend+'/#users');
   await page.getByLabel('Поиск по ID или названию').fill(applicant.user.id);
   await page.getByRole('button',{name:'Найти',exact:true}).click();
-  await page.getByRole('link',{name:'Открыть →',exact:true}).waitFor();
+  await page.waitForFunction(id=>new URLSearchParams(location.hash.split('?')[1]||'').get('q')===id,applicant.user.id);
+  await page.locator('a[href="#record-live/users/'+applicant.user.id+'"]').waitFor();
+  await page.waitForFunction(()=>document.querySelectorAll('tbody tr').length===1);
   assert.equal(await page.locator('tbody tr').count(),1);
   await page.goto(frontend+'/#countries');
   await page.getByLabel('Название изменения',{exact:true}).fill('Проверка управления текущей страной');
@@ -555,6 +587,9 @@ async function main(){
   marketplace.providers.billing.set('isolated-journal',{name:'isolated-journal',verifyPurchase:async()=>journalProof});await marketplace.store.put({id:randomUUID(),kind:'price_version',owner:'system',country:'KZ',version:1,created_at:new Date().toISOString(),status:'effective',payload:{provider:'isolated-journal',product_id:'journal-subscription',product_type:'subscription',period:'month',amount_minor:123,currency:'KZT'}});
   await marketplace.commerce.verify(professional.user.id,'KZ','isolated-journal','verified-contract');journalProof={...journalProof,state:'grace',revision:2};await marketplace.commerce.verify(professional.user.id,'KZ','isolated-journal','verified-contract');await page.locator('#refresh-data').click();await page.getByText('Покупка',{exact:true}).waitFor();await page.getByText('Изменение статуса',{exact:true}).waitFor();assert.equal(await page.getByText('1,23 KZT',{exact:true}).count(),3);assert.equal(await page.getByText('0,00 KZT',{exact:true}).count(),1);assert.equal(await page.getByRole('heading',{name:'Пока нет операций',exact:true}).count(),0);await capture('financial-journal');
   const refundableJournalPayment=(await marketplace.store.all('payment_transaction','KZ')).find(x=>x.transaction_id==='journal-transaction'&&x.operation==='purchase');const browserRefund=await marketplace.handle('POST','/billing/refund-requests',{payment_id:refundableJournalPayment.id,amount_minor:50,reason:'Частичный возврат по проверенному платежу'},'Bearer '+professional.access_token,randomUUID());
+  // Independent scenarios share one fixture administrator. Reset only its
+  // isolated mutation counter; production rate limits remain unchanged.
+  await marketplace.store.db.query('DELETE FROM rate_limits WHERE scope_hash=$1',[await marketplace.files.requestDigest('rate-limit:mutations:'+id)]);
   await page.getByRole('link',{name:'Заявки на возврат',exact:true}).click();await page.locator('a[href="#refunds?id='+browserRefund.id+'"]').click();await page.locator('#refund-command').waitFor();await automaticAudit(page.getByLabel('Основание действия',{exact:true}));await page.getByRole('button',{name:'Согласовать',exact:true}).click();await page.getByRole('button',{name:'Отправить провайдеру',exact:true}).waitFor();
   await automaticAudit(page.getByLabel('Основание действия',{exact:true}));await page.getByRole('button',{name:'Отправить провайдеру',exact:true}).click();await page.locator('#refund-command [role=alert]').filter({hasText:'Адаптер возвратов ещё не подключён'}).waitFor();assert.equal((await marketplace.store.get(browserRefund.id)).status,'approved');
   const refundAdapter=marketplace.providers.billing.get('isolated-journal');refundAdapter.requestRefund=async request=>({reference:'accepted-'+request.request_id});refundAdapter.verifyRefund=async request_id=>({environment:'sandbox',provider:'isolated-journal',request_id,refund_id:'browser-bank-refund',transaction_id:'journal-transaction',user_id:professional.user.id,country:'KZ',amount_minor:50,currency:'KZT',status:'succeeded'});

@@ -1,3 +1,4 @@
+import 'reward_entry_card.dart';
 import '../core/l10n.dart';
 import 'dart:async';
 import 'dart:js_interop';
@@ -236,25 +237,8 @@ class _WebRewardEntryState extends State<WebRewardEntry> {
     final offers = (c!['offers'] as List? ?? [])
         .cast<Json>()
         .where((o) => widget.target == null || o['target'] == widget.target);
-    return Card(
-        child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const UiText('Подписка за рекламу',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  const UiText(
-                      'Деньги не списываются. Доступ выдаётся после всех завершённых просмотров.'),
-                  for (final o in offers)
-                    Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: OutlinedButton(
-                            onPressed: () => widget.onSelect(o['target']),
-                            child: Text(
-                                '${o['title']} на 30 дней · ${o['completed_views']}/${o['required_views']} просмотров')))
-                ])));
+    if (offers.isEmpty) return const SizedBox.shrink();
+    return RewardEntryCard(offers: offers.toList(), onSelect: widget.onSelect);
   }
 }
 

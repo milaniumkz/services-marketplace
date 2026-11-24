@@ -1,3 +1,4 @@
+import {supportSubjects} from './support-subject';
 import {supportReadStates,markSupportRead} from './support-read';
 import {adminPaymentControls,paymentControls,paymentAllowed,requirePayment} from './payment-controls';
 import {bankReturnPage} from './bank-return';
@@ -489,7 +490,7 @@ export class Marketplace {
       if(!isStaffOwner(a.user)&&scope!==a.country)fail(403,'FORBIDDEN','Все страны доступны только владельцу платформы');
       if(isStaffOwner(a.user)&&!path.startsWith('/admin/access/')){
         const targetId=path.match(/\/([0-9a-f]{8}-[0-9a-f-]{27})(?:\/|$)/i)?.[1]??(method!=='GET'?b.user_id:undefined);
-        const target=targetId?await this.store.get(targetId):undefined;
+        const target=targetId&&/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(String(targetId))?await this.store.get(targetId):undefined;
         if(target)a.country=target.country;
         else if(scope!=='ALL')a.country=scope;
         else if(method==='GET'&&/^\/admin\/(users|orders|verifications|portfolio|contractors|cases|support-threads|recovery-threads|privacy-requests|blacklist|audit|security-events|jobs|refund-requests|payment-transactions|boost-reports|dashboard|analytics|search)$/.test(path))a.country='ALL';
@@ -1556,12 +1557,32 @@ export class Marketplace {
         const rows=await this.store.db.query<{data:RecordData,display_name:string,subject_role:string}>("SELECT r.data,u.data->>'display_name' AS display_name,COALESCE(r.data->>'submitted_role',u.data->>'active_role','customer') AS subject_role FROM records r LEFT JOIN records u ON u.id::text=r.owner AND u.kind='user' AND u.country=r.country WHERE r.kind='verification' AND ($1='ALL' OR r.country=$1)"+(q.owner_role?" AND COALESCE(r.data->>'submitted_role',u.data->>'active_role','customer')=$2":""),q.owner_role?[a.country,q.owner_role]:[a.country]);
         return this.list(rows.rows.map(({data,display_name,subject_role})=>({...data,document_refs:undefined,display_name,subject_role})),q);
       }
+      if(path==='/admin/support-threads'&&method==='POST'){
+        const userId=text(b,'user_id',36,36);if(!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(userId))fail(400,'VALIDATION_ERROR','Выберите пользователя');
+        const user=await this.object(userId,a,'user');
+        if(user.status==='deleted'||user.staff_permissions?.length)fail(404,'NOT_FOUND','Выберите пользовательский аккаунт');
+        const subject=text(b,'subject',5,120),regional={...a,country:user.country};
+        const thread=await this.store.put(this.record('support',{id:user.id,country:user.country},{subject,status:'assigned',members:[user.id],assignee_id:a.id,initiated_by:a.id,origin:'support'}));
+        await this.messages(thread,regional,'POST',{text:b.text,upload_ids:b.upload_ids??[],client_message_id:b.client_message_id},{},'support_message');
+        await this.audit(regional,'support.initiated',thread.id,'Поддержка начала переписку с пользователем');
+        return (await supportSubjects(this.store,[(await this.store.get(thread.id))!]))[0];
+      }
       if(path==='/admin/support-threads'&&method==='GET')return this.supportPage(a,q);
       if(method==='GET'&&kinds[section]&&path.split('/').length===3)return this.list((await this.store.all(kinds[section],a.country)).filter(x=>section!=='users'||!x.staff_permissions?.length).map(x=>section==='users'?{...safeUser(x),version:x.version,status:x.status}:section==='verifications'?{...x,document_refs:undefined}:['portfolio','contractors'].includes(section)?editableContent(x):x),q);
       const reviewDetail=path.match(/^\/admin\/(orders|portfolio|contractors|verifications|support-threads|privacy-requests)\/([^/]+)$/);
       if(reviewDetail&&method==='GET') {
         const kind=reviewDetail[1]==='contractors'?'contractor':kinds[reviewDetail[1]];
         const r=await this.object(reviewDetail[2],a,kind);
+        if(reviewDetail[1]==='support-threads'){
+          const detail:any=(await supportSubjects(this.store,[r]))[0];
+          detail.can_disclose_phone=a.user.staff_access_mode==='managed'?a.user.staff_grants?.includes('sensitive.phone')===true:a.user.staff_permissions?.some((p:string)=>['phone_view','administrator','platform_owner'].includes(p))===true;
+          detail.can_open_user=a.user.staff_access_mode!=='managed'||a.user.staff_grants?.includes('GET /admin/users/{id}')===true;
+          if(q.include_phone==='true'){
+            await this.staff(a,'phone_view');const u=detail.subject_user?await this.store.get(r.owner):undefined;
+            if(u){await this.audit(a,'user.phone_read',u.id,'Просмотр контакта автора обращения поддержки');detail.subject_user={...detail.subject_user,phone:u.phone};}
+          }
+          return detail;
+        }
         if(reviewDetail[1]==='verifications') {
           const {document_refs,...safe}=r;
           const owner=await this.store.get(r.owner);
@@ -1927,7 +1948,7 @@ export class Marketplace {
     const after=await this.cursor(scoped),start=after?sorted.findIndex(r=>r.id===after)+1:0,limit=this.pageLimit(q),batch=sorted.slice(start,start+limit);
     return {items:batch,meta:{next_cursor:start+batch.length<sorted.length?await this.nextCursor(batch.at(-1)!.id,scoped):null}};
   }
-  private async supportPage(a:Actor,q:any,owner?:string){if(q.read!==undefined&&!['all','read','unread'].includes(q.read))fail(400,'VALIDATION_ERROR','Проверьте фильтр прочтения');const limit=this.pageLimit(q),after=await this.cursor(q,true),base=(await this.store.all('support',a.country)).filter(r=>!owner||r.owner===owner),records=owner?base:await supportReadStates(this.store,a.id,a.country,base),rows=supportRecords(records.filter(r=>owner||!q.read||q.read==='all'||(q.read==='read'?r.is_read:!r.is_read)),q,after),page=rows.slice(0,limit),last=page.at(-1);return {items:page,meta:{next_cursor:rows.length>limit&&last?await this.nextCursor(supportActivity(last)+'|'+last.id,q):null,total:rows.length}};}
+  private async supportPage(a:Actor,q:any,owner?:string){if(q.read!==undefined&&!['all','read','unread'].includes(q.read))fail(400,'VALIDATION_ERROR','Проверьте фильтр прочтения');const limit=this.pageLimit(q),after=await this.cursor(q,true),base=(await this.store.all('support',a.country)).filter(r=>!owner||r.owner===owner),records=owner?base:await supportReadStates(this.store,a.id,a.country,q.q?await supportSubjects(this.store,base):base),rows=supportRecords(records.filter(r=>owner||!q.read||q.read==='all'||(q.read==='read'?r.is_read:!r.is_read)),q,after),page=rows.slice(0,limit),last=page.at(-1);return {items:owner?page:await supportSubjects(this.store,page),meta:{next_cursor:rows.length>limit&&last?await this.nextCursor(supportActivity(last)+'|'+last.id,q):null,total:rows.length}};}
   private async list(items:any[],q:any) {
     const limit=this.pageLimit(q),after=await this.cursor(q);
     const filtered=items.filter(x=>(!q.owner||x.owner===q.owner)&&(!after||x.id>after)&&(!q.status||x.status===q.status)&&(!q.product_type||x.payload?.product_type===q.product_type)&&(!q.order_id||x.order_id===q.order_id)&&(!q.city||x.city===q.city)&&(!q.category_id||x.category_id===q.category_id)&&(!q.q||[x.id,x.title,x.display_name,x.subject,x.action,x.reason,x.type,x.event,x.payload?.product_id,x.payload?.provider].filter(Boolean).join(' ').toLowerCase().includes(String(q.q).toLowerCase()))).sort((a,b)=>a.id.localeCompare(b.id));

@@ -74,3 +74,12 @@
 .country-filter-label{display:flex;align-items:center;gap:8px;min-width:0}.country-filter-label select{min-width:120px}.country-section-filter{margin-bottom:16px}
 
 .order-filters{align-items:flex-end}.order-filters details{flex-basis:100%;width:100%;min-width:0}.order-filters summary{cursor:pointer;font-weight:700;padding:10px 0}.order-filters details .formgrid{width:100%;padding-top:8px}.order-filters .formfield{min-width:0}
+
+/* Support identities and timestamps must fit phone screens without dragging. */
+.support-thread,.support-person{min-width:0;overflow-wrap:anywhere}
+.support-person{padding:14px;border:1px solid #D9E4F7;border-radius:12px;background:#F5F8FF;margin-bottom:16px}
+.support-person p{margin:6px 0}.support-person-id{display:block;margin-top:8px;overflow-wrap:anywhere}
+.support-message time{display:block;white-space:normal;overflow-wrap:anywhere;font-size:12px;color:#627187;line-height:1.5}
+.support-message button,.support-person button{max-width:100%;white-space:normal}
+.support-meta{white-space:normal;overflow-wrap:anywhere}
+#support-feedback{white-space:normal;overflow-wrap:anywhere}

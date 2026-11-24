@@ -25,9 +25,9 @@ export function staffApi({getSession,saveSession,getCountryScope=()=>undefined})
     }
     return refreshPending;
   }
-  const api=async function api(path,method='GET',body={},format='json') {
+  const api=async function api(path,method='GET',body={},format='json',scopeOverride) {
     const original=getSession();
-    const countryScope=getCountryScope();
+    const countryScope=scopeOverride??getCountryScope();
     if(countryScope&&(path.startsWith('/admin/')||path.startsWith('/uploads/'))&&!path.startsWith('/admin/access/')){const scoped=new URL(path,'https://joba.invalid');scoped.searchParams.set('admin_country',countryScope);path=scoped.pathname+scoped.search;}
     if(path.startsWith('/admin/')&&method!=='GET'&&body&&!(body instanceof Blob)&&typeof body==='object'&&!String(body.reason||'').trim())body={...body,reason:'Действие администратора в панели управления'};
     const cacheable=method!=='GET'&&!['/auth/login','/auth/staff-login','/auth/register','/auth/refresh'].includes(path);
@@ -51,19 +51,20 @@ export function staffApi({getSession,saveSession,getCountryScope=()=>undefined})
     }catch(failure){if(fingerprint&&failure.status>=400&&failure.status<500&&failure.status!==429)retryKeys.delete(fingerprint);throw failure;}
   };
   api.download=path=>api(path,'GET',{},'blob');
-  api.upload=async (file,purpose='brand')=>{
+  api.upload=async (file,purpose='brand',country)=>{
+    const uploadRequest=(path,method='GET',body={})=>api(path,method,body,'json',country);
     const original=getSession();
     const guard=()=>{let latest=original;while(latest&&rotations.has(latest))latest=rotations.get(latest);if(!latest||getSession()!==latest)throw error('Сессия изменилась. Повторите запрос.','SESSION_CHANGED',401);};
     guard();
     if(!['brand','banner','chat'].includes(purpose)||!(purpose==='chat'?['image/png','image/jpeg','application/pdf']:purpose==='banner'?['image/png','image/jpeg']:['image/png']).includes(file.type)||file.size>5*1024*1024)throw error(purpose==='chat'?'Нужны PNG, JPEG или PDF до 5 MB':purpose==='banner'?'Нужен PNG или JPEG до 5 MB':'Нужен PNG до 5 MB','POLICY_REJECTED',422);
     const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',await file.arrayBuffer()))].map(b=>b.toString(16).padStart(2,'0')).join('');guard();
-    const scope=original.user.id+':'+original.user.country+':'+purpose+':'+digest;
+    const scope=original.user.id+':'+(country??getCountryScope()??original.user.country)+':'+purpose+':'+digest;
     let upload=pendingUploads.get(scope);
-    if(!upload){upload=await api('/uploads/initiate','POST',{purpose,mime:file.type,size:file.size,content_sha256:digest});guard();pendingUploads.set(scope,upload);}
+    if(!upload){upload=await uploadRequest('/uploads/initiate','POST',{purpose,mime:file.type,size:file.size,content_sha256:digest});guard();pendingUploads.set(scope,upload);}
     if(upload.status!=='clean'){
-      if(upload.status==='initiated'){await api('/uploads/'+upload.id+'/content','PUT',file);guard();}
-      upload=await api('/uploads/'+upload.id+'/finalize','POST');guard();pendingUploads.set(scope,upload);
-      if(upload.status!=='clean'){upload=await api('/uploads/'+upload.id+'/metadata');guard();pendingUploads.set(scope,upload);}
+      if(upload.status==='initiated'){await uploadRequest('/uploads/'+upload.id+'/content','PUT',file);guard();}
+      upload=await uploadRequest('/uploads/'+upload.id+'/finalize','POST');guard();pendingUploads.set(scope,upload);
+      if(upload.status!=='clean'){upload=await uploadRequest('/uploads/'+upload.id+'/metadata');guard();pendingUploads.set(scope,upload);}
       if(['infected','rejected','failed'].includes(upload.status)){pendingUploads.delete(scope);throw error('Файл не прошёл проверку. Выберите другое изображение.','FILE_REJECTED',422);}
       if(upload.status!=='clean')throw error('Исходник ещё не прошёл проверку','SCANNER_UNAVAILABLE',503);
     }

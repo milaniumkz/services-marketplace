@@ -13139,6 +13139,72 @@
             "$ref": "#/components/responses/Failure"
           }
         }
+      },
+      "post": {
+        "operationId": "post__admin_support_threads",
+        "tags": [
+          "admin"
+        ],
+        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffSupportCreate"
+              }
+            }
+          }
+        }
       }
     },
     "/admin/recovery-threads": {
@@ -26169,6 +26235,43 @@
           }
         },
         "additionalProperties": true
+      },
+      "StaffSupportCreate": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "subject",
+          "text",
+          "client_message_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 120
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 3000
+          },
+          "client_message_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "upload_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 10
+          }
+        },
+        "description": "Starts a support thread for a regional non-staff user. Text or clean staff-owned chat attachments required. Idempotency-Key prevents duplicate threads and notifications."
       },
       "SupportCreate": {
         "type": "object",
