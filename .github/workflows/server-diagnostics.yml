@@ -12,6 +12,10 @@ on:
         description: Read deployment process health without arguments or account data
         type: boolean
         default: false
+      referral_code:
+        description: Targeted read-only referral counts for a public referral code
+        type: string
+        default: ''
       account_phone:
         description: Optional targeted read-only account diagnosis (E.164)
         type: string
@@ -46,7 +50,7 @@ permissions:
   checks: write
 jobs:
   diagnose:
-    if: ${{ !inputs.stalled_source_commit && !inputs.deployment_status && !inputs.account_phone && !inputs.advertising_stats && !inputs.mobile_crashes && !inputs.vtb_status && !inputs.bcc_status && !inputs.bcc_request_trace }}
+    if: ${{ !inputs.stalled_source_commit && !inputs.deployment_status && !inputs.account_phone && !inputs.referral_code && !inputs.advertising_stats && !inputs.mobile_crashes && !inputs.vtb_status && !inputs.bcc_status && !inputs.bcc_request_trace }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -57,7 +61,7 @@ jobs:
           JOBA_DIAGNOSTIC_JOB: '116494604449'
 
   account:
-    if: ${{ inputs.stalled_source_commit != '' || inputs.deployment_status || inputs.account_phone != '' || inputs.advertising_stats || inputs.mobile_crashes || inputs.vtb_status || inputs.bcc_status || inputs.bcc_request_trace }}
+    if: ${{ inputs.stalled_source_commit != '' || inputs.deployment_status || inputs.account_phone != '' || inputs.referral_code != '' || inputs.advertising_stats || inputs.mobile_crashes || inputs.vtb_status || inputs.bcc_status || inputs.bcc_request_trace }}
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -74,6 +78,7 @@ jobs:
           JOBA_STALLED_SOURCE_COMMIT: ${{ inputs.stalled_source_commit }}
           JOBA_DEPLOYMENT_STATUS: ${{ inputs.deployment_status && '1' || '0' }}
           JOBA_LOOKUP_PHONE: ${{ inputs.account_phone }}
+          JOBA_REFERRAL_CODE: ${{ inputs.referral_code }}
           JOBA_BCC_REQUEST_TRACE: ${{ inputs.bcc_request_trace && '1' || '0' }}
           JOBA_BCC_STATUS: ${{ inputs.bcc_status && '1' || '0' }}
           JOBA_VTB_STATUS: ${{ inputs.vtb_status && '1' || '0' }}
@@ -114,6 +119,9 @@ jobs:
             "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-vtb.py > account-diagnosis.json
           elif test "$JOBA_AD_STATS" = '1'; then
             "${joba_ssh[@]}" root@188.241.217.228 'python3 -' < scripts/diagnose-advertising.py > account-diagnosis.json
+          elif test -n "$JOBA_REFERRAL_CODE"; then
+            python3 -c 'import os,re;assert re.fullmatch("[0-9a-f]{12}",os.environ["JOBA_REFERRAL_CODE"])'
+            "${joba_ssh[@]}" root@188.241.217.228 "python3 - '$JOBA_REFERRAL_CODE'" < scripts/diagnose-referral-code.py > account-diagnosis.json
           else
             python3 -c 'import os,re;assert re.fullmatch(r"\+[0-9]{8,15}",os.environ["JOBA_LOOKUP_PHONE"])'
             "${joba_ssh[@]}" root@188.241.217.228 "python3 - '$JOBA_LOOKUP_PHONE'" < scripts/diagnose-login-account.py > account-diagnosis.json
