@@ -7,10 +7,11 @@ import {operatorActivityText} from './operator-activity';
 const start='[Реквизиты оператора JOBA]',end='[/Реквизиты оператора JOBA]';
 const fail=(field:string,message:string,status=422):never=>{throw new HttpException({error:{code:status===409?'STATE_CONFLICT':status===403?'FORBIDDEN':'VALIDATION_ERROR',message,details:{field},retryable:false}},status);};
 export function operatorText(content:string,p:any){
- const block=`${start}\nОператор: ${p.name}\nБИН/ИИН: ${p.tax_id}\nАдрес: ${p.address}\nEmail для обращений и персональных данных: ${p.email}\nКонтактный телефон: ${p.phone||'Обращения по email и через поддержку'}${operatorActivityText(p)}\n${end}`;
+ const phoneText=p.phone?`${p.phone} (только WhatsApp)`:'Обращения по email и через поддержку';
+ const block=`${start}\nОператор: ${p.name}\nБИН/ИИН: ${p.tax_id}\nАдрес: ${p.address}\nEmail для обращений и персональных данных: ${p.email}\nКонтактный телефон: ${phoneText}${operatorActivityText(p)}\n${end}`;
  let s=content.replace(/\n?\[Реквизиты оператора JOBA\][\s\S]*?\[\/Реквизиты оператора JOBA\]\n?/g,'\n');
  s=s.replace(/Реквизиты оператора: наименование _+; регистрационный номер _+; адрес _+; контактный email _+\. По поручению владельца реквизиты пока не заполнены и будут внесены через админ-панель\./g,'Реквизиты оператора приведены в конце документа.');
- const values:[RegExp,string][]=[[/^(Полное наименование[^:\n]*|Наименование оператора|Наименование собственника\/оператора[^:\n]*):[^\n]*$/gm,p.name],[/^(БИН\/ИИН):[^\n]*$/gm,p.tax_id],[/^(Юридический адрес|Почтовый адрес для обращений):[^\n]*$/gm,p.address],[/^(Email[^:\n]*):[^\n]*$/gm,p.email],[/^(Контактный телефон):[^\n]*$/gm,p.phone||'Обращения по email и через поддержку']];
+ const values:[RegExp,string][]=[[/^(Полное наименование[^:\n]*|Наименование оператора|Наименование собственника\/оператора[^:\n]*):[^\n]*$/gm,p.name],[/^(БИН\/ИИН):[^\n]*$/gm,p.tax_id],[/^(Юридический адрес|Почтовый адрес для обращений):[^\n]*$/gm,p.address],[/^(Email[^:\n]*):[^\n]*$/gm,p.email],[/^(Контактный телефон):[^\n]*$/gm,phoneText]];
  for(const [regex,value] of values)s=s.replace(regex,(_line,label)=>`${label}: ${value}`);
  s=s.replace(/Реквизиты оставлены пустыми по поручению владельца\.[^\n]*/g,'Актуальные реквизиты оператора опубликованы в этом документе. Публикация реквизитов не означает подключения банка или подтверждения юридической экспертизы.');
  s=s.replace(/Реквизиты оставлены пустыми по поручению владельца и должны быть заполнены\./g,'Актуальные реквизиты оператора опубликованы в этом документе.');
