@@ -2,7 +2,7 @@ import {Store,RecordData} from './store';
 
 /** Record metadata uses audit retention; document bytes have their own document_days policy. */
 export async function minimizeVerificationHistory(store:Store,job:RecordData,policy:RecordData|undefined,now:Date){
- const previous=job.category_progress?.documents??{},days=policy?.payload?.audit_days;
+ const previous=job.category_progress?.documents??{},days=policy?.payload?.account_removal==='immediate'?policy.payload.document_days:policy?.payload?.audit_days;
  if(!policy||policy.country!==job.country||policy.status!=='effective'||!Number.isSafeInteger(days)||days<1)return {state:'awaiting_policy',processed:previous.processed??0};
  const owner=await store.get(job.owner);
  if(owner?.kind!=='user'||owner.country!==job.country||owner.status!=='deleted')return {state:'awaiting_account_deletion',processed:previous.processed??0};

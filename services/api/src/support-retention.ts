@@ -1,10 +1,11 @@
 import {Store,RecordData} from './store';
+import {retentionCutoff} from './retention-cutoff';
 import {liveFileReferences} from './work-file-retention';
 /** Closed support belongs to its requester; decisions allowing appeal remain protected. */
 export async function minimizeClosedSupport(store:Store,job:RecordData,policy:RecordData|undefined,now:Date){
  const previous=job.category_progress?.support?.processed??0,days=policy?.payload?.audit_days;
  if(!Number.isSafeInteger(days)||days<1)return {state:'awaiting_policy',processed:previous};
- const cutoff=new Date(now.getTime()-days*86400000).toISOString();let processed=0;
+ const cutoff=retentionCutoff(policy,days,now).toISOString();let processed=0;
  const rows=await store.db.query<{data:RecordData,root:RecordData}>(`SELECT r.data,t.data AS root FROM records r JOIN records t ON t.id::text=CASE WHEN r.kind='support' THEN r.id::text ELSE r.data->>'thread_id' END AND t.kind='support' AND t.country=r.country
  WHERE r.country=$1 AND t.owner=$2 AND r.kind IN('support','support_message','support_note') AND r.data->>'retention_minimized_at' IS NULL AND t.data->>'status'='resolved' AND t.data->>'resolved_at'<=$3 AND COALESCE(t.data->>'reopen_until',t.data->>'resolved_at')<=$3 AND COALESCE(t.data->>'last_activity',t.data->>'resolved_at')<=$3 AND r.data->>'created_at'<=$3 AND COALESCE(r.data->>'edited_at',r.data->>'created_at')<=$3
  AND NOT EXISTS(SELECT 1 FROM records recent WHERE recent.country=t.country AND recent.kind IN('support_message','support_note') AND recent.data->>'thread_id'=t.id::text AND (recent.data->>'created_at'>$3 OR recent.data->>'edited_at'>$3))

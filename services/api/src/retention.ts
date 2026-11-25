@@ -17,7 +17,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
   for(const id of heldFileIds(hold.field_snapshot??{}))protectedFiles.add(hold.country+':'+id);
   const target=await store.get(hold.target_id);if(!target||target.country!==hold.country)continue;
   if(target.kind==='upload')protectedFiles.add(hold.country+':'+target.id);
-  for(const field of hold.fields)for(const id of Array.isArray(target[field])?target[field]:typeof target[field]==='string'?[target[field]]:[])protectedFiles.add(hold.country+':'+id);
+  for(const field of hold.fields??[])for(const id of Array.isArray(target[field])?target[field]:typeof target[field]==='string'?[target[field]]:[])protectedFiles.add(hold.country+':'+id);
  }
  const workFiles=await eligibleWorkFiles(store,now);
  let workQueued=0;
@@ -25,7 +25,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
  for(const file of await store.all('upload')){
   if(file.status==='purge_pending'){removals.push(file.id);continue;}
   if(file.status==='purged'||protectedFiles.has(file.country+':'+file.id))continue;
-  const policy=policies.find(p=>p.country===file.country);
+  const policy=policies.find(p=>p.country===file.country&&(!p.payload?.deletion_scope_only||deleted.has(file.country+':'+file.owner)));
   const verification=file.purpose==='identity'
     ?verifications.find(v=>v.id===file.verification_id&&v.country===file.country)
     :undefined;
@@ -33,6 +33,7 @@ export async function planFileRetention(store:Store,now:Date,onExpired?:(verific
   if(!policy&&!shortIdentityRetention)continue;
   let reason:string|undefined;
   if(deleted.has(file.country+':'+file.owner)&&['avatar','portfolio','export'].includes(file.purpose))reason='account_deleted_personal_media';
+  if(deleted.has(file.country+':'+file.owner)&&file.purpose==='identity'&&policy?.payload?.account_removal==='immediate')reason='account_deleted_identity_media';
   if(['initiated','uploaded','rejected','infected','failed'].includes(file.status)&&Date.parse(file.created_at)+86400000<=now.getTime())reason='abandoned_upload_24h';
   const work=workFiles.get(file.country+':'+file.id);
   if(workQueued<50&&work&&work.owners.includes(file.owner)&&deleted.has(file.country+':'+file.owner)&&['order','chat'].includes(file.purpose)){reason='closed_work_unreferenced';workQueued++;}

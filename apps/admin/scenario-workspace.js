@@ -1,5 +1,5 @@
 // Live state views. Every selection and preview uses the current regional API.
-export const scenarioRoutes=new Set(['legal-holds','bulk-preview','bulk-result','revision-conflict','revenue','blacklist-detail','security-full','languages','dictionary-dryrun','promo-preview','referral-preview','monetization-preview','promo','rewarded','archive','country-detail','verification-review','id-auth','deletion','banner-detail']);
+export const scenarioRoutes=new Set(['account-archives','legal-holds','bulk-preview','bulk-result','revision-conflict','revenue','blacklist-detail','security-full','languages','dictionary-dryrun','promo-preview','referral-preview','monetization-preview','promo','rewarded','archive','country-detail','verification-review','id-auth','deletion','banner-detail']);
 export async function scenarioWorkspace({key,api,esc,card,tablecard,note,namedField,onRefresh}){
  const params=new URLSearchParams(location.hash.split('?')[1]||'');
  const result=(title,body,bind=()=>{})=>({key,id:'',title,subtitle:'Текущая страна · данные API',section:'Управление',actions:'<button id="refresh-data">Обновить</button>',body:()=>body,bind});
@@ -13,6 +13,10 @@ export async function scenarioWorkspace({key,api,esc,card,tablecard,note,namedFi
   const picker=`<form id="scenario-picker" class="filters"><label>Выберите запись<select name="id"><option value="">Выберите запись</option>${data.items.map(r=>`<option value="${esc(r.id)}" ${r.id===record?.id?'selected':''}>${esc(r.title??r.display_name??r.id)} · ${esc(r.status??'')}</option>`).join('')}</select></label><button>Открыть</button></form>${data.items.length?'':note('В этой стране нет записей для выбранного состояния.')} ${data.meta?.next_cursor?`<p class="muted">Показаны первые 100 записей. Для остальных используйте основной список и ID.</p>`:''}`;
   return {record,picker,bind(){document.getElementById('scenario-picker').onsubmit=e=>{e.preventDefault();const id=new FormData(e.currentTarget).get('id');if(id)location.hash=key+'?id='+encodeURIComponent(id);};}};
  };
+ if(key==='account-archives'){
+  const data=await api('/admin/account-archives?limit=100');
+  return result('Закрытый архив удалённых аккаунтов',card('Служебный доступ с аудитом',data.items.map(r=>`<form data-account-archive="${esc(r.id)}" class="stack"><p>ID аккаунта: ${esc(r.subject_user_id)} · срок: ${esc(r.expires_at)} · ${esc(r.status)}</p>${namedField('Основание просмотра','reason','textarea')}<button>Открыть сведения</button>${alerts}</form>`).join('')),()=>{document.querySelectorAll('[data-account-archive]').forEach(form=>wire('[data-account-archive="'+form.dataset.accountArchive+'"]',v=>api('/admin/account-archives/'+form.dataset.accountArchive+'?'+new URLSearchParams({reason:v.reason}))));});
+ }
  if(key==='legal-holds'){
   const data=await api('/admin/legal-holds?limit=100');
   return result('Законное удержание данных',card('Конкретные данные и основание',`<form id="hold-create" class="stack">${namedField('ID записи','target_id')}${namedField('Поля через запятую: title, description, text, display_name, completion_note или поля файлов','fields')}${namedField('Объяснение для пользователя','basis','textarea')}${namedField('Внутреннее основание','reason','textarea')}${namedField('Дата пересмотра (UTC)','review_at','datetime-local')}<button class="primary">Зафиксировать удержание</button>${alerts}</form>`)+data.items.map(r=>card('Удержание '+esc(r.id),`<p>${esc(r.basis)}</p><p>${esc(r.status)} · пересмотр ${esc(r.review_at)}</p><p>Поля: ${esc((r.fields||[]).join(', '))} · версия записи ${esc(r.target_version??'не зафиксирована')}</p>${r.status==='active'?`<form data-release-hold="${esc(r.id)}" class="stack">${namedField('Основание снятия','reason','textarea')}<button>Снять удержание</button>${alerts}</form>`:''}`)).join(''),()=>{wire('#hold-create',async v=>{const r=await api('/admin/legal-holds','POST',{...v,fields:v.fields.split(',').map(x=>x.trim()).filter(Boolean),review_at:new Date(v.review_at+'Z').toISOString()});await onRefresh();return r;});document.querySelectorAll('[data-release-hold]').forEach(form=>{const r=data.items.find(x=>x.id===form.dataset.releaseHold);wire('[data-release-hold="'+r.id+'"]',async v=>{const result=await api('/admin/legal-holds/'+r.id+'/release','POST',{...v,expected_version:r.version});await onRefresh();return result;});});});
@@ -72,7 +76,7 @@ export async function scenarioWorkspace({key,api,esc,card,tablecard,note,namedFi
  }
  if(key==='archive'){
   const [push,promo]=await Promise.all([api('/admin/push-campaigns?status=completed'),api('/admin/promotions?status=expired')]);
-  return result('Архив кампаний',tablecard('Завершённые версии',['Тип','Название','Состояние','Дата'],[...push.items.map(r=>['Рассылка',esc(r.title),esc(r.status),esc(r.created_at)]),...promo.items.map(r=>['Промо',esc(r.title),esc(r.status),esc(r.created_at)])]));
+  return result('Архив кампаний',`<p><a class="btn" href="#account-archives">Закрытый архив удалённых аккаунтов</a></p>`+tablecard('Завершённые версии',['Тип','Название','Состояние','Дата'],[...push.items.map(r=>['Рассылка',esc(r.title),esc(r.status),esc(r.created_at)]),...promo.items.map(r=>['Промо',esc(r.title),esc(r.status),esc(r.created_at)])]));
  }
  throw Error('Неизвестный сценарий');
 }
