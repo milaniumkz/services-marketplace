@@ -1,6 +1,7 @@
 import '../core/web_ad_consent.dart';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
+import '../core/release_channel.dart';
 import '../core/design_states.dart';
 import '../core/design_widgets.dart';
 import '../core/l10n.dart';
@@ -129,7 +130,7 @@ class _PrivacyStatesState extends State<PrivacyStates> {
                         subtitle: r['active_orders'] == 0
                             ? 'Активных заказов нет'
                             : '${localize(context, 'Сначала завершите или разрешите заказы')}: ${r['active_orders']}'),
-                    if (r['subscription_relevant'] == true)
+                    if (!freeMobileRelease && r['subscription_relevant'] == true)
                       JobaMenuEntry('Подписка исполнителя', 'card',
                           () => widget.onGo('manage-subscription', null),
                           subtitle: 'Удаление аккаунта не отменяет её'),
@@ -172,14 +173,14 @@ class _PrivacyStatesState extends State<PrivacyStates> {
             UiHeading('Последний шаг',
                 'Для удаления потребуется текущий пароль аккаунта.'),
             Notice(
-                'До начала окончательной очистки запрос можно отменить. Удаление не отменяет подписку автоматически.')
+                freeMobileRelease ? 'До начала окончательной очистки запрос можно отменить.' : 'До начала окончательной очистки запрос можно отменить. Удаление не отменяет подписку автоматически.')
           ],
           fields: const [
             InputSpec('current_password', 'Пароль аккаунта', secret: true)
           ],
           afterFields: const [
             Notice(
-                'Проверьте активную подписку и сохраните копию своих данных. Открытые дела будут обработаны по правилам хранения.')
+                freeMobileRelease ? 'Сохраните копию своих данных. Открытые дела будут обработаны по правилам хранения.' : 'Проверьте активную подписку и сохраните копию своих данных. Открытые дела будут обработаны по правилам хранения.')
           ],
           button: 'Подтвердить запрос',
           submit: (v) async {
