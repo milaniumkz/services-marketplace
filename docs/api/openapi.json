@@ -17808,7 +17808,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "description": "Country-scoped campaigns. Archived campaigns are excluded by default; status=archived opens history. One effective campaign per country.",
         "security": [
           {
             "BearerAuth": []
@@ -18076,7 +18076,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "description": "Publish saved validated policy. An active platform owner may publish their own referral draft; other staff require a different author. Supersedes the effective campaign in the same country without removing accepted promises. Requires expected_version.",
         "security": [
           {
             "BearerAuth": []
@@ -18230,7 +18230,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "description": "Archive a draft, stopped or superseded referral campaign. Does not delete attributions, reservations or rewards. An effective campaign must be stopped first. Requires expected_version.",
         "security": [
           {
             "BearerAuth": []
@@ -18307,7 +18307,7 @@
         "tags": [
           "admin"
         ],
-        "description": "Requires MFA and country-scoped staff permission. Sensitive identity reads require an additional permission.",
+        "description": "Create a new draft copied from the selected saved campaign; does not reactivate it until explicit publication. Requires expected_version.",
         "security": [
           {
             "BearerAuth": []

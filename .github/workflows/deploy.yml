@@ -84,7 +84,9 @@ jobs:
         env:
           JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
       - name: Verify mobile admin layouts and navigation
-        run: node scripts/verify-admin-mobile.cjs
+        run: |
+          node scripts/verify-admin-mobile.cjs
+          node scripts/verify-referrals-browser.cjs
         env:
           JOBA_CHROMIUM_PATH: /usr/bin/google-chrome
       - name: Verify local automatic face tracking runtime

@@ -89,8 +89,12 @@ export class Configuration {
   }
   async publish(r:RecordData,actor:string,version:number) {
     if(r.version!==version)fail('STATE_CONFLICT','Настройка изменилась',409);
-    if(r.owner===actor){const owner=await this.store.get(actor),promotionSetting=r.kind==='placement_policy'||r.kind==='price_version'&&r.payload?.product_type==='boost';if(!promotionSetting||!owner||owner.status!=='active'||!isStaffOwner(owner))fail('SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника',403);}
+    if(r.owner===actor){const owner=await this.store.get(actor),ownerManaged=r.kind==='referral_campaign'||r.kind==='placement_policy'||r.kind==='price_version'&&r.payload?.product_type==='boost';if(!ownerManaged||!owner||owner.status!=='active'||!isStaffOwner(owner))fail('SECOND_APPROVAL_REQUIRED','Нужно подтверждение другого сотрудника',403);}
     if(!['draft','validated','approved'].includes(r.status))fail('STATE_CONFLICT','Версия уже опубликована',409);
+    if(r.kind==='referral_campaign'){
+      await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+r.country]);
+      const fresh=await this.store.get(r.id);if(!fresh||fresh.version!==version||fresh.status!==r.status)fail('STATE_CONFLICT','Кампания изменилась. Обновите страницу',409);
+    }
     if(r.kind==='monetization_config'){
       await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['monetization-publish:'+r.country]);
       const fresh=await this.store.get(r.id);if(!fresh||fresh.version!==version)fail('STATE_CONFLICT','Версия монетизации изменилась',409);

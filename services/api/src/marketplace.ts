@@ -1568,6 +1568,10 @@ export class Marketplace {
         return (await supportSubjects(this.store,[(await this.store.get(thread.id))!]))[0];
       }
       if(path==='/admin/support-threads'&&method==='GET')return this.supportPage(a,q);
+      if(path==='/admin/referral-campaigns'&&method==='GET'){
+        if(q.status&&!['draft','effective','superseded','stopped','archived'].includes(q.status))fail(400,'VALIDATION_ERROR','Неизвестный статус кампании');
+        return this.list((await this.store.all('referral_campaign',a.country)).filter(r=>q.status||r.status!=='archived'),q);
+      }
       if(method==='GET'&&kinds[section]&&path.split('/').length===3)return this.list((await this.store.all(kinds[section],a.country)).filter(x=>section!=='users'||!x.staff_permissions?.length).map(x=>section==='users'?{...safeUser(x),version:x.version,status:x.status}:section==='verifications'?{...x,document_refs:undefined}:['portfolio','contractors'].includes(section)?editableContent(x):x),q);
       const reviewDetail=path.match(/^\/admin\/(orders|portfolio|contractors|verifications|support-threads|privacy-requests)\/([^/]+)$/);
       if(reviewDetail&&method==='GET') {
@@ -1762,6 +1766,7 @@ export class Marketplace {
       }
       const editReferral=path.match(/^\/admin\/referral-campaigns\/([^/]+)$/);
       if(editReferral&&['GET','PATCH'].includes(method)){
+        if(method==='PATCH')await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+a.country]);
         const r=await this.object(editReferral[1],a,'referral_campaign');
         if(method==='GET'){
           const attributions=(await this.store.all('referral_attribution',a.country)).filter(x=>x.campaign_id===r.id),rewards=(await this.store.all('referral_reward',a.country)).filter(x=>x.campaign_id===r.id),reservations=(await this.store.all('referral_reservation',a.country)).filter(x=>x.campaign_id===r.id);
@@ -1888,7 +1893,17 @@ export class Marketplace {
       const configurationStop=path.match(/^\/admin\/([^/]+)\/([^/]+)\/(stop|cancel|rollback)$/);
       if(configurationStop&&configKinds.includes(section)&&method==='POST') {
         if(section==='categories')await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['category-publish:'+a.country]);
+        if(section==='referral-campaigns')await this.store.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['referrals:'+a.country]);
         const r=await this.object(configurationStop[2],a,kinds[section]);this.version(r,b);const reason=text(b,'reason',10,1000);
+        if(r.kind==='referral_campaign'&&configurationStop[3]==='cancel'){
+          if(r.status==='effective')fail(409,'STATE_CONFLICT','Сначала остановите действующую кампанию');
+          if(!['draft','stopped','superseded','archived'].includes(r.status))fail(409,'STATE_CONFLICT','Кампанию нельзя убрать в архив');
+          if(r.status==='archived')return r;
+          const archived=await this.store.put({...r,status:'archived',archived_at:new Date().toISOString(),archived_by:a.id,version:r.version+1});
+          await this.audit(a,'referral-campaigns.archived',r.id,reason);return archived;
+        }
+        if(r.kind==='referral_campaign'&&configurationStop[3]==='stop'&&r.status!=='effective')fail(409,'STATE_CONFLICT','Остановить можно только действующую кампанию');
+
         if(r.kind==='category'&&configurationStop[3]!=='rollback'&&(await this.categories(a.country)).some(child=>child.payload.parent_id===categoryId(r)))fail(409,'CATEGORY_HAS_CHILDREN','Сначала перенесите или архивируйте дочерние категории');
         if(r.kind==='country_control'&&configurationStop[3]!=='rollback')fail(409,'SECOND_APPROVAL_REQUIRED','Для изменения состояния страны опубликуйте новый черновик с независимым подтверждением');
         if(configurationStop[3]==='rollback'){const draft=this.record(r.kind,a,{title:r.title,payload:r.payload,status:'draft',rollback_of:r.id,...(r.kind==='category'?{legacy_id:r.legacy_id,base_version_id:(await this.categories(a.country)).find(x=>x.id===categoryId(r))?.record_id??null}:{})});await this.store.put(draft);await this.audit(a,section+'.rollback_draft',draft.id,reason);return draft;}
