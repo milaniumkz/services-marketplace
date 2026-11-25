@@ -1,0 +1,44 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {randomUUID}=require('node:crypto');
+const {Store}=require('../dist/store');
+const {Marketplace}=require('../dist/marketplace');
+const {createPeriod}=require('../dist/subscription-periods');
+test('admin gives 30 free days once per role, preserves paid coverage and enforces account access',async()=>{
+ const api=new Marketplace(new Store('memory://'));await api.initialize();
+ try{
+  const password='Isolated subscription password';
+  const register=phone=>api.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID(),{},phone);
+  const owner=await register('+77000000671'),user=await register('+77000000672');
+  await api.store.put({...await api.store.get(owner.user.id),staff_permissions:['platform_owner','administrator'],staff_auth_mode:'password'});
+  const staff=await api.handle('POST','/auth/staff-login',{country:'KZ',phone:owner.user.phone,password},undefined,undefined,{},'subscription-staff');
+  const path='/admin/users/'+user.user.id+'/activate-subscription';
+  const call=body=>api.handle('POST',path,body,'Bearer '+staff.access_token,randomUUID());
+  const current=()=>api.store.get(user.user.id);
+  await assert.rejects(()=>api.handle('POST',path,{expected_version:user.user.version},'Bearer '+user.access_token,randomUUID()),e=>e.getStatus()===403);
+  await assert.rejects(()=>call({expected_version:0}),e=>e.getStatus()===409);
+  const first=await call({expected_version:(await current()).version});
+  assert.equal(first.subscription.plan,'customer');assert.equal(first.subscription.status,'active');
+  assert.equal(Date.parse(first.subscription.valid_until)-Date.parse(first.subscription.valid_from),30*86400000);
+  assert.equal(first.subscription.price.amount_minor,0);assert.equal(first.subscription.auto_renew,false);
+  const grant=await api.store.get((await api.store.get(first.subscription.id)).grant_id);
+  assert.ok(grant.capabilities.includes('publish_order'));
+  const repeat=await call({expected_version:0});assert.equal(repeat.subscription.id,first.subscription.id);assert.equal(repeat.already_active,true);
+  const executor={...await current(),active_role:'executor',roles:['customer','executor']};await api.store.put(executor);
+  const paid=await createPeriod(api.store,executor,{plan:'premium',seconds:10*86400,provider:'bcc',price:{plan:'premium',amount_minor:10000,currency:'KZT'}});
+  const second=await call({expected_version:executor.version});
+  assert.equal(second.subscription.plan,'standard');assert.equal(second.subscription.status,'scheduled');assert.equal(second.subscription.valid_from,paid.valid_until);
+  assert.deepEqual(await api.store.get(paid.id),JSON.parse(JSON.stringify(paid)));
+  assert.equal((await api.store.all('payment_transaction','KZ')).filter(p=>p.owner===user.user.id).length,0);
+  assert.equal((await api.store.all('audit','KZ')).filter(r=>r.action==='subscription.admin_activated'&&r.target_id===user.user.id).length,2);
+  await api.store.put({...await current(),status:'blocked'});
+  await assert.rejects(()=>call({expected_version:(0)}),e=>e.getStatus()===409);
+  await api.store.put({...await current(),status:'active',country:'KG'});
+  await assert.rejects(()=>call({expected_version:0}),e=>[403,404].includes(e.getStatus()));
+  await api.store.put({...await current(),country:'KZ'});
+  const roleId=randomUUID();
+  await api.store.put({id:roleId,kind:'staff_role',owner:owner.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'active',title:'Только просмотр пользователей',grants:['GET /admin/users','GET /admin/users/{id}']});
+  await api.store.put({...await api.store.get(owner.user.id),staff_permissions:['administrator'],staff_access_mode:'managed',staff_role_ids:[roleId]});
+  await assert.rejects(()=>call({expected_version:0}),e=>e.getStatus()===403);
+ }finally{await api.store.close();}
+});

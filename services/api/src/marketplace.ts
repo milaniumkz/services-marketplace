@@ -15,7 +15,7 @@ import {adminOperatorProfile,publishOwnerActivityCodes} from './public-operator'
 import {publicSitePage} from './public-site';
 import {communicationLanguages,defaultCommunicationLanguages} from './communication-languages';
 import {checkoutOffers,buyTestQuote} from './subscription-quotes';
-import {activatePeriods,presentSubscription} from './subscription-periods';
+import {activatePeriods,presentSubscription,createPeriod,userPeriods,basePeriod} from './subscription-periods';
 import {notificationTitle} from './notification-catalog';
 import {notifyTransition,notificationTransitionKinds} from './notification-transitions';
 import {firebasePublicConfig, InvalidPushToken} from './firebase-push';
@@ -1715,6 +1715,25 @@ export class Marketplace {
           if(b.command==='resolve'&&b.reopen_until!==undefined&&(!Number.isFinite(Date.parse(b.reopen_until))||Date.parse(b.reopen_until)<=Date.now()))fail(400,'VALIDATION_ERROR','Проверьте срок повторного открытия');
           const result=await this.store.put({...t,status:states[b.command],assignee_id:a.id,...(b.command==='resolve'?{resolved_at:new Date().toISOString(),reopen_until:b.reopen_until?new Date(b.reopen_until).toISOString():null}:{}),version:t.version+1});await this.audit(a,'support.'+b.command,t.id,text(b,'reason',5,1000));return result;
         }
+      }
+      const activateSubscription=path.match(/^\/admin\/users\/([^/]+)\/activate-subscription$/);
+      if(activateSubscription&&method==='POST'){
+        await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-periods:'+a.country+':'+activateSubscription[1]]);
+        const u=await this.object(activateSubscription[1],a,'user');
+        if(u.id===a.id||u.staff_permissions?.length)fail(403,'FORBIDDEN','Подписка доступна только пользовательским аккаунтам');
+        if(u.status!=='active')fail(409,'STATE_CONFLICT','Подписка доступна только активному аккаунту');
+        const now=new Date(),periods=(await userPeriods(this.store,u)).filter(s=>!s.is_test&&basePeriod(s)&&['active','scheduled','grace','canceled_at_period_end'].includes(s.status)&&Date.parse(s.valid_until)>now.getTime());
+        const existing=periods.find(s=>s.provider==='admin_grant');
+        if(existing)return {subscription:presentSubscription(existing,now),user_version:u.version,already_active:true};
+        this.version(u,b);
+        // Append to continuous coverage; never consume or replace a paid period.
+        let start=now.getTime();
+        for(const s of periods.sort((x,y)=>Date.parse(x.valid_from??x.created_at)-Date.parse(y.valid_from??y.created_at)))if(Date.parse(s.valid_from??s.created_at)<=start)start=Math.max(start,Date.parse(s.valid_until));
+        const plan=subscriptionRole(u)==='customer'?'customer':'standard';
+        const subscription=await createPeriod(this.store,u,{plan,seconds:30*86400,from:new Date(start).toISOString(),provider:'admin_grant',price:{plan,role:subscriptionRole(u),amount_minor:0,currency:countries[u.country].currency,period:'days',duration_days:30,offer_kind:'admin_grant'}},now);
+        await this.store.put({...u,version:u.version+1});
+        await this.audit(a,'subscription.admin_activated',u.id,'Бесплатная подписка на 30 дней: '+subscription.id);
+        return {subscription:presentSubscription(subscription,now),user_version:u.version+1,already_active:false};
       }
       const accountAction=path.match(/^\/admin\/users\/([^/]+)\/(block|unblock|delete)$/);
       if(accountAction&&method==='POST') {
