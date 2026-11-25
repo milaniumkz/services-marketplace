@@ -4,25 +4,58 @@ import 'api.dart';
 import 'photo_file.dart';
 import 'external_activity.dart';
 
-Future<PhotoFile?> pickPhotoFile(PhotoSource source,
-    {bool selfie = false}) => withExternalActivity(() async {
-  try {
-    final file = await ImagePicker().pickImage(
-      source: selfie || source == PhotoSource.camera
-          ? ImageSource.camera
-          : ImageSource.gallery,
-      preferredCameraDevice: selfie ? CameraDevice.front : CameraDevice.rear,
-      maxWidth: 2048,
-      maxHeight: 2048,
-      imageQuality: 88,
-      requestFullMetadata: false,
-    );
-    return file == null ? null : PhotoFile(await file.readAsBytes());
-  } on PlatformException catch (e) {
-    throw ApiException(
-        'PHOTO_UNAVAILABLE',
-        e.code.contains('denied') || e.code.contains('restricted')
-            ? 'Разрешите доступ к камере или фотографиям в настройках устройства.'
-            : 'Не удалось открыть камеру или фотографии. Попробуйте другой способ.');
-  }
-});
+Future<PhotoFile?> pickPhotoFile(PhotoSource source, {bool selfie = false}) =>
+    withExternalActivity(() async {
+      try {
+        final file = await ImagePicker().pickImage(
+          source: selfie || source == PhotoSource.camera
+              ? ImageSource.camera
+              : ImageSource.gallery,
+          preferredCameraDevice:
+              selfie ? CameraDevice.front : CameraDevice.rear,
+          maxWidth: 2048,
+          maxHeight: 2048,
+          imageQuality: 88,
+          requestFullMetadata: false,
+        );
+        return file == null ? null : PhotoFile(await file.readAsBytes());
+      } on PlatformException catch (e) {
+        throw ApiException(
+            'PHOTO_UNAVAILABLE',
+            e.code.contains('denied') || e.code.contains('restricted')
+                ? 'Разрешите доступ к камере или фотографиям в настройках устройства.'
+                : 'Не удалось открыть камеру или фотографии. Попробуйте другой способ.');
+      }
+    });
+
+Future<List<PhotoFile>> pickPhotoFiles(PhotoSource source,
+        {required int limit}) =>
+    withExternalActivity(() async {
+      if (source == PhotoSource.camera || limit == 1) {
+        final photo = await pickPhotoFile(source);
+        return photo == null ? [] : [photo];
+      }
+      try {
+        final files = await ImagePicker().pickMultiImage(
+          limit: limit,
+          maxWidth: 2048,
+          maxHeight: 2048,
+          imageQuality: 88,
+          requestFullMetadata: false,
+        );
+        if (files.length > limit) {
+          throw ApiException('TOO_MANY_PHOTOS',
+              'В галерее может быть не больше 20 фотографий. Выберите меньше фотографий.');
+        }
+        final result = <PhotoFile>[];
+        for (final file in files)
+          result.add(PhotoFile(await file.readAsBytes()));
+        return result;
+      } on PlatformException catch (e) {
+        throw ApiException(
+            'PHOTO_UNAVAILABLE',
+            e.code.contains('denied') || e.code.contains('restricted')
+                ? 'Разрешите доступ к камере или фотографиям в настройках устройства.'
+                : 'Не удалось открыть камеру или фотографии. Попробуйте другой способ.');
+      }
+    });

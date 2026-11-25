@@ -1,3 +1,4 @@
+import 'profile_gallery_upload.dart';
 import 'bank_payment.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import '../core/native_diagnostics.dart';
@@ -3942,24 +3943,10 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                           outline: true)
                     ],
                     if ((p['gallery_ids'] as List? ?? []).length < 20)
-                      button(
-                          'Добавить фотографию',
-                          () => act(() async {
-                                final photo = await pickUpload('portfolio');
-                                if (photo == null) return;
-                                await api.request('/me/contractor-profile',
-                                    method: 'PUT',
-                                    body: {
-                                      ...p,
-                                      'expected_version': p['version'],
-                                      'gallery_ids': [
-                                        ...(p['gallery_ids'] as List? ?? []),
-                                        photo['id']
-                                      ]
-                                    });
-                                reload();
-                              }),
-                          outline: true),
+                      ProfileGalleryUpload(
+                          api: api,
+                          count: (p['gallery_ids'] as List? ?? []).length,
+                          onSaved: reload),
                   ],
                   if (p != null && ['draft', 'rejected'].contains(p['status']))
                     button(
