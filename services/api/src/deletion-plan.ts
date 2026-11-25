@@ -2,6 +2,7 @@ import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
 export const retentionFields={chat_days:{label:'Чаты и материалы закрытых заказов',max:3650},security_days:{label:'События безопасности',max:3650},logs_days:{label:'Технические журналы',max:3650},financial_days:{label:'Финансовые записи',max:36500},audit_days:{label:'Аудиторские записи',max:36500}};
 export function validateRetentionCategories(payload:any){
+ if(payload.account_removal!==undefined&&(payload.account_removal!=='immediate'||payload.legal_archive_years!==3))throw new HttpException({error:{code:'VALIDATION_ERROR',message:'Для немедленного удаления укажите утверждённый ограниченный архив на 3 года'}},422);
  for(const [key,rule] of Object.entries(retentionFields))if(payload[key]!==undefined&&(!Number.isSafeInteger(payload[key])||payload[key]<1||payload[key]>rule.max))throw new HttpException({error:{code:'VALIDATION_ERROR',message:'Проверьте срок: '+rule.label,details:{field:key},retryable:false}},422);
 }
 const groups=[

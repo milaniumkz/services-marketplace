@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {Store,RecordData} from './store';
+import {retentionCutoff} from './retention-cutoff';
 
 /** Effective optional processing ends at the irreversible account step, not when history expires. */
 export async function revokeOptionalProcessing(store:Store,owner:string,country:string,now:Date){
@@ -23,7 +24,7 @@ export async function minimizeOptionalConsentHistory(store:Store,job:RecordData,
  if(owner?.kind!=='user'||owner.status!=='deleted'||owner.country!==job.country)return {state:'awaiting_account_deletion',processed:previous.processed??0};
  const scope="r.kind IN('processing_consent','processing_consent_event','web_ad_consent') AND r.country=$1 AND r.owner=$2 AND r.data->>'retention_minimized_at' IS NULL";
  const rows=await store.db.query<{data:RecordData}>(`SELECT r.data FROM records r WHERE ${scope} AND ($3::uuid IS NULL OR r.id>$3) ORDER BY r.id LIMIT 50 FOR UPDATE`,[job.country,job.owner,previous.scan_cursor??null]);
- const cutoff=now.getTime()-days*86400000;let processed=0;
+ const cutoff=retentionCutoff(policy,days,now).getTime();let processed=0;
  for(const {data:r} of rows.rows){
   if([r.created_at,r.updated_at??r.created_at,r.revoked_at??r.created_at].some(v=>typeof v!=='string'||!Number.isFinite(Date.parse(v))||Date.parse(v)>cutoff))continue;
   if(r.kind==='processing_consent'&&(r.marketing!==false||r.ad_personalization!==false||r.optional_analytics!==false))continue;

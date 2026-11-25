@@ -5,6 +5,7 @@ import {HttpException} from '@nestjs/common';
 import {Store,RecordData} from './store';
 import {isStaffOwner} from './staff-access';
 import {currentLegalDocuments,legalHashAccepted} from './legal-documents';
+import {existingPolicyAcceptance} from './policy-acceptance';
 import {subscriptionRole} from './subscription-plans';
 import {createPeriod,userPeriods,periodPlan} from './subscription-periods';
 const fail=(message:string,status=422):never=>{throw new HttpException({error:{code:status===403?'FORBIDDEN':status===409?'STATE_CONFLICT':status===429?'REWARD_LIMIT':'VALIDATION_ERROR',message,retryable:false}},status);};
@@ -66,9 +67,16 @@ async function eligibility(store:Store,user:RecordData,target:string){
  return null;
 }
 async function legalReady(store:Store,user:RecordData){
- const docs=currentLegalDocuments(await store.all('legal_document',user.country),user.country,user.locale??'ru').filter(d=>['privacy','privacy_policy','terms','terms_of_use'].includes(d.type));
+ const documents=await store.all('legal_document',user.country);
+ const docs=currentLegalDocuments(documents,user.country,user.locale??'ru').filter(d=>['privacy','privacy_policy','terms','terms_of_use'].includes(d.type));
  if(!docs.some(d=>['privacy','privacy_policy'].includes(d.type))||!docs.some(d=>['terms','terms_of_use'].includes(d.type)))fail('Условия подписки пока не опубликованы.',403);
- for(const d of docs){const c=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='consent' AND country=$1 AND owner=$2 AND data->>'document_id'=$3 ORDER BY (data->>'sequence')::int DESC LIMIT 1",[user.country,user.id,d.id])).rows[0]?.data;if(!c?.accepted||!legalHashAccepted(d,c.document_hash)||d.minimum_age===18&&!c.age_confirmed)fail('Примите опубликованные условия и политику конфиденциальности.',403);}
+ const consents=(await store.db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='consent' AND country=$1 AND owner=$2",[user.country,user.id])).rows.map(r=>r.data);
+ // Match the platform consent policy used for ordinary marketplace actions.
+ // A notice revision does not fabricate a new acceptance or erase a withdrawal.
+ for(const d of docs){
+  const c=existingPolicyAcceptance(d,consents,documents),source=documents.find(p=>p.id===c?.document_id);
+  if(!c?.accepted||!source||source.status!=='published'||!legalHashAccepted(source,c.document_hash)||d.minimum_age===18&&!c.age_confirmed)fail('Примите опубликованные условия и политику конфиденциальности.',403);
+ }
 }
 async function redeemProgress(store:Store,user:RecordData,progress:RecordData,now:Date){
  if(progress.status==='redeemed')return progress.receipt;

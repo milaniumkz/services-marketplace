@@ -59,6 +59,18 @@ async function main(){
   await page.getByRole('button',{name:'Продолжить',exact:true}).click();
   await page.waitForSelector('#staff-logout');assert.equal(await page.locator('.account b').textContent(),'Изолированный сотрудник');
   await page.locator('#dashboard-period').waitFor();
+  if(process.env.JOBA_ADMIN_SUBSCRIPTION_ONLY){
+  await page.goto(frontend+'/#user-detail?user_id='+applicant.user.id);
+  await page.locator('#activate-subscription button').click();
+  await page.locator('#activate-subscription [role=status]').filter({hasText:'Подписка активирована.'}).waitFor();
+  const gifted=(await marketplace.store.all('subscription','KZ')).filter(s=>s.owner===applicant.user.id&&s.provider==='admin_grant');
+  assert.equal(gifted.length,1);assert.equal(Date.parse(gifted[0].valid_until)-Date.parse(gifted[0].valid_from),30*86400000);
+  await page.locator('#activate-subscription button').click();
+  await page.locator('#activate-subscription [role=status]').filter({hasText:'Бесплатный период уже выдан.'}).waitFor();
+  assert.equal((await marketplace.store.all('subscription','KZ')).filter(s=>s.owner===applicant.user.id&&s.provider==='admin_grant').length,1);
+  if(process.env.JOBA_SCREENSHOT_DIR){await mkdir(process.env.JOBA_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.JOBA_SCREENSHOT_DIR,'A03-subscription-activation.png'),fullPage:true});}
+  console.log('Admin subscription activation browser flow passed');return;
+  }
   await page.getByRole('button',{name:'Поиск по данным платформы',exact:true}).click();
   await page.getByLabel('Имя, название или ID',{exact:true}).fill(applicant.user.id);
   await page.locator('#staff-global-search').getByRole('button',{name:'Найти',exact:true}).click();

@@ -1,10 +1,11 @@
 import {Store,RecordData} from './store';
+import {retentionCutoff} from './retention-cutoff';
 import {liveFileReferences} from './work-file-retention';
 /** Personal contributions may expire independently; business reasons require all parties deleted. */
 export async function minimizeCaseText(store:Store,job:RecordData,policy:RecordData|undefined,now:Date){
  const previous=job.category_progress?.case_text?.processed??0,days=policy?.payload?.audit_days;
  if(!Number.isSafeInteger(days)||days<1)return {state:'awaiting_policy',processed:previous};
- const cutoff=new Date(now.getTime()-days*86400000).toISOString();
+ const cutoff=retentionCutoff(policy,days,now).toISOString();
  const scope="r.country=$1 AND r.kind IN('case','case_message','case_decision') AND r.data->>'case_text_minimized_at' IS NULL AND (c.owner=$2 OR c.data->>'subject_user_id'=$2 OR r.owner=$2)";
  const join="JOIN records c ON c.id::text=CASE WHEN r.kind='case' THEN r.id::text ELSE r.data->>'case_id' END AND c.kind='case' AND c.country=r.country";
  const allDeleted="EXISTS(SELECT 1 FROM records reporter WHERE reporter.id::text=c.owner AND reporter.kind='user' AND reporter.country=c.country AND reporter.data->>'status'='deleted') AND EXISTS(SELECT 1 FROM records subject WHERE subject.id::text=c.data->>'subject_user_id' AND subject.kind='user' AND subject.country=c.country AND subject.data->>'status'='deleted')";

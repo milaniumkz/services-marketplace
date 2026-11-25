@@ -1,6 +1,7 @@
 import '../core/web_ad_consent.dart';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
+import '../core/release_channel.dart';
 import '../core/design_states.dart';
 import '../core/design_widgets.dart';
 import '../core/l10n.dart';
@@ -88,7 +89,8 @@ class _PrivacyStatesState extends State<PrivacyStates> {
                       : () async {
                           setState(() => busy = true);
                           try {
-                            final savedConsent=await widget.api.request('/me/processing-consents',
+                            final savedConsent = await widget.api.request(
+                                '/me/processing-consents',
                                 method: 'POST',
                                 body: {
                                   for (final k in [
@@ -99,7 +101,8 @@ class _PrivacyStatesState extends State<PrivacyStates> {
                                     k: consent![k] == true,
                                   'expected_version': r['version']
                                 });
-                            if(savedConsent['ad_personalization']==false)rememberWebAdConsent(false);
+                            if (savedConsent['ad_personalization'] == false)
+                              rememberWebAdConsent(false);
                             if (mounted) widget.onGo('privacy', null);
                           } catch (e) {
                             if (mounted) setState(() => error = e);
@@ -129,7 +132,8 @@ class _PrivacyStatesState extends State<PrivacyStates> {
                         subtitle: r['active_orders'] == 0
                             ? 'Активных заказов нет'
                             : '${localize(context, 'Сначала завершите или разрешите заказы')}: ${r['active_orders']}'),
-                    if (r['subscription_relevant'] == true)
+                    if (!freeMobileRelease &&
+                        r['subscription_relevant'] == true)
                       JobaMenuEntry('Подписка исполнителя', 'card',
                           () => widget.onGo('manage-subscription', null),
                           subtitle: 'Удаление аккаунта не отменяет её'),
@@ -171,20 +175,40 @@ class _PrivacyStatesState extends State<PrivacyStates> {
           before: const [
             UiHeading('Последний шаг',
                 'Для удаления потребуется текущий пароль аккаунта.'),
-            Notice(
-                'До начала окончательной очистки запрос можно отменить. Удаление не отменяет подписку автоматически.')
+            Notice(freeMobileRelease
+                ? 'Подтвердите удаление аккаунта. Необходимые записи могут храниться отдельно по опубликованной политике.'
+                : 'Подтвердите удаление аккаунта. Удаление не отменяет подписку автоматически.')
           ],
           fields: const [
             InputSpec('current_password', 'Пароль аккаунта', secret: true)
           ],
           afterFields: const [
-            Notice(
-                'Проверьте активную подписку и сохраните копию своих данных. Открытые дела будут обработаны по правилам хранения.')
+            Notice(freeMobileRelease
+                ? 'Сохраните копию своих данных. Открытые дела будут обработаны по правилам хранения.'
+                : 'Проверьте активную подписку и сохраните копию своих данных. Открытые дела будут обработаны по правилам хранения.')
           ],
           button: 'Подтвердить запрос',
           submit: (v) async {
             final r = await widget.api.request('/me/privacy-requests',
                 method: 'POST', body: {...v, 'type': 'delete'});
+            if (r['account_deleted'] == true) {
+              if (!mounted) return;
+              await showDialog<void>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => AlertDialog(
+                          title: const Text('Аккаунт удалён'),
+                          content: const Text(
+                              'Вход и доступ к профилю прекращены. Только необходимые записи могут храниться в закрытом архиве в сроки, указанные в политике конфиденциальности.'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Понятно'))
+                          ]));
+              await widget.api.forget();
+              if (mounted) widget.onGo('welcome', null);
+              return;
+            }
             if (mounted) widget.onGo('delete-scheduled', r['id']);
           });
     return ApiView(

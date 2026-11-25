@@ -1,4 +1,5 @@
 import {supportSubjects} from './support-subject';
+import {removeAccountNow,purgeExpiredAccountArchives} from './immediate-account-deletion';
 import {supportReadStates,markSupportRead} from './support-read';
 import {adminPaymentControls,paymentControls,paymentAllowed,requirePayment} from './payment-controls';
 import {bankReturnPage} from './bank-return';
@@ -14,7 +15,7 @@ import {adminOperatorProfile,publishOwnerActivityCodes} from './public-operator'
 import {publicSitePage} from './public-site';
 import {communicationLanguages,defaultCommunicationLanguages} from './communication-languages';
 import {checkoutOffers,buyTestQuote} from './subscription-quotes';
-import {activatePeriods,presentSubscription} from './subscription-periods';
+import {activatePeriods,presentSubscription,createPeriod,userPeriods,basePeriod} from './subscription-periods';
 import {notificationTitle} from './notification-catalog';
 import {notifyTransition,notificationTransitionKinds} from './notification-transitions';
 import {firebasePublicConfig, InvalidPushToken} from './firebase-push';
@@ -254,9 +255,10 @@ export class Marketplace {
     if(path.startsWith('/auth/')||path.startsWith('/public/')&&!path.startsWith('/public/recovery-threads')||path.startsWith('/webhooks/'))key=undefined;
     // Serialize commands: version check, idempotency, business writes and outbox commit together.
     if(path.startsWith('/admin/')&&body&&typeof body==='object'&&!Buffer.isBuffer(body)&&!String(body.reason||'').trim())body={...body,reason:'Действие администратора в панели управления'};
-    if(path.startsWith('/admin/')&&query&&!String(query.reason||'').trim())query={...query,reason:'Просмотр данных администратором'};
+    if(path.startsWith('/admin/')&&!path.startsWith('/admin/account-archives/')&&query&&!String(query.reason||'').trim())query={...query,reason:'Просмотр данных администратором'};
     const run = async () => {
-      if(method==='GET')return path.startsWith('/admin/')
+      // The separately authorized/audited legal archive must outlive the operational read model.
+      if(method==='GET')return path.startsWith('/admin/')&&!/^\/admin\/account-archives(?:\/[^/]+)?$/.test(path)
         ?this.store.withAdminReads(()=>this.dispatch(method,path,body,authorization,query,ip))
         :this.dispatch(method,path,body,authorization,query,ip);
       let actor: Actor|undefined;
@@ -1090,7 +1092,8 @@ export class Marketplace {
     if(reviews&&method==='GET'){await this.entitlement(a,reviews[1]==='contractors'?'view_contractors':'search_full');return this.list((await this.store.all('review',a.country)).filter(x=>x.target_id===reviews[2]&&x.status==='published'&&!['quarantined','hidden','rejected'].includes(x.moderation_status)),q);}
     if(path==='/me/deletion-preview'&&method==='GET'){
       const active=(await this.store.select('order',a.country,{participant:a.id,statuses:['assigned','in_progress','completion_requested'],limit:1000})).length;
-      return {active_orders:active,subscription_relevant:(await this.store.select('subscription',a.country,{owner:a.id,limit:1000})).some(s=>['active','grace','canceled_at_period_end'].includes(s.status)),policy_ready:(await this.store.all('retention_policy',a.country)).some(p=>p.status==='effective'),grace_hours:settings.deletion_grace_hours,retention_plan:await deletionPlan(this.store,a.id,a.country,(await this.store.all('retention_policy',a.country)).find(p=>p.status==='effective'),new Date())};
+      const policy=(await this.store.all('retention_policy',a.country)).find(p=>p.status==='effective');
+      return {active_orders:active,subscription_relevant:(await this.store.select('subscription',a.country,{owner:a.id,limit:1000})).some(s=>['active','grace','canceled_at_period_end'].includes(s.status)),policy_ready:!!policy,account_removal:policy?.payload?.account_removal??'scheduled',grace_hours:policy?.payload?.account_removal==='immediate'?0:settings.deletion_grace_hours,retention_plan:await deletionPlan(this.store,a.id,a.country,policy,new Date())};
     }
     if(path==='/me/processing-consents'&&method==='GET')return (await this.store.select('processing_consent',a.country,{owner:a.id,limit:1}))[0]??{version:0,marketing:false,ad_personalization:false,optional_analytics:false};
     if(path==='/me/processing-consents'&&method==='POST'){
@@ -1102,7 +1105,24 @@ export class Marketplace {
       const values=Object.fromEntries(keys.map(k=>[k,b[k]])),r={...(old??this.record('processing_consent',a)),...values,document_id:doc?.id??null,document_hash:doc?.hash??null,updated_at:new Date().toISOString(),version:(old?.version??0)+1};
       await this.store.put(this.record('processing_consent_event',a,{...values,document_id:r.document_id,document_hash:r.document_hash}));await this.store.put(r);if(!b.ad_personalization)await recordWebAdConsent(this.store,a,false,new Date(),'privacy_settings');return r;
     }
-    if(path==='/me/privacy-requests'&&method==='POST'){await this.reauth(a,b);if(!['export','delete'].includes(b.type))fail(400,'VALIDATION_ERROR','Выберите тип запроса');if(b.type==='delete'){const previous=(await this.store.select('privacy',a.country,{owner:a.id,statuses:['requested','scheduled','awaiting_retention_policy','awaiting_resolution'],limit:100})).find(r=>r.type==='delete');if(previous)return previous;}return this.store.put(this.record('privacy',a,{type:b.type,status:'requested'}));}
+    if(path==='/me/privacy-requests'&&method==='POST'){
+      await this.reauth(a,b);
+      if(!['export','delete'].includes(b.type))fail(400,'VALIDATION_ERROR','Выберите тип запроса');
+      if(b.type==='delete'){
+        const policy=(await this.store.all('retention_policy',a.country)).find(p=>p.status==='effective');
+        const previous=(await this.store.select('privacy',a.country,{owner:a.id,statuses:['requested','scheduled','awaiting_retention_policy','awaiting_resolution'],limit:100})).find(r=>r.type==='delete');
+        if(policy?.payload?.account_removal==='immediate'){
+          const user=await this.store.get(a.id);
+          if(!user)fail(404,'NOT_FOUND','Аккаунт не найден');
+          const job=previous??await this.store.put(this.record('privacy',a,{type:'delete',status:'requested'}));
+          const result=await removeAccountNow(this.store,this.files,user!,job);
+          await this.face.revoke(a.id,a.country,'account_deleted');
+          return result;
+        }
+        if(previous)return previous;
+      }
+      return this.store.put(this.record('privacy',a,{type:b.type,status:'requested'}));
+    }
     if(path==='/me/privacy-requests'&&method==='GET')return {items:(await this.store.all('privacy',a.country)).filter(x=>x.owner===a.id)};
     const privacy=path.match(/^\/me\/privacy-requests\/([^/]+)$/);if(privacy&&method==='GET'){
       const r=await this.object(privacy[1],a,'privacy',true);if(r.type!=='export')return r;
@@ -1356,6 +1376,20 @@ export class Marketplace {
           }
           const updated=await this.store.put({...job,status:'completed',processed:results.length,results,completed_at:new Date().toISOString(),version:job.version+1});await this.audit(a,'bulk.executed',job.id,reason);return updated;
         }
+      }
+      if(path==='/admin/account-archives'&&method==='GET'){
+        await this.staff(a,'privacy');
+        const rows=(await this.store.all('account_legal_archive',a.country)).map(({sealed_identity,...r})=>r);
+        await this.audit(a,'privacy.archives_listed','account_legal_archive','Просмотр ограниченного архива удалённых аккаунтов');
+        return this.list(rows,q);
+      }
+      const archiveRead=path.match(/^\/admin\/account-archives\/([^/]+)$/);
+      if(archiveRead&&method==='GET'){
+        await this.staff(a,'privacy');await this.staff(a,'phone_view');
+        const r=await this.object(archiveRead[1],a,'account_legal_archive');
+        if(r.status!=='retained'||!r.sealed_identity)fail(404,'NOT_FOUND','Архив уже очищен');
+        await this.audit(a,'privacy.archive_identity_read',r.id,text(q,'reason',10,1000));
+        return {id:r.id,expires_at:r.expires_at,identity:JSON.parse(await this.files.unsealSecret(r.sealed_identity,'account-archive:'+r.id))};
       }
       if(path==='/admin/legal-holds'&&method==='GET'){const result=await this.page('legal_hold',a,q);await this.audit(a,'privacy.holds_read','legal_hold','Просмотр оснований и конкретных удержанных данных');return result;}
       if(path==='/admin/legal-holds'&&method==='POST'){
@@ -1685,6 +1719,25 @@ export class Marketplace {
           if(b.command==='resolve'&&b.reopen_until!==undefined&&(!Number.isFinite(Date.parse(b.reopen_until))||Date.parse(b.reopen_until)<=Date.now()))fail(400,'VALIDATION_ERROR','Проверьте срок повторного открытия');
           const result=await this.store.put({...t,status:states[b.command],assignee_id:a.id,...(b.command==='resolve'?{resolved_at:new Date().toISOString(),reopen_until:b.reopen_until?new Date(b.reopen_until).toISOString():null}:{}),version:t.version+1});await this.audit(a,'support.'+b.command,t.id,text(b,'reason',5,1000));return result;
         }
+      }
+      const activateSubscription=path.match(/^\/admin\/users\/([^/]+)\/activate-subscription$/);
+      if(activateSubscription&&method==='POST'){
+        await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['subscription-periods:'+a.country+':'+activateSubscription[1]]);
+        const u=await this.object(activateSubscription[1],a,'user');
+        if(u.id===a.id||u.staff_permissions?.length)fail(403,'FORBIDDEN','Подписка доступна только пользовательским аккаунтам');
+        if(u.status!=='active')fail(409,'STATE_CONFLICT','Подписка доступна только активному аккаунту');
+        const now=new Date(),periods=(await userPeriods(this.store,u)).filter(s=>!s.is_test&&basePeriod(s)&&['active','scheduled','grace','canceled_at_period_end'].includes(s.status)&&Date.parse(s.valid_until)>now.getTime());
+        const existing=periods.find(s=>s.provider==='admin_grant');
+        if(existing)return {subscription:presentSubscription(existing,now),user_version:u.version,already_active:true};
+        this.version(u,b);
+        // Append to continuous coverage; never consume or replace a paid period.
+        let start=now.getTime();
+        for(const s of periods.sort((x,y)=>Date.parse(x.valid_from??x.created_at)-Date.parse(y.valid_from??y.created_at)))if(Date.parse(s.valid_from??s.created_at)<=start)start=Math.max(start,Date.parse(s.valid_until));
+        const plan=subscriptionRole(u)==='customer'?'customer':'standard';
+        const subscription=await createPeriod(this.store,u,{plan,seconds:30*86400,from:new Date(start).toISOString(),provider:'admin_grant',price:{plan,role:subscriptionRole(u),amount_minor:0,currency:countries[u.country].currency,period:'days',duration_days:30,offer_kind:'admin_grant'}},now);
+        await this.store.put({...u,version:u.version+1});
+        await this.audit(a,'subscription.admin_activated',u.id,'Бесплатная подписка на 30 дней: '+subscription.id);
+        return {subscription:presentSubscription(subscription,now),user_version:u.version+1,already_active:false};
       }
       const accountAction=path.match(/^\/admin\/users\/([^/]+)\/(block|unblock|delete)$/);
       if(accountAction&&method==='POST') {
@@ -2247,6 +2300,14 @@ export class Marketplace {
         for(const r of await this.store.all('privacy'))if(['requested','awaiting_retention_policy','scheduled','awaiting_resolution'].includes(r.status)&&r.type==='delete') {
           const policy=(await this.store.all('retention_policy',r.country)).find(x=>x.status==='effective');
           if(!policy){if(r.status==='requested')await this.store.put({...r,status:'awaiting_retention_policy',version:r.version+1});continue;}
+          if(policy.payload?.account_removal==='immediate'){
+            const user=await this.store.get(r.owner);
+            if(user&&user.status!=='deleted'){
+              await removeAccountNow(this.store,this.files,user,r,now);
+              await this.face.revoke(r.owner,r.country,'account_deleted');
+            }
+            continue;
+          }
           if(['requested','awaiting_retention_policy'].includes(r.status)){
             const grace=(await this.settings(r.country)).deletion_grace_hours;
             await this.store.put({...r,status:'scheduled',policy_id:policy.id,execute_after:new Date(now.getTime()+grace*3600000).toISOString(),version:r.version+1});continue;
@@ -2268,6 +2329,7 @@ export class Marketplace {
           await this.store.put({...r,status:'limited_retention',reason:plan.missing_policy_categories.length?'Для части сохранённых данных нужны опубликованные сроки. Полное удаление ещё не завершено.':'Часть данных сохранена по категориям и основаниям. Полное удаление ещё не завершено.',policy_id:policy.id,retention_plan:plan,retention_review_at:undefined,completed_at:now.toISOString(),version:r.version+2});
         }
         for(const job of await this.store.all('privacy'))if(job.type==='delete'&&job.status==='limited_retention')await processDeletionCategories(this.store,job,(await this.store.all('retention_policy',job.country)).find(p=>p.status==='effective'),now);
+        await purgeExpiredAccountArchives(this.store,now);
         pushRecipients=await queuePushCampaigns(this.store,now);
         purgeFiles=await planFileRetention(this.store,now,async verification=>{await this.notify(verification.owner,{id:verification.owner,country:verification.country},'verification.expired',verification.id);});
         await this.store.db.query("DELETE FROM rate_limits WHERE window_start<CURRENT_TIMESTAMP-INTERVAL '1 day'");

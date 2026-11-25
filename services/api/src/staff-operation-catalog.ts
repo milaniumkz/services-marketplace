@@ -1,5 +1,8 @@
 // Explicit reviewable API operation catalogue. No wildcards may be assigned.
 export const staffOperations=[
+  {id:'POST /admin/users/{id}/activate-subscription',method:'POST',path:'/admin/users/{id}/activate-subscription',block:'users',label:'Активировать бесплатную подписку на 30 дней'},
+  {id:'GET /admin/account-archives',method:'GET',path:'/admin/account-archives',block:'privacy',label:'Смотреть ограниченный архив удалённых аккаунтов'},
+  {id:'GET /admin/account-archives/{id}',method:'GET',path:'/admin/account-archives/{id}',block:'privacy',label:'Раскрывать сведения архива с аудитом'},
   {id:'POST /admin/support-threads',method:'POST',path:'/admin/support-threads',block:'support-threads',label:'Начинать переписку с пользователем'},
   {id:'POST /admin/support-threads/{id}/read',method:'POST',path:'/admin/support-threads/{id}/read',block:'support-threads',label:'Отмечать сообщения обращения прочитанными'},
 {id:'GET /admin/vtb-status',method:'GET',path:'/admin/vtb-status',block:'price-versions',label:'Смотреть состояние оплаты ВТБ'},

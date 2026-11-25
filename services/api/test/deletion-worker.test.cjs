@@ -1,6 +1,20 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const {Store}=require('../dist/store'),{processDeletionCategories}=require('../dist/deletion-worker');
 const row=(kind,owner,data={})=>({id:randomUUID(),kind,owner,country:'KZ',version:1,created_at:'2025-01-01T00:00:00.000Z',...data});
+test('approved limited archive expires after three calendar years, preserving unsettled payments and legal protections',async()=>{
+ const s=new Store('memory://');await s.initialize();try{
+ const owner=randomUUID();await s.put(row('user',owner,{id:owner,status:'deleted'}));const job=row('privacy',owner,{type:'delete',status:'limited_retention'});await s.put(job);
+ const policy=row('retention_policy','operator',{status:'effective',payload:{account_removal:'immediate',legal_archive_years:3,financial_days:1096,audit_days:1096}}),now=new Date('2026-11-25T00:00:00.000Z');await s.put(policy);
+ const old={created_at:'2023-11-25T00:00:00.000Z'},payment=row('payment_transaction',owner,{...old,status:'succeeded',amount_minor:200}),pending=row('payment_transaction',owner,{...old,status:'pending',amount_minor:100}),recent=row('payment_transaction',owner,{created_at:'2023-11-26T00:00:00.000Z',status:'succeeded',amount_minor:50}),audit=row('audit',owner,{...old,reason:'private reason'}),held=row('consent',owner,{...old,document_hash:'keep'});
+ for(const r of [payment,pending,recent,audit,held])await s.put(r);
+ await s.put(row('legal_hold','staff',{target_id:held.id,status:'active',fields:['document_hash']}));
+ const hold=row('legal_hold','staff',{subject_user_id:owner,status:'active'});await s.put(hold);
+ await processDeletionCategories(s,job,policy,now);assert.equal((await s.get(payment.id)).amount_minor,200);
+ await s.put({...hold,status:'released',version:2});await processDeletionCategories(s,await s.get(job.id),policy,now);
+ assert.equal((await s.get(payment.id)).amount_minor,undefined);assert.equal((await s.get(audit.id)).reason,undefined);
+ for(const r of [pending,recent,held])assert.deepEqual(await s.get(r.id),r);
+ }finally{await s.close();}
+});
 test('deletion stages are bounded, regional, recipient-scoped and restart without double processing',async()=>{
  const s=new Store('memory://');await s.initialize();try{
  const owner=randomUUID();await s.put(row('user',owner,{id:owner,status:'deleted'}));const job=row('privacy',owner,{type:'delete',status:'limited_retention'});await s.put(job);

@@ -1,11 +1,12 @@
 import {heldFileIds} from './legal-holds';
+import {retentionCutoff} from './retention-cutoff';
 import {Store,RecordData} from './store';
 const kinds=['order','offer','invite','assignment','conversation','message','message_revision','review','review_revision','amendment','cancel_request'];
 const common=['id','kind','owner','country','created_at','status','order_id','thread_id','message_id','review_id','conversation_id','offer_id','assignment_id','executor_id','customer_id','recipient_id','target_id','members','sequence','read_sequences','delivered_sequences','revision','rating','amount','agreed_amount','budget_amount','currency','completed_at','cancelled_at','expires_at','published_at','started_at'];
 /** Only an author's own records: a departed executor never erases the customer's order. */
 export async function minimizeClosedWork(store:Store,job:RecordData,policy:RecordData|undefined,now:Date){
  const days=policy?.payload?.chat_days;if(!Number.isSafeInteger(days)||days<1)return {state:'awaiting_policy',processed:job.category_progress?.work?.processed??0};
- const cutoff=new Date(now.getTime()-days*86400000).toISOString();
+ const cutoff=retentionCutoff(policy,days,now).toISOString();
  const scope="r.country=$1 AND r.owner=$2 AND r.kind=ANY($3::text[]) AND r.data->>'retention_minimized_at' IS NULL";
  const result=await store.db.query<{data:RecordData}>(`SELECT r.data FROM records r
  LEFT JOIN records m ON r.kind='message_revision' AND m.id::text=r.data->>'message_id' AND m.kind='message' AND m.country=r.country
