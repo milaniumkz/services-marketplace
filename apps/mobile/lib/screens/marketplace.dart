@@ -1,3 +1,4 @@
+import 'reviews_screen.dart';
 import 'profile_gallery_upload.dart';
 import 'bank_payment.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
@@ -1148,7 +1149,8 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                 onOrders: () => go('orders'),
                 onOffers: () => go('offers', objectId),
                 onJobs: () => go('jobs'),
-                onOrder: (id) => go('order', id)),
+                onOrder: (id) => go('order', id),
+                onReview: (id) => go('review', id)),
             titleOffset: route == 'published' ? 0 : -12);
       case 'publish':
         return publishScreen();
@@ -1284,12 +1286,9 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
       case 'review':
         return reviewScreen();
       case 'reviews':
-        return page(
-            'Отзывы',
-            paged(
-                '/users/${objectId ?? me!['id']}/reviews',
-                (r) => DataCard('${r['rating']} ★',
-                    subtitle: '${r['text']}', status: status(r))));
+        return page('Отзывы', ReviewsScreen(api: api,
+            userId: objectId ?? me!['id'], own: objectId == null || objectId == me!['id'],
+            onReview: (id) => go('review', id)));
       case 'report':
         return reportScreen();
       case 'cases':
@@ -2768,7 +2767,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                       if(executor)JobaMenuEntry('Подключить Топ-100','crown',()=>go('my-access'),subtitle:'Отдельно к Стандарту · в Премиуме включён')
                     ]),
                     const SizedBox(height: 16),
-                    if (executor) JobaMenu([JobaMenuEntry('Добровольная проверка документов', 'shield', () => go('verification'), subtitle: me?['verification']=='passed'?'Верифицирован':'По желанию · отметка в профиле исполнителя')]),
+                    JobaMenu([JobaMenuEntry('Добровольная проверка документов', 'shield', () => go('verification'), subtitle: me?['verification']=='passed'?'Верифицирован':'По желанию · отметка в профиле')]),
                     const SizedBox(height: 16),
                     JobaMenu([
                       JobaMenuEntry('Мои заказы', 'brief', () => go('orders'),
@@ -4028,7 +4027,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                               child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                Text(customer['display_name'] ?? '',
+                                VerifiedName(customer['display_name'] ?? '',verified:customer['verified']==true,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 13)),
@@ -4961,7 +4960,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                   fontSize: 12, color: muted, height: 1.55))
                         ])),
                 const Notice(
-                    'Проверка документа исполнителя выполняется отдельно от PIN и биометрии.',
+                    'Проверка документов добровольна и выполняется отдельно от PIN и биометрии.',
                     icon: 'info',
                     margin: EdgeInsets.only(top: 16, bottom: 0)),
                 const SizedBox(height: 20),
@@ -4971,7 +4970,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                   JobaMenuEntry(
                       'Заблокированные контакты', 'shield', () => go('blocks')),
                   JobaMenuEntry(
-                      'Документ исполнителя', 'file', () => go('verification'))
+                      'Добровольная проверка документов', 'file', () => go('verification'))
                 ])
               ])));
   Widget sessionsScreen() => page(

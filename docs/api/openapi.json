@@ -8943,6 +8943,20 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "received",
+                "sent"
+              ],
+              "default": "received"
+            },
+            "description": "Select received published reviews or the authenticated author's own sent reviews."
           }
         ],
         "responses": {
@@ -8976,7 +8990,8 @@
           "503": {
             "$ref": "#/components/responses/Failure"
           }
-        }
+        },
+        "description": "Received reviews are public only when published and visible. direction=sent is available only for the authenticated author themselves and includes their own sealed reviews; never exposes another participant's unpublished feedback."
       }
     },
     "/contractors/{id}/reviews": {

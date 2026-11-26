@@ -26,7 +26,7 @@ test('verification choices follow the effective regional policy and latest expli
    assert.equal((await call('GET','/me/verification')).policy.consent_accepted,accepted);
   }
   await assert.rejects(()=>call('POST','/me/verification-sessions',{document_type:'passport'}),e=>e.getResponse().error.code==='VALIDATION_ERROR');
-  const original=await call('POST','/me/verification-sessions',{document_type:'id_card'});assert.equal(original.policy_id,policyId);
+  const original=await call('POST','/me/verification-sessions',{document_type:'id_card'});assert.equal(original.policy_id,policyId);assert.equal(original.submitted_role,'customer');
   const policy=await api.store.get(policyId);await api.store.put({...policy,version:2,payload:{...policy.payload,required_pages:{id_card:['Лицевая сторона','Оборотная сторона']}}});
   const check=await call('POST','/me/verification-sessions',{document_type:'id_card'});assert.deepEqual(check.required_pages,['Лицевая сторона','Оборотная сторона','Селфи']);
   const uploads=[];for(let i=0;i<3;i++){const id=randomUUID();uploads.push(id);await api.store.put({id,kind:'upload',owner:session.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),status:'clean',purpose:'identity',mime:'image/jpeg',verification_id:check.id});}

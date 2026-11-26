@@ -12,9 +12,13 @@ test('existing work reviews stay free, sealed feedback stays private and an open
   const now=new Date().toISOString(),id=randomUUID(),caseId=randomUUID();
   await api.store.put({id,kind:'order',owner:customer.user.id,country:'KZ',version:1,created_at:now,completed_at:now,status:'completed',executor_id:executor.user.id,title:'Завершённый заказ',description:'Достаточно длинное описание завершённого заказа.'});
   await api.store.put({id:caseId,kind:'case',owner:customer.user.id,country:'KZ',version:1,created_at:now,status:'new',target_id:id});
+  await api.store.put({...await api.store.get(customer.user.id),verification:'passed'});
+  const visibleOrder=await call(executor,'GET','/orders/'+id);assert.equal(visibleOrder.customer.verified,true);assert.equal(visibleOrder.executor.verified,false);assert.equal(visibleOrder.customer.document_refs,undefined);
   const first=await call(customer,'POST','/reviews',{order_id:id,rating:5,text:'Всё хорошо'});
   const second=await call(executor,'POST','/reviews',{order_id:id,rating:4,text:'Спасибо'});
   assert.equal(first.status,'sealed');assert.equal(second.status,'sealed');
+  const sent=await api.handle('GET','/users/'+customer.user.id+'/reviews',{},'Bearer '+customer.access_token,undefined,{direction:'sent'});assert.deepEqual(sent.items.map(r=>r.id),[first.id]);assert.equal(sent.items[0].text,'Всё хорошо');
+  await assert.rejects(()=>api.handle('GET','/users/'+customer.user.id+'/reviews',{},'Bearer '+executor.access_token,undefined,{direction:'sent'}),e=>e.getResponse().error.code==='FORBIDDEN');
   assert.equal((await call(customer,'GET','/orders/'+id)).my_review.id,first.id);
   assert.equal((await call(executor,'GET','/orders/'+id)).my_review.id,second.id);
   assert.equal((await call(customer,'GET','/users/'+customer.user.id+'/reviews')).items.length,0);

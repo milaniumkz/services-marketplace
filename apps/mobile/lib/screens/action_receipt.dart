@@ -11,6 +11,7 @@ class ActionReceipt extends StatelessWidget {
   final ReceiptKind kind;
   final VoidCallback onOrders, onOffers, onJobs;
   final ValueChanged<String> onOrder;
+  final ValueChanged<String>? onReview;
   const ActionReceipt(
       {required this.api,
       required this.id,
@@ -19,6 +20,7 @@ class ActionReceipt extends StatelessWidget {
       required this.onOffers,
       required this.onJobs,
       required this.onOrder,
+      this.onReview,
       super.key});
   @override
   Widget build(BuildContext context) => ApiView(
@@ -98,7 +100,9 @@ class ActionReceipt extends StatelessWidget {
               iconColor: const Color(0xFFB98712),
               iconFill: const Color(0xFFFFD65A),
               primaryLabel: 'Мои заказы',
-              onPrimary: onOrders)
+              onPrimary: onOrders,
+              secondaryLabel: 'Посмотреть мой отзыв',
+              onSecondary: () => (onReview ?? onOrder)(id))
         ]);
       });
 }

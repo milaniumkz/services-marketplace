@@ -1,3 +1,4 @@
+import '../core/verified_badge.dart';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import 'presence_status.dart';
@@ -123,7 +124,7 @@ class OrderOverview extends StatelessWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text(customer['display_name'] ?? '',
+                VerifiedName(customer['display_name'] ?? '',verified:customer['verified']==true,
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w700)),
                 if(customer['id']!=null)PresenceStatus(api:api,userId:customer['id'],initial:customer['presence']?['online']),

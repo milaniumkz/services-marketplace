@@ -751,7 +751,7 @@ export class Marketplace {
       return {...safeUser(u),presence:this.online.status(u.id),city_source:'self_reported',completed_orders:(await this.store.all('order',a.country)).filter(o=>o.owner===u.id&&o.status==='completed').length,rating:{count:reviews.length,average:reviews.length?reviews.reduce((sum,r)=>sum+r.rating,0)/reviews.length:null}};
     }
     const publicReviews=path.match(/^\/users\/([^/]+)\/reviews$/);
-    if(publicReviews&&method==='GET'){const target=await this.object(publicReviews[1],a,'user');if(target.id!==a.id){if(target.roles?.includes('executor'))await this.entitlement(a,'view_contractors');else await this.entitlement(a,'search_full');if(target.status!=='active'||target.staff_permissions?.length||await this.blocked(a,target.id))fail(404,'NOT_FOUND','Профиль недоступен');}return this.list((await this.store.all('review',a.country)).filter(r=>r.target_id===publicReviews[1]&&r.status==='published'&&!['quarantined','hidden','rejected'].includes(r.moderation_status)),q);}
+    if(publicReviews&&method==='GET'){const target=await this.object(publicReviews[1],a,'user');if(q.direction==='sent'&&target.id!==a.id)fail(403,'FORBIDDEN','Отправленные отзывы доступны только автору');if(target.id!==a.id){if(target.roles?.includes('executor'))await this.entitlement(a,'view_contractors');else await this.entitlement(a,'search_full');if(target.status!=='active'||target.staff_permissions?.length||await this.blocked(a,target.id))fail(404,'NOT_FOUND','Профиль недоступен');}if(q.direction&&!['received','sent'].includes(q.direction))fail(400,'VALIDATION_ERROR','Выберите полученные или отправленные отзывы');return this.list((await this.store.all('review',a.country)).filter(r=>q.direction==='sent'?r.owner===a.id:r.target_id===publicReviews[1]&&r.status==='published'&&!['quarantined','hidden','rejected'].includes(r.moderation_status)),q);}
     if(path==='/orders'&&method==='POST') {
       const budget=b.budget?b.budget.mode==='negotiable'?null:b.budget.amount_minor:(b.budget_amount??null);
       if(budget!==null && (!Number.isSafeInteger(budget)||budget<0))fail(400,'VALIDATION_ERROR','В поле «Бюджет» укажите неотрицательную сумму с точностью до двух знаков после запятой.',{field:'budget_amount'});
@@ -783,7 +783,7 @@ export class Marketplace {
         const customer=await this.store.get(o.owner),executor=o.executor_id?await this.store.get(o.executor_id):undefined;
         const assignment=participant&&o.assignment_id?await this.store.get(o.assignment_id):undefined;
         const review=participant?(await db.query<{data:RecordData}>("SELECT data FROM records WHERE kind='review' AND country=$1 AND owner=$2 AND data->>'order_id'=$3 LIMIT 1",[a.country,a.id,o.id])).rows[0]?.data:undefined;
-        const person=(user:RecordData|undefined)=>user?{id:user.id,display_name:user.display_name,avatar_id:user.avatar_id,city:user.city,presence:this.online.status(user.id)}:null;
+        const person=(user:RecordData|undefined)=>user?{id:user.id,display_name:user.display_name,avatar_id:user.avatar_id,city:user.city,verified:user.verification==='passed',presence:this.online.status(user.id)}:null;
         return {...(participant?o:publicContent(o)),exact_address:participant?o.exact_address:undefined,exact_location:participant?o.exact_location:undefined,customer:person(customer),executor:participant?person(executor):undefined,conversation_id:assignment?.conversation_id,my_review:review,offer_policy:offerPolicy(o,settings.offer_expiry_hours)};
       }
       if(method==='GET'&&action==='offers'){if(o.owner!==a.id)fail(404,'NOT_FOUND','Заказ не найден');return {items:await offerPeople(this.store,a.country,(await this.store.all('offer',a.country)).filter(x=>x.order_id===o.id).map(x=>presentOffer(x,settings.offer_expiry_hours,new Date(),o)))};}
@@ -904,7 +904,7 @@ export class Marketplace {
       result.items=await Promise.all(result.items.map(async i=>{
         const order=await this.store.get(i.order_id),sender=await this.store.get(i.owner);
         const visible=order?.country===a.country&&sender?.status==='active'&&!await this.blocked(a,i.owner)&&!['quarantined','hidden','rejected'].includes(order?.moderation_status);
-        return {...i,customer:visible?{display_name:sender?.display_name,avatar_id:sender?.avatar_id}:null,order:visible?{title:order?.title,city:order?.city,budget_amount:order?.budget_amount,currency:order?.currency,time_window:order?.time_window}:null};
+        return {...i,customer:visible?{display_name:sender?.display_name,avatar_id:sender?.avatar_id,verified:sender?.verification==='passed'}:null,order:visible?{title:order?.title,city:order?.city,budget_amount:order?.budget_amount,currency:order?.currency,time_window:order?.time_window}:null};
       }));return result;
     }
     const inviteCommand=path.match(/^\/order-invites\/([^/]+)\/(respond|revoke)$/);
