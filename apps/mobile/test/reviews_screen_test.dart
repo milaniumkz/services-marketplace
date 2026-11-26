@@ -24,6 +24,14 @@ void main() {
                   'status': 'sealed',
                   'order_id': 'order',
                   'publish_after': '2026-12-10T10:00:00Z'
+                },
+                {
+                  'id': 'hidden-review',
+                  'rating': 3,
+                  'text': 'Скрытый отзыв автора',
+                  'status': 'published',
+                  'moderation_status': 'hidden',
+                  'order_id': 'old-order'
                 }
               ]
             : []
@@ -49,6 +57,10 @@ void main() {
     await t.tap(find.text('Мой сохранённый отзыв'));
     expect(opened, 'order');
     expect(queries, contains('sent'));
+    await t.scrollUntilVisible(find.text('Скрыт'), 100,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('Скрытый отзыв автора'), findsOneWidget);
+    expect(find.text('Опубликован'), findsNothing);
     await t.pumpWidget(MaterialApp(
         home: Scaffold(
             body: ReviewsScreen(

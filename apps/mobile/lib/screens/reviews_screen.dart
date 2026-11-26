@@ -63,10 +63,16 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                   return DataCard('${r['rating']} ★',
                       subtitle: r['text'] ?? '',
                       status: hidden
-                          ? 'На проверке'
+                          ? (r['moderation_status'] == 'quarantined'
+                              ? 'На проверке'
+                              : r['moderation_status'] == 'rejected'
+                                  ? 'Отклонён'
+                                  : 'Скрыт')
                           : waiting
                               ? 'Ожидает публикации'
-                              : 'Опубликован',
+                              : r['status'] == 'published'
+                                  ? 'Опубликован'
+                                  : 'Сохранён',
                       onTap: sent ? () => widget.onReview(r['order_id']) : null,
                       footer: waiting
                           ? Padding(
