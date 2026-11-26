@@ -1,7 +1,7 @@
 name: services_marketplace
 description: JOBA mobile marketplace client
 publish_to: none
-version: 1.0.15+17
+version: 1.0.16+18
 environment:
   sdk: ">=3.5.0 <4.0.0"
 dependencies:
