@@ -36,7 +36,7 @@ test('account overview counts before pagination without exposing other accounts 
   const result=await get('/me/overview');assert.deepEqual(result.orders,{active:125,open:125,draft:1,completed:1});
   assert.deepEqual(result.assigned_orders,{active:1,completed:0});assert.equal(result.invitations.pending,1);
   assert.deepEqual(result.rating,{count:1,average:4});assert.deepEqual(result.portfolio,{published:1,pending:1});
-  assert.equal(result.subscription_until,until);assert.deepEqual(result.contractor,{status:'published',availability:'busy'});
+  assert.equal(result.subscription_until,until);assert.deepEqual(result.contractor,{status:'published',availability:'busy',profile_views:0});
   await put('order',{status:'completed',executor_id:owner},'KZ',other);
   await put('order',{status:'completed',executor_id:owner},'KG',other);
   await put('portfolio',{status:'published',moderation_status:'hidden'});
