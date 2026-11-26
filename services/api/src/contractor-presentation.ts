@@ -1,9 +1,11 @@
+import {profileViewCounts} from './listing-reactions';
 import {RecordData, Store} from './store';
 import {publicContent} from './content-revisions';
 
 // Enrich an already-authorized page in batches. Never return phone or staff data.
 export async function contractorPresentation(store:Store, country:string, profiles:RecordData[]) {
   if(!profiles.length)return [];
+  const views=await profileViewCounts(store,country,profiles.map(p=>p.id));
   const owners=[...new Set(profiles.map(profile=>profile.owner))];
   const accounts=(await store.db.query<{data:RecordData}>(
     "SELECT data FROM records WHERE kind='user' AND country=$1 AND id=ANY($2::uuid[])",[country,owners])).rows;
@@ -18,7 +20,7 @@ export async function contractorPresentation(store:Store, country:string, profil
   return profiles.map(profile=>{
     const account=accounts.find(account=>account.data.id===profile.owner)?.data;
     const rating=ratings.find(rating=>rating.target_id===profile.owner);
-    return {...publicContent(profile),display_name:account?.display_name??'',owner_avatar_id:account?.avatar_id??null,
+    return {...publicContent(profile),profile_views:views.get(profile.id)??0,display_name:account?.display_name??'',owner_avatar_id:account?.avatar_id??null,
       rating:{count:Number(rating?.count??0),average:rating?Number(rating.average):null},
       completed_orders:Number(completed.find(r=>r.actor_id===profile.owner)?.count??0),portfolio_count:Number(portfolios.find(r=>r.actor_id===profile.owner)?.count??0)+(profile.gallery_ids?.length?1:0),
       verification:{status:account?.verification??'not_started',checked_at:verifications.find(r=>r.actor_id===profile.owner)?.checked_at??null}};

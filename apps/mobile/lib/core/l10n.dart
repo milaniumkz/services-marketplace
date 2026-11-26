@@ -14,6 +14,7 @@ String errorText(BuildContext context, Object error) {
   if (Localizations.localeOf(context).languageCode == 'ru' ||
       translated != source) return translated;
   final message = const {
+        'COMPLETED_WORK_REQUIRED': 'Оценивать можно только после завершённого совместного заказа.',
         'INVALID_CREDENTIALS': 'Неверный номер или пароль',
         'REAUTH_REQUIRED': 'Подтвердите текущий пароль',
         'REGISTRATION_UNAVAILABLE':

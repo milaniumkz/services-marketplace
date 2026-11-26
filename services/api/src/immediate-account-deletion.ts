@@ -1,3 +1,4 @@
+import {eraseProfileViews} from './listing-reactions';
 import {randomUUID} from 'node:crypto';
 import {Store,RecordData} from './store';
 import {PrivateFiles} from './private-files';
@@ -11,6 +12,7 @@ export async function removeAccountNow(store:Store,files:PrivateFiles,user:Recor
  const identity={user_id:user.id,display_name:user.display_name,phone:user.phone,country:user.country,created_at:user.created_at};
  await store.put({id:archiveId,kind:'account_legal_archive',owner:'operator',country:user.country,version:1,created_at:now.toISOString(),subject_user_id:user.id,privacy_request_id:job.id,status:'retained',expires_at:until.toISOString(),purpose:'Owner-approved restricted claims and lawful-request archive',sealed_identity:await files.sealSecret(JSON.stringify(identity),'account-archive:'+archiveId)});
  await store.put({id:user.id,kind:'user',owner:user.id,country:user.country,created_at:user.created_at,version:user.version+1,status:'deleted',display_name:'Удалённый пользователь',phone:null,roles:[],languages:[],deleted_at:now.toISOString()},{skipContentCheck:true});
+ await eraseProfileViews(store,user.id,user.country);
  await store.db.query('DELETE FROM credentials WHERE user_id=$1',[user.id]);
  await store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[user.id]);
  await store.db.query('DELETE FROM idempotency WHERE scope LIKE $1',[user.id+':%']);

@@ -1,3 +1,4 @@
+import 'profile_views.dart';
 import 'presence_status.dart';
 import '../core/verified_badge.dart';
 import 'package:intl/intl.dart';
@@ -200,6 +201,8 @@ class ContractorProfile extends StatelessWidget {
                                   : '${profile['experience_years']} ${localize(context, 'лет')}',
                               'Опыт со слов мастера')
                         ]),
+                        const SizedBox(height: 14),
+                        ProfileViews(count:(profile['profile_views'] as num?)?.toInt()??0),
                         const SizedBox(height: 14)
                       ])),
               Padding(

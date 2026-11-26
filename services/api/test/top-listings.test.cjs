@@ -13,6 +13,7 @@ test('Top ranks eligible records before limiting, applies configured votes and s
   const now=new Date().toISOString(),future=new Date(Date.now()+86400000).toISOString();
   await api.store.put({id:randomUUID(),kind:'grant',owner:reader.user.id,country:'KZ',version:1,created_at:now,valid_until:future,capabilities:['search_full']});
   const owner=randomUUID();await api.store.put({id:owner,kind:'user',owner,country:'KZ',version:1,created_at:now,status:'active',verification:'passed'});
+  await api.store.put({id:randomUUID(),kind:'order',owner,country:'KZ',version:1,created_at:now,status:'completed',completed_at:now,executor_id:reader.user.id});
   const base={kind:'order',owner,country:'KZ',version:1,created_at:now,published_at:now,expires_at:future,status:'open',city:'Алматы',category_id:'repair',title:'Real test order',exact_address:'PRIVATE ADDRESS',reason:'PRIVATE REASON',case_id:randomUUID(),draft:{title:'PRIVATE DRAFT'}};
   for(let i=0;i<102;i++)await api.store.put({...base,id:randomUUID()},{skipContentCheck:true});
   const winner={...base,id:'ffffffff-ffff-4fff-8fff-fffffffffff1'};await api.store.put(winner,{skipContentCheck:true});

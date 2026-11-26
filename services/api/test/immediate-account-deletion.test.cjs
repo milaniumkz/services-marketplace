@@ -9,6 +9,7 @@ test('immediate deletion revokes access, releases the phone and seals a bounded 
   const owner=session.user.id,now=new Date().toISOString();
   await app.store.put({id:randomUUID(),kind:'retention_policy',owner:'operator',country:'KZ',version:1,created_at:now,status:'effective',payload:{account_removal:'immediate',legal_archive_years:3}});
   await app.store.put({id:randomUUID(),kind:'contractor',owner,country:'KZ',version:1,created_at:now,status:'published',description:'private profile',city:'Алматы'});
+  await app.store.put({id:randomUUID(),kind:'profile_view',owner,country:'KZ',version:1,created_at:now,target_id:randomUUID()});
   await assert.rejects(()=>app.handle('POST','/me/privacy-requests',{type:'delete',current_password:'incorrect'},'Bearer '+session.access_token,randomUUID()));
   assert.equal((await app.store.get(owner)).status,'active');assert.equal((await app.store.all('account_legal_archive')).length,0);
   await assert.rejects(()=>app.handle('GET','/admin/account-archives',{},'Bearer '+session.access_token));
@@ -32,6 +33,7 @@ test('immediate deletion revokes access, releases the phone and seals a bounded 
   const detail=await call('/admin/account-archives/'+archive.id,{reason:'Isolated lawful archive access test'});assert.equal(detail.identity.phone,phone);
   assert.ok((await app.store.all('audit','KZ')).some(r=>r.action==='privacy.archive_identity_read'));
   assert.equal((await app.store.all('contractor'))[0].description,undefined);
+  assert.equal((await app.store.all('profile_view','KZ')).length,0);
   const later=new Date(archive.expires_at);later.setUTCDate(later.getUTCDate()+1);
   const hold={id:randomUUID(),kind:'legal_hold',owner:'operator',country:'KZ',version:1,created_at:now,subject_user_id:owner,status:'active'};await app.store.put(hold);
   await purgeExpiredAccountArchives(app.store,later);assert.equal((await app.store.get(archive.id)).status,'retained');

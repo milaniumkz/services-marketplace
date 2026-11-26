@@ -1,3 +1,4 @@
+import 'profile_views.dart';
 import 'reviews_screen.dart';
 import 'profile_gallery_upload.dart';
 import 'bank_payment.dart';
@@ -2730,6 +2731,7 @@ class _MarketplaceState extends State<Marketplace> with WidgetsBindingObserver {
                                     fontSize: 12, color: muted)),
                             const SizedBox(height: 8),
                             InkWell(onTap:()=>go('reviews'),child:Padding(padding:const EdgeInsets.only(bottom:8),child:Row(children:[const Icon(Icons.star_rounded,color:Color(0xFFFFC83D),size:20),const SizedBox(width:4),Expanded(child:Text((rating['count']??0)==0?'Рейтинг: пока нет отзывов':'Рейтинг: ${(rating['average'] as num?)?.toStringAsFixed(1)??'—'} / 5 · Отзывов: ${rating['count']}',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700)))]))),
+                            if(executor && summary['contractor']!=null)Padding(padding:const EdgeInsets.only(bottom:8),child:ProfileViews(count:(summary['contractor']['profile_views'] as num?)?.toInt()??0)),
                             Material(
                                 color: const Color(0xFFEAF0FC),
                                 borderRadius: BorderRadius.circular(7),

@@ -194,7 +194,7 @@ class _TopListingsState extends State<TopListings> {
                               : Colors.white,
                           shape: const StadiumBorder(),
                           side: const BorderSide(color: line)),
-                      onPressed: busy.contains('${row['id']}')
+                      onPressed: row['can_vote'] != true || busy.contains('${row['id']}')
                           ? null
                           : () => vote(row, value, reload),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -204,8 +204,8 @@ class _TopListingsState extends State<TopListings> {
                         const SizedBox(width: 6),
                         Text('${row[value == 1 ? 'likes' : 'dislikes'] ?? 0}')
                       ]))),
-            const Expanded(
-                child: UiText('Реакции к карточке',
+            Expanded(
+                child: UiText(row['can_vote']==true?'Оценка совместной работы':'Оценки доступны после завершённого совместного заказа.',
                     style: TextStyle(fontSize: 10, color: Color(0xFF627187))))
           ])
         ]));

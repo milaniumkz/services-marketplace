@@ -1,3 +1,4 @@
+import {canVoteForOwner,recordProfileView,eraseProfileViews} from './listing-reactions';
 import {supportSubjects} from './support-subject';
 import {removeAccountNow,purgeExpiredAccountArchives} from './immediate-account-deletion';
 import {supportReadStates,markSupportRead} from './support-read';
@@ -729,7 +730,7 @@ export class Marketplace {
     if(contractor&&method==='GET'){
       await this.entitlement(a,'view_contractors');const p=await this.object(contractor[1],a,'contractor'),owner=await this.store.get(p.owner);
       if(owner?.country!==a.country||owner.status!=='active'||p.status!=='published'||['quarantined','hidden','rejected'].includes(p.moderation_status)||await this.blocked(a,p.owner))fail(404,'NOT_FOUND','Профиль не найден');
-      if(!contractor[2])return (await contractorPresentation(this.store,a.country,[p]))[0];
+      if(!contractor[2]){await recordProfileView(this.store,a.user,p);return (await contractorPresentation(this.store,a.country,[p]))[0];}
       const gallery=(p.gallery_ids?.length?{id:p.id,kind:'portfolio',owner:p.owner,country:p.country,version:p.published_version??p.version,created_at:p.published_at??p.created_at,published_at:p.published_at??p.created_at,status:'published',title:'Фотографии работ',description:p.description,category_id:p.category_id,photos:p.gallery_ids,cover_id:p.gallery_ids[0],source_kind:'contractor',source:'profile_gallery'}:undefined) as RecordData|undefined;
       const candidate=contractor[3]?(gallery?.id===contractor[3]?gallery:await this.store.get(contractor[3])):undefined;
       if(contractor[3]&&(!candidate||candidate.kind!=='portfolio'||candidate.country!==a.country||candidate.owner!==p.owner||candidate.status!=='published'||['quarantined','hidden','rejected'].includes(candidate.moderation_status)))fail(404,'NOT_FOUND','Проект недоступен');
@@ -1070,12 +1071,13 @@ export class Marketplace {
     const pushToken=path.match(/^\/me\/push-tokens\/([^/]+)$/);if(pushToken&&method==='DELETE'){const r=await this.object(pushToken[1],a,'push_token',true);return this.store.put({...r,status:'revoked',token:'',version:r.version+1}).then(({token,...r})=>r);}
     const votes=path.match(/^\/listing-votes\/(orders|services)\/([^/]+)$/);
     if(votes&&['PUT','DELETE'].includes(method)) {
-      await this.entitlement(a,'search_full',votes[1]==='orders');const target=await this.object(votes[2],a,votes[1]==='orders'?'order':'contractor');
+      const target=await this.object(votes[2],a,votes[1]==='orders'?'order':'contractor');
+      if(method==='DELETE'){await db.query('DELETE FROM votes WHERE voter=$1 AND target=$2',[a.id,target.id]);return {removed:true};}
       const owner=await this.store.get(target.owner);
       if(['quarantined','hidden','rejected'].includes(target.moderation_status)||owner?.kind!=='user'||owner.country!==a.country||owner.status!=='active'||target.kind==='order'&&!(target.expires_at>new Date().toISOString())||await this.blocked(a,target.owner))fail(404,'NOT_FOUND','Карточка недоступна');
       if(target.owner===a.id)fail(403,'FORBIDDEN','Нельзя голосовать за свою карточку');
       if(!['open','published'].includes(target.status))fail(409,'STATE_CONFLICT','Карточка недоступна');
-      if(method==='DELETE'){await db.query('DELETE FROM votes WHERE voter=$1 AND target=$2',[a.id,target.id]);return {removed:true};}
+      if(!await canVoteForOwner(this.store,a.id,target.owner,a.country))fail(403,'COMPLETED_WORK_REQUIRED','Оценивать можно только после завершённого совместного заказа.');
       if(![-1,1].includes(b.value))fail(400,'VALIDATION_ERROR','Голос: 1 либо -1');
       await db.query('INSERT INTO votes(voter,target,value) VALUES($1,$2,$3) ON CONFLICT(voter,target) DO UPDATE SET value=excluded.value,created_at=now()',[a.id,target.id,b.value]);return {target_id:target.id,value:b.value};
     }
@@ -2318,7 +2320,7 @@ export class Marketplace {
           await this.store.put({...r,status:'erasing',version:r.version+1});
           const u=await this.store.get(r.owner);if(u)await this.store.put({id:u.id,kind:u.kind,owner:u.owner,country:u.country,created_at:u.created_at,phone:null,avatar_id:null,languages:[],roles:[],display_name:'Удалённый пользователь',city:'',status:'deleted',version:u.version+1},{skipContentCheck:true});
           await this.face.revoke(r.owner,r.country,'account_deleted');
-          await this.store.db.query('DELETE FROM credentials WHERE user_id=$1',[r.owner]);await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[r.owner]);
+          await eraseProfileViews(this.store,r.owner,r.country);await this.store.db.query('DELETE FROM credentials WHERE user_id=$1',[r.owner]);await this.store.db.query('UPDATE tokens SET revoked=true WHERE user_id=$1',[r.owner]);
           await this.store.db.query('DELETE FROM idempotency WHERE scope LIKE $1',[r.owner+':%']);
           for(const kind of ['contractor','portfolio','content_revision','contractor_edit_snapshot'])for(const {data:x} of (await this.store.db.query<{data:RecordData}>('SELECT data FROM records WHERE kind=$1 AND country=$2 AND owner=$3',[kind,r.country,r.owner])).rows)await anonymizeProfile(this.store,x);
           await revokeOptionalProcessing(this.store,r.owner,r.country,now);

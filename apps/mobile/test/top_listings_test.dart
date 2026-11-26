@@ -45,7 +45,8 @@ void main() {
               'display_name': 'Алексей К.',
               'likes': mine == 1 ? 4 : 3,
               'dislikes': 0,
-              'my_vote': mine
+              'my_vote': mine,
+              'can_vote':true
             }
           ]
         };

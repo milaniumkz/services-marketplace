@@ -1,3 +1,4 @@
+import {qualifiedVoteSql} from './listing-reactions';
 import {randomUUID} from 'node:crypto';
 import {editableContent} from './content-revisions';
 import {AsyncLocalStorage} from 'node:async_hooks';
@@ -63,6 +64,7 @@ export class Store {
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0017_direct_listing_publication.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0018_mobile_crash_reports.up.sql"), "utf8"));
     await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0019_limited_archive_retention.up.sql"), "utf8"));
+    await this.db.exec(readFileSync(resolve(__dirname, "../migrations/0020_profile_views_and_work_votes.up.sql"), "utf8"));
   }
   async all(kind: string, country?: string): Promise<RecordData[]> {
     const r = await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE kind=$1 AND ($2::text IS NULL OR country=$2) ORDER BY id', [kind, country==='ALL'?null:country ?? null]);
@@ -133,12 +135,13 @@ export class Store {
       const published="COALESCE(NULLIF(data->>'published_at','')::timestamptz,(data->>'created_at')::timestamptz)";
       const likes='COALESCE(vcounts.likes,0)',dislikes='COALESCE(vcounts.dislikes,0)';
       const score=`GREATEST(0,LN(1+${likes})-${alpha}::numeric*LN(1+${dislikes}))*EXP(-GREATEST(0,EXTRACT(EPOCH FROM(CURRENT_TIMESTAMP-${published}))/86400)/${decay}::numeric)`;
-      const mine=viewer?`(SELECT value FROM votes mine WHERE mine.voter=${viewer}::uuid AND mine.target=r.id)`:'NULL';
+      const eligible=viewer?qualifiedVoteSql(viewer,'r.owner','r.country'):'FALSE';
+      const mine=viewer?`(SELECT value FROM votes mine WHERE mine.voter=${viewer}::uuid AND mine.target=r.id AND mine.created_at>${cutoff}::timestamptz AND ${eligible})`:'NULL';
       const premium=kind==='contractor'?"CASE WHEN EXISTS(SELECT 1 FROM records entitlement WHERE entitlement.kind='grant' AND entitlement.country=r.country AND entitlement.owner=r.owner AND (entitlement.data->>'valid_until')::timestamptz>CURRENT_TIMESTAMP AND COALESCE(entitlement.data->'capabilities','[]'::jsonb) ? 'top100' AND (COALESCE(entitlement.data->>'requires_base','false')<>'true' OR EXISTS(SELECT 1 FROM records base_access WHERE base_access.kind='grant' AND base_access.country=r.country AND base_access.owner=r.owner AND (base_access.data->>'valid_until')::timestamptz>CURRENT_TIMESTAMP AND COALESCE(base_access.data->'capabilities','[]'::jsonb) ? 'publish_profile'))) THEN 0 ELSE 1 END,":'';
       const order=ranking.sort==='new'?`${published} DESC,r.id ASC`:`${score} DESC,${likes} DESC,${published} DESC,r.id ASC`;
-      const result=await this.db.query<{data:RecordData}>(`SELECT ${projection} || jsonb_build_object('likes',${likes},'dislikes',${dislikes},'organic_score',${score},'my_vote',${mine}) AS data FROM records r
+      const result=await this.db.query<{data:RecordData}>(`SELECT ${projection} || jsonb_build_object('likes',${likes},'dislikes',${dislikes},'organic_score',${score},'my_vote',${mine},'can_vote',${eligible}) AS data FROM records r
         LEFT JOIN(SELECT v.target,count(*) FILTER(WHERE v.value=1) AS likes,count(*) FILTER(WHERE v.value=-1) AS dislikes FROM votes v JOIN records target ON target.id=v.target
-          WHERE target.kind=$1 AND target.country=$2 AND v.created_at>${cutoff}::timestamptz AND v.voter::text<>target.owner GROUP BY v.target)vcounts ON vcounts.target=r.id
+          WHERE target.kind=$1 AND target.country=$2 AND v.created_at>${cutoff}::timestamptz AND ${qualifiedVoteSql('v.voter','target.owner','target.country')} GROUP BY v.target)vcounts ON vcounts.target=r.id
         WHERE ${where.join(' AND ')} ORDER BY ${premium}${order} LIMIT ${bind(options.limit??100)}`,args);
       return result.rows.map(row=>row.data);
     }

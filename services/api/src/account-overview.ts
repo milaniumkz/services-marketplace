@@ -1,3 +1,4 @@
+import {profileViewCounts} from './listing-reactions';
 import {Store} from './store';
 
 // Counts are computed before pagination and scoped to this account and region.
@@ -22,6 +23,7 @@ export async function accountOverview(store:Store, owner:string, country:string,
       (kind='invite' AND data->>'recipient_id'=$1) OR
       (kind='review' AND data->>'target_id'=$1))`,[owner,country,role??null])).rows[0];
   const profiles=await store.select('contractor',country,{owner,limit:1});
+  const views=await profileViewCounts(store,country,profiles.map(p=>p.id));
   return {
     orders:{active:Number(row.orders_active),open:Number(row.orders_open),draft:Number(row.orders_draft),completed:Number(row.orders_completed)},
     assigned_orders:{active:Number(row.assigned_active),completed:Number(row.assigned_completed)},
@@ -29,6 +31,6 @@ export async function accountOverview(store:Store, owner:string, country:string,
     portfolio:{published:Number(row.projects_published),pending:Number(row.projects_pending)},
     rating:{count:Number(row.reviews_count),average:row.reviews_average===null?null:Number(row.reviews_average)},
     subscription_until:row.subscription_until===null?null:new Date(row.subscription_until).toISOString(),
-    contractor:profiles[0]?{status:profiles[0].status,availability:profiles[0].availability??'available'}:null,
+    contractor:profiles[0]?{profile_views:views.get(profiles[0].id)??0,status:profiles[0].status,availability:profiles[0].availability??'available'}:null,
   };
 }
