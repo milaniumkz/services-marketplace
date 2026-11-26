@@ -1,3 +1,4 @@
+import {subscriptionDashboard} from './subscription-dashboard';
 import {Store} from './store';
 
 export async function operationsOverview(store:Store,country:string,days=7,now=new Date()) {
@@ -10,7 +11,7 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
       count(*) FILTER (WHERE kind='order' AND COALESCE(data->>'status','')<>'deleted') AS orders,
       count(*) FILTER (WHERE kind='order' AND data->>'published_at'>=$2 AND data->>'published_at'<=$3) AS published,
       count(*) FILTER (WHERE kind='order' AND data->>'completed_at'>=$2 AND data->>'completed_at'<=$3 AND data->>'status'='completed') AS completed,
-      count(*) FILTER (WHERE kind='subscription' AND data->>'status' IN ('active','grace','canceled_at_period_end') AND data->>'valid_until'>$3) AS subscriptions,
+      count(*) FILTER (WHERE kind='subscription' AND COALESCE(data->>'is_test','false')<>'true' AND COALESCE(data->>'environment','production')<>'sandbox' AND data->>'status' IN ('active','grace','canceled_at_period_end') AND data->>'valid_until'>$3) AS subscriptions,
       count(*) FILTER (WHERE kind='support' AND data->>'status' NOT IN ('resolved','closed')) AS support,
       count(*) FILTER (WHERE kind='support' AND data->>'status' NOT IN ('resolved','closed') AND data->>'assignee_id' IS NULL) AS unassigned_support,
       count(*) FILTER (WHERE kind='verification' AND data->>'status'='pending_review') AS verifications,
@@ -42,7 +43,7 @@ export async function operationsOverview(store:Store,country:string,days=7,now=n
     users:Number(counts.users),orders:Number(counts.orders),support:Number(counts.support),
     new_users:Number(counts.new_users),active_users:Number(active.total),published_orders:Number(counts.published),completed_orders:Number(counts.completed),active_subscriptions:Number(counts.subscriptions),
     attention:{support:Number(counts.support),unassigned_support:Number(counts.unassigned_support),verifications:Number(counts.verifications),cases:Number(counts.cases),outbox:Number(counts.outbox)},
-    series,checkout_enabled:false,
+    series,subscription_acquisitions:await subscriptionDashboard(store,country,from,now.toISOString()),checkout_enabled:false,
     definitions:{users:'Все неудалённые пользовательские аккаунты в выбранных странах, включая заблокированные; сотрудники не учитываются.',active_users:'Уникальные активные аккаунты, заходившие в приложение за период. Для старых данных также учитываются заказы, отклики, сообщения, отзывы и портфолио.',new_users:'Неудалённые пользовательские аккаунты, зарегистрированные за выбранный период; сотрудники не учитываются.',online_users:'Уникальные пользователи с активным соединением приложения сейчас; несколько устройств считаются одним человеком. При потере связи статус устаревает максимум за65секунд.',
       published_orders:'Заказы, опубликованные за период в текущей стране.',completed_orders:'Заказы, подтверждённые завершёнными за период.',
       active_subscriptions:'Подтверждённые подписки с действующим сроком и статусом доступа. Валюты разных стран не суммируются.'}};

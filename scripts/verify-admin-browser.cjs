@@ -60,6 +60,10 @@ async function main(){
   await page.getByRole('button',{name:'Продолжить',exact:true}).click();
   await page.waitForSelector('#staff-logout');assert.equal(await page.locator('.account b').textContent(),'Изолированный сотрудник');
   await page.locator('#dashboard-period').waitFor();
+  await page.locator('#subscription-acquisitions').getByRole('heading',{name:'Получение подписок',exact:true}).waitFor();
+  assert.equal(await page.locator('#subscription-acquisitions').getByRole('columnheader',{name:'Оплачено · период',exact:true}).count(),1);
+  assert.ok((await page.locator('#subscription-acquisitions').textContent()).includes('Подписки за рекламу'));
+  if(process.env.JOBA_ADMIN_DASHBOARD_ONLY){await page.locator('#dashboard-period').selectOption('30');await page.waitForFunction(()=>document.querySelector('#dashboard-period')?.value==='30');await page.locator('#subscription-acquisitions').getByRole('heading',{name:'Получение подписок',exact:true}).waitFor();console.log('Admin subscription dashboard and period selection passed');return;}
   if(process.env.JOBA_ADMIN_SUBSCRIPTION_ONLY){
   await page.goto(frontend+'/#user-detail?user_id='+applicant.user.id);
   await page.locator('#activate-subscription button').click();
