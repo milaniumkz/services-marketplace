@@ -60,14 +60,31 @@ export function staffApi({getSession,saveSession,getCountryScope=()=>undefined})
     const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',await file.arrayBuffer()))].map(b=>b.toString(16).padStart(2,'0')).join('');guard();
     const scope=original.user.id+':'+(country??getCountryScope()??original.user.country)+':'+purpose+':'+digest;
     let upload=pendingUploads.get(scope);
-    if(!upload){upload=await uploadRequest('/uploads/initiate','POST',{purpose,mime:file.type,size:file.size,content_sha256:digest});guard();pendingUploads.set(scope,upload);}
-    if(upload.status!=='clean'){
-      if(upload.status==='initiated'){await uploadRequest('/uploads/'+upload.id+'/content','PUT',file);guard();}
-      upload=await uploadRequest('/uploads/'+upload.id+'/finalize','POST');guard();pendingUploads.set(scope,upload);
-      if(upload.status!=='clean'){upload=await uploadRequest('/uploads/'+upload.id+'/metadata');guard();pendingUploads.set(scope,upload);}
-      if(['infected','rejected','failed'].includes(upload.status)){pendingUploads.delete(scope);throw error('Файл не прошёл проверку. Выберите другое изображение.','FILE_REJECTED',422);}
-      if(upload.status!=='clean')throw error('Исходник ещё не прошёл проверку','SCANNER_UNAVAILABLE',503);
+    const remember=result=>{guard();upload={...upload,...result};pendingUploads.set(scope,upload);return upload;};
+    const metadata=()=>uploadRequest('/uploads/'+upload.id+'/metadata').then(remember);
+    // A retry must use the server's state: the previous response may have been lost.
+    if(upload)await metadata();
+    else remember(await uploadRequest('/uploads/initiate','POST',{purpose,mime:file.type,size:file.size,content_sha256:digest}));
+    if(upload.status==='initiated'){
+      try{remember(await uploadRequest('/uploads/'+upload.id+'/content','PUT',file));}
+      catch(failure){
+        if(!['NETWORK_ERROR','INVALID_RESPONSE','STATE_CONFLICT'].includes(failure.code))throw failure;
+        await metadata();if(upload.status==='initiated')throw failure;
+      }
     }
+    if(upload.status==='uploaded'){
+      try{remember(await uploadRequest('/uploads/'+upload.id+'/finalize','POST'));}
+      catch(failure){
+        if(!['NETWORK_ERROR','INVALID_RESPONSE','STATE_CONFLICT','SCANNER_UNAVAILABLE'].includes(failure.code))throw failure;
+        await metadata();if(upload.status==='uploaded')throw failure;
+      }
+    }
+    const deadline=Date.now()+90000;
+    while(['processing','scanning'].includes(upload.status)&&Date.now()<deadline){
+      await new Promise(resolve=>setTimeout(resolve,1500));guard();await metadata();
+    }
+    if(['infected','rejected','failed'].includes(upload.status)){pendingUploads.delete(scope);throw error('Файл не прошёл проверку. Выберите другое изображение.','FILE_REJECTED',422);}
+    if(upload.status!=='clean')throw error('Файл загружен и ещё проверяется. Повторите проверку чуть позже — заново загружать файл не нужно.','UPLOAD_PROCESSING',503);
     return upload;
   };
   return api;

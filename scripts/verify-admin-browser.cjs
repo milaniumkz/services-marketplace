@@ -37,7 +37,7 @@ async function main(){
   browser=await chromium.launch({executablePath:process.env.JOBA_CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
   page=await browser.newPage({viewport:{width:1440,height:1000}});
   // Redirect transport to an isolated real HTTP API; response data are never mocked.
-  let failSupportPhotoUpload=false,lostThreadResponse=false,lostDraftResponse=false,lostReplyResponse=false,lostBannerResponse=false,bannerCreateRequests=0,releaseBannerResponse;
+  let loseSupportFinalize=false,failSupportPhotoUpload=false,lostThreadResponse=false,lostDraftResponse=false,lostReplyResponse=false,lostBannerResponse=false,bannerCreateRequests=0,releaseBannerResponse;
   const bannerResponseGate=new Promise(resolve=>{releaseBannerResponse=resolve;});
   let holdBannerPreview=false,releaseOldPreview,notifyOldPreviewHeld;
   const oldPreviewGate=new Promise(resolve=>{releaseOldPreview=resolve;}),oldPreviewHeld=new Promise(resolve=>{notifyOldPreviewHeld=resolve;});
@@ -45,6 +45,7 @@ async function main(){
    const request=route.request(),url=new URL(request.url());
    if(failSupportPhotoUpload&&request.method()==='POST'&&url.pathname==='/api/v1/uploads/initiate'){failSupportPhotoUpload=false;await route.abort('failed');return;}
    const response=await fetch(origin+url.pathname+url.search,{method:request.method(),headers:request.headers(),body:['GET','HEAD'].includes(request.method())?undefined:request.postDataBuffer()});
+   if(loseSupportFinalize&&request.method()==='POST'&&url.pathname.endsWith('/finalize')&&response.ok){loseSupportFinalize=false;await response.text();await route.abort('failed');return;}
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/monetization-configs'&&response.ok&&!lostDraftResponse){lostDraftResponse=true;await response.text();await route.abort('failed');return;}
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/support-threads'&&response.ok&&!lostThreadResponse){lostThreadResponse=true;await response.text();await route.abort('failed');return;}
    if(request.method()==='POST'&&url.pathname==='/api/v1/admin/support-threads/'+supportThread.id+'/messages'&&response.ok&&!lostReplyResponse){lostReplyResponse=true;await response.text();await route.abort('failed');return;}
@@ -425,6 +426,7 @@ async function main(){
   await page.waitForTimeout(5500);
   assert.ok(await page.locator('#support-feedback[role=alert]').isVisible());
   assert.ok(await page.locator('#support-reply-attachments').filter({hasText:'support-photo.png'}).isVisible());
+  loseSupportFinalize=true;
   await page.getByRole('button',{name:'Повторить загрузку',exact:true}).click();
   await page.locator('#support-feedback').filter({hasText:'Вложения готовы к отправке'}).waitFor();
   assert.equal(await page.locator('#support-reply-files').evaluate(input=>input.files.length),1);
