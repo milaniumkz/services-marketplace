@@ -1,0 +1,40 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
+const {Store}=require('../dist/store'),{subscriptionDashboard}=require('../dist/subscription-dashboard');
+test('dashboard counts only real subscription acquisitions, deduplicates bank events and scopes countries/time',async()=>{
+ const store=new Store('memory://');await store.initialize();
+ try{
+ const owner=randomUUID(),now='2026-11-26T12:00:00.000Z',recent='2026-11-25T10:00:00.000Z',from='2026-11-20T00:00:00.000Z';
+ const put=(kind,data={},country='KZ')=>store.put({id:randomUUID(),kind,owner,country,version:1,created_at:recent,...data});
+ const sub=await put('subscription',{provider:'bcc',status:'active'});
+ const tx={provider:'bcc',transaction_id:'bank-1',source_id:sub.id,benefit:'subscription',operation:'purchase',environment:'production',state:'active',cash_amount_minor:10000};
+ await put('payment_transaction',tx);await put('payment_transaction',{...tx,created_at:'2026-11-25T11:00:00.000Z'});
+ await put('payment_transaction',{...tx,transaction_id:'renewal',operation:'renewal',created_at:'2026-10-01T00:00:00.000Z'});
+ for(const change of [{environment:'sandbox'},{is_test:true},{cash_amount_minor:0},{state:'pending'},{benefit:'boost'},{operation:'refund'},{resolution_required:true},{source_id:randomUUID()}])await put('payment_transaction',{...tx,...change,transaction_id:randomUUID()});
+ const revoked=await put('subscription',{status:'revoked'});await put('payment_transaction',{...tx,source_id:revoked.id,transaction_id:'revoked'});
+ const ru=await put('subscription',{provider:'vtb',status:'expired'},'RU');await put('payment_transaction',{...tx,provider:'vtb',source_id:ru.id,transaction_id:'russia'},'RU');
+ await put('subscription',{provider:'rewarded_ads',status:'active'});
+ await put('subscription',{provider:'yandex_web_ads',status:'expired',created_at:'2026-10-01T00:00:00.000Z'});
+ await put('subscription',{provider:'rewarded_ads',status:'scheduled'},'KG');
+ for(const change of [{is_test:true},{environment:'sandbox'},{status:'pending'},{status:'revoked'},{provider:'referral'}])await put('subscription',{provider:'rewarded_ads',status:'active',...change});
+ await put('web_ad_session',{status:'completed'});await put('bank_checkout',{status:'pending'});
+ const all=await subscriptionDashboard(store,'ALL',from,now);
+ assert.deepEqual(all.period,{paid:2,rewarded:2});assert.deepEqual(all.all_time,{paid:3,rewarded:3});
+ assert.deepEqual(all.by_country.map(r=>r.country),['KZ','KG','RU','BY']);
+ assert.deepEqual(all.by_country.find(r=>r.country==='BY'),{country:'BY',paid:0,rewarded:0,paid_all_time:0,rewarded_all_time:0});
+ const kz=await subscriptionDashboard(store,'KZ',from,now);assert.equal(kz.by_country.length,1);assert.deepEqual(kz.period,{paid:1,rewarded:1});assert.deepEqual(kz.all_time,{paid:2,rewarded:2});
+ const top=await put('subscription',{provider:'bcc',status:'active',plan:'standard',price_snapshot:{plan:'top100'}});
+ await put('payment_transaction',{...tx,source_id:top.id,transaction_id:'top-100'});
+ await put('payment_transaction',{...tx,source_id:top.id,transaction_id:'top-100',created_at:'2026-11-25T11:00:00.000Z'});
+ await put('subscription',{provider:'rewarded_ads',status:'active',plan:'top100'});
+ await put('subscription',{provider:'rewarded_ads',status:'expired',price_snapshot:{plan:'top100'},created_at:'2026-10-01T00:00:00.000Z'},'BY');
+ await put('subscription',{provider:'rewarded_ads',status:'active',plan:'premium'});
+ await put('subscription',{provider:'rewarded_ads',status:'active',plan:'top100',is_test:true});
+ const separated=await subscriptionDashboard(store,'ALL',from,now);
+ assert.deepEqual(separated.breakdown.top100.period,{paid:1,rewarded:1});
+ assert.deepEqual(separated.breakdown.top100.all_time,{paid:1,rewarded:2});
+ assert.deepEqual(separated.breakdown.subscriptions.period,{paid:2,rewarded:3});
+ assert.deepEqual(separated.breakdown.subscriptions.all_time,{paid:3,rewarded:4});
+ for(const channel of ['paid','rewarded'])for(const period of ['period','all_time'])assert.equal(separated[period][channel],separated.breakdown.top100[period][channel]+separated.breakdown.subscriptions[period][channel]);
+ const regional=await subscriptionDashboard(store,'BY',from,now);assert.deepEqual(regional.breakdown.top100.period,{paid:0,rewarded:0});assert.deepEqual(regional.breakdown.top100.all_time,{paid:0,rewarded:1});assert.equal(regional.breakdown.top100.by_country.length,1);
+ }finally{await store.close();}
+});

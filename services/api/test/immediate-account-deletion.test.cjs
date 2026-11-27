@@ -1,0 +1,42 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
+const {Marketplace}=require('../dist/marketplace'),{Store}=require('../dist/store');
+const {purgeExpiredAccountArchives}=require('../dist/immediate-account-deletion');
+test('immediate deletion revokes access, releases the phone and seals a bounded archive without copying identity documents',async()=>{
+ const app=new Marketplace(new Store('memory://'));await app.initialize();
+ try{
+  const password='Isolated deletion password 43!',phone='+77000000887';
+  const session=await app.handle('POST','/auth/register',{country:'KZ',phone,password},undefined,randomUUID());
+  const owner=session.user.id,now=new Date().toISOString();
+  await app.store.put({id:randomUUID(),kind:'retention_policy',owner:'operator',country:'KZ',version:1,created_at:now,status:'effective',payload:{account_removal:'immediate',legal_archive_years:3}});
+  await app.store.put({id:randomUUID(),kind:'contractor',owner,country:'KZ',version:1,created_at:now,status:'published',description:'private profile',city:'Алматы'});
+  await app.store.put({id:randomUUID(),kind:'profile_view',owner,country:'KZ',version:1,created_at:now,target_id:randomUUID()});
+  await assert.rejects(()=>app.handle('POST','/me/privacy-requests',{type:'delete',current_password:'incorrect'},'Bearer '+session.access_token,randomUUID()));
+  assert.equal((await app.store.get(owner)).status,'active');assert.equal((await app.store.all('account_legal_archive')).length,0);
+  await assert.rejects(()=>app.handle('GET','/admin/account-archives',{},'Bearer '+session.access_token));
+  const original=app.store.put.bind(app.store);
+  app.store.put=async r=>{if(r.kind==='privacy'&&r.account_deleted)throw Error('isolated rollback test');return original(r);};
+  await assert.rejects(()=>app.handle('POST','/me/privacy-requests',{type:'delete',current_password:password},'Bearer '+session.access_token,randomUUID()),/isolated rollback test/);
+  app.store.put=original;assert.equal((await app.store.get(owner)).status,'active');assert.equal((await app.store.all('account_legal_archive')).length,0);
+  await app.handle('GET','/me',{},'Bearer '+session.access_token);
+  const result=await app.handle('POST','/me/privacy-requests',{type:'delete',current_password:password},'Bearer '+session.access_token,randomUUID());
+  assert.equal(result.account_deleted,true);assert.equal((await app.store.get(owner)).phone,null);
+  await assert.rejects(()=>app.handle('GET','/me',{},'Bearer '+session.access_token));
+  await assert.rejects(()=>app.handle('POST','/auth/login',{country:'KZ',phone,password}));
+  const archive=(await app.store.all('account_legal_archive'))[0];assert.equal(archive.owner,'operator');assert.equal(archive.phone,undefined);assert.ok(archive.sealed_identity.startsWith('v1.'));
+  const identity=JSON.parse(await app.files.unsealSecret(archive.sealed_identity,'account-archive:'+archive.id));assert.equal(identity.phone,phone);assert.equal(identity.password,undefined);assert.equal(identity.document_refs,undefined);
+  const boss=await app.handle('POST','/auth/register',{country:'KZ',phone:'+77000000886',password});
+  await app.store.put({...await app.store.get(boss.user.id),staff_permissions:['platform_owner']});
+  const staff=await app.handle('POST','/auth/staff-login',{country:'KZ',phone:'+77000000886',password});
+  const call=(path,q={})=>app.handle('GET',path,{},'Bearer '+staff.access_token,undefined,q);
+  const listing=await call('/admin/account-archives');assert.equal(listing.items[0].sealed_identity,undefined);assert.equal(listing.items[0].subject_user_id,owner);
+  await assert.rejects(()=>call('/admin/account-archives/'+archive.id));
+  const detail=await call('/admin/account-archives/'+archive.id,{reason:'Isolated lawful archive access test'});assert.equal(detail.identity.phone,phone);
+  assert.ok((await app.store.all('audit','KZ')).some(r=>r.action==='privacy.archive_identity_read'));
+  assert.equal((await app.store.all('contractor'))[0].description,undefined);
+  assert.equal((await app.store.all('profile_view','KZ')).length,0);
+  const later=new Date(archive.expires_at);later.setUTCDate(later.getUTCDate()+1);
+  const hold={id:randomUUID(),kind:'legal_hold',owner:'operator',country:'KZ',version:1,created_at:now,subject_user_id:owner,status:'active'};await app.store.put(hold);
+  await purgeExpiredAccountArchives(app.store,later);assert.equal((await app.store.get(archive.id)).status,'retained');
+  await app.store.put({...hold,status:'released',version:2});await purgeExpiredAccountArchives(app.store,later);assert.equal((await app.store.get(archive.id)).sealed_identity,undefined);
+ }finally{await app.store.close();}
+});

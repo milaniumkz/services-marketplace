@@ -1,0 +1,27 @@
+{
+  "checked_at": "2026-11-02T07:21:25.419001+00:00",
+  "source_commit": "391a016c7579ab19f4b0b7fd9e36bb579659e50c",
+  "https_verified": true,
+  "five_frame_sequence_published": true,
+  "speech_synthesis_and_voice_toggle_published": true,
+  "female_russian_voice_preferred_when_available": true,
+  "detector_scales": [
+    640,
+    320
+  ],
+  "face_sequence_version": 2,
+  "private_face_model_ready": true,
+  "real_user_biometrics_enrolled_or_password_reset": false,
+  "liveness_or_pose_action_validation": false,
+  "apk_built": false,
+  "workflow_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/41404119928",
+  "workflow_conclusion": "success",
+  "api_tests_passed": 198,
+  "flutter_tests_passed": 288,
+  "flutter_tests_skipped": 2,
+  "browser_tests_passed": 20,
+  "real_model_tests_passed": 6,
+  "flutter_analysis": "no issues",
+  "credential_envelope_branch_deleted": true,
+  "temporary_plaintext_credential_removed": true
+}

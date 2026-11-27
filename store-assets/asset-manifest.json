@@ -1,0 +1,163 @@
+{
+  "screenshots/apple-iphone-6.9/01-find.png": {
+    "sha256": "046d7ce69cadb55bdf4030cf651703fd479aae9844922aa471677201ade6f7a3",
+    "dimensions": [
+      1320,
+      2868
+    ]
+  },
+  "screenshots/apple-iphone-6.9/02-search.png": {
+    "sha256": "bc9ebe36e12d8ac1b7f4095ff28fc8858f9b5264daa23406d9dd56ff47bb9034",
+    "dimensions": [
+      1320,
+      2868
+    ]
+  },
+  "screenshots/apple-iphone-6.9/03-orders.png": {
+    "sha256": "83e57f0b86ad367be6cf9dea32d0082fd91da53093b8a2a72e04c58cd94045b7",
+    "dimensions": [
+      1320,
+      2868
+    ]
+  },
+  "screenshots/apple-iphone-6.9/04-work.png": {
+    "sha256": "562c6027bcc9b8ea898164ab2b98b4708b35f300b76fc9ac66b19d003ed0c169",
+    "dimensions": [
+      1320,
+      2868
+    ]
+  },
+  "screenshots/apple-iphone-6.9/05-profile.png": {
+    "sha256": "69553ccc14b8aa8d178caab29fd88c489d3c3ea7967c90dab15d126f376f15ab",
+    "dimensions": [
+      1320,
+      2868
+    ]
+  },
+  "screenshots/apple-iphone-6.3/01-find.png": {
+    "sha256": "43c7fdd72f8b6dc9a2d6dd0f0dc36dc2014168397fcd4dbd6e257cdc621e66c4",
+    "dimensions": [
+      1206,
+      2622
+    ]
+  },
+  "screenshots/apple-iphone-6.3/02-search.png": {
+    "sha256": "07e6a68650d6d771fa5952b832bb85760e611370b116a11bdbd5fabc00c6b122",
+    "dimensions": [
+      1206,
+      2622
+    ]
+  },
+  "screenshots/apple-iphone-6.3/03-orders.png": {
+    "sha256": "dc511fe9cdc21d8c440b3fd65e8e19c0d6b477053eb16db1c2597bfad77dbc2c",
+    "dimensions": [
+      1206,
+      2622
+    ]
+  },
+  "screenshots/apple-iphone-6.3/04-work.png": {
+    "sha256": "15d54f990b4bf2365e9a7688a86d4142e41ba55e7951cdc2b20d594761a6cb07",
+    "dimensions": [
+      1206,
+      2622
+    ]
+  },
+  "screenshots/apple-iphone-6.3/05-profile.png": {
+    "sha256": "36ef535c4841607d9b6c93700fc1388630a832acfe097023844d6c2ba6072c19",
+    "dimensions": [
+      1206,
+      2622
+    ]
+  },
+  "screenshots/google-phone/01-find.png": {
+    "sha256": "afae94784b1d3457784f3ec18625c3e283ffc4a1a1b4b99a56553ef71fe233a8",
+    "dimensions": [
+      1080,
+      1920
+    ]
+  },
+  "screenshots/google-phone/02-search.png": {
+    "sha256": "eef3c574b4dbfc19c4b03d93c312228a9f2b757929f2f2186e9db562b559925c",
+    "dimensions": [
+      1080,
+      1920
+    ]
+  },
+  "screenshots/google-phone/03-orders.png": {
+    "sha256": "0a6f43dba74e16bdb4a020a61ab1dd55ff2a1f394cefbe2b18f42d0008ca52b7",
+    "dimensions": [
+      1080,
+      1920
+    ]
+  },
+  "screenshots/google-phone/04-work.png": {
+    "sha256": "57dfd89f0b4b6e1fc73849fe5d04611432dc9703f1e7ceaf4797a9731681b60e",
+    "dimensions": [
+      1080,
+      1920
+    ]
+  },
+  "screenshots/google-phone/05-profile.png": {
+    "sha256": "e784cd285bcab781a7073adf8184cf4f77cb744ae6f04410dc11d88499bea8c9",
+    "dimensions": [
+      1080,
+      1920
+    ]
+  },
+  "screenshots/apple-ipad-13/01-find.png": {
+    "sha256": "7c48927c9a56847dfc73539ec5d699aa828624c1b730e849a93e714112aaeac3",
+    "dimensions": [
+      2064,
+      2752
+    ]
+  },
+  "screenshots/apple-ipad-13/02-search.png": {
+    "sha256": "71a77bb852d6daf45763d9ce129c4756f8bccf9eca3c2e23f44b1ba2edb687d7",
+    "dimensions": [
+      2064,
+      2752
+    ]
+  },
+  "screenshots/apple-ipad-13/03-orders.png": {
+    "sha256": "e390430a9d7c7bbfea3e78d910e772079226a66785018dc0f45cce64f7cd22c0",
+    "dimensions": [
+      2064,
+      2752
+    ]
+  },
+  "screenshots/apple-ipad-13/04-work.png": {
+    "sha256": "175d4127944dfe445b1a3bc1890f2b8b48720414e74c81ccf387ffc0c2775f86",
+    "dimensions": [
+      2064,
+      2752
+    ]
+  },
+  "screenshots/apple-ipad-13/05-profile.png": {
+    "sha256": "68e38364dba2c7a9fb15fdff6d5bf50a00b510081682f54a92537866559ea0b4",
+    "dimensions": [
+      2064,
+      2752
+    ]
+  },
+  "graphics/app-store-1024.png": {
+    "sha256": "d81db623d8082978ea4b5cbfa360ea1ff75f9e02071e202a50296c2093e53864",
+    "dimensions": [
+      1024,
+      1024
+    ]
+  },
+  "graphics/google-play-512.png": {
+    "sha256": "39d7c8859d54c46f94ce750685b3bdff34ffb514a43e5d0491a51ef8c8812781",
+    "dimensions": [
+      512,
+      512
+    ]
+  },
+  "graphics/google-feature-1024x500.png": {
+    "sha256": "acd0b87f33653528d8248037ff8b3a616782659d68e5f614fca3e41c37b5ceae",
+    "dimensions": [
+      1024,
+      500
+    ]
+  }
+}

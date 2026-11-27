@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /app/
+Sitemap: https://joba.com.kz/sitemap.xml

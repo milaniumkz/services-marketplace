@@ -1,0 +1,17 @@
+{
+  "android": {
+    "apiKey": "AIzaSyAsus8-lR82q5VLaVDxYHaakiVwX4Ll4xM",
+    "appId": "1:105743015687:android:e7cb2c8c5d96372d90efa2",
+    "messagingSenderId": "105743015687",
+    "projectId": "joba-832c7",
+    "storageBucket": "joba-832c7.firebasestorage.app"
+  },
+  "web": {
+    "apiKey": "AIzaSyCGug-PFrdrZEndT1UJsKAQg_VmvUDaOOY",
+    "authDomain": "joba-832c7.firebaseapp.com",
+    "projectId": "joba-832c7",
+    "storageBucket": "joba-832c7.firebasestorage.app",
+    "messagingSenderId": "105743015687",
+    "appId": "1:105743015687:web:06bcb8e8870495ce90efa2"
+  }
+}

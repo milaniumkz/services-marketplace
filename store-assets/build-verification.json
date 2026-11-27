@@ -1,0 +1,68 @@
+{
+  "source_commit": "3b540f0",
+  "version": "1.0.0",
+  "build": 2,
+  "android": {
+    "package": "kz.joba.services_marketplace",
+    "target_api": 36,
+    "min_api": 24,
+    "upload_signature_verified": true,
+    "sha256": "7ed47fe72379d6cfc244aa4e5778e472c221ff70c9d1a1a8f50f095b94818118"
+  },
+  "ios": {
+    "bundle_id": "kz.joba.servicesMarketplace",
+    "team_id": "Z3NZN92Y7P",
+    "unsigned_release_build": "passed",
+    "signed_archive": "passed",
+    "distribution_ipa_export": "passed",
+    "sha256": "20309c75c2d02c5ad38fc233f6701bcb3adc48098af9af6eed5c8e59b66f994b",
+    "app_store_connect_upload": "succeeded",
+    "review_status": "WAITING_FOR_REVIEW"
+  },
+  "flutter_analyze": "passed",
+  "initial_widget_tests": {
+    "passed": 292,
+    "skipped": 2,
+    "failed": 2
+  },
+  "failed_tests_fixed_and_rerun": [
+    "design_flow_test.dart",
+    "portfolio_photos_test.dart"
+  ],
+  "store_submitted": {
+    "apple": true,
+    "google": true
+  },
+  "current_release": {
+    "version": "1.0.0",
+    "build": 2,
+    "edition": "free mobile",
+    "backend_tests": "passed",
+    "native_capture": "passed",
+    "deployment": "succeeded",
+    "source_commit": "3b540f0",
+    "android_sha256": "7ed47fe72379d6cfc244aa4e5778e472c221ff70c9d1a1a8f50f095b94818118",
+    "android_bundle": "passed",
+    "ios_release_build": "passed",
+    "demo_login": "passed",
+    "api_free_core_access": true,
+    "ios_archive": "passed",
+    "ios_upload": "succeeded",
+    "apple_submission": "waiting for review",
+    "deployment_run": "https://github.com/milaniumkz/services-marketplace/actions/runs/41427061622",
+    "google_submission": "changes in review; production release build 2"
+  },
+  "previous_build": 1,
+  "google": {
+    "review_status": "CHANGES_IN_REVIEW",
+    "track": "production",
+    "build": 2,
+    "managed_publishing": false,
+    "countries": [
+      "KZ",
+      "KG",
+      "RU",
+      "BY"
+    ]
+  }
+}
