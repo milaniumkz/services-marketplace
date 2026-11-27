@@ -649,6 +649,8 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                       if(offer['starts_at']!=null)checkoutFact('Начало нового периода',DateFormat('dd.MM.yyyy HH:mm').format(DateTime.parse(offer['starts_at']).toLocal())),
                       if(offer['discount_percent'] is num&&offer['discount_percent']>0)checkoutFact('Персональная скидка','${offer['discount_percent']}%'),
                       checkoutFact(offer['offer_kind']=='downgrade'?'К оплате за новые 30 дней':'Цена', money(offer)),
+                      if(offer['bank_settlement'] is Map)checkoutFact('На странице банка', money({'amount_minor':offer['bank_settlement']['bank_amount_minor'],'currency':offer['bank_settlement']['bank_currency']})),
+                      if(offer['bank_settlement'] is Map&&offer['bank_settlement']['rate']!=null)checkoutFact('Курс НБ РК','${offer['bank_settlement']['rate']} ₸ / ${offer['bank_settlement']['units']} ${offer['currency']} · ${offer['bank_settlement']['rate_date']}'),
                       checkoutFact(
                           'Продление',
                           offer['is_test'] == true
@@ -662,6 +664,7 @@ class _CommerceStateScreenState extends State<CommerceStateScreen> {
                     style: TextStyle(fontSize: 12, height: 1.5, color: muted)),
                 const SizedBox(height: 20),
               ],
+              if(offer?['bank_settlement'] is Map&&offer?['bank_settlement']['rate']!=null)const Notice('Банк спишет тенге по официальному курсу НБ РК. Курс и сумма зафиксированы до оплаты. Банк карты может применить свой курс и комиссию.'),
               if(offer?['bank_test']==true)const Notice('Тестовая оплата на странице банка. Реальные деньги не списываются; используйте тестовые карты банка.'),
               if (offer?['is_test'] == true)
                 const Notice(

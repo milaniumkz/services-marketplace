@@ -1,8 +1,10 @@
+import {eventNetworkLocation} from './ip-geolocation';
 import {Store, RecordData} from './store';
 
 export function securityEventSummary(event:RecordData) {
   return {id:event.id,owner:event.owner,country:event.country,version:event.version,
-    event:event.event,screen:event.screen,method:event.method,action_path:event.action_path,target_id:event.target_id,created_at:event.created_at,occurred_at:event.occurred_at,mfa:event.mfa,
+    network_location:eventNetworkLocation(event),
+    event:event.event,auth_action:event.auth_action,screen:event.screen,method:event.method,action_path:event.action_path,target_id:event.target_id,created_at:event.created_at,occurred_at:event.occurred_at,mfa:event.mfa,
     ip_summary:typeof event.ip==='string'&&/^\d{1,3}(\.\d{1,3}){3}$/.test(event.ip)
       ?event.ip.split('.').slice(0,2).join('.')+'.*.*':'Не раскрывается'};
 }

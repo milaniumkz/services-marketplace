@@ -115,6 +115,7 @@ const password = (b: any, name: string,min=6) => {
 const safeUser = (u: RecordData) => ({id:u.id,display_name:u.display_name,city:u.city,country:u.country,roles:u.roles,locale:u.locale,languages:u.languages??[u.locale??'ru'],active_role:u.active_role??'customer',avatar_id:u.avatar_id,verification:u.verification,created_at:u.created_at});
 type Actor = { id: string; country: string; family: string; user: RecordData; mfa: boolean };
 export class Marketplace {
+  private readonly requestUserAgent = new AsyncLocalStorage<string>();
   private readonly releaseChannel = new AsyncLocalStorage<string>();
   readonly events=new EventEmitter().setMaxListeners(0);
   private uploadTasks=new Map<string,Promise<any>>();
@@ -146,7 +147,7 @@ export class Marketplace {
     if(process.env.JOBA_PDFTOPPM_PATH)providers.pdfSanitizer=new PopplerPdfSanitizer();
   }
   async initialize() { await this.store.initialize();await seedReferenceData(this.store);await refreshPublicServiceInformation(this.store);await refreshVerificationWording(this.store);await publishOwnerActivityCodes(this.store);await publishSavedGalleries(this.store); }
-  private record(kind: string, actor: {id:string;country:string}, data: any = {}): RecordData { return {...data,id:randomUUID(),kind,owner:actor.id,country:actor.country,version:1,created_at:new Date().toISOString()}; }
+  private record(kind: string, actor: {id:string;country:string}, data: any = {}): RecordData { return {...(kind==='security_event'?{user_agent:this.requestUserAgent.getStore()||undefined}:{}),...data,id:randomUUID(),kind,owner:actor.id,country:actor.country,version:1,created_at:new Date().toISOString()}; }
   private async limited(key:string,max=20){
     const scope=await this.files.requestDigest('rate-limit:'+key);
     const result=await this.store.db.query<any>(`INSERT INTO rate_limits(scope_hash,window_start,attempts) VALUES($1,CURRENT_TIMESTAMP,1)
@@ -156,13 +157,13 @@ export class Marketplace {
       RETURNING attempts,GREATEST(1,CEIL(EXTRACT(EPOCH FROM (window_start+INTERVAL '60 seconds'-CURRENT_TIMESTAMP))))::int AS retry_after_seconds`,[scope]);
     if(result.rows[0].attempts>max)fail(429,'RATE_LIMITED','Слишком много попыток. Повторите позже.',{retry_after_seconds:result.rows[0].retry_after_seconds});
   }
-  private async tokens(user: RecordData, family=randomUUID(), mfa=false,ip='unknown') {
+  private async tokens(user: RecordData, family=randomUUID(), mfa=false,ip='unknown',authAction='credentials_issued') {
     const settings=await this.settings(user.country);
     const access=randomBytes(32).toString('base64url'), refresh=randomBytes(48).toString('base64url');
     for (const [value,kind,ttl] of [[access,'access',settings.access_seconds],[refresh,'refresh',settings.refresh_days*86400]] as const) {
       await this.store.db.query('INSERT INTO tokens(hash,family,user_id,country,kind,expires_at,mfa_verified) VALUES($1,$2,$3,$4,$5,$6,$7)',[digest(value),family,user.id,user.country,kind,new Date(Date.now()+ttl*1000).toISOString(),mfa]);
     }
-    await this.store.put(this.record('security_event',{id:user.id,country:user.country},{event:'session.credentials_issued',ip,session_family:family,mfa,occurred_at:new Date().toISOString()}));
+    await this.store.put(this.record('security_event',{id:user.id,country:user.country},{event:'session.credentials_issued',auth_action:authAction,ip,session_family:family,mfa,occurred_at:new Date().toISOString()}));
     return {access_token:access,refresh_token:refresh,expires_in:settings.access_seconds,user:{...safeUser(user),phone:user.phone,phone_status:'unverified',...(user.staff_permissions?.length?{staff_permissions:user.staff_permissions}:{} )}};
   }
   private async actor(authorization?: string): Promise<Actor> {
@@ -249,8 +250,8 @@ export class Marketplace {
     const has=(a.user.staff_access_mode==='managed'&&permission==='administrator')||a.user.staff_permissions?.includes(permission)||(!['identity_view','verification_reviewer','bulk_restrict'].includes(permission)&&a.user.staff_permissions?.includes('administrator'));
     if(!has||!a.mfa||a.user.status!=='active')fail(403,'FORBIDDEN','Недостаточно служебных прав или MFA');
   }
-  async handle(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local', clientChannel='web') {
-    return this.releaseChannel.run(clientChannel,()=>this.handleInChannel(method,path,body,authorization,key,query,ip));
+  async handle(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local', clientChannel='web',userAgent='') {
+    return this.requestUserAgent.run(String(userAgent).replace(/[\x00-\x1f\x7f]/g,'').slice(0,512),()=>this.releaseChannel.run(clientChannel,()=>this.handleInChannel(method,path,body,authorization,key,query,ip)));
   }
   private async handleInChannel(method: string, path: string, body: any={}, authorization?: string, key?: string, query: any={}, ip='local') {
     if(path.startsWith('/auth/')||path.startsWith('/public/')&&!path.startsWith('/public/recovery-threads')||path.startsWith('/webhooks/'))key=undefined;
@@ -294,6 +295,11 @@ export class Marketplace {
         // Refresh replay must durably revoke the entire family, even when rejected.
         if(e instanceof HttpException && (e.getResponse() as any)?.error?.code==='REFRESH_REPLAY')await this.store.db.exec('COMMIT');
         else await this.store.db.exec('ROLLBACK');
+        if(['/auth/login','/auth/staff-login'].includes(path)&&e instanceof HttpException&&(e.getResponse() as any)?.error?.code==='INVALID_CREDENTIALS'){
+          const c=(await this.store.db.query<any>('SELECT user_id FROM credentials WHERE country=$1 AND lower(phone)=lower($2)',[String(body.country),String(body.phone).trim()])).rows[0];
+          const u=c?await this.store.get(c.user_id):undefined;
+          if(u&&u.status!=='deleted')await this.store.put(this.record('security_event',{id:u.id,country:u.country},{event:'auth.login_failed',ip,occurred_at:new Date().toISOString()}));
+        }
         if(path==='/auth/login'&&e instanceof HttpException&&(e.getResponse() as any)?.error?.code==='INVALID_CREDENTIALS'){
           const challenge=await this.face.failedLogin(body);if(challenge){const response=(e.getResponse() as any);throw new HttpException({...response,error:{...response.error,details:{...response.error.details,face_recovery:challenge}}},401);}
         }
@@ -418,7 +424,7 @@ export class Marketplace {
       const u=this.record('user',{id:'',country},{phone,phone_status:'unverified',display_name:b.display_name===undefined?'':text(b,'display_name',2,60),locale,city:'',roles:['customer'],verification:'not_started',status:'active'});u.owner=u.id;
       await this.store.put(u);await db.query('INSERT INTO credentials(country,phone,user_id,password_hash) VALUES($1,$2,$3,$4)',[country,phone,u.id,await hash(secret,{memoryCost:19456,timeCost:2,parallelism:1})]);
       if(this.face.engine.enabled)await this.face.clearLogin(u.id);
-      return this.tokens(u,randomUUID(),false,ip);
+      return this.tokens(u,randomUUID(),false,ip,'registered');
     }
     if(['/auth/login','/auth/staff-login'].includes(path)&&method==='POST') {
       if(!countryEnabled(b.country))fail(401,'INVALID_CREDENTIALS','Неверный номер или пароль');
@@ -435,11 +441,11 @@ export class Marketplace {
         // The owner explicitly selected username/password staff authentication.
         // Retain the separate privileged session marker and role enforcement.
         if(u!.status!=='active'||!effective.staff_permissions?.length||(effective.staff_access_mode==='managed'&&!effective.staff_grants?.length))fail(401,'INVALID_CREDENTIALS','Неверный логин или пароль');
-        return this.tokens(effective,randomUUID(),true,ip);
+        return this.tokens(effective,randomUUID(),true,ip,'staff_login');
       }
       if(u!.staff_permissions?.length)fail(401,'INVALID_CREDENTIALS','Используйте отдельный служебный вход');
       if(this.face.engine.enabled)await this.face.clearLogin(u!.id);
-      return this.tokens(u!,randomUUID(),false,ip);
+      return this.tokens(u!,randomUUID(),false,ip,'login');
     }
     if(path==='/auth/refresh'&&method==='POST') {
       const t=(await db.query<any>('SELECT * FROM tokens WHERE hash=$1 AND kind=\'refresh\' FOR UPDATE',[digest(String(b.refresh_token))])).rows[0];
@@ -456,12 +462,12 @@ export class Marketplace {
           }
         }
         await db.query('UPDATE tokens SET revoked=true WHERE family=$1',[t.family]);
-        await this.store.put(this.record('security_event',{id:t.user_id,country:t.country},{event:'session.refresh_replay',session_family:t.family,occurred_at:new Date().toISOString()}));
+        await this.store.put(this.record('security_event',{id:t.user_id,country:t.country},{event:'session.refresh_replay',session_family:t.family,ip,occurred_at:new Date().toISOString()}));
         fail(401,'REFRESH_REPLAY','Сессия отозвана');
       }
       await db.query('UPDATE tokens SET used=true WHERE hash=$1',[t.hash]);
       await db.query('UPDATE tokens SET revoked=true WHERE family=$1 AND kind=\'access\'',[t.family]);
-      const response=await this.tokens((await this.store.get(t.user_id))!,t.family,t.mfa_verified,ip);
+      const response=await this.tokens((await this.store.get(t.user_id))!,t.family,t.mfa_verified,ip,'refresh');
       await db.query('DELETE FROM refresh_receipts WHERE family=$1',[t.family]);
       if(requestId)await db.query('INSERT INTO refresh_receipts(token_hash,family,request_id,response_sealed,expires_at) VALUES($1,$2,$3,$4,$5)',[t.hash,t.family,requestId,await this.files.sealSecret(JSON.stringify(response),'refresh-retry:'+t.hash+':'+requestId),t.expires_at]);
       return response;
@@ -1237,7 +1243,10 @@ export class Marketplace {
     if(path==='/boost-offers'&&method==='GET'){await this.entitlement(a,'search_full');const controls=await paymentControls(this.store),all=(await this.store.all('price_version',a.country)).filter(x=>x.status==='effective'&&x.payload.product_type==='boost'),offers=all.filter(x=>paymentAllowed(controls,x.payload.provider));return {paid_checkout_enabled:all.length?offers.length>0:controls.bcc_enabled||controls.vtb_enabled,items:offers.map(x=>({id:x.id,...x.payload})),placements:(await this.store.all('placement_policy',a.country)).filter(x=>x.status==='effective')};}
     if(path==='/boost-reservations'&&method==='POST'){const selectedPrice=await this.store.get(String(b.price_id));if(selectedPrice?.payload?.provider)await requirePayment(this.store,selectedPrice.payload.provider);const target=await this.object(String(b.target_id),a,undefined,true);await this.entitlement(a,'search_full',target.kind==='contractor');return this.growth.reserveBoost(a.id,a.country,b);}
     if(path==='/boost-purchases/verify'&&method==='POST'&&['vtb','bcc'].includes(b.provider)){const bank=b.provider==='bcc'?this.bcc:this.vtb;if(bank)return bank.byReference(a.user,String(b.transaction_reference));}
-    if(path==='/boost-purchases/verify'&&method==='POST')return this.growth.verifyBoost(a.id,a.country,b);
+    if(path==='/boost-purchases/verify'&&method==='POST'){
+      if(['vtb','bcc'].includes(b.provider)){const bank=b.provider==='bcc'?this.bcc:this.vtb;if(bank){const result=await bank.byReference(a.user,String(b.transaction_reference)),payment=await this.store.get(result.id);if(payment?.benefit!=='boost'||payment.source_id!==b.reservation_id)fail(403,'PURCHASE_OWNERSHIP_MISMATCH','Платёж не соответствует резерву продвижения');return result;}}
+      return this.growth.verifyBoost(a.id,a.country,b);
+    }
     if(path==='/me/boosts'&&method==='GET'){
       if(q.bucket!==undefined&&!['active','history'].includes(q.bucket))fail(400,'VALIDATION_ERROR','Выберите раздел размещений');
       const page=await this.page('boost',a,q,{owner:a.id,boostBucket:q.bucket});return {...page,items:await boostPresentation(this.store,a.country,page.items)};

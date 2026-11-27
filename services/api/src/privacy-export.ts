@@ -4,6 +4,7 @@ import { Store,RecordData } from './store';
 import { PrivateFiles } from './private-files';
 
 const fields:Record<string,string[]>={
+ security_event:['event','auth_action','occurred_at','ip','user_agent','network_location'],
  profile_view:['target_id'],
  user:['display_name','phone','phone_status','city','roles','locale','avatar_id','verification','status'],
  contractor:['title','description','category_id','category_ids','work_modes','languages','service_cities','travel_radius_km','experience_years','availability','price','gallery_ids','status','draft'],

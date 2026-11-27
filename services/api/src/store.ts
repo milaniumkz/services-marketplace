@@ -1,3 +1,4 @@
+import {networkLocation} from './ip-geolocation';
 import {qualifiedVoteSql} from './listing-reactions';
 import {randomUUID} from 'node:crypto';
 import {editableContent} from './content-revisions';
@@ -153,6 +154,7 @@ export class Store {
     return (await this.db.query<{data: RecordData}>('SELECT data FROM records WHERE id=$1 FOR UPDATE', [id])).rows[0]?.data;
   }
   async put(data: RecordData,options:{skipContentCheck?:boolean}={}) {
+    if(data.kind==='security_event'&&data.status!=='retention_minimized'&&!data.network_location)data={...data,network_location:{...networkLocation(data.ip),recorded_at:new Date().toISOString(),...(Date.parse(data.occurred_at??data.created_at)<Date.now()-60000?{historical_lookup:true}:{})}};
     const before=this.transitionHook&&this.transitionKinds?.has(data.kind)?await this.read(data.id):undefined;
     if(data.kind==='contractor'){
       const previous=await this.read(data.id);

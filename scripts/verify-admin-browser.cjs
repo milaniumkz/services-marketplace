@@ -65,6 +65,17 @@ async function main(){
   await page.locator('[data-subscription-category=top100]').getByRole('heading',{name:'Топ-100 отдельно',exact:true}).waitFor();
   assert.ok((await page.locator('#subscription-acquisitions').textContent()).includes('Подписки за рекламу'));
   if(process.env.JOBA_ADMIN_DASHBOARD_ONLY){await page.setViewportSize({width:390,height:844});const periodBounds=await page.locator('#subscription-period').boundingBox();assert.ok(periodBounds.x>=0&&periodBounds.x+periodBounds.width<=390,'Period selector fits mobile viewport');await page.locator('#subscription-period').selectOption('90');await page.waitForFunction(()=>document.querySelector('#dashboard-period')?.value==='90'&&document.querySelector('#subscription-period')?.value==='90');await page.locator('#subscription-acquisitions').getByText('За последние 90 дней',{exact:false}).first().waitFor();await page.locator('#dashboard-period').selectOption('30');await page.waitForFunction(()=>document.querySelector('#dashboard-period')?.value==='30');await page.locator('#subscription-acquisitions').getByRole('heading',{name:'Получение подписок',exact:true}).waitFor();console.log('Admin subscription dashboard and period selection passed');return;}
+  if(process.env.JOBA_ADMIN_LOCATION_ONLY){
+    await marketplace.store.put({id:randomUUID(),kind:'security_event',owner:applicant.user.id,country:'KZ',version:1,created_at:new Date().toISOString(),event:'session.credentials_issued',auth_action:'login',ip:'8.8.8.8',session_family:'must-not-disclose'});
+    await page.goto(frontend+'/#user-security?user_id='+applicant.user.id);
+    await page.getByRole('columnheader',{name:'Местоположение · примерно',exact:true}).waitFor();
+    await page.getByText('Mountain View, California, США · примерно по IP',{exact:true}).waitFor();
+    assert.equal((await page.locator('body').innerText()).includes('8.8.8.8'),false);
+    await page.getByRole('button',{name:'Показать полный IP',exact:true}).first().click();await page.getByText('IP: 8.8.8.8',{exact:false}).waitFor();
+    assert.equal((await page.locator('body').innerText()).includes('must-not-disclose'),false);
+    await page.goto(frontend+'/#security');await page.getByRole('columnheader',{name:'Местоположение · примерно',exact:true}).waitFor();
+    console.log('Admin login-city journal, masked IP and audited disclosure passed');return;
+  }
   if(process.env.JOBA_ADMIN_SUBSCRIPTION_ONLY){
   await page.goto(frontend+'/#user-detail?user_id='+applicant.user.id);
   await page.locator('#activate-subscription button').click();

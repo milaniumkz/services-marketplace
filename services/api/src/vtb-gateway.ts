@@ -19,8 +19,8 @@ export function loadVtbConfig():VtbConfig|undefined {
 export function vtbSandbox(provider:BillingProvider|undefined){return provider instanceof VtbGateway&&provider.environment==='sandbox';}
 export class VtbGateway implements BillingProvider {
  readonly name='vtb';readonly countries:readonly string[];readonly currencies:readonly string[];readonly hostedCheckout=true;
- readonly environment:'sandbox'|'production';readonly origin:string;
- constructor(readonly config:VtbConfig,private store:Store,private transport:typeof fetch=fetch){this.environment=config.environment;this.origin=VTB_ORIGINS[config.environment];this.countries=config.countries??['KZ'];this.currencies=config.currencies??['KZT'];}
+ readonly environment:'sandbox'|'production';readonly origin:string;readonly invoiceCurrencies:readonly string[];
+ constructor(readonly config:VtbConfig,private store:Store,private transport:typeof fetch=fetch){this.environment=config.environment;this.origin=VTB_ORIGINS[config.environment];this.countries=config.countries??['KZ','RU','BY'];this.currencies=config.currencies??['KZT'];this.invoiceCurrencies=this.currencies.includes('KZT')?[...new Set([...this.currencies,'RUB','BYN'])]:this.currencies;}
  async api(method:string,values:Record<string,string|number>){
   try{
    const response=await this.transport(this.origin+'/payment/rest/'+method,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({userName:this.config.user_name,password:this.config.password,language:'ru',...Object.fromEntries(Object.entries(values).map(([k,v])=>[k,String(v)]))}),signal:AbortSignal.timeout(20000),redirect:'error'});

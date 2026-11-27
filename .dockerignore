@@ -13,3 +13,6 @@ docs/design/pdf
 .flutter-sdk
 .pub-cache
 .joba-config
+
+services/api/data/*.mmdb
+services/api/data/*.tmp

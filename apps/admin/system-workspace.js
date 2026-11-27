@@ -1,3 +1,5 @@
+import {networkLocationLabel,networkLocationNotice,networkLocationAttribution,securityEventTime} from './network-location.js';
+import {userEventLabel} from './user-activity.js';
 import {mountServerMetrics} from './server-metrics.js';
 const names={ALL:'Все страны',KZ:'Казахстан',KG:'Кыргызстан',RU:'Россия',BY:'Беларусь'};
 const states={requested:'В очереди',pending:'Ожидание',retry:'Повтор запланирован',processing:'Обработка',scanning:'Проверка файла',sending:'Отправка',sent:'Доставлено',ready:'Готово',completed:'Завершено',failed:'Ошибка',dead_letter:'Требует разбора',clean:'Проверен',rejected:'Отклонён',infected:'Заблокирован',expired:'Срок истёк'};
@@ -47,9 +49,9 @@ export async function systemWorkspace({key,api,esc,card,tablecard,note,metric,ba
  if(key==='security'){
   const params=new URLSearchParams(location.hash.split('?')[1]||'');
   const data=await api('/admin/security-events?'+params);
-  const rows=data.items.map(event=>[esc(date(event.occurred_at||event.created_at)),esc(event.event),esc(event.owner),esc(event.ip_summary),badge(event.mfa?'MFA':'Без MFA',event.mfa?'green':'')]);
+  const rows=data.items.map(event=>[esc(securityEventTime(event.occurred_at||event.created_at)),esc(userEventLabel(event)),esc(event.owner),esc(event.ip_summary),esc(networkLocationLabel(event.network_location)),badge(event.mfa?'MFA':'Без MFA',event.mfa?'green':'')]);
   return {key,id:'A12',title:'События безопасности',subtitle:'Входы и изменение доступа в текущей стране',section:'Система',actions:'<button id="refresh-system">Обновить</button>',
-   body:()=>`<form id="system-filter" class="filters"><input name="q" aria-label="Поиск события" placeholder="ID, аккаунт или тип события" value="${esc(params.get('q'))}"><button>Найти</button><button id="system-reset" type="button">Сбросить</button></form>${tablecard('События безопасности',['Время UTC','Событие','Аккаунт','IP · сокращённо','Второй фактор'],rows,'',`${rows.length} записей`)}${data.meta?.next_cursor?'<button id="system-next">Следующая страница</button>':''}${note('Полные сведения по аккаунту просматриваются по отдельной служебной причине с аудитом.')}`,
+   body:()=>`<form id="system-filter" class="filters"><input name="q" aria-label="Поиск события" placeholder="ID, аккаунт или тип события" value="${esc(params.get('q'))}"><button>Найти</button><button id="system-reset" type="button">Сбросить</button></form>${tablecard('События безопасности',['Время UTC','Событие','Аккаунт','IP · сокращённо','Местоположение · примерно','Второй фактор'],rows,'',`${rows.length} записей`)}${data.meta?.next_cursor?'<button id="system-next">Следующая страница</button>':''}${note(esc(networkLocationNotice)+networkLocationAttribution)}${note('Полные сведения по аккаунту просматриваются по отдельной служебной причине с аудитом.')}`,
    bind(){document.getElementById('refresh-system').onclick=onRefresh;
     document.getElementById('system-filter').onsubmit=event=>{event.preventDefault();location.hash='security?'+new URLSearchParams(new FormData(event.currentTarget));};
     document.getElementById('system-reset').onclick=()=>{location.hash='security';};

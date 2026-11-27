@@ -1,3 +1,4 @@
+import {vtbSettlement,type BankSettlement} from './vtb-fx';
 import {requirePayment} from './payment-controls';
 import {createHash,randomUUID} from 'node:crypto';
 import {HttpException} from '@nestjs/common';
@@ -65,7 +66,8 @@ export async function checkoutOffers(store:Store,commerce:Commerce,user:RecordDa
   const topPeriods=state.periods.filter(s=>periodPlan(s)==='top100'),topEnd=topPeriods.reduce((v,s)=>Math.max(v,Date.parse(s.valid_until)),now.getTime());
   const from=t.offer_kind==='renewal'?new Date(state.paid_until).toISOString():t.offer_kind==='addon'&&topEnd>now.getTime()?new Date(topEnd).toISOString():null;
   const bonusSeconds=t.offer_kind==='downgrade'?Math.floor(t.credit_amount_minor/t.amount_minor*30*86400):0;
-  const id=randomUUID(),offer={...t,...price,calculation_version:2,bonus_seconds:bonusSeconds,id,starts_at:from,valid_until:t.offer_kind==='downgrade'?new Date(now.getTime()+(30*86400+bonusSeconds)*1000).toISOString():t.valid_until??(from?new Date(Date.parse(from)+30*DAY_MS).toISOString():null),duration_days:t.offer_kind==='upgrade'?null:30+bonusSeconds/86400,auto_renew:false};
+  const id=randomUUID(),offer:any={...t,...price,calculation_version:2,bonus_seconds:bonusSeconds,id,starts_at:from,valid_until:t.offer_kind==='downgrade'?new Date(now.getTime()+(30*86400+bonusSeconds)*1000).toISOString():t.valid_until??(from?new Date(Date.parse(from)+30*DAY_MS).toISOString():null),duration_days:t.offer_kind==='upgrade'?null:30+bonusSeconds/86400,auto_renew:false};
+  if(offer.provider==='vtb'&&offer.currency!=='KZT'&&commerce.providers.billing.get('vtb')?.currencies?.includes('KZT'))offer.bank_settlement=await vtbSettlement(store,offer.amount_minor,offer.currency,now);
   const quote:RecordData={id,kind:'checkout_quote',owner:user.id,country:user.country,version:1,created_at:now.toISOString(),status:'available',context,plan:t.plan,offer_kind:t.offer_kind,expires_at:new Date(now.getTime()+5*60000).toISOString(),offer};
   await store.put(quote);offers.push(offer);
  }
@@ -95,7 +97,7 @@ export async function buyTestQuote(store:Store,commerce:Commerce,user:RecordData
  return fulfillQuotedSubscription(store,user,quote,state,offer,now);
 }
 
-export async function fulfillQuotedSubscription(store:Store,user:RecordData,quote:RecordData,state:Awaited<ReturnType<typeof subscriptionState>>,offer:any,now=new Date(),proof?:{provider:string;environment:'sandbox'|'production';transaction_id:string;payment_id:string;created_at:string}){
+export async function fulfillQuotedSubscription(store:Store,user:RecordData,quote:RecordData,state:Awaited<ReturnType<typeof subscriptionState>>,offer:any,now=new Date(),proof?:{provider:string;environment:'sandbox'|'production';transaction_id:string;payment_id:string;created_at:string;settlement?:BankSettlement}){
  await useDiscount(store,user.id,user.country,offer,proof?new Date(proof.created_at):now,proof?.payment_id);
  const seconds=offer.offer_kind==='upgrade'?(Date.parse(offer.valid_until)-now.getTime())/1000:30*86400+(offer.bonus_seconds??0);
  if(seconds<=0)fail('OFFER_CHANGED','Оплаченный период уже закончился');
@@ -110,7 +112,7 @@ export async function fulfillQuotedSubscription(store:Store,user:RecordData,quot
  const created=await createPeriod(store,user,{plan:offer.plan,seconds,from,price:offer.offer_kind==='downgrade'?{...offer,period_total_value_minor:offer.amount_minor+offer.credit_amount_minor,duration_seconds:seconds}:offer,provider:proof?.provider??'test',is_test:!proof||proof.environment==='sandbox',is_upgrade:offer.offer_kind==='upgrade',quote_id:quote.id},now);
  const subscription=proof?await store.put({...created,environment:proof.environment,current_transaction_id:proof.transaction_id,original_transaction_id:proof.payment_id,version:created.version+1}):created;
  const row=(kind:string,data:any):RecordData=>({id:randomUUID(),kind,owner:user.id,country:user.country,version:1,created_at:now.toISOString(),...data});
- await store.put(row('payment_transaction',{provider:proof?.provider??'test',is_test:!proof||proof.environment==='sandbox',environment:proof?.environment??'sandbox',transaction_id:proof?.transaction_id??randomUUID(),original_transaction_id:proof?.payment_id,bank_checkout_id:proof?.payment_id,operation:proof?(offer.offer_kind==='renewal'?'renewal':'purchase'):'test_purchase',state:'active',benefit:'subscription',source_id:subscription.id,amount_minor:offer.amount_minor,original_amount_minor:offer.original_amount_minor,discount_id:offer.discount_id,discount_percent:offer.discount_percent,cash_amount_minor:proof?.environment==='production'?offer.amount_minor:0,currency:offer.currency,accepted_terms:true}));
+ await store.put(row('payment_transaction',{provider:proof?.provider??'test',is_test:!proof||proof.environment==='sandbox',environment:proof?.environment??'sandbox',transaction_id:proof?.transaction_id??randomUUID(),original_transaction_id:proof?.payment_id,bank_checkout_id:proof?.payment_id,operation:proof?(offer.offer_kind==='renewal'?'renewal':'purchase'):'test_purchase',state:'active',benefit:'subscription',source_id:subscription.id,amount_minor:proof?.settlement?.bank_amount_minor??offer.amount_minor,original_amount_minor:proof?.settlement?undefined:offer.original_amount_minor,invoice_original_amount_minor:proof?.settlement?offer.original_amount_minor:undefined,discount_id:offer.discount_id,discount_percent:offer.discount_percent,cash_amount_minor:proof?.environment==='production'?(proof.settlement?.bank_amount_minor??offer.amount_minor):0,currency:proof?.settlement?.bank_currency??offer.currency,...(proof?.settlement?{invoice_amount_minor:offer.amount_minor,invoice_currency:offer.currency,bank_settlement:proof.settlement}:{}),accepted_terms:true}));
  await store.put(row('audit',{actor_id:user.id,action:proof?'billing.'+proof.provider+'_subscription_created':'billing.test_subscription_created',target_id:subscription.id,reason:proof?'Подтверждённая сервером оплата банка':'Подтверждённая пользователем имитация оплаты без списания денег',plan:offer.plan,offer_kind:offer.offer_kind}));
  await store.put({...quote,status:'consumed',subscription_id:subscription.id,version:quote.version+1});
  return {subscription,is_test:!proof||proof.environment==='sandbox',duplicate:false};

@@ -42,3 +42,7 @@ services/face/models/*.onnx
 
 # Hash-verified first-party browser face tracking runtime/model assets.
 apps/mobile/web/face-models/mediapipe-*/
+
+# Public hash-pinned IP database is installed at build time.
+services/api/data/*.mmdb
+services/api/data/*.tmp

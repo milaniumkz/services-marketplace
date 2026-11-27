@@ -11,6 +11,7 @@ export interface BillingProvider {
   readonly name: string;
   readonly countries?: readonly string[];
   readonly currencies?: readonly string[];
+  readonly invoiceCurrencies?: readonly string[];
   readonly hostedCheckout?: boolean;
   readonly environment?: 'sandbox' | 'production';
   requestRefund?(request:{request_id:string;transaction_id:string;user_id:string;country:string;amount_minor:number;currency:string}):Promise<{reference:string}>;
